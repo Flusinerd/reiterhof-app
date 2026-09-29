@@ -27,3 +27,9 @@ Für ein echtes Gerät `expo.extra.apiUrl` in `mobile/app.json` setzen.
 - Abhängigkeiten sind exakt gepinnt, keine `^`- oder `~`-Bereiche.
 - Go-Tests nur mit der Standardbibliothek.
 - Code, Bezeichner und Code-Kommentare sind englisch; nur die UI-Texte sind deutsch.
+
+## CI und Deployment
+
+- CI (`.github/workflows/ci.yml`): Backend (`go vet`, `go test` mit Postgres 16), Mobile (Typecheck, Tests, `npx expo install --check`), Pin-Check und ShellCheck.
+- `just check-pins` prüft lokal, dass alle Abhängigkeiten exakt gepinnt und alle GitHub Actions auf einen Commit-SHA fixiert sind.
+- Deployment auf einen einzelnen Linux-VPS (Netcup): Runbook in [`deploy/README.md`](deploy/README.md), Restore in [`deploy/restore.md`](deploy/restore.md).

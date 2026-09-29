@@ -1,0 +1,32 @@
+[Unit]
+Description=Reiterhof backup (database, uploads, offsite copy)
+After=postgresql.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=reiterhof
+Group=reiterhof
+# api.env provides REITERHOF_DATABASE_URL and REITERHOF_UPLOAD_DIR.
+EnvironmentFile=/etc/reiterhof/api.env
+EnvironmentFile=/etc/reiterhof/backup.env
+Environment=RCLONE_CONFIG=/var/lib/reiterhof/rclone/rclone.conf
+Environment=XDG_CACHE_HOME=/var/lib/reiterhof/rclone/cache
+ExecStart=/usr/local/sbin/reiterhof-backup
+TimeoutStartSec=2h
+Nice=10
+IOSchedulingClass=idle
+
+# --- Sandboxing ---
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/backups/reiterhof /var/lib/reiterhof/rclone
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+UMask=0077
