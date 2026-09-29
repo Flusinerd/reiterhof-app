@@ -1,15 +1,15 @@
-// Package config liest die Konfiguration des Dienstes aus der Umgebung.
+// Package config reads the service configuration from the environment.
 package config
 
 import "os"
 
-// Config bündelt alle Einstellungen des API-Dienstes.
+// Config holds all settings of the API service.
 type Config struct {
-	// Addr ist die Adresse, auf der der HTTP-Server lauscht.
+	// Addr is the address the HTTP server listens on.
 	Addr string
 }
 
-// FromEnv liest die Konfiguration aus Umgebungsvariablen und setzt Standardwerte.
+// FromEnv reads the configuration from environment variables and applies defaults.
 func FromEnv() Config {
 	return Config{
 		Addr: getenv("REITERHOF_ADDR", ":8080"),

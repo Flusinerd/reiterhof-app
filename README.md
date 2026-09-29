@@ -1,7 +1,7 @@
 # Reiterhof
 
-Mobile App für Reiterhöfe: Reitstunden buchen, Pferde und Boxen verwalten,
-Einstaller und Reitschüler informieren.
+Mobile App für die Stallgasse: Anwesenheit, Decken und Wetter, Anfragen an
+Helfer, Pferdeakte und Training.
 
 | Verzeichnis | Inhalt |
 | --- | --- |

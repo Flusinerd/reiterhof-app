@@ -1,28 +1,28 @@
-# Reiterhof — Aufgaben für die lokale Entwicklung.
-# Übersicht: `just` oder `just --list`
+# Reiterhof — local development tasks.
+# Overview: `just` or `just --list`
 
 _default:
   @just --list
 
-# Einmalige Einrichtung nach dem Klonen
+# One-time setup after cloning
 setup:
   go work sync
   cd mobile && npm ci
 
-# API lokal starten (Port 8080)
+# Start the API locally (port 8080)
 api:
   cd backend && go run ./cmd/api
 
-# Expo-Entwicklungsserver starten
+# Start the Expo dev server
 app:
   cd mobile && npm start
 
-# Linter und Typprüfung
+# Linters and type checks
 lint:
   cd backend && go vet ./...
   cd mobile && npm run typecheck
 
-# Alle Tests
+# All tests
 test:
   cd backend && go test ./...
   cd mobile && npm test

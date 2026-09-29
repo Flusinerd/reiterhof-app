@@ -1,10 +1,10 @@
 import { StyleSheet, Text, View } from "react-native";
 
-export default function Mitteilungen() {
+export default function Requests() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Mitteilungen</Text>
-      <Text>Mitteilungen des Hofs folgen in Meilenstein 4.</Text>
+      <Text style={styles.title}>Anfragen</Text>
+      <Text>Anfragen an die Stallgasse folgen in Meilenstein 4.</Text>
     </View>
   );
 }

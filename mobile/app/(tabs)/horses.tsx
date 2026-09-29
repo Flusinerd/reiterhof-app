@@ -1,10 +1,10 @@
 import { StyleSheet, Text, View } from "react-native";
 
-export default function Pferde() {
+export default function Horses() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Pferde</Text>
-      <Text>Pferde und Boxen folgen in Meilenstein 2.</Text>
+      <Text>Pferdeakte und Notfallkarte folgen in Meilenstein 5.</Text>
     </View>
   );
 }

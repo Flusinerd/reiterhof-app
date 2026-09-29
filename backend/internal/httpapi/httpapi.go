@@ -1,4 +1,4 @@
-// Package httpapi enthält die HTTP-Routen der Cloud-API.
+// Package httpapi contains the HTTP routes of the cloud API.
 package httpapi
 
 import (
@@ -6,7 +6,7 @@ import (
 	"net/http"
 )
 
-// NewHandler baut den Router. Er nutzt nur net/http, kein Framework.
+// NewHandler builds the router. It uses net/http only, no framework.
 func NewHandler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", healthz)

@@ -1,4 +1,4 @@
-// Command api startet die Cloud-API des Reiterhofs.
+// Command api starts the Reiterhof cloud API.
 package main
 
 import (
@@ -29,9 +29,9 @@ func main() {
 	defer stop()
 
 	go func() {
-		log.Info("API startet", "addr", cfg.Addr)
+		log.Info("API starting", "addr", cfg.Addr)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Error("Server beendet", "err", err)
+			log.Error("server stopped unexpectedly", "err", err)
 			stop()
 		}
 	}()
@@ -40,8 +40,8 @@ func main() {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		log.Error("Shutdown fehlgeschlagen", "err", err)
+		log.Error("shutdown failed", "err", err)
 		os.Exit(1)
 	}
-	log.Info("API gestoppt")
+	log.Info("API stopped")
 }

@@ -3,13 +3,13 @@ import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
 import { fetchHealth } from "../../lib/api";
 
-export default function Stunden() {
+export default function Home() {
   const health = useQuery({ queryKey: ["health"], queryFn: fetchHealth });
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Reitstunden</Text>
-      <Text>Der Stundenplan folgt in Meilenstein 3.</Text>
+      <Text style={styles.title}>Start</Text>
+      <Text>Wetter und Deckenempfehlung folgen in Meilenstein 3.</Text>
       {health.isPending ? (
         <ActivityIndicator />
       ) : (
