@@ -7,12 +7,15 @@ import "os"
 type Config struct {
 	// Addr is the address the HTTP server listens on.
 	Addr string
+	// DatabaseURL is the Postgres connection string (REITERHOF_DATABASE_URL).
+	DatabaseURL string
 }
 
 // FromEnv reads the configuration from environment variables and applies defaults.
 func FromEnv() Config {
 	return Config{
-		Addr: getenv("REITERHOF_ADDR", ":8080"),
+		Addr:        getenv("REITERHOF_ADDR", ":8080"),
+		DatabaseURL: getenv("REITERHOF_DATABASE_URL", "postgres://postgres:postgres@localhost:5432/reiterhof?sslmode=disable"),
 	}
 }
 
