@@ -1,0 +1,39 @@
+# Caddy configuration for the Reiterhof API.
+# The domain comes from the environment (systemd drop-in, /etc/reiterhof/caddy.env).
+# Caddy obtains and renews the Let's Encrypt certificate automatically; ports
+# 80 and 443 must be reachable and the DNS record must point to this server.
+
+{$REITERHOF_DOMAIN} {
+	# Compress text responses (JSON).
+	encode zstd gzip
+
+	# Limit request bodies. 25 MB is enough for a full-resolution phone photo;
+	# larger uploads are rejected with 413 before they reach the API.
+	request_body {
+		max_size 25MB
+	}
+
+	header {
+		# Browsers only: force HTTPS for a year (the API is called by a native app,
+		# but the domain may be opened in a browser).
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		# The API serves JSON only, so no content is allowed to load or embed.
+		Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		Cross-Origin-Resource-Policy "same-site"
+		-Server
+	}
+
+	reverse_proxy 127.0.0.1:8080 {
+		# Take the backend out of rotation while /healthz fails.
+		health_uri /healthz
+		health_interval 15s
+		health_timeout 3s
+	}
+
+	# No access log on purpose: it would store client IP addresses (personal
+	# data under GDPR). Errors still go to the journal (journalctl -u caddy).
+}

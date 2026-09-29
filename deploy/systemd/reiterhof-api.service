@@ -1,0 +1,54 @@
+[Unit]
+Description=Reiterhof API
+Documentation=https://github.com/Flusinerd/reiterhof-app
+After=network-online.target postgresql.service
+Wants=network-online.target
+Requires=postgresql.service
+ConditionPathExists=/opt/reiterhof/api
+# Stop retrying after 5 failed starts within 2 minutes (see `systemctl reset-failed`).
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Service]
+Type=exec
+User=reiterhof
+Group=reiterhof
+WorkingDirectory=/var/lib/reiterhof
+EnvironmentFile=/etc/reiterhof/api.env
+ExecStart=/opt/reiterhof/api
+Restart=on-failure
+RestartSec=2
+TimeoutStopSec=15
+# The Go runtime and the API share 2 GB with PostgreSQL and Caddy.
+MemoryMax=768M
+
+# --- Sandboxing ---
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/reiterhof/uploads
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+ProtectProc=invisible
+ProcSubset=pid
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target
