@@ -6,3 +6,4 @@
 - Code, Bezeichner, Code-Kommentare und Commit-Betreffs sind englisch; nur die UI-Texte sind deutsch. Conventional Commits.
 - `just lint` und `just test` müssen grün sein.
 - Planung und Tickets: Linear-Projekt „Reiterhof App“ (P-JAN-1).
+- Linear immer mitziehen: Bei jeder Änderung das zugehörige Ticket aktualisieren (Status, Beschreibung, Kommentar). Neue Arbeit ohne Ticket bekommt ein neues Ticket im passenden Meilenstein; Tickets, die durch eine Änderung überholt sind, anpassen oder schließen.
