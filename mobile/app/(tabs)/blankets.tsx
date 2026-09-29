@@ -1,15 +1,17 @@
-import { StyleSheet, Text, View } from "react-native";
+import { Card, Hero, Screen, SectionLabel, Text } from "@/components/ui";
 
 export default function Blankets() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Decken</Text>
-      <Text>Deckenplan und Tagesstatus folgen in Meilenstein 3.</Text>
-    </View>
+    <Screen>
+      <Hero
+        eyebrow="Reiterhof"
+        title="Decken"
+        description="Deckenplan und Tagesstatus folgen in Meilenstein 3."
+      />
+      <SectionLabel>Übersicht</SectionLabel>
+      <Card>
+        <Text variant="secondary">Noch keine Einträge.</Text>
+      </Card>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
-  title: { fontSize: 22, fontWeight: "600" },
-});

@@ -1,15 +1,17 @@
-import { StyleSheet, Text, View } from "react-native";
+import { Card, Hero, Screen, SectionLabel, Text } from "@/components/ui";
 
 export default function Horses() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Pferde</Text>
-      <Text>Pferdeakte und Notfallkarte folgen in Meilenstein 5.</Text>
-    </View>
+    <Screen>
+      <Hero
+        eyebrow="Reiterhof"
+        title="Pferde"
+        description="Pferdeakte und Notfallkarte folgen in Meilenstein 5."
+      />
+      <SectionLabel>Stall</SectionLabel>
+      <Card>
+        <Text variant="secondary">Noch keine Pferde.</Text>
+      </Card>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
-  title: { fontSize: 22, fontWeight: "600" },
-});

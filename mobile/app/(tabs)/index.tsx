@@ -1,27 +1,30 @@
 import { useQuery } from "@tanstack/react-query";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator } from "react-native";
 
-import { fetchHealth } from "../../lib/api";
+import { Card, Hero, Screen, SectionLabel, Text } from "@/components/ui";
+import { fetchHealth } from "@/lib/api";
 
 export default function Home() {
   const health = useQuery({ queryKey: ["health"], queryFn: fetchHealth });
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Start</Text>
-      <Text>Wetter und Deckenempfehlung folgen in Meilenstein 3.</Text>
-      {health.isPending ? (
-        <ActivityIndicator />
-      ) : (
-        <Text>
-          API: {health.isError ? "nicht erreichbar" : health.data.status}
-        </Text>
-      )}
-    </View>
+    <Screen>
+      <Hero
+        eyebrow="Reiterhof"
+        title="Start"
+        description="Wetter und Deckenempfehlung folgen in Meilenstein 3."
+      />
+      <SectionLabel>Verbindung</SectionLabel>
+      <Card className="flex-row items-center justify-between">
+        <Text variant="body">Server</Text>
+        {health.isPending ? (
+          <ActivityIndicator />
+        ) : (
+          <Text variant="bodyStrong" tone={health.isError ? "danger" : "primary"}>
+            {health.isError ? "nicht erreichbar" : health.data.status}
+          </Text>
+        )}
+      </Card>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
-  title: { fontSize: 22, fontWeight: "600" },
-});
