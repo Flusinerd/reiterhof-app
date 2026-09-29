@@ -1,15 +1,17 @@
-import { StyleSheet, Text, View } from "react-native";
+import { Card, Hero, Screen, SectionLabel, Text } from "@/components/ui";
 
 export default function Requests() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Anfragen</Text>
-      <Text>Anfragen an die Stallgasse folgen in Meilenstein 4.</Text>
-    </View>
+    <Screen>
+      <Hero
+        eyebrow="Reiterhof"
+        title="Anfragen"
+        description="Anfragen an die Stallgasse folgen in Meilenstein 4."
+      />
+      <SectionLabel>Offen</SectionLabel>
+      <Card>
+        <Text variant="secondary">Noch keine Anfragen.</Text>
+      </Card>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
-  title: { fontSize: 22, fontWeight: "600" },
-});

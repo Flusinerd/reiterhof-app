@@ -26,4 +26,5 @@ Für ein echtes Gerät `expo.extra.apiUrl` in `mobile/app.json` setzen.
 
 - Abhängigkeiten sind exakt gepinnt, keine `^`- oder `~`-Bereiche.
 - Go-Tests nur mit der Standardbibliothek.
+- UI der App: Komponenten aus `mobile/components/ui/`, siehe [docs/design-system.md](docs/design-system.md).
 - Code, Bezeichner und Code-Kommentare sind englisch; nur die UI-Texte sind deutsch.
