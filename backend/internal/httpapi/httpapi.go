@@ -1,24 +1,51 @@
-// Package httpapi contains the HTTP routes of the cloud API.
+// Package httpapi assembles the HTTP router of the cloud API.
 package httpapi
 
 import (
-	"encoding/json"
+	"context"
 	"net/http"
+	"time"
+
+	"github.com/Flusinerd/reiterhof-app/backend/internal/httpx"
 )
 
+// Deps are the dependencies handed to every domain package (see httpx.Deps).
+type Deps = httpx.Deps
+
+// registrations lists the Register function of every domain package.
+// Add one line per domain, e.g. horses.Register.
+var registrations = []func(mux *http.ServeMux, deps Deps){
+	// horses.Register,
+}
+
 // NewHandler builds the router. It uses net/http only, no framework.
-func NewHandler() http.Handler {
+func NewHandler(deps Deps) http.Handler {
+	if deps.Now == nil {
+		deps.Now = time.Now
+	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", healthz)
+	mux.HandleFunc("GET /readyz", readyz(deps))
+	for _, register := range registrations {
+		register(mux, deps)
+	}
 	return mux
 }
 
+// healthz reports that the process is up; it does not touch the database.
 func healthz(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	httpx.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
-func writeJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(v)
+// readyz reports whether the API can serve requests, i.e. the database answers.
+func readyz(deps Deps) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		defer cancel()
+		if deps.Pool == nil || deps.Pool.Ping(ctx) != nil {
+			httpx.WriteError(w, http.StatusServiceUnavailable, "database_unavailable", "database is not reachable")
+			return
+		}
+		httpx.WriteJSON(w, http.StatusOK, map[string]string{"status": "ready"})
+	}
 }

@@ -10,14 +10,21 @@ Helfer, Pferdeakte und Training.
 
 ## Loslegen
 
-Voraussetzungen: Go 1.26, Node 22, [`just`](https://just.systems).
+Voraussetzungen: Go 1.26, Node 22, [`just`](https://just.systems), Postgres 16.
 
 ```sh
-just setup   # Abhängigkeiten installieren
-just api     # API auf :8080 starten
-just app     # Expo-Entwicklungsserver
-just test    # Tests
+just setup    # Abhängigkeiten installieren
+just db-reset  # lokale DB "reiterhof" anlegen, migrieren, Beispieldaten laden
+just api      # API auf :8080 starten (migriert beim Start)
+just app      # Expo-Entwicklungsserver
+just test     # Tests
 ```
+
+Die API liest `REITERHOF_DATABASE_URL` (Standard:
+`postgres://postgres:postgres@localhost:5432/reiterhof?sslmode=disable`).
+Datenbanktests laufen nur mit `REITERHOF_TEST_DATABASE_URL` (Admin-URL, z. B.
+`postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable`), sonst werden sie übersprungen.
+Aufbau des Backends, Migrationen und Konventionen: [`docs/architecture.md`](docs/architecture.md).
 
 Die App erwartet die API unter `http://10.0.2.2:8080` (Android-Emulator).
 Für ein echtes Gerät `expo.extra.apiUrl` in `mobile/app.json` setzen.

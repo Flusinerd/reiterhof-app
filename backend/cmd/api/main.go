@@ -12,21 +12,34 @@ import (
 	"time"
 
 	"github.com/Flusinerd/reiterhof-app/backend/internal/config"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/db"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/httpapi"
+	"github.com/Flusinerd/reiterhof-app/backend/migrations"
 )
 
 func main() {
 	log := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	cfg := config.FromEnv()
 
-	srv := &http.Server{
-		Addr:              cfg.Addr,
-		Handler:           httpapi.NewHandler(),
-		ReadHeaderTimeout: 5 * time.Second,
-	}
-
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	pool, err := db.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		log.Error("database unavailable", "err", err)
+		os.Exit(1)
+	}
+	defer pool.Close()
+	if err := db.Migrate(ctx, pool, migrations.FS); err != nil {
+		log.Error("migrations failed", "err", err)
+		os.Exit(1)
+	}
+
+	srv := &http.Server{
+		Addr:              cfg.Addr,
+		Handler:           httpapi.NewHandler(httpapi.Deps{Pool: pool, Config: cfg, Log: log, Now: time.Now}),
+		ReadHeaderTimeout: 5 * time.Second,
+	}
 
 	go func() {
 		log.Info("API starting", "addr", cfg.Addr)
