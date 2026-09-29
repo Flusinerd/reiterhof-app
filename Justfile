@@ -26,3 +26,11 @@ lint:
 test:
   cd backend && go test ./...
   cd mobile && npm test
+
+# Fail on unpinned package.json versions and GitHub Actions not pinned to a SHA
+check-pins:
+  scripts/check-pins.sh
+
+# Lint the shell scripts (requires shellcheck)
+lint-scripts:
+  shellcheck scripts/*.sh deploy/*.sh
