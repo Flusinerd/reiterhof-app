@@ -237,6 +237,108 @@ func TestPlanWeekFocusExerciseAndPromptData(t *testing.T) {
 	}
 }
 
+func TestPlanSingleDay(t *testing.T) {
+	e := planWeekFixture(t)
+	wed, thu, fri, sat := "2026-03-25", "2026-03-26", "2026-03-27", "2026-03-28"
+	at := func(day string) string { return planPath + "?start=2026-03-23&day=" + day }
+
+	// Rules: only the asked day is planned, the rejected activities are not picked.
+	got := e.call(seed.UserJan, http.MethodPost, at(wed), `{"exclude":["hall"]}`, http.StatusOK)
+	days := planDays(got)
+	if len(list(got["days"])) != 1 || days[wed] == nil || got["ai_status"] != "not_configured" || got["source"] != "rules" {
+		t.Fatalf("plan = %v", got)
+	}
+	if days[wed]["activity"] == "hall" {
+		t.Errorf("wednesday = %v", days[wed])
+	}
+	got = e.call(seed.UserJan, http.MethodPost, at(wed), `{"exclude":["hall","hack"]}`, http.StatusOK)
+	if d := planDays(got)[wed]; d["activity"] != "rest" || d["reason"] != "Keine andere Aktivität passt heute." || d["minutes"] != float64(0) {
+		t.Errorf("everything rejected: %v", d)
+	}
+	// An empty body, {} and a draft or exclude without day keep planning the whole week.
+	for _, body := range []string{"", `{}`, `{"draft":[{"date":"2026-03-27","activity":"hall","minutes":60}],"exclude":["hall"]}`} {
+		if got := e.call(seed.UserJan, http.MethodPost, planPath, body, http.StatusOK); len(list(got["days"])) != 3 {
+			t.Errorf("body %q: days = %v", body, got["days"])
+		}
+		if got := e.call(seed.UserJan, http.MethodPost, at(wed), body, http.StatusOK); len(list(got["days"])) != 1 {
+			t.Errorf("body %q with day: days = %v", body, got["days"])
+		}
+	}
+
+	// Model: the draft of the other open days and the rejected activity reach the prompt;
+	// the day Mia planned keeps its activity without minutes.
+	e.grantAI(seed.UserJan)
+	chat := &fakeChat{answer: `{"days":[
+		{"day":"mi","activity":"hall","minutes":30,"reason":"Nach dem Ausritt gestern passt die Halle."},
+		{"day":"fr","activity":"hall","minutes":30,"reason":"Nicht gefragt."}]}`}
+	e.withChat(chat)
+	got = e.call(seed.UserJan, http.MethodPost, at(wed),
+		`{"draft":[{"date":"`+fri+`","activity":"hall","minutes":60},{"date":"`+sat+`","activity":"rest","minutes":0},{"date":"`+thu+`","activity":"hall","minutes":30}],"exclude":["hack"]}`,
+		http.StatusOK)
+	if got["ai_status"] != "used" || len(list(got["days"])) != 1 || chat.calls != 1 {
+		t.Fatalf("plan = %v, calls %d", got, chat.calls)
+	}
+	if d := planDays(got)[wed]; d["source"] != "ai" || d["activity"] != "hall" {
+		t.Errorf("wednesday = %v", d)
+	}
+	if n := strings.Count(chat.user, `"open":true`); n != 1 {
+		t.Errorf("open days in the prompt = %d: %s", n, chat.user)
+	}
+	for _, want := range []string{`"planned":"hall","planned_minutes":60`, `"rest":true`, `"avoid":["hack"]`, `"planned":"hack"`} {
+		if !strings.Contains(chat.user, want) {
+			t.Errorf("prompt lacks %s: %s", want, chat.user)
+		}
+	}
+	// Thursday is Mia's: the draft cannot change it.
+	if strings.Contains(chat.user, `"planned_minutes":30`) {
+		t.Errorf("the draft overrode a closed day: %s", chat.user)
+	}
+	// The model's proposal for a rejected activity is replaced by the rules.
+	chat.answer = `{"days":[{"day":"mi","activity":"hall","minutes":30,"reason":"Halle"}]}`
+	got = e.call(seed.UserJan, http.MethodPost, at(wed), `{"exclude":["hall"]}`, http.StatusOK)
+	if d := planDays(got)[wed]; d["source"] != "rules" || d["replaced"] != "Vom Besitzer abgelehnt." || d["activity"] == "hall" {
+		t.Errorf("rejected proposal = %v", d)
+	}
+
+	// Mia's planned day may be planned again; she stays entered.
+	got = e.call(seed.UserJan, http.MethodPost, at(thu), `{}`, http.StatusOK)
+	if d := planDays(got)[thu]; len(list(got["days"])) != 1 || d == nil || obj(d["user"])["name"] != "Mia" {
+		t.Errorf("thursday = %v", got["days"])
+	}
+
+	// Days that cannot be planned: over, done, the rest day after the show, outside the week.
+	for _, day := range []string{"2026-03-24", "2026-03-23", "2026-03-29", "2026-04-02", "2026-03-16"} {
+		out := e.call(seed.UserJan, http.MethodPost, at(day), `{}`, http.StatusBadRequest)
+		if er := obj(out["error"]); er["code"] != "validation_failed" || er["message"] != "day cannot be planned" {
+			t.Errorf("%s: error = %v", day, out)
+		}
+	}
+	e.errCode(seed.UserJan, http.MethodPost, at("morgen"), `{}`, http.StatusBadRequest)
+
+	// Invalid drafts and exclusions.
+	var eight []string
+	for i := 0; i < 8; i++ {
+		eight = append(eight, `{"date":"`+fri+`","activity":"hall","minutes":30}`)
+	}
+	for _, body := range []string{
+		`{"draft":[{"date":"` + fri + `","activity":"hall","minutes":999}]}`,
+		`{"draft":[{"date":"` + fri + `","activity":"hall","minutes":-1}]}`,
+		`{"draft":[{"date":"2026-04-03","activity":"hall","minutes":30}]}`,
+		`{"draft":[{"date":"morgen","activity":"hall","minutes":30}]}`,
+		`{"draft":[{"date":"` + fri + `","activity":"swimming","minutes":30}]}`,
+		`{"draft":[` + strings.Join(eight, ",") + `]}`,
+		`{"exclude":["swimming"]}`,
+	} {
+		if code := e.errCode(seed.UserJan, http.MethodPost, at(wed), body, http.StatusBadRequest); code != "validation_failed" {
+			t.Errorf("%s: code = %q", body, code)
+		}
+	}
+	e.errCode(seed.UserJan, http.MethodPost, at(wed), `{"unknown":1}`, http.StatusBadRequest)
+
+	// Only owners and admins plan.
+	e.errCode(seed.UserMia, http.MethodPost, at(wed), `{}`, http.StatusForbidden)
+}
+
 func TestWeekSlotFocusAndExerciseSurviveAClaim(t *testing.T) {
 	e := newEnv(t)
 	day := "/api/v1/horses/" + luna + "/week/2026-03-26"
@@ -259,6 +361,27 @@ func TestWeekSlotFocusAndExerciseSurviveAClaim(t *testing.T) {
 	if obj(thu["user"])["name"] != "Mia" || thu["activity"] != "hall" || thu["focus"] != "Übergänge Schritt-Trab" ||
 		obj(thu["exercise"])["title"] != "Übergänge" || str(thu["note"]) != "KI-Vorschlag: 45 Min." {
 		t.Fatalf("claimed thursday = %v", thu)
+	}
+	// Missing keys and null keep focus and exercise, "" clears each of them on its own.
+	got = e.call(seed.UserJan, http.MethodPut, day, `{"status":"planned","user_id":"","activity":"arena","focus":null,"exercise_id":null}`, http.StatusOK)
+	if thu = weekDays(got)[3]; thu["user"] != nil || thu["activity"] != "arena" || thu["focus"] != "Übergänge Schritt-Trab" || obj(thu["exercise"])["id"] != exID {
+		t.Fatalf("null keeps: %v", thu)
+	}
+	got = e.call(seed.UserJan, http.MethodPut, day, `{"status":"planned","user_id":"","focus":""}`, http.StatusOK)
+	if thu = weekDays(got)[3]; thu["focus"] != nil || obj(thu["exercise"])["id"] != exID || thu["activity"] != "arena" {
+		t.Fatalf("focus cleared: %v", thu)
+	}
+	got = e.call(seed.UserJan, http.MethodPut, day, `{"status":"planned","user_id":"","focus":"Dehnungshaltung"}`, http.StatusOK)
+	if thu = weekDays(got)[3]; thu["focus"] != "Dehnungshaltung" || obj(thu["exercise"])["id"] != exID {
+		t.Fatalf("focus set: %v", thu)
+	}
+	got = e.call(seed.UserJan, http.MethodPut, day, `{"status":"planned","user_id":"","exercise_id":""}`, http.StatusOK)
+	if thu = weekDays(got)[3]; thu["exercise"] != nil || thu["focus"] != "Dehnungshaltung" || thu["activity"] != "arena" {
+		t.Fatalf("exercise cleared: %v", thu)
+	}
+	got = e.call(seed.UserJan, http.MethodPut, day, `{"status":"planned","user_id":"","focus":"","exercise_id":"`+exID+`"}`, http.StatusOK)
+	if thu = weekDays(got)[3]; thu["focus"] != nil || obj(thu["exercise"])["id"] != exID {
+		t.Fatalf("focus cleared and exercise set in one request: %v", thu)
 	}
 	// A rest day has no activity, focus or exercise.
 	got = e.call(seed.UserJan, http.MethodPut, day, `{"status":"rest"}`, http.StatusOK)

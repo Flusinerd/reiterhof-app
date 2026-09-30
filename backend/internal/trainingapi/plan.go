@@ -1,8 +1,10 @@
 package trainingapi
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"time"
 
@@ -72,9 +74,56 @@ type planOut struct {
 	Days      []planDayOut `json:"days"`
 }
 
-// planWeek: POST /api/v1/horses/{id}/week/plan?start=YYYY-MM-DD. Owners and admins get a plan
-// for the open days of the week (JAN-89). Nothing is stored; the app applies the days it
-// keeps with PUT /week/{day}.
+// Limits of a single-day request (JAN-95).
+const (
+	maxDraftDays    = 7
+	maxDraftMinutes = 600
+)
+
+// planRequest is the optional body of planWeek. Both fields apply only together with the
+// day query parameter.
+type planRequest struct {
+	// Draft is the plan the owner currently sees for the other days of the week; it is the
+	// context for the re-planned day.
+	Draft []planDraftDay `json:"draft"`
+	// Exclude lists activities the owner rejected for the re-planned day.
+	Exclude []string `json:"exclude"`
+}
+
+// planDraftDay is one day of the draft: an activity with its minutes, or "rest".
+type planDraftDay struct {
+	Date     string `json:"date"`
+	Activity string `json:"activity"`
+	Minutes  int    `json:"minutes"`
+}
+
+// readOptionalJSON decodes the request body into v like httpx.ReadJSON, but accepts an empty
+// body (older clients send none) as "nothing set".
+func readOptionalJSON(w http.ResponseWriter, r *http.Request, v any) bool {
+	raw, err := io.ReadAll(http.MaxBytesReader(w, r.Body, httpx.MaxBodyBytes))
+	if err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			httpx.WriteError(w, http.StatusRequestEntityTooLarge, "body_too_large", "request body is too large")
+		} else {
+			httpx.WriteError(w, http.StatusBadRequest, "invalid_json", "invalid request body: "+err.Error())
+		}
+		return false
+	}
+	if len(bytes.TrimSpace(raw)) == 0 {
+		return true
+	}
+	r.Body = io.NopCloser(bytes.NewReader(raw))
+	return httpx.ReadJSON(w, r, v)
+}
+
+// planWeek: POST /api/v1/horses/{id}/week/plan?start=YYYY-MM-DD[&day=YYYY-MM-DD]. Owners and
+// admins get a plan for the open days of the week (JAN-89). Nothing is stored; the app applies
+// the days it keeps with PUT /week/{day}.
+//
+// With day only that day is planned (JAN-95), also when somebody already planned it; the
+// other days are context. The optional body carries the draft the owner sees for them and the
+// activities rejected for the day (planRequest).
 //
 // The language model is asked only when it is configured and the owner of the horse has
 // granted the ai_training consent and stated to be 16 or older (Mistral's terms forbid personal
@@ -103,10 +152,29 @@ func (h *handler) planWeek(w http.ResponseWriter, r *http.Request) {
 		}
 		start = mondayOf(d)
 	}
+	var single time.Time // zero: plan every open day
+	if s := r.URL.Query().Get("day"); s != "" {
+		d, err := time.Parse(dateLayout, s)
+		if err != nil {
+			invalid(w, "day must be YYYY-MM-DD")
+			return
+		}
+		single = d
+	}
+	var req planRequest
+	if !readOptionalJSON(w, r, &req) {
+		return
+	}
 	in, week, err := h.planInput(ctx, a, start, today, loc)
 	if err != nil {
 		h.fail(w, r, err)
 		return
+	}
+	if !single.IsZero() {
+		if err := applyDayOverrides(&in, week, today, single, req); err != nil {
+			invalid(w, err.Error())
+			return
+		}
 	}
 	var ownerID *string
 	if err := h.deps.Pool.QueryRow(ctx, `SELECT owner_id::text FROM horses WHERE id = $1`, a.horseID).Scan(&ownerID); err != nil {
@@ -174,6 +242,78 @@ func (h *handler) planWeek(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	httpx.WriteJSON(w, http.StatusOK, out)
+}
+
+// applyDayOverrides turns the input of planInput into the input for re-planning one day: that
+// day is the only open one (a planned or claimed day is opened, its user stays in the
+// response), the draft of the other open days becomes context (a planned activity with its
+// minutes, or a rest day) and the rejected activities go to the day. The day must be in the
+// week, not over, not done and not the fixed rest day after a show. Every error is a
+// validation error with a message for the client.
+func applyDayOverrides(in *weekplan.Input, week weekOut, today, day time.Time, req planRequest) error {
+	idx := -1
+	for i, d := range in.Days {
+		if d.Date.Equal(day) {
+			idx = i
+		}
+	}
+	if idx < 0 {
+		return errors.New("day cannot be planned")
+	}
+	if wd := week.Days[idx]; day.Before(today) || wd.Status == dayDone || wd.Status == dayEmpty ||
+		(wd.Status == dayRest && wd.RestReason == "after_show") {
+		return errors.New("day cannot be planned")
+	}
+
+	if len(req.Draft) > maxDraftDays {
+		return errors.New("draft has too many days (max 7)")
+	}
+	draft := map[string]planDraftDay{}
+	for _, d := range req.Draft {
+		date, err := time.Parse(dateLayout, d.Date)
+		if err != nil {
+			return errors.New("draft date must be YYYY-MM-DD")
+		}
+		inWeek := false
+		for _, wd := range in.Days {
+			inWeek = inWeek || wd.Date.Equal(date)
+		}
+		if !inWeek {
+			return errors.New("draft date is outside the week")
+		}
+		if d.Activity != "rest" && !training.Activity(d.Activity).Valid() {
+			return errors.New("draft activity is unknown")
+		}
+		if d.Minutes < 0 || d.Minutes > maxDraftMinutes {
+			return errors.New("draft minutes must be between 0 and 600")
+		}
+		draft[date.Format(dateLayout)] = d
+	}
+	var exclude []training.Activity
+	for _, s := range req.Exclude {
+		if !training.Activity(s).Valid() {
+			return errors.New("exclude activity is unknown")
+		}
+		exclude = append(exclude, training.Activity(s))
+	}
+
+	for i := range in.Days {
+		d := &in.Days[i]
+		if i == idx {
+			d.Open, d.Planned, d.Minutes, d.Rest, d.Exclude = true, "", 0, false, exclude
+			continue
+		}
+		wasOpen := d.Open
+		d.Open = false
+		if e, ok := draft[d.Date.Format(dateLayout)]; ok && wasOpen {
+			if e.Activity == "rest" {
+				d.Rest = true
+			} else {
+				d.Planned, d.Minutes = training.Activity(e.Activity), e.Minutes
+			}
+		}
+	}
+	return nil
 }
 
 // askModel asks the language model and checks its answer. On failure it returns nil entries

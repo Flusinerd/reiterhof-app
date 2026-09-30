@@ -67,7 +67,7 @@ INPUT (JSON)
 - shows_in_days: competitions relative to today (0 = today, negative = past).
 - today, tomorrow: rain, night_min_c (coldest temperature of the night) and, for today, the ground (dry, wet, muddy, frozen).
 - exercises: candidates from the exercise library: key, library (dressage, jumping, groundwork, lunge), level, German title, tags (aims of the training scale), mastered (went solid before), next (key of the follow-up exercise).
-- days: the week. Plan every day with "open": true, and only those. Closed days are context: planned = an activity someone already planned, rest = rest day, done = a session took place. reha = the unit the vet's rehabilitation plan allows that day.
+- days: the week. Plan every day with "open": true, and only those. Closed days are context: planned = an activity someone already planned, planned_minutes = its duration, rest = rest day, done = a session took place. reha = the unit the vet's rehabilitation plan allows that day. avoid (open days only) = activities the owner rejected for that day; never propose them.
 
 ACTIVITIES (code = German name: meaning; intensity; sensible duration)
 ` + acts.String() + `
@@ -150,14 +150,16 @@ func Prompt(in Input) string {
 		MaxMinutes int               `json:"max_minutes,omitempty"`
 	}
 	type dayIn struct {
-		Day     string            `json:"day"`
-		InDays  int               `json:"in_days"`
-		Rule    string            `json:"rule,omitempty"`
-		Open    bool              `json:"open"`
-		Done    bool              `json:"done,omitempty"`
-		Planned training.Activity `json:"planned,omitempty"`
-		Rest    bool              `json:"rest,omitempty"`
-		Reha    *rehaIn           `json:"reha,omitempty"`
+		Day            string              `json:"day"`
+		InDays         int                 `json:"in_days"`
+		Rule           string              `json:"rule,omitempty"`
+		Open           bool                `json:"open"`
+		Done           bool                `json:"done,omitempty"`
+		Planned        training.Activity   `json:"planned,omitempty"`
+		PlannedMinutes int                 `json:"planned_minutes,omitempty"`
+		Rest           bool                `json:"rest,omitempty"`
+		Reha           *rehaIn             `json:"reha,omitempty"`
+		Avoid          []training.Activity `json:"avoid,omitempty"`
 	}
 	type weatherIn struct {
 		Rain      *bool    `json:"rain,omitempty"`
@@ -283,6 +285,15 @@ func Prompt(in Input) string {
 			di.Done = done[day.Format(dateLayout)]
 			if d.Planned.Valid() {
 				di.Planned = d.Planned
+				if d.Minutes > 0 {
+					di.PlannedMinutes = d.Minutes
+				}
+			}
+		} else {
+			for _, a := range d.Exclude {
+				if a.Valid() {
+					di.Avoid = append(di.Avoid, a)
+				}
 			}
 		}
 		if p := d.Reha; p != nil {

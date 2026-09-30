@@ -401,3 +401,115 @@ func TestRulesFollowTheOwnersStructure(t *testing.T) {
 		t.Errorf("hacks = %d, recovery = %d: %v", hacks, recovery, acts(es))
 	}
 }
+
+func TestMergeUsesPlannedMinutes(t *testing.T) {
+	// Thursday is planned by someone: 90 minutes of hall work are far more load than the
+	// default duration, and the days after it see that.
+	plan := func(minutes int) []Entry {
+		in := week()
+		in.Days[3].Open, in.Days[3].Planned, in.Days[3].Minutes = false, training.ActivityHall, minutes
+		return Merge(in, nil)
+	}
+	def, long := plan(0), plan(90)
+	if len(def) != 4 || len(long) != 4 {
+		t.Fatalf("entries = %d and %d, want 4 (Wed, Fri, Sat, Sun)", len(def), len(long))
+	}
+	// Friday follows the planned unit: the recommender reasons with its load.
+	if fri, friLong := def[1].Recommendation, long[1].Recommendation; fri.Reason == friLong.Reason {
+		t.Errorf("a 90 minute unit on Thursday changed nothing for Friday: %q", friLong.Reason)
+	}
+
+	// The unit of the day counts with its minutes, 0 = the default duration.
+	if s := simulated(day(1), training.ActivityHall, 90); s.Minutes != 90 {
+		t.Errorf("simulated minutes = %d", s.Minutes)
+	}
+	if s := simulated(day(1), training.ActivityHall, 0); s.Minutes != recommend.DefaultMinutes(training.ActivityHall) {
+		t.Errorf("default minutes = %d", s.Minutes)
+	}
+	a := ahead([]Day{{Date: day(0), Open: true}, {Date: day(1), Planned: training.ActivityHall, Minutes: 90}})
+	if a.OpenDays != 1 || len(a.Units) != 1 || a.Units[0].Minutes != 90 {
+		t.Errorf("ahead = %+v", a)
+	}
+}
+
+func TestMergeExcludesActivities(t *testing.T) {
+	in := week()
+	in.Profile.Allowed = []training.AllowedActivity{
+		{Activity: training.ActivityHall, Mode: training.ModeOn},
+		{Activity: training.ActivityHack, Mode: training.ModeOn},
+		{Activity: training.ActivityLunge, Mode: training.ModeOn},
+	}
+	// Only Wednesday (today) is open, hall is rejected; the week needs no rest day.
+	in.Profile.Rhythm.RestDaysMin = 0
+	for i := range in.Days {
+		in.Days[i].Open = i == 2
+	}
+	in.Days[2].Exclude = []training.Activity{training.ActivityHall}
+
+	// Rules: the best recommendation that is not the rejected activity.
+	es := Merge(in, nil)
+	if len(es) != 1 || es[0].Recommendation.Activity == training.ActivityHall || es[0].Recommendation.Activity == "" {
+		t.Fatalf("rules = %+v", es)
+	}
+	if es[0].Source != SourceRules || es[0].Replaced != "" {
+		t.Errorf("rules entry = %+v", es[0])
+	}
+
+	// Model: the rejected proposal fails, the rules fill the day.
+	es = Merge(in, map[string]Proposal{"2026-09-30": {Activity: training.ActivityHall, Minutes: 30, Reason: "Halle"}})
+	if es[0].Source != SourceRules || es[0].Replaced != "Vom Besitzer abgelehnt." || es[0].Recommendation.Activity == training.ActivityHall {
+		t.Errorf("rejected proposal = %+v", es[0])
+	}
+	// A proposal for another activity is still taken.
+	es = Merge(in, map[string]Proposal{"2026-09-30": {Activity: training.ActivityLunge, Minutes: 20, Reason: "Longe"}})
+	if es[0].Source != SourceAI || es[0].Recommendation.Activity != training.ActivityLunge {
+		t.Errorf("other proposal = %+v", es[0])
+	}
+
+	// Everything rejected: a rest day with its reason.
+	in.Days[2].Exclude = []training.Activity{training.ActivityHall, training.ActivityHack, training.ActivityLunge}
+	es = Merge(in, nil)
+	if r := es[0].Recommendation; r.Activity != training.ActivityRest || r.Reason != "Keine andere Aktivität passt heute." || r.Intensity != training.IntensityNone || r.Minutes != 0 {
+		t.Errorf("all rejected = %+v", es[0])
+	}
+	// The exclusion belongs to its day only.
+	in.Days[3].Open = true
+	if es = Merge(in, nil); len(es) != 2 || es[1].Recommendation.Reason == "Keine andere Aktivität passt heute." {
+		t.Errorf("exclusion leaked to Thursday: %+v", es)
+	}
+}
+
+func TestPromptCarriesPlannedMinutesAndAvoid(t *testing.T) {
+	in := week()
+	in.Days[3].Open, in.Days[3].Planned, in.Days[3].Minutes = false, training.ActivityHall, 60
+	in.Days[4].Open, in.Days[4].Planned = false, training.ActivityHack // no minutes: key stays out
+	in.Days[2].Exclude = []training.Activity{training.ActivityHack, "bogus"}
+	p := Prompt(in)
+	var msg struct {
+		Days []map[string]any
+	}
+	if err := json.Unmarshal([]byte(p), &msg); err != nil {
+		t.Fatal(err)
+	}
+	wed, thu, fri := msg.Days[2], msg.Days[3], msg.Days[4]
+	if thu["planned"] != "hall" || thu["planned_minutes"] != float64(60) {
+		t.Errorf("thursday = %v", thu)
+	}
+	if _, has := fri["planned_minutes"]; has || fri["planned"] != "hack" {
+		t.Errorf("friday = %v", fri)
+	}
+	if avoid, _ := wed["avoid"].([]any); len(avoid) != 1 || avoid[0] != "hack" {
+		t.Errorf("wednesday avoid = %v", wed["avoid"])
+	}
+	if _, has := thu["avoid"]; has {
+		t.Errorf("avoid on a day without exclusions: %v", thu)
+	}
+	if !strings.Contains(SystemPrompt, "planned_minutes") || !strings.Contains(SystemPrompt, "avoid") {
+		t.Error("the system prompt does not explain planned_minutes and avoid")
+	}
+	for _, leak := range []string{"Luna", "Anna", "Muster", "2026", "L bei"} {
+		if strings.Contains(p, leak) {
+			t.Errorf("prompt contains %q: %s", leak, p)
+		}
+	}
+}

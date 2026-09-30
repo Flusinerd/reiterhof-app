@@ -51,8 +51,8 @@ Errors use the standard envelope (`validation_failed`, `forbidden`, `not_found`,
 | `POST /horses/{id}/sessions` | Quick log or finished session, returns `{session, next_progression}` |
 | `GET /horses/{id}/sessions?limit=&before=` | Newest first; riders see `visible_to_rider` sessions and their own |
 | `GET /horses/{id}/week?start=YYYY-MM-DD` | Monday to Sunday (any day of the week works as `start`), load segments, assessment |
-| `PUT /horses/{id}/week/{day}` | Claim a day (`{}` = "Ich"), plan, rest day or release (`status: open`); optional `focus` (max 80) and `exercise_id` (global or own stable). Fields not sent keep their value, so "Ich" on a planned day keeps activity, note, focus and exercise; a rest day clears activity, focus and exercise. Returns the week (days carry `focus`, `exercise {id, title}`) |
-| `POST /horses/{id}/week/plan?start=` | Owner/admin only. Proposal for the open days of the week (rules, with the owner's consent a language model); stores nothing, see [Week plan](#week-plan) |
+| `PUT /horses/{id}/week/{day}` | Claim a day (`{}` = "Ich"), plan, rest day or release (`status: open`); optional `focus` (max 80) and `exercise_id` (global or own stable). Fields not sent (or `null`) keep their value, so "Ich" on a planned day keeps activity, note, focus and exercise; `focus: ""` / `exercise_id: ""` clear that field (JAN-95); a rest day clears activity, focus and exercise. Returns the week (days carry `focus`, `exercise {id, title}`) |
+| `POST /horses/{id}/week/plan?start=&day=` | Owner/admin only. Proposal for the open days of the week (rules, with the owner's consent a language model); stores nothing. With `day=YYYY-MM-DD` only that day is planned again; optional body `{draft: [{date, activity or "rest", minutes}], exclude: [activity]}` (empty body and `{}` are fine), see [Week plan](#week-plan) |
 | `GET /exercises?discipline=&level=&tag=` | Global (`stable_id NULL`) and own-stable exercises, easiest first along the progression |
 | `GET /exercises/{id}` | With `steps` and the follow-up exercise (`next_exercise_id`, `next`) |
 
@@ -196,6 +196,16 @@ stable's timezone, so DST weeks still have seven days.
   `Retry-After`, at most 5 s), `failed` (error, timeout 90 s, unusable answer), `nothing_to_plan`. Failures fall back to
   the rules and are logged without content: status plus Mistral's error type, code and (for 401/402/403/429/5xx)
   its own message, e.g. `journalctl -u reiterhof-api | grep "week plan"`.
+- **Single day (JAN-95):** with `day=YYYY-MM-DD` exactly that day is open and the answer has one entry in `days`; all
+  other days are context, so the week rules (variety, load, quotas) still hold. The day must be in the week, not over,
+  not `done` and not the rest day after a show, else `400 validation_failed` "day cannot be planned"; a day somebody
+  planned or claimed is allowed (`user` stays). The optional body carries the draft the owner sees for the other days
+  (`draft`: at most 7 entries, dates in the week, an activity or `"rest"`, `minutes` 0-600; it only applies to days that
+  would be open, closed days stay as they are) and `exclude`, the activities rejected for the day. They become
+  `weekplan.Day.Minutes` (a planned unit counts with its minutes) and `Day.Exclude`: the prompt gets
+  `planned_minutes` and `avoid`, a rejected model proposal is replaced by the rules (`replaced`: "Vom Besitzer
+  abgelehnt."), the rules take the first recommendation that is not excluded, else a rest day ("Keine andere Aktivität
+  passt heute."). Without `day`, body fields are ignored.
 - **App:** "Woche planen" in `app/training/week.tsx` (only with `can_edit`), `components/training-plan-sheet.tsx`
   shows the days with the badge "KI-Vorschlag" or "Regel", level, focus and exercise; "Übernehmen" stores each day with
   `PUT /week/{day}` (`planned` with activity, focus, `exercise_id` and the claimed user, or `rest`; a rest day

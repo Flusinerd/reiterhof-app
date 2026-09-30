@@ -289,9 +289,10 @@ type slotIn struct {
 	UserID   *string `json:"user_id"` // omitted: the caller; "": nobody (owner/admin only)
 	Activity string  `json:"activity"`
 	Note     string  `json:"note"`
-	// Focus and ExerciseID come from the week plan (JAN-92).
-	Focus      string `json:"focus"`
-	ExerciseID string `json:"exercise_id"`
+	// Focus and ExerciseID come from the week plan (JAN-92). Omitted (null): the stored value
+	// is kept; "": it is cleared; a value: it is set (JAN-95).
+	Focus      *string `json:"focus"`
+	ExerciseID *string `json:"exercise_id"`
 }
 
 // putWeekDay: PUT /api/v1/horses/{id}/week/{day}. Owners and admins edit every day; riders
@@ -329,16 +330,23 @@ func (h *handler) putWeekDay(w http.ResponseWriter, r *http.Request) {
 		invalid(w, "note is too long (max 500 characters)")
 		return
 	}
-	if len([]rune(in.Focus)) > 80 {
+	var focusIn, exerciseIn string
+	if in.Focus != nil {
+		focusIn = strings.TrimSpace(*in.Focus)
+	}
+	if in.ExerciseID != nil {
+		exerciseIn = *in.ExerciseID
+	}
+	if len([]rune(focusIn)) > 80 {
 		invalid(w, "focus is too long (max 80 characters)")
 		return
 	}
 	ctx := r.Context()
 	stableID := a.user.StableID
-	if in.ExerciseID != "" {
+	if exerciseIn != "" {
 		var ok bool
 		if err := h.deps.Pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM exercises WHERE id = $1 AND (stable_id IS NULL OR stable_id = $2))`,
-			in.ExerciseID, stableID).Scan(&ok); err != nil && !isInvalidUUID(err) {
+			exerciseIn, stableID).Scan(&ok); err != nil && !isInvalidUUID(err) {
 			h.fail(w, r, err)
 			return
 		} else if !ok {
@@ -400,8 +408,8 @@ func (h *handler) putWeekDay(w http.ResponseWriter, r *http.Request) {
 			a.horseID, stableID, day)
 	default:
 		var uid, act, exer, focus any
-		if f := strings.TrimSpace(in.Focus); in.Status == "planned" && f != "" {
-			focus = f
+		if in.Status == "planned" && focusIn != "" {
+			focus = focusIn
 		}
 		if in.Status == "planned" && userID != "" {
 			uid = userID
@@ -409,12 +417,12 @@ func (h *handler) putWeekDay(w http.ResponseWriter, r *http.Request) {
 		if in.Status == "planned" && in.Activity != "" {
 			act = in.Activity
 		}
-		if in.Status == "planned" && in.ExerciseID != "" {
-			exer = in.ExerciseID
+		if in.Status == "planned" && exerciseIn != "" {
+			exer = exerciseIn
 		}
 		// Fields that are not sent keep their value: a rider taking a planned day with "Ich"
-		// keeps its activity, note, focus and exercise. A rest day has no activity, focus or
-		// exercise.
+		// keeps its activity, note, focus and exercise. Focus and exercise sent as "" are
+		// cleared. A rest day has no activity, focus or exercise.
 		_, err = h.deps.Pool.Exec(ctx, `
 			INSERT INTO week_slots (stable_id, horse_id, day, user_id, activity, status, note, focus, exercise_id)
 			VALUES ($1, $2, $3, $4::uuid, $5, $6, NULLIF($7, ''), $8, $9::uuid)
@@ -423,9 +431,12 @@ func (h *handler) putWeekDay(w http.ResponseWriter, r *http.Request) {
 				activity = CASE WHEN EXCLUDED.status = 'planned' THEN COALESCE(EXCLUDED.activity, week_slots.activity) END,
 				status = EXCLUDED.status,
 				note = COALESCE(EXCLUDED.note, week_slots.note),
-				focus = CASE WHEN EXCLUDED.status = 'planned' THEN COALESCE(EXCLUDED.focus, week_slots.focus) END,
-				exercise_id = CASE WHEN EXCLUDED.status = 'planned' THEN COALESCE(EXCLUDED.exercise_id, week_slots.exercise_id) END`,
-			stableID, a.horseID, day, uid, act, in.Status, strings.TrimSpace(in.Note), focus, exer)
+				focus = CASE WHEN EXCLUDED.status = 'planned' THEN
+					CASE WHEN $10::boolean THEN EXCLUDED.focus ELSE week_slots.focus END END,
+				exercise_id = CASE WHEN EXCLUDED.status = 'planned' THEN
+					CASE WHEN $11::boolean THEN EXCLUDED.exercise_id ELSE week_slots.exercise_id END END`,
+			stableID, a.horseID, day, uid, act, in.Status, strings.TrimSpace(in.Note), focus, exer,
+			in.Focus != nil, in.ExerciseID != nil)
 	}
 	if err != nil {
 		h.fail(w, r, err)

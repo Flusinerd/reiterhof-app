@@ -12,6 +12,7 @@
 package weekplan
 
 import (
+	"slices"
 	"time"
 
 	"github.com/Flusinerd/reiterhof-app/backend/internal/training"
@@ -27,6 +28,12 @@ const (
 
 const dateLayout = "2006-01-02"
 
+// Texts of a day whose activity the owner rejected (German, shown in the app).
+const (
+	replacedRejected = "Vom Besitzer abgelehnt."
+	reasonNoOther    = "Keine andere Aktivität passt heute."
+)
+
 // Day is one day of the week.
 type Day struct {
 	Date time.Time // UTC-normalised calendar date
@@ -36,6 +43,12 @@ type Day struct {
 	// Planned is the activity someone already planned for a closed day that has no session
 	// yet; it counts as a session for the following days.
 	Planned training.Activity
+	// Minutes is the planned duration of a closed day's Planned activity; 0 = the activity's
+	// default duration.
+	Minutes int
+	// Exclude lists activities the owner rejected for an open day; neither the model's
+	// proposal nor the rules may pick them.
+	Exclude []training.Activity
 	// Rest marks a planned or mandatory rest day.
 	Rest bool
 	// Reha is the unit the active reha plan allows that day, nil without one.
@@ -113,7 +126,7 @@ func Merge(in Input, proposals map[string]Proposal) []Entry {
 		day := training.Day(d.Date)
 		if !d.Open {
 			if d.Planned.Valid() && !d.Rest {
-				history = append(history, simulated(day, d.Planned, 0))
+				history = append(history, simulated(day, d.Planned, d.Minutes))
 			}
 			continue
 		}
@@ -126,7 +139,11 @@ func Merge(in Input, proposals map[string]Proposal) []Entry {
 			rin.Weather = in.Tomorrow
 		}
 		e := Entry{Date: day, Source: SourceRules}
-		if p, ok := proposals[day.Format(dateLayout)]; ok {
+		p, proposed := proposals[day.Format(dateLayout)]
+		if proposed && slices.Contains(d.Exclude, p.Activity) {
+			proposed, e.Replaced = false, replacedRejected
+		}
+		if proposed {
 			v := recommend.Check(rin, p.Activity, p.Minutes)
 			if v.OK {
 				e.Recommendation, e.Source = v.Recommendation, SourceAI
@@ -142,15 +159,21 @@ func Merge(in Input, proposals map[string]Proposal) []Entry {
 				}
 			} else {
 				e.Recommendation, e.Replaced = v.Recommendation, v.Why
+				if slices.Contains(d.Exclude, e.Recommendation.Activity) {
+					e.Recommendation = firstAllowed(rin, d.Exclude)
+				}
 			}
 		} else {
-			e.Recommendation = recommend.Recommend(rin).Recommendations[0]
+			e.Recommendation = firstAllowed(rin, d.Exclude)
 		}
 		// A rule-based unit can still exceed the weekly maximum (the recommender only
 		// prefers a rest day then); Check turns it into one.
 		if e.Source == SourceRules && e.Recommendation.Activity != training.ActivityRest {
 			if v := recommend.Check(rin, e.Recommendation.Activity, e.Recommendation.Minutes); !v.OK {
 				e.Recommendation = v.Recommendation
+				if slices.Contains(d.Exclude, e.Recommendation.Activity) {
+					e.Recommendation = noOtherActivity(rin)
+				}
 			}
 		}
 		if e.Source == SourceRules {
@@ -166,6 +189,24 @@ func Merge(in Input, proposals map[string]Proposal) []Entry {
 	return out
 }
 
+// firstAllowed is the best recommendation whose activity is not excluded; without one it is a
+// rest day.
+func firstAllowed(rin recommend.Input, exclude []training.Activity) recommend.Recommendation {
+	for _, r := range recommend.Recommend(rin).Recommendations {
+		if !slices.Contains(exclude, r.Activity) {
+			return r
+		}
+	}
+	return noOtherActivity(rin)
+}
+
+// noOtherActivity is the rest day for a day on which every recommendation was rejected.
+func noOtherActivity(rin recommend.Input) recommend.Recommendation {
+	r := recommend.Check(rin, training.ActivityRest, 0).Recommendation
+	r.Reason = reasonNoOther
+	return r
+}
+
 // ahead describes the week from days[0] (the day being planned) on: the open days including
 // it, the units and rest days fixed on the later days.
 func ahead(days []Day) *recommend.Ahead {
@@ -178,7 +219,7 @@ func ahead(days []Day) *recommend.Ahead {
 		case d.Rest:
 			a.RestDays++
 		case d.Planned.Valid():
-			a.Units = append(a.Units, simulated(training.Day(d.Date), d.Planned, 0))
+			a.Units = append(a.Units, simulated(training.Day(d.Date), d.Planned, d.Minutes))
 		}
 	}
 	return a

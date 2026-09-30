@@ -398,7 +398,9 @@ Pure packages (no HTTP, no DB, no clock; "today" is always an input):
 - `training/weekplan` (JAN-89, JAN-92): plans the open days of a week (activity, minutes, focus, exercise). `Rules` uses the recommender day by
   day (each planned unit becomes a simulated session for the next days); `Prompt`/`Parse` build the
   language model's input (no names, ids, free text or dates) and read its JSON answer; `Merge`
-  checks every proposal with `recommend.Check` and lets the rules fill the rest.
+  checks every proposal with `recommend.Check` and lets the rules fill the rest. `Day.Minutes` gives a
+  planned closed day its duration and `Day.Exclude` lists the activities the owner rejected for an open
+  day (JAN-95, re-planning a single day).
 - German reason texts are UI text and live in these packages; everything else is English.
 
 ## Scheduler
