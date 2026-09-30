@@ -12,6 +12,8 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Button, Screen, Text } from "@/components/ui";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { fontAssets } from "@/lib/fonts";
+import "@/lib/geofence"; // registers the background geofence task at app start
+import { useDeviceSetup } from "@/lib/use-push-registration";
 import { colors } from "@/lib/theme";
 
 // Keep the splash screen until the fonts are ready (no flash of system font).
@@ -48,6 +50,7 @@ export default function RootLayout() {
  */
 function AuthGate() {
   const { status, hasStable, refresh } = useAuth();
+  useDeviceSetup(); // push token registration + geofence re-arm after sign-in
   const segments = useSegments() as string[];
   const inAuthGroup = segments[0] === "(auth)";
   const inVerify = segments[0] === "auth";
