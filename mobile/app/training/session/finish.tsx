@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 import { Check, ChevronRight, TriangleAlert } from "lucide-react-native";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { View } from "react-native";
 
 import { ActivityIcon } from "@/components/training-activity-icon";
@@ -26,6 +26,7 @@ import {
   type CreatedSession,
   type SessionInput,
 } from "@/lib/api/training";
+import { clearFinishExtras, loadFinishExtras, type FinishExtras } from "@/lib/tracking-store";
 import {
   FEEL_OPTIONS,
   FOCUS_OPTIONS,
@@ -56,6 +57,22 @@ export default function FinishSession() {
   const [note, setNote] = useState("");
   const [visible, setVisible] = useState(true);
   const [saved, setSaved] = useState<CreatedSession | null>(null);
+  // Track and gait windows of a tracked session (too big for router params, see lib/tracking-store).
+  const startedAt = params?.startedAt;
+  const [extras, setExtras] = useState<FinishExtras | null>(null);
+  const [extrasReady, setExtrasReady] = useState(!startedAt);
+  useEffect(() => {
+    if (!startedAt) return;
+    let cancelled = false;
+    void loadFinishExtras(startedAt).then((e) => {
+      if (cancelled) return;
+      setExtras(e);
+      setExtrasReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [startedAt]);
 
   if (!params) {
     return (
@@ -105,12 +122,19 @@ export default function FinishSession() {
       ...(params.reinChanges ? { rein_changes: params.reinChanges } : {}),
       ...(params.distanceM ? { distance_m: params.distanceM } : {}),
       ...(params.exerciseId ? { exercise_id: params.exerciseId } : {}),
+      ...(extras?.track ? { track: extras.track } : {}),
+      ...(extras?.gait_windows ? { gait_windows: extras.gait_windows } : {}),
       ...(feel ? { feel } : {}),
       ...(focus ? { focus_rating: focus } : {}),
       ...(note.trim() ? { note: note.trim() } : {}),
       visible_to_rider: visible,
     };
-    create.mutate(body, { onSuccess: setSaved });
+    create.mutate(body, {
+      onSuccess: (created) => {
+        setSaved(created);
+        void clearFinishExtras();
+      },
+    });
   };
 
   return (
@@ -194,7 +218,7 @@ export default function FinishSession() {
           {trainingError(create.error)}
         </Text>
       ) : null}
-      <Button label="Speichern" size="lg" fullWidth loading={create.isPending} onPress={save} />
+      <Button label="Speichern" size="lg" fullWidth loading={create.isPending || !extrasReady} onPress={save} />
     </Screen>
   );
 }

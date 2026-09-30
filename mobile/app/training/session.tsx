@@ -1,56 +1,150 @@
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { Square } from "lucide-react-native";
-import { useEffect, useRef, useState } from "react";
+import { useLocalSearchParams, useRouter, type Href } from "expo-router";
+import { BookOpen, ChevronRight, MapPin, Warehouse } from "lucide-react-native";
+import { useState } from "react";
+import { View } from "react-native";
 
-import { Button, Hero, Screen, Text } from "@/components/ui";
-import { activityLabel, formatClock, isActivity, secondsToMinutes } from "@/lib/training";
+import { Button, Card, Hero, Icon, PressableCard, Screen, SectionLabel, Text } from "@/components/ui";
+import { activityLabel, isActivity, type Activity } from "@/lib/training";
+import { snapshotSummary } from "@/lib/tracking-persist";
+import { useStoredSession } from "@/lib/tracking-session";
+import { clearSnapshot } from "@/lib/tracking-store";
+import { stopTracking } from "@/lib/tracking-location";
+
+type Params = { horse?: string; activity?: string; minutes?: string; exercise?: string };
+
+/** Ausritte are tracked with GPS; hall, arena and lunge work without it (JAN-63, JAN-65). */
+const DEFAULT_MODE: Record<Activity, "gps" | "indoor"> = {
+  hack: "gps",
+  hall: "indoor",
+  arena: "indoor",
+  lunge: "indoor",
+  jumping: "indoor",
+  groundwork: "indoor",
+  walker: "indoor",
+};
 
 /**
- * Placeholder of the tracking screen: a plain timer. The tracked session with gaits and rein
- * changes replaces it later and hands `gait` / `rein` (JSON) to the finish screen the same way.
+ * Start of a session ("Starten" in "Was heute?"): pick the tracking mode, or continue a
+ * session that was still running when the app was closed.
  */
 export default function TrainingSession() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ horse?: string; activity?: string; minutes?: string; exercise?: string }>();
+  const params = useLocalSearchParams<Params>();
   const activity = isActivity(params.activity) ? params.activity : null;
-  const startedAt = useRef(new Date());
-  const [seconds, setSeconds] = useState(0);
+  const stored = useStoredSession(true, false);
+  const [dropped, setDropped] = useState(false);
+  const running = dropped ? null : stored.snapshot;
 
-  useEffect(() => {
-    const id = setInterval(() => setSeconds(Math.floor((Date.now() - startedAt.current.getTime()) / 1000)), 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  if (!params.horse || !activity) {
-    return (
-      <Screen back>
-        <Text variant="body">Für diese Einheit fehlen Angaben. Bitte starte sie im Tab „Training“.</Text>
-      </Screen>
-    );
-  }
-
-  const finish = () => {
+  const go = (mode: "gps" | "indoor") => {
     router.replace({
-      pathname: "/training/session/finish",
+      pathname: mode === "gps" ? "/training/track/gps" : "/training/track/indoor",
       params: {
         horse: params.horse!,
-        activity,
-        minutes: String(secondsToMinutes(seconds)),
-        started_at: startedAt.current.toISOString(),
+        activity: activity!,
+        ...(params.minutes ? { minutes: params.minutes } : {}),
         ...(params.exercise ? { exercise: params.exercise } : {}),
       },
     });
   };
 
+  const resume = () => {
+    if (!running) return;
+    router.replace({
+      pathname: running.mode === "gps" ? "/training/track/gps" : "/training/track/indoor",
+      params: { resume: "1" },
+    });
+  };
+
+  const discard = async () => {
+    await stopTracking();
+    await clearSnapshot();
+    setDropped(true);
+  };
+
+  const resumeCard = running ? (
+    <>
+      <SectionLabel>Noch offen</SectionLabel>
+      <Card className="gap-3">
+        <Text variant="bodyStrong">Es läuft noch eine Einheit</Text>
+        <Text variant="secondary">{snapshotSummary(running, activityLabel(running.activity))}</Text>
+        <View className="flex-row gap-3">
+          <Button label="Fortsetzen" className="flex-1" onPress={resume} />
+          <Button label="Verwerfen" variant="outline" className="flex-1" onPress={() => void discard()} />
+        </View>
+      </Card>
+    </>
+  ) : null;
+
+  if (!params.horse || !activity) {
+    return (
+      <Screen back>
+        <Text variant="body">Für diese Einheit fehlen Angaben. Bitte starte sie im Tab „Training“.</Text>
+        {resumeCard}
+      </Screen>
+    );
+  }
+
+  const preferred = DEFAULT_MODE[activity];
+  const modes = [
+    {
+      mode: "gps" as const,
+      icon: MapPin,
+      title: "Mit GPS",
+      text: "Strecke, Tempo, Höhenmeter und eine Karte nach Gangarten. Für Ausritte.",
+    },
+    {
+      mode: "indoor" as const,
+      icon: Warehouse,
+      title: "Drinnen, ohne GPS",
+      text: "Gangart per Bewegungssensor, Handwechsel und Ablauf der Übung. Für Halle, Platz und Longe.",
+    },
+  ].sort((a, b) => (a.mode === preferred ? -1 : b.mode === preferred ? 1 : 0));
+
   return (
     <Screen back>
-      <Hero eyebrow={activityLabel(activity)} value={formatClock(seconds)} valueSize="lg" tone="deep">
-        <Text variant="secondary" className="text-white/70">
-          {params.minutes ? `Empfohlen: ${params.minutes} Min.` : "Die Zeit läuft."}
+      <Hero
+        tone="deep"
+        eyebrow="Einheit starten"
+        title={activityLabel(activity)}
+        description={params.minutes ? `Empfohlen: ${params.minutes} Minuten.` : "Wie soll die Einheit aufgezeichnet werden?"}
+      />
+
+      {resumeCard}
+
+      <SectionLabel>Aufzeichnung</SectionLabel>
+      <View className="gap-3">
+        {modes.map((m, i) => (
+          <PressableCard
+            key={m.mode}
+            shape="tile"
+            className="flex-row items-center gap-4"
+            accessibilityLabel={`${m.title}${i === 0 ? ", empfohlen" : ""}`}
+            onPress={() => go(m.mode)}
+          >
+            <View className="h-11 w-11 items-center justify-center rounded-pill bg-primary-soft">
+              <Icon as={m.icon} size={22} className="text-primary-deep" />
+            </View>
+            <View className="flex-1 gap-1">
+              <Text variant="bodyStrong">{i === 0 ? `${m.title} (empfohlen)` : m.title}</Text>
+              <Text variant="secondary">{m.text}</Text>
+            </View>
+            <Icon as={ChevronRight} size={20} className="text-muted" />
+          </PressableCard>
+        ))}
+      </View>
+
+      <PressableCard
+        shape="tile"
+        className="flex-row items-center gap-3"
+        accessibilityLabel="Übungsbibliothek öffnen"
+        onPress={() => router.push("/training/exercises" as Href)}
+      >
+        <Icon as={BookOpen} size={20} className="text-primary-deep" />
+        <Text variant="bodyStrong" className="flex-1">
+          Übungsbibliothek
         </Text>
-      </Hero>
-      <Text variant="secondary">Gangarten und Handwechsel werden in einer späteren Version automatisch erfasst.</Text>
-      <Button label="Beenden" icon={Square} size="lg" fullWidth onPress={finish} />
+        <Icon as={ChevronRight} size={20} className="text-muted" />
+      </PressableCard>
     </Screen>
   );
 }
