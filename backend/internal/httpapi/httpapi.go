@@ -10,6 +10,7 @@ import (
 	"github.com/Flusinerd/reiterhof-app/backend/internal/auth"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/devices"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/files"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/health"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/horses"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/httpx"
 )
@@ -23,6 +24,7 @@ var registrations = []func(mux *http.ServeMux, deps Deps){
 	auth.Register,
 	devices.Register,
 	files.Register,
+	health.Register,
 	horses.Register,
 }
 
