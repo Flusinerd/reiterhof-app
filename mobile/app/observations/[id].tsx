@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams, type Href } from "expo-router";
 import { Check, HeartPulse, RotateCcw, Siren } from "lucide-react-native";
 import { useState } from "react";
-import { Image, Linking, Pressable, View } from "react-native";
+import { Image, Pressable, View } from "react-native";
 
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
 import { Horse } from "@/components/icons/horse";
@@ -20,7 +20,7 @@ import {
   urgencyBadgeVariant,
   urgencyLabel,
 } from "@/lib/observations";
-import { fileSource, fileUrlWithToken } from "@/lib/upload";
+import { fileSource, openStoredFile } from "@/lib/upload";
 
 /** One observation with photos and the status change "Beobachten" / "Erledigt" (JAN-52). */
 export default function ObservationDetail() {
@@ -83,7 +83,7 @@ export default function ObservationDetail() {
                 key={m.path}
                 accessibilityRole="imagebutton"
                 accessibilityLabel={`Foto ${i + 1} öffnen`}
-                onPress={() => void Linking.openURL(fileUrlWithToken(m.url))}
+                onPress={() => void openStoredFile(m.url).catch((e) => setError(errorMessage(e)))}
               >
                 <Image
                   source={fileSource(m.url)}

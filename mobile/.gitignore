@@ -1,3 +1,5 @@
 
 # copied from node_modules by scripts/copy-maplibre-worker.mjs (postinstall)
 public/maplibre/
+# generated from node_modules by scripts/gen-licenses.mjs (postinstall)
+lib/licenses.generated.ts

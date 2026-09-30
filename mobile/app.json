@@ -24,10 +24,17 @@
           "isAndroidForegroundServiceEnabled": true
         }
       ],
-      ["expo-calendar", { "calendarPermission": "Stallfunk trägt Termine deiner Anfragen in deinen Kalender ein." }],
+      ["expo-calendar", { "calendarPermission": "Stallfunk trägt Termine deiner Anfragen in deinen Kalender ein.", "remindersPermission": false }],
       "expo-document-picker",
       ["expo-sensors", { "motionPermission": "Stallfunk erkennt aus der Bewegung des Telefons, ob dein Pferd Schritt, Trab oder Galopp geht." }],
-      ["expo-image-picker", { "photosPermission": "Stallfunk braucht Zugriff auf deine Fotos, um Bilder und Dokumente hochzuladen.", "cameraPermission": "Stallfunk braucht die Kamera, um Fotos aufzunehmen." }]
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Stallfunk braucht Zugriff auf deine Fotos, um Bilder und Dokumente hochzuladen.",
+          "cameraPermission": "Stallfunk braucht die Kamera, um Fotos aufzunehmen.",
+          "microphonePermission": false
+        }
+      ]
     ],
     "experiments": { "typedRoutes": true },
     "android": {
@@ -41,7 +48,22 @@
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Stallfunk erkennt im Hintergrund, wann du im Stall ankommst oder ihn verlässt, und zeichnet deine Ausritte auf, auch wenn der Bildschirm aus ist.",
         "NSLocationAlwaysUsageDescription": "Stallfunk erkennt im Hintergrund, wann du im Stall ankommst oder ihn verlässt, und zeichnet deine Ausritte auf, auch wenn der Bildschirm aus ist.",
         "NSLocationWhenInUseUsageDescription": "Stallfunk nutzt deinen Standort, um zu erkennen, ob du im Stall bist, und um deine Ausritte aufzuzeichnen.",
-        "UIBackgroundModes": ["location"]
+        "UIBackgroundModes": ["location"],
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "privacyManifests": {
+        "NSPrivacyTracking": false,
+        "NSPrivacyTrackingDomains": [],
+        "NSPrivacyCollectedDataTypes": [
+          { "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeName", "NSPrivacyCollectedDataTypeLinked": true, "NSPrivacyCollectedDataTypeTracking": false, "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAppFunctionality"] },
+          { "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeEmailAddress", "NSPrivacyCollectedDataTypeLinked": true, "NSPrivacyCollectedDataTypeTracking": false, "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAppFunctionality"] },
+          { "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypePhoneNumber", "NSPrivacyCollectedDataTypeLinked": true, "NSPrivacyCollectedDataTypeTracking": false, "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAppFunctionality"] },
+          { "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeUserID", "NSPrivacyCollectedDataTypeLinked": true, "NSPrivacyCollectedDataTypeTracking": false, "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAppFunctionality"] },
+          { "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypePreciseLocation", "NSPrivacyCollectedDataTypeLinked": true, "NSPrivacyCollectedDataTypeTracking": false, "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAppFunctionality"] },
+          { "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypePhotosorVideos", "NSPrivacyCollectedDataTypeLinked": true, "NSPrivacyCollectedDataTypeTracking": false, "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAppFunctionality"] },
+          { "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeOtherUserContent", "NSPrivacyCollectedDataTypeLinked": true, "NSPrivacyCollectedDataTypeTracking": false, "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAppFunctionality"] },
+          { "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeOtherDataTypes", "NSPrivacyCollectedDataTypeLinked": true, "NSPrivacyCollectedDataTypeTracking": false, "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAppFunctionality"] }
+        ]
       }
     },
     "web": {

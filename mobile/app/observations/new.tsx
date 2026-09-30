@@ -4,6 +4,7 @@ import { Camera, Eye, Image as ImageIcon, Info, Send, Siren, X } from "lucide-re
 import { useRef, useState } from "react";
 import { Alert, Image, Pressable, View } from "react-native";
 
+import { useConsentPrompt } from "@/components/consent-prompt";
 import { ObservationBodyPicker } from "@/components/observation-body-picker";
 import { Button, Icon, Input, PageHeader, Pill, Screen, Section, Text, ToggleGroup, ToggleGroupItem } from "@/components/ui";
 import { errorMessage } from "@/lib/api";
@@ -51,6 +52,8 @@ export default function NewObservation() {
   const [error, setError] = useState<string | null>(null);
   // Uploaded photos by local uri, so a retry after a failed report does not upload them again.
   const uploaded = useRef(new Map<string, string>());
+  // Camera and photo library need the photos consent (JAN-19) before the OS permission.
+  const consent = useConsentPrompt();
 
   async function addPhotos(assets: ImagePicker.ImagePickerAsset[]) {
     const next = assets.map<UploadInput>((a) => ({
@@ -63,6 +66,7 @@ export default function NewObservation() {
   }
 
   async function takePhoto() {
+    if (!(await consent.ensure("photos"))) return;
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) return setError("Kamerazugriff fehlt.");
     const res = await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 0.7 });
@@ -70,6 +74,7 @@ export default function NewObservation() {
   }
 
   async function pickPhotos() {
+    if (!(await consent.ensure("photos"))) return;
     const res = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
       quality: 0.7,
@@ -225,6 +230,7 @@ export default function NewObservation() {
         loading={sending}
         onPress={() => void submit()}
       />
+      {consent.sheet}
     </Screen>
   );
 }

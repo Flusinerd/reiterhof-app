@@ -5,13 +5,16 @@
 //   await api.post("/api/v1/blankets/...", { photo_path: saved.path });
 //
 // To show a stored file use <Image source={fileSource(saved.url)} />, which sends the
-// session token as a header. For consumers that cannot send headers (Linking.openURL of a PDF)
-// use fileUrlWithToken(); a token in a URL can end up in logs, so use it sparingly.
+// session token as a header. To hand a file to the browser or a viewer app (a PDF, a full-size
+// photo) use openStoredFile(url): it fetches a short-lived download link first, so the session
+// token never appears in a URL (histories, share sheets and proxy logs would keep it).
 
-import { API_URL } from "./api";
+import { Linking } from "react-native";
+
+import { API_URL, authed } from "./api";
 import { parseErrorBody, ApiError } from "./api-core.ts";
 import { getToken } from "./token";
-import { absoluteUrl, MAX_UPLOAD_BYTES, uploadErrorMessage, withAccessToken } from "./upload-core.ts";
+import { absoluteUrl, downloadLinkPath, MAX_UPLOAD_BYTES, uploadErrorMessage } from "./upload-core.ts";
 
 export { MAX_UPLOAD_BYTES, uploadErrorMessage };
 
@@ -75,7 +78,18 @@ export function fileSource(url: string): { uri: string; headers: Record<string, 
   return { uri: fileUrl(url), headers: token ? { Authorization: `Bearer ${token}` } : {} };
 }
 
-/** URL with `?access_token=`, for consumers that cannot set headers. */
-export function fileUrlWithToken(url: string): string {
-  return withAccessToken(fileUrl(url), getToken());
+/**
+ * A URL that opens the file for five minutes without headers (`POST /api/v1/files/download-link`).
+ * Throws ApiError; `validation_failed` for a URL that is not a file route.
+ */
+export async function downloadLink(url: string): Promise<string> {
+  const path = downloadLinkPath(API_URL, url);
+  if (!path) throw new ApiError(400, "validation_failed", "not a file route");
+  const link = await authed.post<{ url: string }>("/api/v1/files/download-link", { url: path });
+  return fileUrl(link.url);
+}
+
+/** Opens a stored file in the browser or viewer app through a short-lived download link. */
+export async function openStoredFile(url: string): Promise<void> {
+  await Linking.openURL(await downloadLink(url));
 }

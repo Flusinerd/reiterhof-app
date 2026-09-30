@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { Download, FileText, Scale, Trash2 } from "lucide-react-native";
+import { BookOpen, Download, FileText, Scale, Trash2 } from "lucide-react-native";
 import { useState } from "react";
 import { Alert, View } from "react-native";
 
@@ -142,6 +142,11 @@ export default function PrivacySettings() {
         <PressableCard shape="tile" padded={false} className="min-h-touch flex-row items-center gap-3 border-0 px-5 py-3" onPress={() => router.push("/legal/imprint")}>
           <Icon as={Scale} size={20} className="text-muted" />
           <Text variant="body">Impressum</Text>
+        </PressableCard>
+        <Divider />
+        <PressableCard shape="tile" padded={false} className="min-h-touch flex-row items-center gap-3 border-0 px-5 py-3" onPress={() => router.push("/legal/licenses")}>
+          <Icon as={BookOpen} size={20} className="text-muted" />
+          <Text variant="body">Open-Source-Lizenzen</Text>
         </PressableCard>
         </Card>
       </Section>

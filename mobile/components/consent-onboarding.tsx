@@ -14,13 +14,15 @@ const FIRST_RUN: readonly ConsentKind[] = ["push"];
  * The switches in Einstellungen > Datenschutz stay available.
  */
 export function ConsentOnboarding() {
-  const { status, hasStable } = useAuth();
+  const { status, hasStable, user } = useAuth();
   const consents = useConsents();
   const [kind, setKind] = useState<ConsentKind | null>(null);
   const items = consents.data?.items;
+  // A consent needs a confirmed age (Art. 8); the age screen comes first.
+  const ageConfirmed = user?.age_status === "confirmed";
 
   useEffect(() => {
-    if (status !== "signedIn" || !hasStable || !items || kind) return;
+    if (status !== "signedIn" || !hasStable || !ageConfirmed || !items || kind) return;
     let alive = true;
     void (async () => {
       for (const k of FIRST_RUN) {
@@ -32,7 +34,7 @@ export function ConsentOnboarding() {
     return () => {
       alive = false;
     };
-  }, [status, hasStable, items, kind]);
+  }, [status, hasStable, ageConfirmed, items, kind]);
 
   return (
     <ConsentSheet

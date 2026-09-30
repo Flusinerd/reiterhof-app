@@ -52,8 +52,8 @@ export default function RootLayout() {
 
 /**
  * Sends the user where they belong:
- * no session -> sign-in, name still the email fallback -> name, session without stable -> join,
- * otherwise the tabs.
+ * no session -> sign-in, name still the email fallback -> name, age not confirmed -> age,
+ * session without stable -> join, otherwise the tabs.
  * `(auth)/*` and `auth/verify` (the magic link target) are the only screens without a stable.
  */
 function AuthGate() {
@@ -90,7 +90,11 @@ function AuthGate() {
   }
 
   const inName = inAuthGroup && segments[1] === "name"; // also reachable from the settings
+  const inAge = inAuthGroup && segments[1] === "age";
   const needsName = status === "signedIn" && user !== null && !user.name_confirmed;
+  // Under 16 without the parent's consent, or nothing stated yet (Art. 8 GDPR): the age
+  // screen, with the privacy settings (export, delete) and the legal texts still reachable.
+  const needsAge = status === "signedIn" && user !== null && user.age_status !== "confirmed";
 
   let redirect = null;
   if (status === "signedOut") {
@@ -98,14 +102,16 @@ function AuthGate() {
   } else if (needsName) {
     // A magic-link sign-up only knows the email: ask for the name before anything else.
     if (!inName && !inLegal) redirect = <Redirect href="/(auth)/name" />;
+  } else if (needsAge) {
+    if (!inAge && !inLegal && !inSettings) redirect = <Redirect href="/(auth)/age" />;
   } else if (!hasStable) {
     if (!(inAuthGroup && segments[1] === "join") && !inName && !inLegal && !inSettings) redirect = <Redirect href="/(auth)/join" />;
   } else if ((inAuthGroup && !inName) || inVerify) {
     redirect = <Redirect href="/(tabs)" />;
   }
 
-  // The app menu needs a stable (presence and reminders belong to it) and a confirmed name.
-  const menu = status === "signedIn" && hasStable && !needsName ? AppMenu : null;
+  // The app menu needs a stable (presence and reminders belong to it), a confirmed name and age.
+  const menu = status === "signedIn" && hasStable && !needsName && !needsAge ? AppMenu : null;
 
   return (
     <ScreenMenuContext.Provider value={menu}>

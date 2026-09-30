@@ -12,7 +12,10 @@ export function uploadErrorMessage(err: unknown): string {
       return "Datei zu groß (höchstens 20 MB).";
     }
     if (err.status === 415 || err.code === "unsupported_type") {
-      return "Erlaubt sind Fotos (JPEG, PNG, HEIC, WebP) und PDFs.";
+      return "Erlaubt sind Fotos (JPEG, PNG, WebP) und PDFs.";
+    }
+    if (err.code === "invalid_upload") {
+      return "Die Datei konnte nicht gelesen werden. Versuch es mit einem anderen Foto.";
     }
     if (err.code === "network") {
       return "Keine Verbindung. Versuch es gleich noch mal.";
@@ -28,11 +31,16 @@ export function absoluteUrl(baseUrl: string, url: string): string {
 }
 
 /**
- * Appends `?access_token=` for consumers that cannot send headers (Linking.openURL of a PDF).
- * Prefer `Authorization` headers where possible (`<Image source={{ uri, headers }}>`): a token in
- * a URL can end up in logs.
+ * The API-relative path of a file URL as `POST /api/v1/files/download-link` wants it: no
+ * origin, no query. Returns null for anything that is not a file route of this API.
  */
-export function withAccessToken(url: string, token: string | null): string {
-  if (!token) return url;
-  return `${url}${url.includes("?") ? "&" : "?"}access_token=${encodeURIComponent(token)}`;
+export function downloadLinkPath(baseUrl: string, url: string): string | null {
+  const base = baseUrl.replace(/\/+$/, "");
+  let path = url;
+  if (/^https?:\/\//.test(path)) {
+    if (!path.startsWith(base + "/")) return null;
+    path = path.slice(base.length);
+  }
+  path = path.split(/[?#]/, 1)[0] ?? "";
+  return /^\/api\/v1\/(files\/|horses\/[^/]+\/documents\/[^/]+\/file$)/.test(path) ? path : null;
 }

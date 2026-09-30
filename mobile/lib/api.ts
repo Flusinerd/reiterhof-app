@@ -47,7 +47,16 @@ export type User = {
   stable_id: string | null;
   /** False while the name is only the part of the email before the "@" (the app asks for it). */
   name_confirmed: boolean;
+  /**
+   * "confirmed": 16 or older, or a parent consented. "parent_pending": a parent was asked by
+   * mail. "unknown": nothing stated yet; the app asks before a stable can be joined (Art. 8 GDPR).
+   */
+  age_status: AgeStatus;
+  /** The parent's address while under 16 (null otherwise). */
+  parent_email: string | null;
 };
+
+export type AgeStatus = "unknown" | "confirmed" | "parent_pending";
 
 export type Stable = {
   id: string;
@@ -93,6 +102,11 @@ export const api = {
   me: () => client.get<Me>("/api/v1/me"),
   updateMe: (patch: ProfilePatch) => client.patch<Me>("/api/v1/me", patch),
   joinStable: (code: string) => client.post<Me>("/api/v1/stables/join", { code }),
+  /** "Ich bin 16 oder älter." */
+  confirmAge: () => client.post<Me>("/api/v1/me/age", { over_16: true }),
+  /** Under 16: mails the parent a confirmation link (204). 409 `already_confirmed`, 429 after three mails a day. */
+  requestParentalConsent: (parentEmail: string) =>
+    client.post<void>("/api/v1/me/parental-consent", { parent_email: parentEmail }),
   createInvite: () => client.post<{ code: string; expires_at: string; max_uses: number }>("/api/v1/stables/invites"),
 };
 

@@ -2,12 +2,13 @@
 // docs/domains/privacy.md. The explanation texts here are UI copy (German); the full legal
 // text is docs/legal/datenschutz.md, bundled through consent-legal-texts.ts.
 
-export type ConsentKind = "location_geofence" | "location_tracking" | "presence_sharing" | "photos" | "push";
+export type ConsentKind = "location_geofence" | "location_tracking" | "maps" | "presence_sharing" | "photos" | "push";
 
 /** Same order as the server (`privacy.Kinds()`). */
 export const CONSENT_KINDS: readonly ConsentKind[] = [
   "location_geofence",
   "location_tracking",
+  "maps",
   "presence_sharing",
   "photos",
   "push",
@@ -62,8 +63,21 @@ export const CONSENT_COPY: Record<ConsentKind, ConsentCopy> = {
       "Positionspunkte werden nur gespeichert, solange die Aufzeichnung läuft.",
       "Sie gehören zur Einheit. Sehen können sie Besitzer, Reitbeteiligungen des Pferdes und Admins.",
       "Nach 12 Monaten werden sie gelöscht. Dauer und Strecke bleiben.",
+      "Die Karte dazu ist eine eigene Erlaubnis („Karten anzeigen“).",
     ],
     declined: "Ohne Erlaubnis trägst du Einheiten von Hand ein.",
+    accept: "Erlauben",
+  },
+  maps: {
+    label: "Karten anzeigen",
+    title: "Karte der Strecke anzeigen?",
+    summary: "Die Karte lädt Kartenkacheln von einem Kartendienst.",
+    points: [
+      "Je nach Gerät kommen die Kacheln von Apple (iPhone), Google (Android) oder OpenFreeMap (Web-App).",
+      "Der Kartendienst sieht dabei deine IP-Adresse und den Kartenausschnitt, also die Gegend deiner Strecke.",
+      "Ohne Karte werden Strecke, Tempo und Gangarten trotzdem aufgezeichnet.",
+    ],
+    declined: "Ohne Erlaubnis bleibt die Karte aus.",
     accept: "Erlauben",
   },
   presence_sharing: {
@@ -83,7 +97,8 @@ export const CONSENT_COPY: Record<ConsentKind, ConsentCopy> = {
     summary: "Fotos aufnehmen oder auswählen, z. B. für Pferdeakte und Auffälligkeiten.",
     points: [
       "Fotos liegen auf einem Server in Deutschland und sind für Mitglieder deines Stalls abrufbar. Dokumente sehen nur Besitzer, Reitbeteiligungen und Admins.",
-      "Fotos können Metadaten wie den Aufnahmeort enthalten. Fotografiere niemanden ohne Einverständnis.",
+      "Der Server entfernt beim Hochladen Metadaten wie Aufnahmeort und Kamera aus JPEG-, PNG- und WebP-Bildern.",
+      "Fotografiere niemanden ohne Einverständnis.",
     ],
     declined: "Ohne Erlaubnis keine Foto- oder Dokument-Uploads.",
     accept: "Erlauben",

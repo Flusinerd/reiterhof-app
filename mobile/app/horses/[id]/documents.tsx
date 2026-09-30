@@ -3,7 +3,7 @@ import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams } from "expo-router";
 import { Camera, FileText, Image as ImageIcon, Paperclip, Plus, Trash2 } from "lucide-react-native";
 import { useState } from "react";
-import { Alert, Image, Linking, View } from "react-native";
+import { Alert, Image, View } from "react-native";
 
 import { useConsentPrompt } from "@/components/consent-prompt";
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
@@ -11,7 +11,7 @@ import { Badge, Button, Icon, Input, PageHeader, Pill, PressableCard, Screen, Sh
 import { errorMessage } from "@/lib/api";
 import { horsesApi, useDocuments, useHorse, useHorseMutation, type HorseDocument } from "@/lib/api/horses";
 import { DOCUMENT_KINDS, documentKindLabel, formatDate } from "@/lib/horse-format";
-import { fileSource, fileUrlWithToken, uploadErrorMessage, uploadFile, type UploadInput } from "@/lib/upload";
+import { fileSource, openStoredFile, uploadErrorMessage, uploadFile, type UploadInput } from "@/lib/upload";
 
 /** Documents of a horse (JAN-53): equine passport, vaccination record, insurance, other. */
 export default function Documents() {
@@ -150,7 +150,7 @@ export default function Documents() {
               padded={false}
               accessibilityLabel={`${doc.title} öffnen`}
               className="min-h-[68px] flex-row items-center gap-3 px-4 py-3"
-              onPress={() => void Linking.openURL(fileUrlWithToken(doc.url))}
+              onPress={() => void openStoredFile(doc.url).catch((e) => setError(errorMessage(e)))}
             >
               {doc.content_type.startsWith("image/") ? (
                 <Image

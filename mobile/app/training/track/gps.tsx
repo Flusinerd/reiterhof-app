@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 
 import { useConsentPrompt } from "@/components/consent-prompt";
+import { MapConsentGate } from "@/components/map-consent-gate";
 import { TrackingMap } from "@/components/tracking-map";
 import { GaitChip, GaitLegend, StatTile, TrackingControls, useLeaveGuard } from "@/components/tracking-parts";
 import { Button, LivePanel, PageHeader, Screen, Text } from "@/components/ui";
@@ -148,8 +149,10 @@ function GpsRun({
         )}
       </LivePanel>
 
-      <TrackingMap points={t.points} follow={!t.paused} />
-      <GaitLegend />
+      <MapConsentGate height={280}>
+        <TrackingMap points={t.points} follow={!t.paused} />
+        <GaitLegend />
+      </MapConsentGate>
 
       <View className="flex-row gap-3">
         <StatTile label="Strecke" value={formatDistance(t.stats.distanceM)} />

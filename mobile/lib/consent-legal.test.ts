@@ -34,6 +34,11 @@ test("the privacy text covers every data category and consent", () => {
     "Expo",
     "Google",
     "Apple",
+    "OpenFreeMap",
+    "Metadaten",
+    "Art. 8",
+    "Elternteil",
+    "localStorage",
     "Beschwerde",
   ]) {
     assert.ok(PRIVACY_MD.includes(topic), topic);

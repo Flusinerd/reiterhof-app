@@ -50,6 +50,12 @@ export function errorMessage(err: unknown): string {
         return "Diese Anmeldung ist noch nicht eingerichtet.";
       case "consent_required":
         return "Dafür fehlt deine Einwilligung. Erteile sie unter Einstellungen > Datenschutz.";
+      case "age_unconfirmed":
+        return "Bitte bestätige zuerst dein Alter.";
+      case "already_confirmed":
+        return "Ein Elternteil hat schon zugestimmt.";
+      case "mail_failed":
+        return "Die E-Mail konnte nicht gesendet werden. Versuch es später noch mal.";
       case "validation_failed":
         return "Bitte Eingabe prüfen.";
       case "unauthorized":

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Alert, Image, ScrollView, View, useWindowDimensions } from "react-native";
 
 import { BlanketPhoto } from "@/components/blanket-photo";
+import { useConsentPrompt } from "@/components/consent-prompt";
 import { Button, Input, Sheet, Text } from "@/components/ui";
 import { blanketsApi, usePlanMutation } from "@/lib/api/blankets";
 import { blanketErrorMessage, type Blanket } from "@/lib/blankets";
@@ -28,6 +29,10 @@ export function BlanketEditSheet({ open, onOpenChange, horseId, blanket }: Props
   const [location, setLocation] = useState("");
   const [photo, setPhoto] = useState<Photo>({ kind: "keep" });
   const [error, setError] = useState<string | null>(null);
+  // Camera and photo library need the photos consent (JAN-19). While its sheet is up this one
+  // hides (two sheets must not be open at once); the form state survives, `open` stays true.
+  const consent = useConsentPrompt();
+  const [suspended, setSuspended] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -88,6 +93,9 @@ export function BlanketEditSheet({ open, onOpenChange, horseId, blanket }: Props
 
   async function take(source: "camera" | "library") {
     setError(null);
+    const allowed = await consent.ensure("photos", () => setSuspended(true));
+    setSuspended(false);
+    if (!allowed) return;
     if (source === "camera") {
       const perm = await ImagePicker.requestCameraPermissionsAsync();
       if (!perm.granted) return setError("Kamerazugriff fehlt.");
@@ -110,66 +118,69 @@ export function BlanketEditSheet({ open, onOpenChange, horseId, blanket }: Props
   const busy = save.isPending || remove.isPending;
 
   return (
-    <Sheet
-      open={open}
-      onOpenChange={onOpenChange}
-      title={blanket ? "Decke bearbeiten" : "Neue Decke"}
-    >
-      <ScrollView style={{ maxHeight: height * 0.55 }} contentContainerClassName="gap-4" keyboardShouldPersistTaps="handled">
-        <View className="flex-row items-center gap-4">
-          {photo.kind === "new" ? (
-            <Image
-              source={{ uri: photo.file.uri }}
-              accessibilityIgnoresInvertColors
-              style={{ width: 88, height: 88 }}
-              className="rounded-tile bg-divider"
-            />
-          ) : shownUrl ? (
-            <Image
-              source={fileSource(shownUrl)}
-              accessibilityIgnoresInvertColors
-              style={{ width: 88, height: 88 }}
-              className="rounded-tile bg-divider"
-            />
-          ) : (
-            <BlanketPhoto url={null} size={88} />
-          )}
-          <View className="flex-1 gap-2">
-            <Button label="Foto aufnehmen" icon={Camera} variant="outline" size="sm" fullWidth onPress={() => void take("camera")} />
-            <Button label="Aus Fotos" icon={ImageIcon} variant="outline" size="sm" fullWidth onPress={() => void take("library")} />
+    <>
+      <Sheet
+        open={open && !suspended}
+        onOpenChange={onOpenChange}
+        title={blanket ? "Decke bearbeiten" : "Neue Decke"}
+      >
+        <ScrollView style={{ maxHeight: height * 0.55 }} contentContainerClassName="gap-4" keyboardShouldPersistTaps="handled">
+          <View className="flex-row items-center gap-4">
+            {photo.kind === "new" ? (
+              <Image
+                source={{ uri: photo.file.uri }}
+                accessibilityIgnoresInvertColors
+                style={{ width: 88, height: 88 }}
+                className="rounded-tile bg-divider"
+              />
+            ) : shownUrl ? (
+              <Image
+                source={fileSource(shownUrl)}
+                accessibilityIgnoresInvertColors
+                style={{ width: 88, height: 88 }}
+                className="rounded-tile bg-divider"
+              />
+            ) : (
+              <BlanketPhoto url={null} size={88} />
+            )}
+            <View className="flex-1 gap-2">
+              <Button label="Foto aufnehmen" icon={Camera} variant="outline" size="sm" fullWidth onPress={() => void take("camera")} />
+              <Button label="Aus Fotos" icon={ImageIcon} variant="outline" size="sm" fullWidth onPress={() => void take("library")} />
+            </View>
           </View>
-        </View>
-        {photo.kind !== "remove" && (photo.kind === "new" || blanket?.photo_url) ? (
-          <Button label="Foto entfernen" variant="ghost" size="sm" onPress={() => setPhoto({ kind: "remove" })} />
+          {photo.kind !== "remove" && (photo.kind === "new" || blanket?.photo_url) ? (
+            <Button label="Foto entfernen" variant="ghost" size="sm" onPress={() => setPhoto({ kind: "remove" })} />
+          ) : null}
+
+          <Input value={name} onChangeText={setName} accessibilityLabel="Name" placeholder="Name, z. B. Regendecke" maxLength={80} />
+          <Input
+            value={fill}
+            onChangeText={setFill}
+            accessibilityLabel="Füllung in Gramm"
+            placeholder="Füllung in g, z. B. 100 (0 = ohne)"
+            keyboardType="number-pad"
+          />
+          <Input value={color} onChangeText={setColor} accessibilityLabel="Farbe" placeholder="Farbe, z. B. dunkelblau" maxLength={40} />
+          <Input
+            value={location}
+            onChangeText={setLocation}
+            accessibilityLabel="Aufbewahrungsort"
+            placeholder="Ort, z. B. Haken 3"
+            maxLength={80}
+          />
+        </ScrollView>
+
+        {error ? (
+          <Text variant="bodySm" tone="danger" accessibilityRole="alert">
+            {error}
+          </Text>
         ) : null}
-
-        <Input value={name} onChangeText={setName} accessibilityLabel="Name" placeholder="Name, z. B. Regendecke" maxLength={80} />
-        <Input
-          value={fill}
-          onChangeText={setFill}
-          accessibilityLabel="Füllung in Gramm"
-          placeholder="Füllung in g, z. B. 100 (0 = ohne)"
-          keyboardType="number-pad"
-        />
-        <Input value={color} onChangeText={setColor} accessibilityLabel="Farbe" placeholder="Farbe, z. B. dunkelblau" maxLength={40} />
-        <Input
-          value={location}
-          onChangeText={setLocation}
-          accessibilityLabel="Aufbewahrungsort"
-          placeholder="Ort, z. B. Haken 3"
-          maxLength={80}
-        />
-      </ScrollView>
-
-      {error ? (
-        <Text variant="bodySm" tone="danger" accessibilityRole="alert">
-          {error}
-        </Text>
-      ) : null}
-      <Button label="Speichern" fullWidth loading={save.isPending} disabled={busy} onPress={() => void submit()} />
-      {blanket ? (
-        <Button label="Decke löschen" icon={Trash2} variant="ghost" fullWidth loading={remove.isPending} disabled={busy} onPress={confirmRemove} />
-      ) : null}
-    </Sheet>
+        <Button label="Speichern" fullWidth loading={save.isPending} disabled={busy} onPress={() => void submit()} />
+        {blanket ? (
+          <Button label="Decke löschen" icon={Trash2} variant="ghost" fullWidth loading={remove.isPending} disabled={busy} onPress={confirmRemove} />
+        ) : null}
+      </Sheet>
+      {consent.sheet}
+    </>
   );
 }
