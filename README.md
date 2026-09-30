@@ -25,6 +25,7 @@ Die API liest `REITERHOF_DATABASE_URL` (Standard:
 Datenbanktests laufen nur mit `REITERHOF_TEST_DATABASE_URL` (Admin-URL, z. B.
 `postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable`), sonst werden sie übersprungen.
 Aufbau des Backends, Migrationen und Konventionen: [`docs/architecture.md`](docs/architecture.md).
+Anmeldung (E-Mail-Link, Google, Apple) einrichten: [`docs/auth-setup.md`](docs/auth-setup.md). Lokal: `REITERHOF_DEV_LOGIN=true just api`, dann `POST /api/v1/auth/dev-login {"email":"jan@example.org"}`.
 
 Die App erwartet die API unter `http://10.0.2.2:8080` (Android-Emulator).
 Für ein echtes Gerät `expo.extra.apiUrl` in `mobile/app.json` setzen.
