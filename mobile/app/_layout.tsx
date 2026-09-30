@@ -18,6 +18,9 @@ import "@/lib/tracking-location"; // registers the ride tracking task at app sta
 import { useNotificationNavigation } from "@/lib/notifications"; // also sets the foreground presentation
 import { useDeviceSetup } from "@/lib/use-push-registration";
 import { colors } from "@/lib/theme";
+import { setupWeb } from "@/lib/web-setup";
+
+setupWeb(); // web only: Alert.alert replacement; no-op on native
 
 // Keep the splash screen until the fonts are ready (no flash of system font).
 SplashScreen.preventAutoHideAsync();

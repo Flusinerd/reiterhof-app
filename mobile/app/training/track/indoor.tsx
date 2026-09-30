@@ -8,6 +8,7 @@ import { GaitChip, ProgressBar, TrackingControls, useLeaveGuard } from "@/compon
 import { Button, Card, Hero, Screen, SectionLabel, Text } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import type { Gait } from "@/lib/gait";
+import { isWeb } from "@/lib/platform";
 import { activityLabel, formatClock, isActivity } from "@/lib/training";
 import { formatReinMinutes, gaitLabel, reinLabel } from "@/lib/tracking-format";
 import type { Snapshot } from "@/lib/tracking-persist";
@@ -111,6 +112,12 @@ function IndoorRun({
             Beispiel in der Jackentasche. Liegt die Erkennung falsch, tippst du die richtige Gangart an. Mit
             „Handwechsel“ zählt die Zeit auf der anderen Hand.
           </Text>
+          {isWeb ? (
+            <Text variant="secondary" tone="accent">
+              Bildschirm während der Aufzeichnung anlassen. Bei gesperrtem Bildschirm liefert der Browser keine
+              Bewegungsdaten.
+            </Text>
+          ) : null}
         </Card>
         {exerciseId && exercise.data ? (
           <Text variant="secondary">Übung: {exercise.data.title}</Text>

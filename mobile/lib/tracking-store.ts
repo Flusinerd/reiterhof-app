@@ -1,9 +1,7 @@
-import * as FileSystem from "expo-file-system/legacy";
-import { Platform } from "react-native";
-
 import { parseSnapshot, serializeSnapshot, type Snapshot } from "./tracking-persist";
 import type { ApiTrackPoint, RawFix } from "./tracking";
 import type { WindowRecord } from "./gait/export";
+import { readFile, removeFile, writeFile } from "./tracking-files";
 
 /**
  * Local store of the tracker (JAN-63/65). Files in the app's document directory, because a
@@ -17,11 +15,9 @@ import type { WindowRecord } from "./gait/export";
  * - `tracking-finish.json`: track and gait windows on their way to the finish screen, which
  *   posts them with the session. Router params are too small for them.
  *
- * All calls are best effort: on web, or when the disk is not writable, they do nothing.
+ * All calls are best effort: when the storage is not writable they do nothing. Where the
+ * bytes go is decided by `tracking-files.ts` (native: files, web: IndexedDB).
  */
-
-const native = Platform.OS === "ios" || Platform.OS === "android";
-const dir = native ? FileSystem.documentDirectory : null;
 
 const SESSION_FILE = "tracking-session.json";
 const PENDING_FILE = "tracking-pending.json";
@@ -37,23 +33,15 @@ function enqueue<T>(file: string, job: () => Promise<T>): Promise<T | undefined>
 }
 
 async function write(file: string, text: string): Promise<void> {
-  if (!dir) return;
-  await enqueue(file, () => FileSystem.writeAsStringAsync(dir + file, text));
+  await enqueue(file, () => writeFile(file, text));
 }
 
 async function read(file: string): Promise<string | null> {
-  if (!dir) return null;
-  return (
-    (await enqueue(file, async () => {
-      const info = await FileSystem.getInfoAsync(dir + file);
-      return info.exists ? FileSystem.readAsStringAsync(dir + file) : null;
-    })) ?? null
-  );
+  return (await enqueue(file, () => readFile(file))) ?? null;
 }
 
 async function remove(file: string): Promise<void> {
-  if (!dir) return;
-  await enqueue(file, () => FileSystem.deleteAsync(dir + file, { idempotent: true }));
+  await enqueue(file, () => removeFile(file));
 }
 
 // --- running session -----------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import * as SecureStore from "expo-secure-store";
+import * as storage from "./storage";
 
 import { CONSENTS_KEY, privacyApi } from "./api/privacy";
 import { useAuth } from "./auth";
@@ -49,7 +49,7 @@ const askedKey = (kind: ConsentKind) => `reiterhof.consent.asked.${kind}`;
 
 export async function wasAsked(kind: ConsentKind): Promise<boolean> {
   try {
-    return (await SecureStore.getItemAsync(askedKey(kind))) === "1";
+    return (await storage.getItem(askedKey(kind))) === "1";
   } catch {
     return false;
   }
@@ -57,7 +57,7 @@ export async function wasAsked(kind: ConsentKind): Promise<boolean> {
 
 export async function markAsked(kind: ConsentKind): Promise<void> {
   try {
-    await SecureStore.setItemAsync(askedKey(kind), "1");
+    await storage.setItem(askedKey(kind), "1");
   } catch {
     // shown again at the next start; harmless
   }

@@ -8,6 +8,7 @@ import { Platform } from "react-native";
 import { Button } from "@/components/ui";
 import { ApiError, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { capabilities } from "@/lib/platform";
 
 // Completes the browser session when the app is reopened by the OAuth redirect.
 WebBrowser.maybeCompleteAuthSession();
@@ -83,6 +84,11 @@ function ConfiguredGoogleButton({ onError }: Props) {
 
 /** "Mit Apple anmelden": iOS only, renders nothing on Android. */
 export function AppleSignInButton({ onError }: Props) {
+  if (!capabilities.appleSignIn) return null; // web: Sign in with Apple is not set up
+  return <NativeAppleSignInButton onError={onError} />;
+}
+
+function NativeAppleSignInButton({ onError }: Props) {
   const { signInWithApple } = useAuth();
   const [available, setAvailable] = useState(false);
   const [busy, setBusy] = useState(false);
