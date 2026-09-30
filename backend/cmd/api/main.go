@@ -57,7 +57,12 @@ func main() {
 	(&scheduler.Scheduler{Log: log}).Go(ctx, &jobs, presence.StaleJob(pool, log, time.Now))
 	(&scheduler.Scheduler{Log: log}).Go(ctx, &jobs, privacy.Job(pool, log, time.Now))
 
-	notifier := push.NewNotifier(pool, push.NewClientFromEnv(), log)
+	native, err := push.NewClientFromEnv(log)
+	if err != nil {
+		log.Error("native push: credentials rejected, that platform is skipped", "err", err)
+	}
+	log.Info("native push", "platforms", native.Configured())
+	notifier := push.NewNotifier(pool, native, log)
 	switch vapid, err := push.VAPIDFromEnv(); {
 	case err == nil:
 		notifier.WithWeb(push.NewWebClient(vapid))

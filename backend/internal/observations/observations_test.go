@@ -127,7 +127,7 @@ func (e *env) tokens() map[string]string {
 	}
 	out := map[string]string{}
 	for id, name := range names {
-		tok := "ExponentPushToken[" + name + "]"
+		tok := "tok-" + name
 		if err := push.RegisterToken(context.Background(), e.pool, seed.StableB, id, tok, "android"); err != nil {
 			e.t.Fatal(err)
 		}

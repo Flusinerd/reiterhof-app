@@ -112,7 +112,11 @@ func runWeatherRefresh(ctx context.Context, e *Env, args []string) error {
 
 	// Same as the hourly job in cmd/api: a fresh forecast may change tonight's blanket
 	// recommendation, which sends the weather change push.
-	var notify httpx.Notifier = push.NewNotifier(pool, push.NewClientFromEnv(), e.log())
+	native, err := push.NewClientFromEnv(e.log())
+	if err != nil {
+		fmt.Fprintf(e.Err, "warning: native push: %v\n", err)
+	}
+	var notify httpx.Notifier = push.NewNotifier(pool, native, e.log())
 	if e.Notify != nil {
 		notify = e.Notify
 	}

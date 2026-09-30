@@ -5,18 +5,38 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
+)
+
+// Message priorities (Message.Priority). High wakes the device even in battery saving
+// modes; only urgent kinds use it.
+const (
+	PriorityNormal = "normal"
+	PriorityHigh   = "high"
 )
 
 // Message is one push notification for one device token.
 type Message struct {
-	To    string         `json:"to"`
-	Title string         `json:"title,omitempty"`
-	Body  string         `json:"body"`
-	Data  map[string]any `json:"data,omitempty"`
-	Sound string         `json:"sound,omitempty"`
+	// To is the native device token: the APNs token (hex) on iOS, the FCM registration
+	// token on Android.
+	To string
+	// Platform is PlatformIOS or PlatformAndroid and picks the service.
+	Platform string
+	Title    string
+	Body     string
+	// Data reaches the app as the notification's data (screen, kind, ids).
+	Data map[string]any
+	// Sound is the iOS sound name ("default"); Android plays the channel's sound.
+	Sound string
+	// Priority is PriorityNormal (default) or PriorityHigh.
+	Priority string
+	// TTL is how long the service keeps the message for an offline device; 0 means the
+	// service default.
+	TTL time.Duration
 }
 
-// Sender delivers messages. Implementations: Client (Expo) and Fake (tests).
+// Sender delivers messages. Implementations: Client (APNs and FCM), APNSClient,
+// FCMClient and Fake (tests).
 type Sender interface {
 	// Send delivers all messages. If some devices are gone or some tickets
 	// failed, it still processes everything and returns a *SendError.
@@ -25,8 +45,8 @@ type Sender interface {
 
 // SendError reports per-message problems of an otherwise processed batch.
 type SendError struct {
-	// InvalidTokens are tokens Expo reported as DeviceNotRegistered; callers
-	// should delete them.
+	// InvalidTokens are tokens the service reported as gone or malformed (APNs
+	// BadDeviceToken/Unregistered, FCM UNREGISTERED); callers should delete them.
 	InvalidTokens []string
 	// Failures are descriptions of all other failed tickets or batches.
 	Failures []string
@@ -45,7 +65,7 @@ func (e *SendError) Error() string {
 type Fake struct {
 	mu   sync.Mutex
 	sent []Message
-	// Invalid holds tokens that Send reports as DeviceNotRegistered.
+	// Invalid holds tokens that Send reports as invalid.
 	Invalid map[string]bool
 	// Err, if set, is returned by Send instead of delivering.
 	Err error

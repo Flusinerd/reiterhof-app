@@ -1,5 +1,5 @@
-// Package devices lets signed-in users register the Expo push tokens and the Web Push
-// subscriptions of their devices.
+// Package devices lets signed-in users register the native push tokens (APNs, FCM) and
+// the Web Push subscriptions of their devices.
 package devices
 
 import (
@@ -42,8 +42,8 @@ func (h handler) register(w http.ResponseWriter, r *http.Request) {
 	if !httpx.ReadJSON(w, r, &in) {
 		return
 	}
-	if in.Token == "" || (in.Platform != push.PlatformIOS && in.Platform != push.PlatformAndroid) {
-		httpx.WriteError(w, http.StatusBadRequest, "invalid_token", "token and platform (ios, android) are required")
+	if !push.ValidToken(in.Token) || (in.Platform != push.PlatformIOS && in.Platform != push.PlatformAndroid) {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid_token", "a native device token and platform (ios, android) are required")
 		return
 	}
 	user, _ := auth.UserFrom(r.Context())

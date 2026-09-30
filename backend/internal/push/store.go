@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -17,12 +18,31 @@ const (
 // ErrUnknownUser is returned by RegisterToken when userID is not a user of stableID.
 var ErrUnknownUser = errors.New("push: user not found in stable")
 
-// RegisterToken stores an Expo push token for a user. A token belongs to one
+// ErrInvalidToken is returned by RegisterToken for a token that is not a native
+// device token (an Expo push token from an old build, whitespace, too long).
+var ErrInvalidToken = errors.New("push: invalid device token")
+
+// ValidToken reports whether token looks like a native device token: the APNs token
+// (hex) or an FCM registration token. Expo push tokens ("ExponentPushToken[...]") are
+// refused, the server sends to APNs and FCM directly.
+func ValidToken(token string) bool {
+	if token == "" || len(token) > 4096 || strings.HasPrefix(token, "Expo") {
+		return false
+	}
+	for _, r := range token {
+		if r <= ' ' || r > '~' || r == '[' || r == ']' {
+			return false
+		}
+	}
+	return true
+}
+
+// RegisterToken stores a native push token for a user. A token belongs to one
 // device, so an existing row with the same token is re-assigned (device handed
 // to another user or stable).
 func RegisterToken(ctx context.Context, pool *pgxpool.Pool, stableID, userID, token, platform string) error {
-	if token == "" {
-		return fmt.Errorf("push: empty token")
+	if !ValidToken(token) {
+		return ErrInvalidToken
 	}
 	if platform != PlatformIOS && platform != PlatformAndroid {
 		return fmt.Errorf("push: invalid platform %q", platform)

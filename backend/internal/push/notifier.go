@@ -13,8 +13,8 @@ import (
 )
 
 // Notifier sends notifications to users of a stable, honoring reminder_settings and
-// the push consent. Devices are Expo tokens (Sender) and, when a WebSender is set,
-// browser subscriptions of the PWA.
+// the push consent. Devices are native tokens (Sender: APNs and FCM) and, when a
+// WebSender is set, browser subscriptions of the PWA.
 type Notifier struct {
 	pool   *pgxpool.Pool
 	sender Sender
@@ -40,7 +40,7 @@ func (n *Notifier) WithWeb(web WebSender) *Notifier {
 // recipientFilter is the WHERE clause both device tables share (alias t, both have
 // stable_id and user_id): the users in the stable ($1, $2) with a current `push` consent
 // who did not switch the kind ($3) off in reminder_settings; for opt-in kinds ($4) only
-// users who switched it on. Expo tokens and web subscriptions must use this one filter,
+// users who switched it on. Native tokens and web subscriptions must use this one filter,
 // so consent and opt-outs cannot diverge between the two paths.
 const recipientFilter = `
 		t.stable_id = $1
@@ -64,9 +64,9 @@ const recipientFilter = `
 // revoked; a user who never consented gets nothing) are notified. Users who disabled
 // the kind in reminder_settings are skipped (no row means enabled), except for opt-in
 // kinds (see OptIn): those are only sent to users with a reminder_settings row that
-// enables them. Tokens Expo reports as invalid and subscriptions the push service
+// enables them. Tokens APNs or FCM report as invalid and subscriptions the push service
 // reports as gone (404/410) are deleted. Delivery problems other than invalid tokens
-// are returned; a failing web delivery does not stop the Expo one and vice versa.
+// are returned; a failing web delivery does not stop the native one and vice versa.
 func (n *Notifier) NotifyUsers(ctx context.Context, stableID string, userIDs []string, kind, title, body string, data map[string]any) error {
 	if !ValidKind(kind) {
 		return fmt.Errorf("push: unknown kind %q", kind)
@@ -80,31 +80,42 @@ func (n *Notifier) NotifyUsers(ctx context.Context, stableID string, userIDs []s
 	}
 	d["kind"] = kind
 
-	expoErr := n.notifyExpo(ctx, stableID, userIDs, kind, title, body, d)
+	nativeErr := n.notifyNative(ctx, stableID, userIDs, kind, title, body, d)
 	webErr := n.notifyWeb(ctx, stableID, userIDs, kind, title, body, d)
-	return errors.Join(expoErr, webErr)
+	return errors.Join(nativeErr, webErr)
 }
 
-func (n *Notifier) notifyExpo(ctx context.Context, stableID string, userIDs []string, kind, title, body string, data map[string]any) error {
+type device struct {
+	token, platform string
+}
+
+func (n *Notifier) notifyNative(ctx context.Context, stableID string, userIDs []string, kind, title, body string, data map[string]any) error {
 	rows, err := n.pool.Query(ctx, `
-		SELECT t.token
+		SELECT t.token, t.platform
 		FROM push_tokens t
 		WHERE `+recipientFilter+`
 		ORDER BY t.created_at, t.token`, stableID, userIDs, kind, OptIn(kind))
 	if err != nil {
 		return fmt.Errorf("push: load tokens: %w", err)
 	}
-	tokens, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	devices, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (device, error) {
+		var d device
+		err := row.Scan(&d.token, &d.platform)
+		return d, err
+	})
 	if err != nil {
 		return fmt.Errorf("push: load tokens: %w", err)
 	}
-	if len(tokens) == 0 {
+	if len(devices) == 0 {
 		return nil
 	}
-	msgs := make([]Message, 0, len(tokens))
-	for _, token := range tokens {
+	msgs := make([]Message, 0, len(devices))
+	for _, d := range devices {
 		// Every message gets its own copy of the data map.
-		msgs = append(msgs, Message{To: token, Title: title, Body: body, Data: cloneData(data), Sound: "default"})
+		msgs = append(msgs, Message{
+			To: d.token, Platform: d.platform, Title: title, Body: body, Data: cloneData(data),
+			Sound: "default", Priority: priority(kind), TTL: webTTL(kind),
+		})
 	}
 
 	err = n.sender.Send(ctx, msgs)
@@ -192,10 +203,19 @@ func cloneData(data map[string]any) map[string]any {
 	return out
 }
 
-// webUrgency is the RFC 8030 urgency: urgent alarms and the "last person" reminder
-// should wake the device even in battery saving mode.
-func webUrgency(kind string) string {
+// priority is PriorityHigh for the kinds that should wake the device even in battery
+// saving mode: urgent alarms and the "last person" reminder. Web Push uses the same
+// split as its RFC 8030 urgency (webUrgency).
+func priority(kind string) string {
 	if kind == KindUrgentObservation || kind == KindLastPerson {
+		return PriorityHigh
+	}
+	return PriorityNormal
+}
+
+// webUrgency is the RFC 8030 urgency, see priority.
+func webUrgency(kind string) string {
+	if priority(kind) == PriorityHigh {
 		return "high"
 	}
 	return "normal"

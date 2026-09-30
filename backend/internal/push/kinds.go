@@ -1,8 +1,10 @@
-// Package push sends Expo push notifications and manages device tokens.
+// Package push sends push notifications to native devices and browsers and manages
+// their tokens.
 //
-// Layers: Client talks to the Expo Push API, Sender abstracts it (Fake for
-// tests), Notifier resolves recipients from the database and cleans up invalid
-// tokens, and the store functions (RegisterToken, DeleteToken) manage push_tokens.
+// Layers: Client talks to APNs (APNSClient) and FCM (FCMClient) directly, Sender
+// abstracts it (Fake for tests), WebClient does the same for Web Push, Notifier
+// resolves recipients from the database and cleans up invalid tokens, and the store
+// functions (RegisterToken, DeleteToken) manage push_tokens.
 package push
 
 // Reminder kinds. They are the values of reminder_settings.kind and the kind

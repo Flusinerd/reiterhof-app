@@ -154,7 +154,7 @@ func TestNotifyUsersWebPayloadAndDelivery(t *testing.T) {
 	if err := RegisterWebSubscription(ctx, f.pool, f.stableA, f.anna, webSub(t, ep), ""); err != nil {
 		t.Fatal(err)
 	}
-	if err := RegisterToken(ctx, f.pool, f.stableA, f.anna, "ExponentPushToken[a]", PlatformIOS); err != nil {
+	if err := RegisterToken(ctx, f.pool, f.stableA, f.anna, "apns-a", PlatformIOS); err != nil {
 		t.Fatal(err)
 	}
 	fake, web := &Fake{}, &FakeWeb{}
@@ -238,7 +238,7 @@ func TestNotifyUsersWebNotConfigured(t *testing.T) {
 	if err := RegisterWebSubscription(ctx, f.pool, f.stableA, f.anna, webSub(t, "https://push.example.com/a"), ""); err != nil {
 		t.Fatal(err)
 	}
-	if err := RegisterToken(ctx, f.pool, f.stableA, f.anna, "ExponentPushToken[a]", PlatformIOS); err != nil {
+	if err := RegisterToken(ctx, f.pool, f.stableA, f.anna, "apns-a", PlatformIOS); err != nil {
 		t.Fatal(err)
 	}
 	fake := &Fake{}

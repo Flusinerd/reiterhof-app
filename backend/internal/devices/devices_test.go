@@ -33,21 +33,25 @@ func TestRegisterAndDeletePushToken(t *testing.T) {
 		return n
 	}
 
-	if got := do(http.MethodPost, `{"token":"ExponentPushToken[a]","platform":"ios"}`, false); got != http.StatusUnauthorized {
+	if got := do(http.MethodPost, `{"token":"0af1","platform":"ios"}`, false); got != http.StatusUnauthorized {
 		t.Fatalf("without token: status = %d, want 401", got)
 	}
 	if got := do(http.MethodPost, `{"token":"ExponentPushToken[a]","platform":"web"}`, true); got != http.StatusBadRequest {
 		t.Fatalf("bad platform: status = %d, want 400", got)
 	}
+	// Expo push tokens from old builds cannot be delivered to (the server talks to APNs and FCM directly).
+	if got := do(http.MethodPost, `{"token":"ExponentPushToken[a]","platform":"ios"}`, true); got != http.StatusBadRequest {
+		t.Fatalf("expo token: status = %d, want 400", got)
+	}
 	for range 2 { // registering twice is idempotent
-		if got := do(http.MethodPost, `{"token":"ExponentPushToken[a]","platform":"ios"}`, true); got != http.StatusNoContent {
+		if got := do(http.MethodPost, `{"token":"0af1","platform":"ios"}`, true); got != http.StatusNoContent {
 			t.Fatalf("register: status = %d, want 204", got)
 		}
 	}
 	if n := count(); n != 1 {
 		t.Fatalf("tokens = %d, want 1", n)
 	}
-	if got := do(http.MethodDelete, `{"token":"ExponentPushToken[a]"}`, true); got != http.StatusNoContent {
+	if got := do(http.MethodDelete, `{"token":"0af1"}`, true); got != http.StatusNoContent {
 		t.Fatalf("delete: status = %d, want 204", got)
 	}
 	if n := count(); n != 0 {
