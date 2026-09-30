@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { API_URL, authed } from "../api";
 import { parseErrorBody, ApiError } from "../api-core.ts";
 import { getToken } from "../token";
+import { trainingKeys } from "./training";
 
 // --- types (mirror the backend JSON) -------------------------------------------------------
 
@@ -206,11 +207,17 @@ export const useMembers = () =>
 /**
  * Runs a mutation and refreshes everything about horses afterwards (lists, record, card,
  * health, documents). Horse data is small; one broad invalidation keeps the screens consistent.
+ * The training tab keeps its own horse list (owned or ridden), so a new horse or rider must
+ * refresh it too, or the tab keeps showing "Noch kein Pferd".
  */
 export function useHorseMutation<TVars, TResult>(fn: (vars: TVars) => Promise<TResult>) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: fn,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: horseKeys.all }),
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: horseKeys.all }),
+        queryClient.invalidateQueries({ queryKey: trainingKeys.all }),
+      ]),
   });
 }
