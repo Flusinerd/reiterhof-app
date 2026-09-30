@@ -1,8 +1,9 @@
 import { Tabs } from "expo-router";
-import { Activity, HandHelping, House, PawPrint, Shirt } from "lucide-react-native";
+import { Activity, HandHelping, House, Shirt } from "lucide-react-native";
 import type { LucideIcon } from "lucide-react-native";
 import { View, type ColorValue } from "react-native";
 
+import { Horse } from "@/components/icons/horse";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/cn";
 import { colors, tabBar } from "@/lib/theme";
@@ -49,7 +50,7 @@ export default function TabsLayout() {
         options={{ title: "Anfragen", tabBarIcon: tabIcon(HandHelping) }}
       />
       <Tabs.Screen name="training" options={{ title: "Training", tabBarIcon: tabIcon(Activity) }} />
-      <Tabs.Screen name="horses" options={{ title: "Pferde", tabBarIcon: tabIcon(PawPrint) }} />
+      <Tabs.Screen name="horses" options={{ title: "Pferde", tabBarIcon: tabIcon(Horse) }} />
     </Tabs>
   );
 }
