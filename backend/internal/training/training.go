@@ -163,6 +163,8 @@ type Session struct {
 	Minutes     int       `json:"minutes"`
 	CanterShare float64   `json:"canter_share"`
 	Load        float64   `json:"load"` // see load.Score
+	// Feel is how the horse felt (fresh, loose, tired, tense), empty if not logged.
+	Feel string `json:"feel,omitempty"`
 }
 
 // Day normalises t to midnight UTC of its own calendar date.
