@@ -54,7 +54,6 @@ export default function NewRequest() {
   // show_helper
   const [showName, setShowName] = useState("");
   const [classes, setClasses] = useState<ShowClass[]>([]);
-  const [rideAlong, setRideAlong] = useState(false);
   // ride_share
   const [destination, setDestination] = useState("");
   const [seats, setSeats] = useState(2);
@@ -95,7 +94,6 @@ export default function NewRequest() {
           show_name: showName.trim(),
           classes: classes.filter((c) => c.name.trim()).map((c) => ({ name: c.name.trim(), ...(c.time ? { time: c.time } : {}) })),
           tasks,
-          ride_along: rideAlong,
         };
         break;
       case "ride_share":
@@ -250,7 +248,6 @@ export default function NewRequest() {
                 ))}
               </View>
             </FieldRow>
-            <Switch label="Mitfahrgelegenheit" description="Helfer können im Hänger mitfahren." value={rideAlong} onValueChange={setRideAlong} />
         </Section>
       ) : null}
 

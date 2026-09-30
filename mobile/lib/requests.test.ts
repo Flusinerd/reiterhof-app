@@ -163,12 +163,11 @@ test("payload details are shown in German", () => {
   assert.deepEqual(
     payloadDetails({
       type: "show_helper",
-      payload: { show_name: "Herbstturnier", classes: [{ name: "E-Dressur", time: "09:30" }, { name: "A-Springen" }], ride_along: true },
+      payload: { show_name: "Herbstturnier", classes: [{ name: "E-Dressur", time: "09:30" }, { name: "A-Springen" }] },
     }),
     [
       { label: "Turnier", value: "Herbstturnier" },
       { label: "Prüfungen", value: "E-Dressur (09:30), A-Springen" },
-      { label: "Mitfahrgelegenheit", value: "Platz im Hänger" },
     ],
   );
   assert.deepEqual(payloadDetails({ type: "ride_share", payload: { destination: "Haltern", departure_time: "07:15", seats_free: 2 } }), [

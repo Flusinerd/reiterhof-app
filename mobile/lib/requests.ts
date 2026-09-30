@@ -60,7 +60,6 @@ export type ShowHelperPayload = {
   show_name: string;
   classes: ShowClass[];
   tasks: string[];
-  ride_along: boolean;
 };
 
 export type RideSharePayload = { destination: string; departure_time: string; seats_free: number };
@@ -450,7 +449,6 @@ export function payloadDetails(r: Pick<HelpRequest, "type" | "payload">): { labe
       if (classes.length > 0) {
         rows.push({ label: "Prüfungen", value: classes.map((c) => (c.time ? `${c.name} (${c.time})` : c.name)).join(", ") });
       }
-      if (p.ride_along === true) rows.push({ label: "Mitfahrgelegenheit", value: "Platz im Hänger" });
       break;
     }
     case "ride_share":

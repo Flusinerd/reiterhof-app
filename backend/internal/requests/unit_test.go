@@ -90,7 +90,7 @@ func TestRuleOccurrences(t *testing.T) {
 
 func TestValidatePayload(t *testing.T) {
 	ok := []struct{ typ, payload string }{
-		{TypeShowHelper, `{"show_name":"Turnier Dorsten","classes":[{"name":"E-Dressur","time":"09:30"}],"tasks":["hold_horse","film"],"ride_along":true}`},
+		{TypeShowHelper, `{"show_name":"Turnier Dorsten","classes":[{"name":"E-Dressur","time":"09:30"}],"tasks":["hold_horse","film"]}`},
 		{TypeShowHelper, `{"show_name":"Turnier"}`},
 		{TypeRideShare, `{"destination":"Haltern","departure_time":"07:15","seats_free":2}`},
 		{TypeExercise, `{"mode":"lunge","rules_note":"nur Schritt und Trab"}`},
