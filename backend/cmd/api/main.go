@@ -8,12 +8,15 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/Flusinerd/reiterhof-app/backend/internal/config"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/db"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/httpapi"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/scheduler"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/weather"
 	"github.com/Flusinerd/reiterhof-app/backend/migrations"
 )
 
@@ -33,6 +36,24 @@ func main() {
 	if err := db.Migrate(ctx, pool, migrations.FS); err != nil {
 		log.Error("migrations failed", "err", err)
 		os.Exit(1)
+	}
+
+	var jobs sync.WaitGroup
+	if cfg.WeatherEnabled {
+		weatherSvc := &weather.Service{
+			Pool:      pool,
+			Fetcher:   &weather.DWD{},
+			Log:       log,
+			Now:       time.Now,
+			StationID: cfg.WeatherStation,
+		}
+		sched := &scheduler.Scheduler{Log: log}
+		sched.Go(ctx, &jobs, scheduler.Job{
+			Name:       "weather-snapshot",
+			Schedule:   scheduler.Every(time.Hour),
+			RunOnStart: true,
+			Run:        weatherSvc.Refresh,
+		})
 	}
 
 	srv := &http.Server{
@@ -56,5 +77,6 @@ func main() {
 		log.Error("shutdown failed", "err", err)
 		os.Exit(1)
 	}
+	jobs.Wait()
 	log.Info("API stopped")
 }
