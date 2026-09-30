@@ -1,6 +1,9 @@
 # Stallfunk — local development tasks.
 # Overview: `just` or `just --list`
 
+# Pass recipe arguments to the shell as "$@" (used by `admin`), so values with spaces survive.
+set positional-arguments
+
 _default:
   @just --list
 
@@ -24,6 +27,10 @@ db_admin_url := env("REITERHOF_ADMIN_DATABASE_URL", "postgres://postgres:postgre
 # Apply pending SQL migrations to REITERHOF_DATABASE_URL
 migrate:
   cd backend && go run ./cmd/migrate
+
+# Operator CLI against REITERHOF_DATABASE_URL, e.g. `just admin user list` or `just admin help`
+admin *args:
+  cd backend && go run ./cmd/admin "$@"
 
 # Load the example data (idempotent, migrates first)
 seed:

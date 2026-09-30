@@ -50,13 +50,15 @@ jobs:
         working-directory: backend
         run: go test ./...
 
-      - name: Build static linux/amd64 binary
+      - name: Build static linux/amd64 binaries (API and operator tool)
         working-directory: backend
         env:
           CGO_ENABLED: "0"
           GOOS: linux
           GOARCH: amd64
-        run: go build -trimpath -ldflags "-s -w" -o "$RUNNER_TEMP/api" ./cmd/api
+        run: |
+          go build -trimpath -ldflags "-s -w" -o "$RUNNER_TEMP/api" ./cmd/api
+          go build -trimpath -ldflags "-s -w" -o "$RUNNER_TEMP/stallfunk-admin" ./cmd/admin
 
       - name: Configure SSH
         run: |
@@ -66,12 +68,14 @@ jobs:
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 0644 ~/.ssh/known_hosts
 
-      - name: Upload binary
+      - name: Upload binaries
         run: |
           scp -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes \
             "$RUNNER_TEMP/api" "$DEPLOY_USER@$DEPLOY_HOST:/opt/reiterhof/api.new"
+          scp -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$RUNNER_TEMP/stallfunk-admin" "$DEPLOY_USER@$DEPLOY_HOST:/opt/reiterhof/stallfunk-admin.new"
 
-      - name: Swap binary, restart service, check health
+      - name: Swap binaries, restart service, check health
         run: |
           ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes \
             "$DEPLOY_USER@$DEPLOY_HOST" 'bash -s' < deploy/remote-swap.sh

@@ -17,6 +17,7 @@ Internet -> Caddy (80/443, automatisches TLS) -> reiterhof-api (127.0.0.1:8080) 
 | `backup.sh`, `systemd/reiterhof-backup.*` | Tägliches Backup + Offsite-Kopie |
 | `restore-test.sh`, `restore.md` | Restore-Anleitung und Restore-Test |
 | `remote-swap.sh` | Wird vom Deploy-Workflow auf dem Server ausgeführt |
+| `stallfunk-admin.sh` | Wrapper `/usr/local/bin/stallfunk-admin` für das Betriebswerkzeug (siehe [Betrieb](#betrieb-stallfunk-admin)) |
 
 ## 1. Server bestellen
 
@@ -102,10 +103,12 @@ externen Health-Check am Ende) und `DEPLOY_ENABLED=true` (automatisches Deployme
 für einen Push auf `main` grün ist; ausgerollt wird genau der getestete Commit. Ohne diese
 Variable läuft der Workflow nur manuell).
 
-Dann *Actions > Deploy > Run workflow*. Der Workflow testet, baut ein statisches
-linux/amd64-Binary, lädt es per `scp` hoch, tauscht `/opt/reiterhof/api` atomar aus,
-startet den Dienst neu und prüft `/healthz`. Fällt der Health-Check durch, wird automatisch das
-vorherige Binary wiederhergestellt (`/opt/reiterhof/api.prev`).
+Dann *Actions > Deploy > Run workflow*. Der Workflow testet, baut zwei statische
+linux/amd64-Binaries (API und das Betriebswerkzeug `stallfunk-admin`), lädt sie per `scp` hoch,
+tauscht `/opt/reiterhof/api` atomar aus, startet den Dienst neu und prüft `/healthz`. Fällt der
+Health-Check durch, wird automatisch das vorherige Binary wiederhergestellt
+(`/opt/reiterhof/api.prev`). Das Betriebswerkzeug wird erst nach erfolgreichem Health-Check als
+`/opt/reiterhof/stallfunk-admin` installiert (ebenfalls atomar, ohne zusätzliche sudo-Rechte).
 
 Kontrolle auf dem Server:
 
@@ -167,6 +170,78 @@ DSGVO (Art. 28) brauchst du dafür einen **Auftragsverarbeitungsvertrag (AVV/DPA
 
 Das ersetzt keine Rechtsberatung. Die Caddy-Konfiguration schreibt bewusst kein Access-Log
 mit IP-Adressen.
+
+## Betrieb: stallfunk-admin
+
+Für alles, was die App (noch) nicht kann, gibt es das Kommandozeilenwerkzeug `stallfunk-admin`
+statt SQL von Hand: den ersten Stall und Admin anlegen, Einladungscodes erzeugen, Nutzer
+befördern, verschieben oder löschen, Pferde übertragen, Sitzungen beenden, Test-Mail senden,
+Wetter neu laden, Migrationen prüfen. Es benutzt denselben Code wie die API (z. B. beim Löschen
+von Konten) und liest `/etc/reiterhof/api.env`.
+
+**Aufruf** (auf dem Server als `admin`; sudo passiert im Wrapper, `sudo stallfunk-admin ...` geht auch):
+
+```sh
+stallfunk-admin help
+stallfunk-admin user list
+```
+
+Der Wrapper `/usr/local/bin/stallfunk-admin` startet `/opt/reiterhof/stallfunk-admin` als Benutzer
+`reiterhof`: Nur dieser Benutzer (und root) darf `api.env` lesen, und er hat keine Rechte über die
+Datenbank der API hinaus. Einstellungen kommen deshalb nur aus der Datei, nicht aus der Shell.
+`--json` gibt Listen als JSON aus, `--yes` überspringt die Rückfrage bei `user delete`,
+`user demote`, `user move` und `horse transfer`.
+
+**Häufige Aufgaben**
+
+```sh
+# Erster Stall (Koordinaten für den Wetterabruf) und erster Admin
+stallfunk-admin stable create --name "Stallgasse B" --farm "Hof Ahlers" --city Dorsten --lat 51.66 --lng 6.96
+stallfunk-admin user create --email du@example.org --name "Dein Name" --admin
+stallfunk-admin stable list
+
+# Einladungscode für neue Mitglieder (Standard: 7 Tage, 10 Einlösungen)
+stallfunk-admin invite create
+stallfunk-admin invite create --days 14 --max-uses 3
+stallfunk-admin invite list
+
+# Rechte und Zuordnung
+stallfunk-admin user promote anna@example.org
+stallfunk-admin user demote anna@example.org      # verweigert für den letzten Admin eines Stalls
+stallfunk-admin user move anna@example.org --stable <stall-id>
+stallfunk-admin horse transfer Luna --to anna@example.org
+stallfunk-admin sessions revoke anna@example.org  # erzwingt neue Anmeldung
+
+# Konto löschen (wie in der App: anonymisiert; blockiert, solange Pferde gehören oder letzter Admin)
+stallfunk-admin user delete anna@example.org
+
+# Mail-Versand prüfen (SMTP-Einstellungen aus api.env)
+stallfunk-admin mail test --to du@example.org
+
+# Wetter jetzt laden, Migrationen ansehen
+stallfunk-admin weather refresh
+stallfunk-admin migrate status
+```
+
+Gibt es genau einen Stall, gilt er als Standard für `--stable`; bei mehreren muss `--stable`
+(ID oder Name) angegeben werden. Der neue Admin meldet sich in der App mit einem Magic Link an die
+angegebene Adresse an (SMTP muss eingerichtet sein, siehe `docs/auth-setup.md`).
+
+**Einmalig auf dem bestehenden Server nachrüsten**
+
+Der Wrapper kommt mit `provision.sh`; das Binary liefert der nächste Deploy (Workflow *Deploy*
+ausführen). Auf einem bereits eingerichteten Server reicht es, nur den Wrapper zu installieren
+(vom eigenen Rechner aus, im Repository):
+
+```sh
+scp deploy/stallfunk-admin.sh admin@<server-ip>:/tmp/stallfunk-admin.sh
+ssh admin@<server-ip> 'sudo install -m 0755 -o root -g root /tmp/stallfunk-admin.sh /usr/local/bin/stallfunk-admin && rm /tmp/stallfunk-admin.sh'
+```
+
+Alternativ das Repository aktualisieren (`git pull`) und `sudo ./provision.sh` erneut ausführen,
+dann aber mit **denselben** Werten wie beim ersten Mal, insbesondere `REITERHOF_DB_PASSWORD`: Das
+Skript setzt das Datenbankpasswort neu, `api.env` wird aber nicht überschrieben. Ein anderes
+Passwort würde die API von der Datenbank aussperren.
 
 ## Wartung
 

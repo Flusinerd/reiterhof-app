@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
-	"fmt"
 	"html/template"
 	"net"
 	"net/http"
@@ -112,8 +111,8 @@ func clientIP(r *http.Request) string {
 	return host
 }
 
-// normalizeEmail validates a plain address (no display name) and lower-cases it.
-func normalizeEmail(in string) (string, bool) {
+// NormalizeEmail validates a plain address (no display name) and lower-cases it.
+func NormalizeEmail(in string) (string, bool) {
 	in = strings.TrimSpace(in)
 	if in == "" || len(in) > 254 {
 		return "", false
@@ -134,7 +133,7 @@ func (s *Service) magicLink(w http.ResponseWriter, r *http.Request) {
 	if !httpx.ReadJSON(w, r, &in) {
 		return
 	}
-	email, ok := normalizeEmail(in.Email)
+	email, ok := NormalizeEmail(in.Email)
 	if !ok {
 		httpx.WriteError(w, http.StatusBadRequest, "validation_failed", "invalid email address")
 		return
@@ -370,7 +369,7 @@ func (s *Service) devLogin(w http.ResponseWriter, r *http.Request) {
 	if !httpx.ReadJSON(w, r, &in) {
 		return
 	}
-	email, ok := normalizeEmail(in.Email)
+	email, ok := NormalizeEmail(in.Email)
 	if !ok {
 		httpx.WriteError(w, http.StatusBadRequest, "validation_failed", "invalid email address")
 		return
@@ -552,15 +551,16 @@ func normalizeCode(in string) string {
 	return b.String()
 }
 
-// formatCode renders ABCDEFGH as ABCD-EFGH for display.
-func formatCode(code string) string {
+// FormatInviteCode renders ABCDEFGH as ABCD-EFGH for display.
+func FormatInviteCode(code string) string {
 	if len(code) == inviteCodeLen {
 		return code[:4] + "-" + code[4:]
 	}
 	return code
 }
 
-func newInviteCode() (string, error) {
+// NewInviteCode returns a random invite code (8 characters, no look-alike characters).
+func NewInviteCode() (string, error) {
 	var raw [inviteCodeLen]byte
 	if _, err := rand.Read(raw[:]); err != nil {
 		return "", err
@@ -646,22 +646,10 @@ func (s *Service) createInvite(w http.ResponseWriter, r *http.Request) {
 	}
 	u, _ := UserFrom(r.Context())
 	expires := s.deps.Now().Add(time.Duration(days) * 24 * time.Hour)
-	for range 5 { // retry on the (very unlikely) code collision
-		code, err := newInviteCode()
-		if err != nil {
-			s.internal(w, "generate code", err)
-			return
-		}
-		tag, err := s.deps.Pool.Exec(r.Context(), `INSERT INTO stable_invites (stable_id, code, created_by, expires_at, max_uses)
-			VALUES ($1, $2, $3, $4, $5) ON CONFLICT (code) DO NOTHING`, u.StableID, code, u.ID, expires, uses)
-		if err != nil {
-			s.internal(w, "store invite", err)
-			return
-		}
-		if tag.RowsAffected() == 1 {
-			httpx.WriteJSON(w, http.StatusCreated, map[string]any{"code": formatCode(code), "expires_at": expires, "max_uses": uses})
-			return
-		}
+	code, err := CreateInvite(r.Context(), s.deps.Pool, u.StableID, &u.ID, expires, uses)
+	if err != nil {
+		s.internal(w, "store invite", err)
+		return
 	}
-	s.internal(w, "store invite", fmt.Errorf("could not find a free code"))
+	httpx.WriteJSON(w, http.StatusCreated, map[string]any{"code": FormatInviteCode(code), "expires_at": expires, "max_uses": uses})
 }

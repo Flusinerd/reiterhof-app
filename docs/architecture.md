@@ -11,12 +11,14 @@ backend/
   cmd/api/            API server (opens pool, runs migrations, serves HTTP)
   cmd/migrate/        applies pending migrations
   cmd/seed/           migrates, then loads the example data (idempotent)
+  cmd/admin/          stallfunk-admin, the operator CLI (see "Operations: admin CLI")
   migrations/         NNNN_description.up.sql, embedded via go:embed (migrations.FS)
   internal/
     config/           environment configuration
     db/               pgx pool (db.Open) and migrator (db.Migrate)
     dbtest/           throwaway databases for tests
     seed/             example data + exported fixed IDs (seed.HorseLuna, ...)
+    admincli/         commands of stallfunk-admin (env file parser, stable/user/invite/horse/...)
     scheduler/        reusable periodic / daily jobs (see "Scheduler")
     weather/          DWD MOSMIX client, night summary, weather_snapshots, hourly job
     blanketplan/      pure rule evaluation (Recommend, Changed) + LoadRules
@@ -100,6 +102,35 @@ Conventions: `400 invalid_json` / `validation_failed`, `401 unauthorized`,
 - Schema conventions: UUID primary keys (`gen_random_uuid()`), `created_at timestamptz`,
   `stable_id uuid NOT NULL REFERENCES stables(id)` on every domain table, enums as
   `text` + `CHECK`, an index starting with `stable_id` for list queries.
+
+## Operations: admin CLI
+
+There is no API to create the first stable or the first admin, and some maintenance
+(demoting, moving users, deleting an account by hand) is not an app feature. The operator
+tool `stallfunk-admin` (`backend/cmd/admin`, commands in `internal/admincli`) covers this
+instead of hand-written SQL:
+
+- Commands: `stable list|create|update`, `user list|create|promote|demote|move|delete`,
+  `invite create|list`, `horse list|transfer`, `sessions revoke`, `mail test`,
+  `weather refresh`, `migrate status|up`; `stallfunk-admin help` lists the flags. Standard
+  library `flag` only. `--json` prints list output as JSON, `--yes` skips the confirmation
+  of `user delete|demote|move` and `horse transfer`.
+- It reads the same environment as the API. `--env-file` parses a systemd
+  `EnvironmentFile` (`admincli.ParseEnvFile`); without the flag `/etc/reiterhof/api.env` is
+  used when it exists. Variables that are already set win.
+- It reuses the API code instead of duplicating rules: `privacy.DeleteAccount` (same
+  blocking errors `owns_horses` / `last_admin`, same anonymisation), `auth.CreateInvite`
+  and `auth.NormalizeEmail`, the auth mailer (`mail test`, which refuses to fall back to the
+  log mailer), `weather.Service` plus `blankets.CheckWeatherChange` (`weather refresh`),
+  `db.Migrate` / `db.Status`. With exactly one stable, `--stable` defaults to it.
+- Testability: every command is a function of `admincli.Env` (pool, config, `In`/`Out`/`Err`),
+  so tests call `admincli.Run` on a `dbtest.NewSeeded` database and buffers, no exec.
+- Delivery: the Deploy workflow builds it as a second static binary and
+  `deploy/remote-swap.sh` installs it as `/opt/reiterhof/stallfunk-admin` (after the API
+  is healthy, atomic rename, no extra sudo rights). `provision.sh` installs the wrapper
+  `/usr/local/bin/stallfunk-admin` (`deploy/stallfunk-admin.sh`), which runs the binary as
+  user `reiterhof` (the only non-root user that can read `api.env`) via sudo. Operator
+  instructions: `deploy/README.md`, "Betrieb: stallfunk-admin". Locally: `just admin <args>`.
 
 ## Authentication and roles
 
