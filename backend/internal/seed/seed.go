@@ -20,6 +20,9 @@ func Run(ctx context.Context, pool *pgxpool.Pool) error {
 	if err := insert(ctx, tx); err != nil {
 		return err
 	}
+	if err := insertHorseCare(ctx, tx); err != nil {
+		return err
+	}
 	return tx.Commit(ctx)
 }
 
