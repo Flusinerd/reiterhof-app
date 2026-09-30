@@ -48,6 +48,8 @@ export function errorMessage(err: unknown): string {
         return "Die E-Mail-Adresse deines Kontos ist nicht bestätigt.";
       case "not_configured":
         return "Diese Anmeldung ist noch nicht eingerichtet.";
+      case "consent_required":
+        return "Dafür fehlt deine Einwilligung. Du kannst sie unter Einstellungen und Datenschutz erteilen.";
       case "validation_failed":
         return "Bitte prüfe deine Eingabe.";
       case "unauthorized":

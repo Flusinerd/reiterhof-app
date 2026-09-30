@@ -22,6 +22,7 @@ test("errorMessage is German and never leaks server text", () => {
   assert.match(errorMessage(new ApiError(404, "invalid_code", "english")), /Code/);
   assert.match(errorMessage(new ApiError(0, "network", "x")), /Verbindung/);
   assert.match(errorMessage(new Error("boom")), /schiefgelaufen/);
+  assert.match(errorMessage(new ApiError(403, "consent_required", "english")), /Einwilligung/);
 });
 
 type Seen = { url?: string; init?: RequestInit };
