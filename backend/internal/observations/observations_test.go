@@ -19,6 +19,7 @@ import (
 	"github.com/Flusinerd/reiterhof-app/backend/internal/httpapi"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/observations"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/push"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/push/pushtest"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/realtime"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/seed"
 )
@@ -129,6 +130,7 @@ func (e *env) tokens() map[string]string {
 		if err := push.RegisterToken(context.Background(), e.pool, seed.StableB, id, tok, "android"); err != nil {
 			e.t.Fatal(err)
 		}
+		pushtest.GrantConsent(e.t, e.pool, id)
 		out[tok] = name
 	}
 	return out

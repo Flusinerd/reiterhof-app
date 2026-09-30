@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Flusinerd/reiterhof-app/backend/internal/push"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/push/pushtest"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/reha"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/seed"
 )
@@ -29,6 +30,7 @@ func newJobEnv(t *testing.T) *jobEnv {
 		if err := push.RegisterToken(ctx, e.pool, seed.StableB, u, "tok-"+u[len(u)-3:], push.PlatformAndroid); err != nil {
 			t.Fatal(err)
 		}
+		pushtest.GrantConsent(t, e.pool, u)
 	}
 	e.createPlan(seed.UserAnna, nil)
 	j := &jobEnv{env: e, fake: &push.Fake{}}

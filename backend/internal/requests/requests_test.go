@@ -17,6 +17,7 @@ import (
 	"github.com/Flusinerd/reiterhof-app/backend/internal/dbtest"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/httpapi"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/push"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/push/pushtest"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/requests"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/seed"
 )
@@ -64,6 +65,7 @@ func newEnv(t *testing.T) *env {
 		if err := push.RegisterToken(context.Background(), pool, seed.StableB, id, "tok-"+id, push.PlatformAndroid); err != nil {
 			t.Fatal(err)
 		}
+		pushtest.GrantConsent(t, pool, id)
 	}
 	return e
 }
