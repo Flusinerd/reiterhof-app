@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"html/template"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/mail"
@@ -57,6 +58,13 @@ func NewService(deps httpx.Deps, opts Options) *Service {
 	s := &Service{deps: deps, mailer: opts.Mailer, google: opts.Google, apple: opts.Apple, limiter: newLimiter()}
 	cfg := deps.Config.Auth
 	s.codeKey = loginCodeKey(cfg.LoginCodeKey, deps.Log)
+	if cfg.DevLogin {
+		log := deps.Log
+		if log == nil {
+			log = slog.Default()
+		}
+		log.Warn("REITERHOF_DEV_LOGIN is enabled: anybody can sign in as any address; never run production like this")
+	}
 	if s.mailer == nil {
 		s.mailer = NewMailer(cfg, deps.Log)
 	}
@@ -89,6 +97,11 @@ func (s *Service) Register(mux *http.ServeMux) {
 	mux.Handle("POST /api/v1/stables/invites", RequireAdmin(http.HandlerFunc(s.createInvite)))
 	// https fallback of the magic link for devices without the app; see verifyPage.
 	mux.HandleFunc("GET /auth/verify", s.verifyPage)
+	// Age confirmation and parental consent (agegate.go).
+	mux.Handle("POST /api/v1/me/age", RequireUser(http.HandlerFunc(s.confirmAge)))
+	mux.Handle("POST /api/v1/me/parental-consent", RequireUser(http.HandlerFunc(s.requestParentalConsent)))
+	mux.HandleFunc("GET /parental-consent", s.parentalConsentPage)
+	mux.HandleFunc("POST /parental-consent", s.parentalConsentConfirm)
 }
 
 func (s *Service) internal(w http.ResponseWriter, what string, err error) {
@@ -266,10 +279,16 @@ small{font-size:13px;line-height:18px;color:#6b6560}
 `
 
 var (
-	verifyStyleHash = base64.StdEncoding.EncodeToString(func() []byte { h := sha256.Sum256([]byte(verifyStyle)); return h[:] }())
+	verifyStyleHash = base64Sum(verifyStyle)
 	verifyCSP       = "default-src 'none'; style-src 'sha256-" + verifyStyleHash + "'; img-src data:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
 	verifyLogoURL   = template.URL("data:image/png;base64," + base64.StdEncoding.EncodeToString(mailLogo))
 )
+
+// base64Sum is the SHA-256 of s in standard base64, the form Content-Security-Policy hashes use.
+func base64Sum(s string) string {
+	h := sha256.Sum256([]byte(s))
+	return base64.StdEncoding.EncodeToString(h[:])
+}
 
 var verifyTmpl = template.Must(template.New("verify").Parse(`<!doctype html>
 <html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -458,6 +477,12 @@ type userView struct {
 	StableID           *string `json:"stable_id"`
 	// NameConfirmed is false while the name is only the email fallback; the app asks for it.
 	NameConfirmed bool `json:"name_confirmed"`
+	// AgeStatus is "confirmed" (16 or older, or a parent consented), "parent_pending" (a
+	// parent was asked and has not answered) or "unknown" (nothing stated yet; the app asks
+	// before the stable can be joined).
+	AgeStatus string `json:"age_status"`
+	// ParentEmail is the address a parent was asked at (nil unless the person is under 16).
+	ParentEmail *string `json:"parent_email"`
 }
 
 type stableView struct {
@@ -485,13 +510,17 @@ type meView struct {
 
 func (s *Service) loadMe(ctx context.Context, userID string) (meView, error) {
 	var v meView
-	err := s.deps.Pool.QueryRow(ctx, `SELECT id, name, email, phone, avatar_color, presence_visibility, is_admin, stable_id, name_confirmed
+	var ageConfirmedAt, parentalConsentAt *time.Time
+	err := s.deps.Pool.QueryRow(ctx, `SELECT id, name, email, phone, avatar_color, presence_visibility, is_admin, stable_id, name_confirmed,
+			age_confirmed_at, parent_email, parental_consent_at
 		FROM users WHERE id = $1`, userID).
 		Scan(&v.User.ID, &v.User.Name, &v.User.Email, &v.User.Phone, &v.User.AvatarColor,
-			&v.User.PresenceVisibility, &v.User.IsAdmin, &v.User.StableID, &v.User.NameConfirmed)
+			&v.User.PresenceVisibility, &v.User.IsAdmin, &v.User.StableID, &v.User.NameConfirmed,
+			&ageConfirmedAt, &v.User.ParentEmail, &parentalConsentAt)
 	if err != nil {
 		return v, err
 	}
+	v.User.AgeStatus = ageStatusOf(ageConfirmedAt, parentalConsentAt, v.User.ParentEmail)
 	v.Roles = rolesView{OwnedHorseIDs: []string{}, RiderHorseIDs: []string{}}
 	if v.User.StableID == nil {
 		return v, nil
@@ -644,6 +673,16 @@ func (s *Service) join(w http.ResponseWriter, r *http.Request) {
 	}
 	if u.StableID != "" {
 		httpx.WriteError(w, http.StatusConflict, "already_in_stable", "you already belong to a stable")
+		return
+	}
+	// A stable is joined only with a confirmed age (Art. 8: a minor needs the parent's consent).
+	ageOK, err := AgeConfirmed(r.Context(), s.deps.Pool, u.ID)
+	if err != nil {
+		s.internal(w, "age check", err)
+		return
+	}
+	if !ageOK {
+		httpx.WriteError(w, http.StatusForbidden, "age_unconfirmed", "confirm your age (or have a parent consent) before joining a stable")
 		return
 	}
 	code := normalizeCode(in.Code)

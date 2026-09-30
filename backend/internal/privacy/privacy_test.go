@@ -17,6 +17,7 @@ import (
 	"github.com/Flusinerd/reiterhof-app/backend/internal/auth/authtest"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/dbtest"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/files"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/files/filestest"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/httpapi"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/privacy"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/seed"
@@ -118,7 +119,7 @@ func TestConsentsGrantAndRevoke(t *testing.T) {
 		return decode[list](t, rec)
 	}
 	l := get(seed.UserAnna)
-	if l.CurrentVersion != privacy.TextVersion || len(l.Items) != 5 {
+	if l.CurrentVersion != privacy.TextVersion || len(l.Items) != 6 {
 		t.Fatalf("list = %+v", l)
 	}
 	for i, k := range privacy.Kinds() {
@@ -173,6 +174,23 @@ func TestConsentsGrantAndRevoke(t *testing.T) {
 	if got := get(seed.UserAnna).Items[0]; !got.Granted || got.UpToDate {
 		t.Errorf("old version = %+v, want granted but not up to date", got)
 	}
+
+	// The map consent exists like the others.
+	if rec := e.do(seed.UserAnna, "PUT", "/api/v1/me/consents/maps", map[string]any{"granted": true}); rec.Code != 200 {
+		t.Errorf("maps = %d %s", rec.Code, rec.Body)
+	}
+	// A person whose age is not confirmed cannot grant anything (Art. 8); revoking is always possible.
+	e.exec(`UPDATE users SET age_confirmed_at = NULL, parental_consent_at = NULL WHERE id = $1`, seed.UserTom)
+	if rec := e.do(seed.UserTom, "PUT", "/api/v1/me/consents/photos", map[string]any{"granted": true}); rec.Code != 403 || !strings.Contains(rec.Body.String(), "age_unconfirmed") {
+		t.Errorf("unconfirmed age grant = %d %s", rec.Code, rec.Body)
+	}
+	if rec := e.do(seed.UserTom, "PUT", "/api/v1/me/consents/photos", map[string]any{"granted": false}); rec.Code != 200 {
+		t.Errorf("unconfirmed age revoke = %d %s", rec.Code, rec.Body)
+	}
+	e.exec(`UPDATE users SET parental_consent_at = now() WHERE id = $1`, seed.UserTom)
+	if rec := e.do(seed.UserTom, "PUT", "/api/v1/me/consents/photos", map[string]any{"granted": true}); rec.Code != 200 {
+		t.Errorf("grant with parental consent = %d %s", rec.Code, rec.Body)
+	}
 }
 
 func TestRevocationConsequences(t *testing.T) {
@@ -211,8 +229,7 @@ func TestRevocationConsequences(t *testing.T) {
 func (e *env) addMiaData() string {
 	e.t.Helper()
 	ctx := context.Background()
-	jpg := append([]byte{0xFF, 0xD8, 0xFF, 0xE0, 0, 0x10, 'J', 'F', 'I', 'F', 0}, make([]byte, 64)...)
-	saved, err := files.Save(ctx, seed.StableB, bytes.NewReader(jpg), "image/jpeg")
+	saved, err := files.Save(ctx, seed.StableB, bytes.NewReader(filestest.JPEG()), "image/jpeg")
 	if err != nil {
 		e.t.Fatal(err)
 	}
@@ -237,6 +254,15 @@ func (e *env) addMiaData() string {
 		seed.StableB, seed.UserMia)
 	e.exec(`INSERT INTO horse_riders (stable_id, horse_id, user_id, rules) VALUES ($1, $2, $3, '["ride"]') ON CONFLICT DO NOTHING`,
 		seed.StableB, seed.HorseFanta, seed.UserMia)
+	e.exec(`INSERT INTO reha_plans (stable_id, horse_id, diagnosis, start_date, created_by, active) VALUES ($1, $2, 'Mias Plan', '2026-09-01', $3, false), ($1, $2, 'Toms Plan', '2026-09-02', $4, false)`,
+		seed.StableB, seed.HorseFanta, seed.UserMia, seed.UserTom)
+	e.exec(`INSERT INTO gait_windows (session_id, stable_id, window_count, windows)
+		SELECT id, stable_id, 1, ('[{"t":0,"f":[1,2,3,4,5,6],"p":"walk","a":"walk","c":"' || note || '"}]')::jsonb FROM sessions WHERE note IN ('schoen', 'Toms Ritt')`)
+	e.exec(`INSERT INTO stable_invites (stable_id, code, created_by, expires_at) VALUES ($1, 'MIASCODE', $2, $3), ($1, 'TOMSCODE', $4, $3)`,
+		seed.StableB, seed.UserMia, clock.Add(24*time.Hour), seed.UserTom)
+	e.exec(`INSERT INTO login_tokens (token_hash, email, expires_at) VALUES ('\xa1', 'mia@example.org', $1)`, clock.Add(time.Hour))
+	e.exec(`INSERT INTO parental_consent_tokens (user_id, token_hash, parent_email, expires_at) VALUES ($1, '\xb1', 'mias.mutter@example.org', $3), ($2, '\xb2', 'toms.vater@example.org', $3)`,
+		seed.UserMia, seed.UserTom, clock.Add(time.Hour))
 	e.do(seed.UserMia, "PUT", "/api/v1/me/consents/photos", map[string]any{"granted": true})
 	return saved.Path
 }
@@ -258,7 +284,8 @@ func TestExportContainsOnlyOwnData(t *testing.T) {
 	body := rec.Body.String()
 	doc := decode[map[string]json.RawMessage](t, rec)
 	for _, key := range []string{"profile", "stable", "consents", "push_tokens", "presence_visits", "training_sessions",
-		"observations_reported", "requests_created", "requests_helped", "horse_rider_roles", "uploaded_files", "sign_in_sessions", "web_push_subscriptions"} {
+		"observations_reported", "requests_created", "requests_helped", "horse_rider_roles", "uploaded_files", "sign_in_sessions", "web_push_subscriptions",
+		"reha_plans_created", "gait_windows", "invites_created", "sign_in_attempts", "parental_consent_requests"} {
 		if _, ok := doc[key]; !ok {
 			t.Errorf("export lacks %q", key)
 		}
@@ -282,7 +309,8 @@ func TestExportContainsOnlyOwnData(t *testing.T) {
 		t.Fatal(err)
 	}
 	for key, want := range map[string]int{"presence_visits": 1, "observations_reported": observations,
-		"requests_created": 1, "requests_helped": 1, "push_tokens": 1, "web_push_subscriptions": 1, "uploaded_files": 1} {
+		"requests_created": 1, "requests_helped": 1, "push_tokens": 1, "web_push_subscriptions": 1, "uploaded_files": 1,
+		"reha_plans_created": 1, "gait_windows": 1, "invites_created": 1, "sign_in_attempts": 1, "parental_consent_requests": 1} {
 		if got := count(key); got != want {
 			t.Errorf("%s has %d entries, want %d", key, got, want)
 		}
@@ -297,8 +325,13 @@ func TestExportContainsOnlyOwnData(t *testing.T) {
 			t.Errorf("export lacks %q", must)
 		}
 	}
+	for _, must := range []string{"Mias Plan", "mias.mutter@example.org"} {
+		if !strings.Contains(body, must) {
+			t.Errorf("export lacks %q", must)
+		}
+	}
 	for _, mustNot := range []string{"ExponentPushToken[abcdefghijkl]", "SECRETPATH", "token_hash", "Toms Beobachtung", "Toms Ritt", "Toms Anfrage",
-		"tom@example.org", "Fremd", "+49 999", "50.0"} {
+		"tom@example.org", "Fremd", "+49 999", "50.0", "Toms Plan", "MIASCODE", "TOMSCODE", "toms.vater", "code_hash"} {
 		if strings.Contains(body, mustNot) {
 			t.Errorf("export leaks %q", mustNot)
 		}
@@ -347,7 +380,7 @@ func TestDeleteAccountAnonymisesAndKeepsOthersIntact(t *testing.T) {
 	if rec.Code != 401 {
 		t.Errorf("old session after deletion = %d, want 401", rec.Code)
 	}
-	for _, table := range []string{"auth_sessions", "auth_identities", "push_tokens", "web_push_subscriptions", "consents", "presence", "horse_riders", "request_assignees"} {
+	for _, table := range []string{"auth_sessions", "auth_identities", "push_tokens", "web_push_subscriptions", "consents", "presence", "horse_riders", "request_assignees", "parental_consent_tokens"} {
 		if n := e.count(`SELECT count(*) FROM `+table+` WHERE user_id = $1`, seed.UserMia); n != 0 {
 			t.Errorf("%s keeps %d rows of the deleted user", table, n)
 		}
@@ -356,6 +389,15 @@ func TestDeleteAccountAnonymisesAndKeepsOthersIntact(t *testing.T) {
 		t.Errorf("login token of the deleted email remains")
 	}
 	var name, email string
+	var parentEmail *string
+	var ageAt, parentalAt *time.Time
+	if err := e.pool.QueryRow(context.Background(), `SELECT parent_email, age_confirmed_at, parental_consent_at FROM users WHERE id = $1`, seed.UserMia).
+		Scan(&parentEmail, &ageAt, &parentalAt); err != nil {
+		t.Fatal(err)
+	}
+	if parentEmail != nil || ageAt != nil || parentalAt != nil {
+		t.Errorf("age data remains: %v %v %v", parentEmail, ageAt, parentalAt)
+	}
 	var phone, stable *string
 	var admin bool
 	var deletedAt *time.Time
@@ -455,7 +497,7 @@ func TestDeleteBlockedForOwnersAndLastAdmin(t *testing.T) {
 
 func TestUserWithoutStableCanExportAndDelete(t *testing.T) {
 	e := setup(t)
-	e.exec(`INSERT INTO users (id, name, email) VALUES ('00000000-0000-4000-8000-0000000009b1', 'Neu', 'neu@example.org')`)
+	e.exec(`INSERT INTO users (id, name, email, age_confirmed_at) VALUES ('00000000-0000-4000-8000-0000000009b1', 'Neu', 'neu@example.org', now())`)
 	id := "00000000-0000-4000-8000-0000000009b1"
 	if rec := e.do(id, "PUT", "/api/v1/me/consents/push", map[string]any{"granted": true}); rec.Code != 200 {
 		t.Fatalf("consent without stable = %d %s", rec.Code, rec.Body)
@@ -488,17 +530,29 @@ func TestPrune(t *testing.T) {
 	// Raw gait windows follow the track: the old session's windows go, the recent ones stay.
 	e.exec(`INSERT INTO gait_windows (session_id, stable_id, window_count, windows)
 		SELECT id, stable_id, 1, '[{}]' FROM sessions WHERE user_id = $1 AND track IS NOT NULL`, seed.UserTom)
+	// Invites: long expired ones go, a recently expired and a live one stay.
+	e.exec(`INSERT INTO stable_invites (stable_id, code, expires_at) VALUES ($1, 'OLDCODE1', $2), ($1, 'RECENT01', $3), ($1, 'LIVE0001', $4)`,
+		seed.StableB, clock.AddDate(0, 0, -31), clock.AddDate(0, 0, -29), clock.Add(time.Hour))
+	e.exec(`INSERT INTO parental_consent_tokens (user_id, token_hash, parent_email, expires_at) VALUES ($1, '\x31', 'p@example.org', $2), ($1, '\x32', 'p@example.org', $3)`,
+		seed.UserTom, clock.Add(-time.Minute), clock.Add(time.Hour))
 	sessionsBefore := e.count(`SELECT count(*) FROM sessions`)
 
 	res, err := privacy.Prune(ctx, e.pool, clock)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := privacy.PruneResult{PresenceVisits: 1, Tracks: 1, Reminders: 1, LoginTokens: 1, AuthSessions: 1}
+	want := privacy.PruneResult{PresenceVisits: 1, Tracks: 1, Reminders: 1, LoginTokens: 1, AuthSessions: 1, Invites: 1, ParentalTokens: 1}
 	// Seed data may add older rows of its own (sessions, tokens); check the effect, not exact totals of those.
 	if res.PresenceVisits < want.PresenceVisits || res.Tracks < want.Tracks || res.Reminders < want.Reminders ||
-		res.LoginTokens != want.LoginTokens || res.AuthSessions != want.AuthSessions {
+		res.LoginTokens != want.LoginTokens || res.AuthSessions != want.AuthSessions ||
+		res.Invites != want.Invites || res.ParentalTokens != want.ParentalTokens {
 		t.Errorf("result = %+v, want at least %+v", res, want)
+	}
+	if n := e.count(`SELECT count(*) FROM stable_invites WHERE code IN ('OLDCODE1', 'RECENT01', 'LIVE0001')`); n != 2 {
+		t.Errorf("%d test invites remain, want 2", n)
+	}
+	if n := e.count(`SELECT count(*) FROM parental_consent_tokens WHERE user_id = $1`, seed.UserTom); n != 1 {
+		t.Errorf("%d parental tokens remain, want 1", n)
 	}
 	if n := e.count(`SELECT count(*) FROM presence WHERE user_id = $1`, seed.UserTom); n != 1 {
 		t.Errorf("Tom has %d visits, want only the recent one", n)

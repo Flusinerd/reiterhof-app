@@ -142,13 +142,16 @@ func TestSSEAuth(t *testing.T) {
 		t.Errorf("no token: status %d, want 401", c.resp.StatusCode)
 	}
 	token := authtest.Token(t, s.pool, seed.UserAnna)
-	if c := s.connect(t, "/api/v1/events?access_token="+token, "", false); c.resp.StatusCode != 200 {
-		t.Errorf("access_token query: status %d, want 200", c.resp.StatusCode)
+	if c := s.connect(t, "/api/v1/events", token, true); c.resp.StatusCode != 200 {
+		t.Errorf("bearer header: status %d, want 200", c.resp.StatusCode)
+	}
+	// A session token in the query string is never accepted (it would end up in logs and histories).
+	if c := s.connect(t, "/api/v1/events?access_token="+token, "", false); c.resp.StatusCode != 401 {
+		t.Errorf("access_token query: status %d, want 401", c.resp.StatusCode)
 	}
 	if c := s.connect(t, "/api/v1/events?access_token=bogus", "", false); c.resp.StatusCode != 401 {
 		t.Errorf("bad token: status %d, want 401", c.resp.StatusCode)
 	}
-	// The query token is accepted for the events path only.
 	req, _ := http.NewRequest("GET", s.srv.URL+"/api/v1/presence?access_token="+token, nil)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

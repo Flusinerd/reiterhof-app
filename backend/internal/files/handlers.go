@@ -1,10 +1,12 @@
 package files
 
 import (
+	"context"
 	"errors"
 	"io"
 	"net/http"
-	"strings"
+
+	"github.com/jackc/pgx/v5"
 
 	"github.com/Flusinerd/reiterhof-app/backend/internal/auth"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/httpx"
@@ -12,15 +14,17 @@ import (
 
 // Register adds the upload and download routes.
 //
-//	POST /api/v1/files          multipart/form-data, field "file" -> 201 Saved
-//	GET  /api/v1/files/{path...} download; only for members of the file's stable
+//	POST /api/v1/files               multipart/form-data, field "file" -> 201 Saved
+//	POST /api/v1/files/download-link {url} -> {url, expires_at}, see links.go
+//	GET  /api/v1/files/{path...}     download; only files a record of the stable references
 //
-// Errors: 400 invalid_upload, 413 file_too_large, 415 unsupported_type,
-// 404 not_found (also for paths of other stables and malformed paths).
+// Errors: 400 invalid_upload (also for a damaged image), 413 file_too_large, 415 unsupported_type,
+// 404 not_found (also for paths of other stables, malformed paths and files nothing points to).
 func Register(mux *http.ServeMux, deps httpx.Deps) {
 	h := &handler{deps: deps}
 	mux.Handle("POST /api/v1/files", auth.RequireStable(http.HandlerFunc(h.upload)))
-	mux.Handle("GET /api/v1/files/{path...}", QueryToken(deps)(auth.RequireStable(http.HandlerFunc(h.download))))
+	mux.Handle("POST /api/v1/files/download-link", auth.RequireStable(http.HandlerFunc(h.downloadLink)))
+	mux.Handle("GET /api/v1/files/{path...}", DownloadLink(deps)(auth.RequireStable(http.HandlerFunc(h.download))))
 }
 
 type handler struct{ deps httpx.Deps }
@@ -64,7 +68,9 @@ func writeUploadError(w http.ResponseWriter, deps httpx.Deps, err error) {
 	case errors.Is(err, ErrTooLarge) || errors.As(err, &tooLarge):
 		httpx.WriteError(w, http.StatusRequestEntityTooLarge, "file_too_large", "file exceeds 20 MB")
 	case errors.Is(err, ErrUnsupportedType):
-		httpx.WriteError(w, http.StatusUnsupportedMediaType, "unsupported_type", "only JPEG, PNG, WebP, HEIC and PDF are allowed")
+		httpx.WriteError(w, http.StatusUnsupportedMediaType, "unsupported_type", "only JPEG, PNG, WebP and PDF are allowed")
+	case errors.Is(err, ErrCorrupt):
+		httpx.WriteError(w, http.StatusBadRequest, "invalid_upload", "the image file is damaged")
 	default:
 		if deps.Log != nil {
 			deps.Log.Error("files: upload", "err", err)
@@ -73,9 +79,85 @@ func writeUploadError(w http.ResponseWriter, deps httpx.Deps, err error) {
 	}
 }
 
+// download serves a file by its path with the visibility of the record that references it
+// (least privilege): a horse document only to the owner, the riders and admins of the horse;
+// an observation photo or a blanket photo to every member of the stable. A path no record
+// points to (never attached, or detached since) is a 404 for everybody, like a path of
+// another stable.
 func (h *handler) download(w http.ResponseWriter, r *http.Request) {
 	user, _ := auth.UserFrom(r.Context())
-	Serve(w, r, h.deps, user.StableID, r.PathValue("path"))
+	path := r.PathValue("path")
+	if !Belongs(user.StableID, path) {
+		httpx.WriteError(w, http.StatusNotFound, "not_found", "file not found")
+		return
+	}
+	ref, err := referenceOf(r.Context(), h.deps.Pool, user.StableID, path)
+	if err != nil {
+		if h.deps.Log != nil {
+			h.deps.Log.Error("files: reference lookup", "err", err)
+		}
+		httpx.WriteError(w, http.StatusInternalServerError, "internal", "could not read the file")
+		return
+	}
+	allowed := false
+	switch ref.kind {
+	case refDocument:
+		allowed, err = auth.CanManageHorse(r.Context(), h.deps.Pool, user, ref.horseID)
+		if err == nil && !allowed {
+			allowed, err = auth.IsRider(r.Context(), h.deps.Pool, user, ref.horseID)
+		}
+		if err != nil {
+			if h.deps.Log != nil {
+				h.deps.Log.Error("files: document access", "err", err)
+			}
+			httpx.WriteError(w, http.StatusInternalServerError, "internal", "could not read the file")
+			return
+		}
+	case refObservation, refBlanket:
+		allowed = true
+	}
+	if !allowed {
+		httpx.WriteError(w, http.StatusNotFound, "not_found", "file not found")
+		return
+	}
+	Serve(w, r, h.deps, user.StableID, path)
+}
+
+type refKind int
+
+const (
+	refNone refKind = iota
+	refDocument
+	refObservation
+	refBlanket
+)
+
+type reference struct {
+	kind    refKind
+	horseID string
+}
+
+// referenceOf finds the record of the stable that points to path. A document wins over
+// any other reference to the same file (the stricter rule applies).
+func referenceOf(ctx context.Context, q interface {
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}, stableID, path string) (reference, error) {
+	var (
+		kind    int
+		horseID string
+	)
+	err := q.QueryRow(ctx, `SELECT kind, horse_id::text FROM (
+			SELECT 1 AS kind, horse_id FROM horse_documents WHERE stable_id = $1 AND file_path = $2
+			UNION ALL SELECT 2, horse_id FROM observations WHERE stable_id = $1 AND media ? $2
+			UNION ALL SELECT 3, horse_id FROM blankets WHERE stable_id = $1 AND photo_path = $2
+		) r ORDER BY kind LIMIT 1`, stableID, path).Scan(&kind, &horseID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return reference{}, nil
+	}
+	if err != nil {
+		return reference{}, err
+	}
+	return reference{kind: refKind(kind), horseID: horseID}, nil
 }
 
 // Serve writes the stored file of the stable, or a 404 if the path is malformed,
@@ -107,32 +189,4 @@ func Serve(w http.ResponseWriter, r *http.Request, deps httpx.Deps, stableID, pa
 	w.Header().Set("Content-Disposition", "inline")
 	// Files never change (random names), so the modification time is a fine validator.
 	http.ServeContent(w, r, "", info.ModTime(), f)
-}
-
-// QueryToken lets a GET request authenticate with ?access_token=<session token>
-// when it has no Authorization header. React Native <Image> and Linking.openURL
-// cannot always set headers.
-//
-// Tradeoff: a token in a URL can end up in server or proxy access logs and in
-// browser history. It is the same full-access session token as the header, so
-// use it only for file downloads (routes wrapped with this function), never log
-// query strings, and prefer the Authorization header (RN <Image> supports
-// source.headers). A future improvement is short-lived signed URLs.
-func QueryToken(deps httpx.Deps) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if _, ok := auth.UserFrom(r.Context()); ok || r.Method != http.MethodGet {
-				next.ServeHTTP(w, r)
-				return
-			}
-			token := strings.TrimSpace(r.URL.Query().Get("access_token"))
-			if token == "" {
-				next.ServeHTTP(w, r)
-				return
-			}
-			r2 := r.Clone(r.Context())
-			r2.Header.Set("Authorization", "Bearer "+token)
-			auth.Middleware(deps)(next).ServeHTTP(w, r2)
-		})
-	}
 }

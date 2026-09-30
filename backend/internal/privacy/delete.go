@@ -40,9 +40,10 @@ var ErrNotFound = errors.New("privacy: user not found")
 //   - The users row is anonymised, not removed: requests, training sessions and similar
 //     records of a horse reference it. Name, email, phone, colour, stable membership and
 //     admin flag are cleared; the row keeps only the id and DeletedName.
-//   - Deleted: sessions, sign-in identities, pending login tokens for the email, push tokens,
-//     reminder settings, reminders, presence visits, rider roles, helper assignments,
-//     consents, GPS tracks and raw gait windows of training sessions, and uploaded photos of reported observations.
+//   - Deleted: sessions, sign-in identities, pending login tokens for the email, parental
+//     consent tokens, push tokens, reminder settings, reminders, presence visits, rider roles,
+//     helper assignments, consents, GPS tracks and raw gait windows of training sessions, and
+//     uploaded photos of reported observations. The age confirmation and the parent's address go too.
 //   - Kept, now attributed to DeletedName: reported observations (text), training sessions
 //     (without track), requests (open ones are cancelled), week slots, documents.
 func DeleteAccount(ctx context.Context, db interface {
@@ -130,6 +131,7 @@ func DeleteAccount(ctx context.Context, db interface {
 		`DELETE FROM consents WHERE user_id = $1`,
 		`DELETE FROM auth_sessions WHERE user_id = $1`,
 		`DELETE FROM auth_identities WHERE user_id = $1`,
+		`DELETE FROM parental_consent_tokens WHERE user_id = $1`,
 	}
 	for _, s := range statements {
 		if _, err := tx.Exec(ctx, s, userID); err != nil {
@@ -142,7 +144,8 @@ func DeleteAccount(ctx context.Context, db interface {
 	// The placeholder address is unique per id, unroutable (.invalid) and lower case.
 	if _, err := tx.Exec(ctx, `UPDATE users SET name = $2, email = 'deleted-' || id::text || '@deleted.invalid',
 		phone = NULL, avatar_color = NULL, stable_id = NULL, is_admin = false,
-		presence_visibility = 'hidden', deleted_at = $3 WHERE id = $1`, userID, DeletedName, now); err != nil {
+		presence_visibility = 'hidden', age_confirmed_at = NULL, parent_email = NULL, parental_consent_at = NULL,
+		deleted_at = $3 WHERE id = $1`, userID, DeletedName, now); err != nil {
 		return err
 	}
 	if stableID != nil {

@@ -16,6 +16,7 @@ import (
 	"github.com/Flusinerd/reiterhof-app/backend/internal/auth/authtest"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/dbtest"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/files"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/files/filestest"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/httpapi"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/observations"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/push"
@@ -31,8 +32,8 @@ const (
 )
 
 var (
-	pngBytes = append([]byte("\x89PNG\r\n\x1a\n"), make([]byte, 64)...)
-	pdfBytes = []byte("%PDF-1.7\n1 0 obj\n<<>>\nendobj\n")
+	pngBytes = filestest.PNG()
+	pdfBytes = filestest.PDF()
 )
 
 type env struct {

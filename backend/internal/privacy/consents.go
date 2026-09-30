@@ -24,15 +24,22 @@ const TextVersion = "2026-09-30"
 const (
 	KindLocationGeofence = "location_geofence"
 	KindLocationTracking = "location_tracking"
-	KindPresenceSharing  = "presence_sharing"
-	KindPhotos           = "photos"
-	KindPush             = "push"
+	// KindMaps covers loading map tiles from Apple, Google or OpenFreeMap, which see the
+	// viewer's IP address and the map area.
+	KindMaps            = "maps"
+	KindPresenceSharing = "presence_sharing"
+	KindPhotos          = "photos"
+	KindPush            = "push"
 )
 
 // Kinds lists all consent kinds in display order.
 func Kinds() []string {
-	return []string{KindLocationGeofence, KindLocationTracking, KindPresenceSharing, KindPhotos, KindPush}
+	return []string{KindLocationGeofence, KindLocationTracking, KindMaps, KindPresenceSharing, KindPhotos, KindPush}
 }
+
+// ErrAgeUnconfirmed is returned when a consent is granted before the person confirmed being
+// 16 or older or a parent consented (Art. 8 GDPR; see auth, "age confirmation").
+var ErrAgeUnconfirmed = errors.New("privacy: age not confirmed")
 
 // ValidKind reports whether kind is a known consent kind.
 func ValidKind(kind string) bool {
@@ -122,6 +129,15 @@ func Set(ctx context.Context, db interface {
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	if granted {
+		// A minor without parental consent cannot consent (the app never gets here, the
+		// server checks anyway).
+		var ok bool
+		if ok, err = auth.AgeConfirmed(ctx, tx, userID); err != nil {
+			return err
+		}
+		if !ok {
+			return ErrAgeUnconfirmed
+		}
 		_, err = tx.Exec(ctx, `INSERT INTO consents (user_id, stable_id, kind, version, granted_at)
 			SELECT u.id, u.stable_id, $2, $3, $4 FROM users u WHERE u.id = $1
 			ON CONFLICT (user_id, kind) DO UPDATE
@@ -181,7 +197,12 @@ func (h *handler) putConsent(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusConflict, "version_mismatch", "the privacy text has changed, please update the app")
 		return
 	}
-	if err := Set(r.Context(), h.deps.Pool, user.ID, kind, *in.Granted, h.deps.Now()); err != nil {
+	err := Set(r.Context(), h.deps.Pool, user.ID, kind, *in.Granted, h.deps.Now())
+	if errors.Is(err, ErrAgeUnconfirmed) {
+		httpx.WriteError(w, http.StatusForbidden, "age_unconfirmed", "confirm your age (or have a parent consent) before granting consents")
+		return
+	}
+	if err != nil {
 		h.internal(w, "set consent", err)
 		return
 	}

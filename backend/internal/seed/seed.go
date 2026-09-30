@@ -48,7 +48,8 @@ func insert(ctx context.Context, tx pgx.Tx) error {
 		{UserMia, "Mia", "yellow"}, {UserLea, "Lea", "red"},
 	}
 	for _, u := range users {
-		q(`INSERT INTO users (id, stable_id, name, email, avatar_color, is_admin) VALUES ($1, $2, $3, lower($3) || '@example.org', $4, $5)`,
+		// The demo people are adults (age_confirmed_at), so consents can be granted right away.
+		q(`INSERT INTO users (id, stable_id, name, email, avatar_color, is_admin, age_confirmed_at) VALUES ($1, $2, $3, lower($3) || '@example.org', $4, $5, now())`,
 			u.id, StableB, u.name, u.color, u.id == UserJan)
 	}
 

@@ -145,18 +145,43 @@ func unauthorized(w http.ResponseWriter) {
 	httpx.WriteError(w, http.StatusUnauthorized, "unauthorized", "sign in required")
 }
 
-// BearerToken extracts the token of an "Authorization: Bearer" header ("" if absent).
+// BearerToken extracts the token of an "Authorization: Bearer" header ("" if absent). The
+// session token is never read from the URL: query strings end up in histories, proxies and
+// share sheets. File downloads that cannot send headers use short-lived links instead
+// (files.DownloadLink), the realtime stream sends the header through fetch streaming.
 func BearerToken(r *http.Request) string {
 	h := r.Header.Get("Authorization")
 	if len(h) > 7 && strings.EqualFold(h[:7], "bearer ") {
 		return strings.TrimSpace(h[7:])
 	}
-	// EventSource clients in React Native cannot set headers; the SSE endpoint (and only
-	// it) therefore also accepts ?access_token=. See docs/architecture.md, "Realtime".
-	if r.URL.Path == "/api/v1/events" {
-		return r.URL.Query().Get("access_token")
-	}
 	return ""
+}
+
+// AgeConfirmed reports whether the user may give consents and join a stable: they stated to
+// be 16 or older, or a parent confirmed through the e-mailed link (Art. 8 GDPR; agegate.go).
+func AgeConfirmed(ctx context.Context, q DB, userID string) (bool, error) {
+	var ok bool
+	err := q.QueryRow(ctx, `SELECT age_confirmed_at IS NOT NULL OR parental_consent_at IS NOT NULL
+		FROM users WHERE id = $1`, userID).Scan(&ok)
+	return ok, err
+}
+
+// UserByID loads a user without a session, for download links (files.DownloadLink). Deleted
+// (anonymised) accounts are not found.
+func UserByID(ctx context.Context, q DB, id string) (User, error) {
+	var (
+		u        User
+		stableID *string
+	)
+	err := q.QueryRow(ctx, `SELECT id, stable_id, is_admin, name FROM users WHERE id = $1 AND deleted_at IS NULL`, id).
+		Scan(&u.ID, &stableID, &u.IsAdmin, &u.Name)
+	if err != nil {
+		return User{}, err
+	}
+	if stableID != nil {
+		u.StableID = *stableID
+	}
+	return u, nil
 }
 
 // newToken returns a random URL-safe token (256 bit) and its SHA-256 hash for storage.

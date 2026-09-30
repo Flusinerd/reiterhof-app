@@ -17,12 +17,9 @@ const HeartbeatInterval = 25 * time.Second
 
 // Register mounts GET /api/v1/events.
 //
-// Authentication: the normal bearer header, or, because EventSource implementations in
-// React Native usually cannot set headers, the query parameter ?access_token=<token>
-// (accepted for this path only, see auth.BearerToken). Tradeoff: URLs end up in access
-// logs and proxies; the token is the same long-lived session token. Prefer the header
-// (the mobile client uses fetch streaming and does), and make sure the reverse proxy does
-// not log query strings for /api/v1/events.
+// Authentication: the bearer header only. The clients use fetch streaming (expo/fetch on
+// native, fetch in the browser), which can send it; a token in the query string is not
+// accepted anywhere in the API (see auth.BearerToken).
 func Register(mux *http.ServeMux, deps httpx.Deps) {
 	s := &stream{deps: deps, heartbeat: HeartbeatInterval}
 	mux.Handle("GET /api/v1/events", auth.RequireStable(http.HandlerFunc(s.serve)))

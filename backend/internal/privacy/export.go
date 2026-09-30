@@ -9,7 +9,7 @@ import (
 )
 
 // filePathRe finds upload paths (<stable uuid>/<32 hex>.<ext>, see internal/files) in any JSON.
-var filePathRe = regexp.MustCompile(`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[0-9a-f]{32}\.(?:jpg|png|webp|heic|pdf)`)
+var filePathRe = regexp.MustCompile(`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[0-9a-f]{32}\.(?:jpg|png|webp|pdf)`)
 
 // maskToken hides most of a push token: the first and last four characters remain.
 func maskToken(t string) string {
@@ -80,6 +80,21 @@ func Export(ctx context.Context, q DB, userID string, now time.Time) (map[string
 		{"documents_uploaded", `SELECT jsonb_build_object('id', id, 'horse_id', horse_id, 'kind', kind, 'title', title,
 				'file_path', file_path, 'created_at', created_at)
 			FROM horse_documents WHERE uploaded_by = $1 ORDER BY created_at`},
+		{"reha_plans_created", `SELECT to_jsonb(p) FROM reha_plans p WHERE p.created_by = $1 ORDER BY p.created_at`},
+		// The raw sensor features of tracked rides (gait_windows) belong to the person who rode.
+		{"gait_windows", `SELECT to_jsonb(g) FROM gait_windows g JOIN sessions s ON s.id = g.session_id
+			WHERE s.user_id = $1 ORDER BY s.started_at`},
+		// Invite codes are secrets of the stable; the invite itself is listed without the code.
+		{"invites_created", `SELECT jsonb_build_object('id', id, 'created_at', created_at, 'expires_at', expires_at,
+				'max_uses', max_uses, 'uses', uses)
+			FROM stable_invites WHERE created_by = $1 ORDER BY created_at`},
+		// Login attempts of the address (magic link and code), without the hashes.
+		{"sign_in_attempts", `SELECT jsonb_build_object('created_at', t.created_at, 'expires_at', t.expires_at, 'used_at', t.used_at,
+				'code_attempts', t.code_attempts)
+			FROM login_tokens t JOIN users u ON u.email = t.email WHERE u.id = $1 ORDER BY t.created_at`},
+		{"parental_consent_requests", `SELECT jsonb_build_object('parent_email', parent_email, 'created_at', created_at,
+				'expires_at', expires_at, 'used_at', used_at)
+			FROM parental_consent_tokens WHERE user_id = $1 ORDER BY created_at`},
 	}
 	for _, s := range sections {
 		rows, err := rowsJSON(ctx, q, s.sql, userID)

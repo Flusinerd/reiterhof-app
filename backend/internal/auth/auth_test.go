@@ -119,6 +119,14 @@ type session struct {
 	} `json:"user"`
 }
 
+// confirmAge states "16 or older" for the session (joining a stable needs it, see agegate.go).
+func (e *env) confirmAge(token string) {
+	e.t.Helper()
+	if rec := e.do("POST", "/api/v1/me/age", token, map[string]any{"over_16": true}); rec.Code != 200 {
+		e.t.Fatalf("confirm age = %d %s", rec.Code, rec.Body)
+	}
+}
+
 func (e *env) requestLink(email string) string {
 	e.t.Helper()
 	if rec := e.do("POST", "/api/v1/auth/magic-link", "", map[string]string{"email": email}); rec.Code != 204 {
@@ -432,6 +440,7 @@ func TestInviteAndJoin(t *testing.T) {
 	}
 
 	newbie := e.signIn("newbie@example.org")
+	e.confirmAge(newbie.Token)
 	assertError(t, e.do("POST", "/api/v1/stables/join", newbie.Token, map[string]string{"code": "WRONG-CODE"}), 404, "invalid_code")
 	// Typed sloppily (lower case, spaces) still works.
 	rec = e.do("POST", "/api/v1/stables/join", newbie.Token, map[string]string{"code": " " + strings.ToLower(code[:4]) + " " + code[5:] + " "})
@@ -445,6 +454,7 @@ func TestInviteAndJoin(t *testing.T) {
 
 	// max_uses 1: used up.
 	second := e.signIn("second@example.org")
+	e.confirmAge(second.Token)
 	assertError(t, e.do("POST", "/api/v1/stables/join", second.Token, map[string]string{"code": code}), 404, "invalid_code")
 
 	// Expired invite.

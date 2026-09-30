@@ -34,7 +34,7 @@ func (h *handler) registerDocuments(mux *http.ServeMux) {
 	mux.Handle("PATCH /api/v1/horses/{id}/documents/{docId}", auth.RequireStable(http.HandlerFunc(h.patchDocument)))
 	mux.Handle("DELETE /api/v1/horses/{id}/documents/{docId}", auth.RequireStable(http.HandlerFunc(h.deleteDocument)))
 	mux.Handle("GET /api/v1/horses/{id}/documents/{docId}/file",
-		files.QueryToken(h.deps)(auth.RequireStable(http.HandlerFunc(h.documentFile))))
+		files.DownloadLink(h.deps)(auth.RequireStable(http.HandlerFunc(h.documentFile))))
 }
 
 // canRead answers 404 for horses outside the stable and 403 unless the caller is the owner,

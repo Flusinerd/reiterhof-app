@@ -9,8 +9,12 @@ import (
 // Auth holds the authentication settings (see docs/architecture.md, "Authentication").
 type Auth struct {
 	// PublicURL is the public base URL of the API (REITERHOF_PUBLIC_URL). It is used for the
-	// https fallback of the magic link: <PublicURL>/auth/verify?token=...
+	// https fallback of the magic link: <PublicURL>/auth/verify?token=... and for the
+	// parental consent link.
 	PublicURL string
+	// WebURL is the public base URL of the web app (REITERHOF_WEB_URL, e.g. https://stallfunk.de).
+	// Pages and mails the API renders link to its privacy text (<WebURL>/legal/privacy).
+	WebURL string
 	// DevLogin enables POST /api/v1/auth/dev-login (REITERHOF_DEV_LOGIN=true). Never in production.
 	DevLogin bool
 	// GoogleClientIDs are the accepted "aud" values of Google ID tokens
@@ -38,6 +42,7 @@ func authFromEnv() Auth {
 	}
 	return Auth{
 		PublicURL:       strings.TrimRight(os.Getenv("REITERHOF_PUBLIC_URL"), "/"),
+		WebURL:          strings.TrimRight(os.Getenv("REITERHOF_WEB_URL"), "/"),
 		DevLogin:        os.Getenv("REITERHOF_DEV_LOGIN") == "true",
 		GoogleClientIDs: splitList(os.Getenv("REITERHOF_GOOGLE_CLIENT_IDS")),
 		AppleClientIDs:  splitList(os.Getenv("REITERHOF_APPLE_CLIENT_IDS")),

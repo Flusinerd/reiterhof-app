@@ -19,6 +19,8 @@ const (
 	TrackMonths = 12
 	// ReminderMonths is how long delivered reminders are kept.
 	ReminderMonths = 12
+	// InviteGraceDays is how long an expired invite code stays (it names its creator).
+	InviteGraceDays = 30
 )
 
 // PruneResult counts what Prune removed.
@@ -29,6 +31,8 @@ type PruneResult struct {
 	Reminders      int64
 	LoginTokens    int64
 	AuthSessions   int64
+	Invites        int64
+	ParentalTokens int64
 }
 
 // Prune deletes data past its retention period. Idempotent; safe to run at any time.
@@ -45,6 +49,8 @@ func Prune(ctx context.Context, pool *pgxpool.Pool, now time.Time) (PruneResult,
 		{&res.Reminders, `DELETE FROM reminders WHERE due_at < $1`, []any{months(now, ReminderMonths)}},
 		{&res.LoginTokens, `DELETE FROM login_tokens WHERE expires_at < $1`, []any{now}},
 		{&res.AuthSessions, `DELETE FROM auth_sessions WHERE expires_at < $1`, []any{now}},
+		{&res.Invites, `DELETE FROM stable_invites WHERE expires_at IS NOT NULL AND expires_at < $1`, []any{now.AddDate(0, 0, -InviteGraceDays)}},
+		{&res.ParentalTokens, `DELETE FROM parental_consent_tokens WHERE expires_at < $1`, []any{now}},
 	}
 	for _, s := range steps {
 		tag, err := pool.Exec(ctx, s.sql, s.args...)
@@ -69,7 +75,8 @@ func Job(pool *pgxpool.Pool, log *slog.Logger, now func() time.Time) scheduler.J
 			res, err := Prune(ctx, pool, now())
 			if err == nil {
 				log.Info("retention run", "presence_visits", res.PresenceVisits, "tracks", res.Tracks,
-					"reminders", res.Reminders, "login_tokens", res.LoginTokens, "auth_sessions", res.AuthSessions)
+					"reminders", res.Reminders, "login_tokens", res.LoginTokens, "auth_sessions", res.AuthSessions,
+					"invites", res.Invites, "parental_tokens", res.ParentalTokens)
 			}
 			return err
 		},

@@ -441,10 +441,16 @@ func TestDocuments(t *testing.T) {
 	e.expect(e.call(otherUser, "GET", doc.URL, nil), 404)
 	// Same document id under another horse does not resolve.
 	e.expect(e.call(seed.UserJan, "GET", "/api/v1/horses/"+seed.HorseFanta+"/documents/"+doc.ID+"/file", nil), 404)
-	// access_token works for the file route only.
-	token := authtest.Token(t, e.pool, seed.UserMia)
-	e.expect(e.call("", "GET", doc.URL+"?access_token="+token, nil), 200)
-	e.expect(e.call("", "GET", base+"?access_token="+token, nil), 401)
+	// Viewers that cannot send headers get a short-lived link; the role check still applies.
+	rec = e.call(seed.UserMia, "POST", "/api/v1/files/download-link", map[string]any{"url": doc.URL})
+	e.expect(rec, 200)
+	link := decode[struct{ URL string }](t, rec).URL
+	e.expect(e.call("", "GET", link, nil), 200)
+	rec = e.call(seed.UserTom, "POST", "/api/v1/files/download-link", map[string]any{"url": doc.URL})
+	e.expect(rec, 200)
+	e.expect(e.call("", "GET", decode[struct{ URL string }](t, rec).URL, nil), 403)
+	// Session tokens in the URL are never accepted.
+	e.expect(e.call("", "GET", doc.URL+"?access_token="+authtest.Token(t, e.pool, seed.UserMia), nil), 401)
 
 	// Update and delete.
 	e.expect(e.call(seed.UserMia, "PATCH", base+"/"+doc.ID, map[string]any{"title": "Neu"}), 403)

@@ -10,7 +10,12 @@
 //	ok := files.Belongs(stableID, path) // validate a path sent by a client
 //
 // Uploads are sniffed (the declared type is not trusted), limited to MaxSize and
-// named randomly, so client file names never reach the disk.
+// named randomly, so client file names never reach the disk. Images are stored without
+// their metadata (EXIF position, XMP, comments, trailers; see metadata.go).
+//
+// Serving follows the record that references a file (least privilege, see handlers.go):
+// the raw route only answers for paths a horse document, an observation or a blanket
+// points to, with the visibility of that record.
 package files
 
 import (
@@ -42,6 +47,9 @@ var (
 	ErrTooLarge = errors.New("files: file too large")
 	// ErrUnsupportedType means the content is not an allowed image or PDF.
 	ErrUnsupportedType = errors.New("files: unsupported file type")
+	// ErrCorrupt means the image container is damaged, so its metadata could not be
+	// removed; such a file is not stored.
+	ErrCorrupt = errors.New("files: corrupt image")
 	// ErrInvalidPath means a path does not have the form stable_id/name.ext or
 	// belongs to another stable.
 	ErrInvalidPath = errors.New("files: invalid path")
@@ -59,12 +67,13 @@ type Saved struct {
 	Size        int64  `json:"size"`
 }
 
-// types maps allowed (sniffed) content types to the file extension.
+// types maps allowed (sniffed) content types to the file extension. Only image formats
+// whose metadata can be stripped (metadata.go) are accepted; HEIC is recognised by Sniff
+// but refused, the phone's picker delivers JPEG anyway.
 var types = map[string]string{
 	"image/jpeg":      "jpg",
 	"image/png":       "png",
 	"image/webp":      "webp",
-	"image/heic":      "heic",
 	"application/pdf": "pdf",
 }
 
@@ -79,7 +88,7 @@ var extTypes = func() map[string]string {
 const uuidPattern = `[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`
 
 var (
-	pathRe   = regexp.MustCompile(`^(` + uuidPattern + `)/([0-9a-f]{32})\.(jpg|png|webp|heic|pdf)$`)
+	pathRe   = regexp.MustCompile(`^(` + uuidPattern + `)/([0-9a-f]{32})\.(jpg|png|webp|pdf)$`)
 	stableRe = regexp.MustCompile(`^` + uuidPattern + `$`)
 )
 
@@ -136,6 +145,7 @@ func ContentTypeOf(path string) (string, bool) {
 // client claims (may be empty or application/octet-stream); if given it must be
 // an allowed type, but the stored type is always the sniffed one. The file is
 // streamed to disk; more than MaxSize bytes give ErrTooLarge and keep nothing.
+// Images are rewritten without metadata; a damaged image gives ErrCorrupt.
 func Save(ctx context.Context, stableID string, r io.Reader, declaredType string) (Saved, error) {
 	if !stableRe.MatchString(strings.ToLower(stableID)) {
 		return Saved{}, fmt.Errorf("files: invalid stable id %q", stableID)
@@ -194,6 +204,17 @@ func Save(ctx context.Context, stableID string, r io.Reader, declaredType string
 	if err := tmp.Close(); err != nil {
 		_ = os.Remove(tmpName)
 		return Saved{}, err
+	}
+	// Privacy: the stored image carries no EXIF, XMP, IPTC, comments or trailers.
+	if err := stripMetadataFile(tmpName, ct); err != nil {
+		_ = os.Remove(tmpName)
+		if errors.Is(err, errCorrupt) {
+			return Saved{}, ErrCorrupt
+		}
+		return Saved{}, err
+	}
+	if info, err := os.Stat(tmpName); err == nil {
+		size = info.Size()
 	}
 	name, err := randomName()
 	if err != nil {
@@ -259,8 +280,6 @@ func normalizeType(ct string) string {
 		return ""
 	case "image/jpg", "image/pjpeg":
 		return "image/jpeg"
-	case "image/heif":
-		return "image/heic"
 	}
 	return ct
 }
