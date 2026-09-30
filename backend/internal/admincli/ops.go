@@ -63,11 +63,16 @@ func runMailTest(ctx context.Context, e *Env, args []string) error {
 		mailer = auth.NewMailer(cfg, e.log())
 	}
 	host, _ := os.Hostname()
-	msg := auth.Message{
-		To:      rcpt,
-		Subject: "Stallfunk test mail",
-		Body: "This is a test mail from stallfunk-admin.\n\nIf you can read this, the SMTP settings of the Stallfunk API work.\n\n" +
-			"Sent at " + e.now().UTC().Format("2006-01-02 15:04:05") + " UTC from " + host + ".\n",
+	msg, err := auth.MailContent{
+		Preheader: "Die E-Mail-Einstellungen von Stallfunk funktionieren.",
+		Heading:   "Testnachricht",
+		Intro: []string{
+			"Diese E-Mail kommt von stallfunk-admin. Wenn du sie liest, funktionieren die SMTP-Einstellungen der Stallfunk-API.",
+		},
+		Note: "Gesendet am " + e.now().UTC().Format("2006-01-02 15:04:05") + " UTC von " + host + ".",
+	}.Message(rcpt, "Stallfunk: Testnachricht")
+	if err != nil {
+		return err
 	}
 	server := "the configured mailer"
 	if cfg.SMTPHost != "" {

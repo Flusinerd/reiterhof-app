@@ -161,15 +161,12 @@ func (s *Service) magicLink(w http.ResponseWriter, r *http.Request) {
 		s.internal(w, "store login token", err)
 		return
 	}
-	appURL := appScheme + "://auth/verify?token=" + url.QueryEscape(token)
-	body := "Hallo!\n\nDein Anmeldecode für Stallfunk:\n\n" + formatLoginCode(code) + "\n\n" +
-		"Gib ihn in der App ein. Oder tippe auf diesen Link, um dich direkt anzumelden:\n\n" + appURL + "\n"
-	if base := s.deps.Config.Auth.PublicURL; base != "" {
-		body += "\nFalls sich die App nicht öffnet, nutze diesen Link auf dem Gerät mit der App:\n\n" +
-			base + "/auth/verify?token=" + url.QueryEscape(token) + "\n"
+	msg, err := loginMail(email, code, token, s.deps.Config.Auth.PublicURL).Message(email, "Dein Anmeldecode für Stallfunk: "+code)
+	if err != nil {
+		s.internal(w, "render login mail", err)
+		return
 	}
-	body += "\nCode und Link sind 15 Minuten gültig und nur einmal verwendbar. Wenn du dich nicht anmelden wolltest, ignoriere diese E-Mail.\n"
-	if err := s.mailer.Send(r.Context(), Message{To: email, Subject: "Dein Anmeldecode für Stallfunk: " + code, Body: body}); err != nil {
+	if err := s.mailer.Send(r.Context(), msg); err != nil {
 		// Still 204: the response must not depend on delivery or on the address.
 		if s.deps.Log != nil {
 			s.deps.Log.Error("auth: send login mail", "err", err)
@@ -225,6 +222,26 @@ func (s *Service) verify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.issueSession(w, r, userID)
+}
+
+// loginMail is the text of the magic-link mail: the code, and a button to the https
+// fallback page (publicURL set) or the app link.
+func loginMail(email, code, token, publicURL string) MailContent {
+	c := MailContent{
+		Preheader: "Dein Code: " + formatLoginCode(code),
+		Heading:   "Dein Anmeldecode",
+		Intro:     []string{"Hallo! Gib diesen Code in der Stallfunk-App ein, um dich als " + email + " anzumelden:"},
+		Code:      formatLoginCode(code),
+		Button:    "In der App anmelden",
+		AppLink:   appScheme + "://auth/verify?token=" + url.QueryEscape(token),
+		Note: "Code und Link sind 15 Minuten gültig und nur einmal verwendbar. " +
+			"Wenn du dich nicht anmelden wolltest, ignoriere diese E-Mail.",
+	}
+	if publicURL != "" {
+		c.ButtonURL = publicURL + "/auth/verify?token=" + url.QueryEscape(token)
+		c.Lead = "Oder tippe auf dem Gerät mit der App auf den Button, um dich direkt anzumelden."
+	}
+	return c
 }
 
 // verifyPage is the https fallback for the magic link. It never consumes the token (mail

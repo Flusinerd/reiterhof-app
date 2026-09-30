@@ -159,7 +159,7 @@ func TestMailTest(t *testing.T) {
 	h.env.Mailer = fm
 
 	out := h.mustRun("mail", "test", "--to", "Ops@Example.org")
-	if len(fm.sent) != 1 || fm.sent[0].To != "ops@example.org" || !strings.Contains(fm.sent[0].Subject, "test mail") {
+	if len(fm.sent) != 1 || fm.sent[0].To != "ops@example.org" || !strings.Contains(fm.sent[0].Subject, "Testnachricht") || !strings.Contains(fm.sent[0].HTML, "Testnachricht") {
 		t.Fatalf("sent = %+v", fm.sent)
 	}
 	if !strings.Contains(out, "ops@example.org") || !strings.Contains(out, "smtp.example.org:587") {

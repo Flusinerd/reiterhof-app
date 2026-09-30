@@ -12,6 +12,7 @@
 //   public/logo.svg                                 vector logo (e-mails link the PNG, docs the SVG)
 //   assets/icon-1024.png                            native app icon (expo.icon), store size
 //   assets/logo-256.png                             logo inside the app (sign-in screen)
+//   ../backend/internal/auth/mail-logo.png          88 x 88, inline logo of the mails (44 px, 2x)
 //
 // The mark is a list of shapes (arcs with round or butt caps, rectangles, disks) in a unit box centered on
 // (0,0), y pointing down; later shapes paint over earlier ones. Every pixel is supersampled
@@ -202,6 +203,7 @@ const outputs = [
   ["public/favicon.png", 48, 0.8],
   ["assets/icon-1024.png", 1024, ANY],
   ["assets/logo-256.png", 256, ANY],
+  ["../backend/internal/auth/mail-logo.png", 88, ANY],
 ];
 
 for (const [file, size, markHeight] of outputs) {

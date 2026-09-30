@@ -1,14 +1,19 @@
 package auth
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/base64"
 	"fmt"
 	"log/slog"
 	"mime"
+	"mime/multipart"
+	"mime/quotedprintable"
 	"net"
 	"net/mail"
 	"net/smtp"
+	"net/textproto"
 	"strconv"
 	"strings"
 	"time"
@@ -16,11 +21,13 @@ import (
 	"github.com/Flusinerd/reiterhof-app/backend/internal/config"
 )
 
-// Message is a plain-text mail.
+// Message is a mail: Body is the plain text, HTML the optional branded version (see
+// MailContent). With HTML the mail is multipart/alternative and carries the logo inline.
 type Message struct {
 	To      string
 	Subject string
 	Body    string
+	HTML    string
 }
 
 // Mailer sends mail. Implementations: SMTPMailer (production), LogMailer (development).
@@ -122,15 +129,65 @@ func (s *SMTPMailer) Send(ctx context.Context, m Message) error {
 
 func buildMessage(from, to *mail.Address, m Message) []byte {
 	// Addresses come from mail.ParseAddress, so they contain no CR/LF.
-	var b strings.Builder
+	var b bytes.Buffer
 	b.WriteString("From: " + from.String() + "\r\n")
 	b.WriteString("To: " + to.String() + "\r\n")
 	b.WriteString("Subject: " + mime.QEncoding.Encode("utf-8", m.Subject) + "\r\n")
 	b.WriteString("Date: " + time.Now().UTC().Format(time.RFC1123Z) + "\r\n")
 	b.WriteString("MIME-Version: 1.0\r\n")
-	b.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
-	b.WriteString("Content-Transfer-Encoding: 8bit\r\n\r\n")
-	b.WriteString(strings.ReplaceAll(strings.ReplaceAll(m.Body, "\r\n", "\n"), "\n", "\r\n"))
-	b.WriteString("\r\n")
-	return []byte(b.String())
+	if m.HTML == "" {
+		b.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
+		b.WriteString("Content-Transfer-Encoding: quoted-printable\r\n\r\n")
+		writeQP(&b, m.Body)
+		return b.Bytes()
+	}
+	// multipart/alternative: text first, the preferred HTML last; the HTML and its logo
+	// sit in multipart/related so the img src="cid:..." resolves.
+	alt := multipart.NewWriter(&b)
+	b.WriteString("Content-Type: multipart/alternative; boundary=" + alt.Boundary() + "\r\n\r\n")
+	text, _ := alt.CreatePart(textproto.MIMEHeader{
+		"Content-Type":              {"text/plain; charset=UTF-8"},
+		"Content-Transfer-Encoding": {"quoted-printable"},
+	})
+	writeQP(text, m.Body)
+	var rel bytes.Buffer
+	relW := multipart.NewWriter(&rel)
+	html, _ := relW.CreatePart(textproto.MIMEHeader{
+		"Content-Type":              {"text/html; charset=UTF-8"},
+		"Content-Transfer-Encoding": {"quoted-printable"},
+	})
+	writeQP(html, m.HTML)
+	logo, _ := relW.CreatePart(textproto.MIMEHeader{
+		"Content-Type":              {"image/png"},
+		"Content-Transfer-Encoding": {"base64"},
+		"Content-ID":                {"<" + mailLogoCID + ">"},
+		"Content-Disposition":       {`inline; filename="stallfunk.png"`},
+	})
+	writeBase64(logo, mailLogo)
+	_ = relW.Close()
+	relPart, _ := alt.CreatePart(textproto.MIMEHeader{
+		"Content-Type": {`multipart/related; type="text/html"; boundary=` + relW.Boundary()},
+	})
+	_, _ = relPart.Write(rel.Bytes())
+	_ = alt.Close()
+	return b.Bytes()
+}
+
+// writeQP writes s quoted-printable with CRLF line ends (keeps lines under the SMTP limit).
+func writeQP(w interface{ Write([]byte) (int, error) }, s string) {
+	s = strings.ReplaceAll(strings.ReplaceAll(s, "\r\n", "\n"), "\n", "\r\n")
+	qp := quotedprintable.NewWriter(w)
+	_, _ = qp.Write([]byte(s))
+	_ = qp.Close()
+	_, _ = w.Write([]byte("\r\n"))
+}
+
+// writeBase64 writes data base64 encoded in lines of 76 characters.
+func writeBase64(w interface{ Write([]byte) (int, error) }, data []byte) {
+	enc := base64.StdEncoding.EncodeToString(data)
+	for len(enc) > 76 {
+		_, _ = w.Write([]byte(enc[:76] + "\r\n"))
+		enc = enc[76:]
+	}
+	_, _ = w.Write([]byte(enc + "\r\n"))
 }
