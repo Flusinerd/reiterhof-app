@@ -73,6 +73,8 @@ export const api = {
   /** Always resolves, whether or not the address is known (no user enumeration). */
   requestMagicLink: (email: string) => client.post<void>("/api/v1/auth/magic-link", { email }),
   verifyMagicLink: (token: string) => client.post<Session>("/api/v1/auth/verify", { token }),
+  /** Signs in with the 6-digit code from the login mail (same session as the link). */
+  verifyLoginCode: (email: string, code: string) => client.post<Session>("/api/v1/auth/verify-code", { email, code }),
   signInWithGoogle: (idToken: string) => client.post<Session>("/api/v1/auth/google", { id_token: idToken }),
   signInWithApple: (idToken: string, name?: string) =>
     client.post<Session>("/api/v1/auth/apple", { id_token: idToken, ...(name ? { name } : {}) }),
