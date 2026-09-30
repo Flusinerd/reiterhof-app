@@ -20,10 +20,11 @@ import (
 // weather snapshot with valid_for = day.
 const RolloverHour = 4
 
-// UncoverUntilHour ends the morning in which "uncovered" still belongs to the past night:
-// taking the blankets off in the morning finishes that night and must not mark the horse
-// as done for the coming one.
-const UncoverUntilHour = 12
+// UncoverUntilHour ends the time of day (stable-local, from RolloverHour) in which
+// "uncovered" still belongs to the past night: the horses are out from 08:30 to 12:30 and
+// the blankets come off when they are brought in, so taking them off until 15:00 finishes
+// that night and must not mark the horse as done for the coming one.
+const UncoverUntilHour = 15
 
 // NightDay returns the blanket day (YYYY-MM-DD) of now in loc.
 func NightDay(now time.Time, loc *time.Location) string {
@@ -35,7 +36,7 @@ func NightDay(now time.Time, loc *time.Location) string {
 }
 
 // StateDay returns the blanket day a state recorded now belongs to: the NightDay, except
-// for "uncovered" in the morning (RolloverHour to UncoverUntilHour), which ends the past night.
+// for "uncovered" between RolloverHour and UncoverUntilHour, which ends the past night.
 func StateDay(now time.Time, loc *time.Location, action string) string {
 	t := now.In(loc)
 	if action == ActionUncovered && t.Hour() >= RolloverHour && t.Hour() < UncoverUntilHour {
@@ -122,6 +123,8 @@ type State struct {
 	CoveredWithName *string   `json:"covered_with_name"`
 	ChangedAt       time.Time `json:"changed_at"`
 	ChangedBy       *Person   `json:"changed_by"`
+	// Automatic is true for a state written by the blanket-auto-uncover job (no author).
+	Automatic bool `json:"automatic"`
 }
 
 type horseInfo struct {
@@ -338,7 +341,7 @@ func (s *Service) loadNight(ctx context.Context, stableID, horseID string) (*nig
 // stateSQL selects state columns; callers append WHERE and ORDER BY.
 const stateSQL = `
 	SELECT s.id::text, s.horse_id::text, to_char(s.day, 'YYYY-MM-DD'), s.action, s.covered_with::text, b.name,
-	       s.changed_at, s.changed_by::text, u.name
+	       s.changed_at, s.changed_by::text, u.name, s.automatic
 	FROM blanket_states s
 	LEFT JOIN blankets b ON b.id = s.covered_with
 	LEFT JOIN users u ON u.id = s.changed_by`
@@ -347,7 +350,7 @@ func scanState(row pgx.Row) (State, error) {
 	var st State
 	var by, byName *string
 	if err := row.Scan(&st.ID, &st.HorseID, &st.Day, &st.Action, &st.CoveredWith, &st.CoveredWithName,
-		&st.ChangedAt, &by, &byName); err != nil {
+		&st.ChangedAt, &by, &byName, &st.Automatic); err != nil {
 		return State{}, err
 	}
 	if by != nil {

@@ -298,6 +298,12 @@ stallfunk-admin stable create --name "Stallgasse B" --farm "Hof Ahlers" --city D
 stallfunk-admin user create --email du@example.org --name "Dein Name" --admin
 stallfunk-admin stable list
 
+# Automatisches Abdecken (Stallpersonal nimmt die Decken ab, ohne die App zu nutzen):
+# ab HH:MM (04:00 bis 14:59, Stallzeit) setzt der Job "Abgedeckt" für Pferde, die noch eingedeckt sind.
+# Tage: mon-fri (Standard), all oder Liste wie mon,tue,sat (auch mo,di,mi,do,fr,sa,so); "off" schaltet aus.
+stallfunk-admin stable update <stall-id> --auto-uncover 12:30 --auto-uncover-days mon-fri
+stallfunk-admin stable update <stall-id> --auto-uncover off
+
 # Einladungscode für neue Mitglieder (Standard: 7 Tage, 10 Einlösungen)
 stallfunk-admin invite create
 stallfunk-admin invite create --days 14 --max-uses 3

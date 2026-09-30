@@ -97,7 +97,7 @@ Conventions: `400 invalid_json` / `validation_failed`, `401 unauthorized`,
 - Never edit a migration that has been merged; add a new one.
 - **Numbering:** use the next free number, or the number assigned to you. Gaps are
   allowed and expected. Current allocation: `0001`-`0003` core schema
-  (JAN-23), `0010` auth tables (auth agent), `0140` login code columns (JAN-76). Unapplied lower numbers still apply
+  (JAN-23), `0010` auth tables (auth agent), `0140` login code columns (JAN-76), `0150` automatic uncovering (JAN-78). Unapplied lower numbers still apply
   after higher ones, so parallel branches do not block each other. Two files with the
   same number make the migrator fail, which surfaces a clash at merge time.
 - Schema conventions: UUID primary keys (`gen_random_uuid()`), `created_at timestamptz`,

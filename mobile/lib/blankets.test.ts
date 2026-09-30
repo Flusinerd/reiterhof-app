@@ -68,6 +68,7 @@ const state = (patch: Partial<BlanketState> = {}): BlanketState => ({
   covered_with_name: "Decke 100 g",
   changed_at: "2026-09-30T17:04:00Z",
   changed_by: { id: "u1", name: "Mia" },
+  automatic: false,
   ...patch,
 });
 
@@ -120,6 +121,11 @@ test("state labels", () => {
   // 17:04 UTC is 19:04 in Berlin during summer time.
   assert.equal(stateByline(state(), "Europe/Berlin"), "Mia, 19:04");
   assert.equal(stateByline(state({ changed_by: null }), "Europe/Berlin"), "19:04");
+  // Automatic uncovering by the farm staff: no author, shown as "Hof".
+  const auto = state({ action: "uncovered", covered_with: null, covered_with_name: null, changed_by: null, automatic: true });
+  assert.equal(stateLabel(auto), "Abgedeckt (Hof, automatisch)");
+  assert.equal(stateByline(auto, "Europe/Berlin"), "Hof, 19:04");
+  assert.equal(stateLabel({ ...auto, automatic: false }), "Abgedeckt");
 });
 
 test("rule texts", () => {

@@ -48,7 +48,7 @@ Times are in the stable's time zone (`stables.timezone`). Response:
 calendar week). `Item`: `id`, `kind`, `title`, `body`, `due_at`, `all_day`, `sent_at`, `screen`, `computed`, `dismissible`.
 
 `blanket_check` is tonight's check: `time` is the stable's reminder time, `done/total` the horses with a `blanket_states` row for
-today's date (the stable-local calendar day is the blanket day of tonight; before noon that is still the coming night),
+today's date (the stable-local calendar day; from 04:00 on it is the blanket day of the coming night, see `docs/domains/blankets.md`),
 `state` is `empty` (no horses), `done`, `due` (reminder time reached, horses open) or `upcoming`.
 
 **Stored items**: the user's own `reminders` rows that are not dismissed and whose time (`sent_at`, else `due_at`) lies in the window.
@@ -97,7 +97,7 @@ check also covers tokens registered without consent. Tests that register tokens 
 
 `GET /api/v1/stables/reminder-time` -> `{reminder_time: "20:30", can_edit}` (every member, read only for non-admins).
 `PUT` `{reminder_time: "HH:MM"}` is **admin only** (`403 forbidden`), `400 validation_failed` unless `HH:MM` between `16:00` and `22:00`
-(the last-person job starts at that time and re-checks every 15 minutes until 22:00; the blanket day rolls over at noon). The blankets
+(the last-person job starts at that time and re-checks every 15 minutes until 22:00; the blanket day rolls over at 04:00). The blankets
 job (`RunLastPerson`) reads `stables.reminder_time` in every run, so the new time applies the same evening (test
 `TestLastPersonJobUsesNewReminderTime`). Presence visibility is not duplicated: the settings screen uses `PATCH /me`
 (`presence_visibility`) like the presence screen.

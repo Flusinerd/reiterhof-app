@@ -159,6 +159,82 @@ func TestStableListAndUpdate(t *testing.T) {
 	}
 }
 
+func TestStableAutoUncover(t *testing.T) {
+	pool := dbtest.NewSeeded(t)
+	h := newHarness(t, pool)
+	read := func() (string, string) {
+		var clock *string
+		var days string
+		if err := pool.QueryRow(context.Background(), `SELECT to_char(auto_uncover_time, 'HH24:MI'), array_to_string(auto_uncover_days, ',')
+			FROM stables WHERE id = $1`, seed.StableB).Scan(&clock, &days); err != nil {
+			t.Fatal(err)
+		}
+		if clock == nil {
+			return "off", days
+		}
+		return *clock, days
+	}
+	if c, d := read(); c != "off" || d != "1,2,3,4,5" {
+		t.Fatalf("defaults = %s %s", c, d)
+	}
+	if out := h.mustRun("stable", "list"); !strings.Contains(out, "AUTO_UNCOVER") || !strings.Contains(out, "off") {
+		t.Errorf("list:\n%s", out)
+	}
+
+	h.mustRun("stable", "update", seed.StableB, "--auto-uncover", "12:30")
+	if c, d := read(); c != "12:30" || d != "1,2,3,4,5" {
+		t.Errorf("after time = %s %s", c, d)
+	}
+	out := h.mustRun("stable", "list")
+	if !strings.Contains(out, "12:30 mon-fri") {
+		t.Errorf("list:\n%s", out)
+	}
+	h.mustRun("stable", "update", seed.StableB, "--auto-uncover-days", "sa, so")
+	if c, d := read(); c != "12:30" || d != "6,7" {
+		t.Errorf("after days = %s %s (time must be untouched)", c, d)
+	}
+	h.mustRun("stable", "update", seed.StableB, "--auto-uncover-days", "mon-wed,fri,mon")
+	if _, d := read(); d != "1,2,3,5" {
+		t.Errorf("days = %s", d)
+	}
+	h.mustRun("stable", "update", seed.StableB, "--auto-uncover-days", "all")
+	if _, d := read(); d != "1,2,3,4,5,6,7" {
+		t.Errorf("days = %s", d)
+	}
+	h.mustRun("stable", "update", seed.StableB, "--auto-uncover-days", "mon-fri")
+
+	var list []struct {
+		Time *string `json:"auto_uncover_time"`
+		Days []int   `json:"auto_uncover_days"`
+	}
+	if err := json.Unmarshal([]byte(h.mustRun("--json", "stable", "list")), &list); err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 1 || list[0].Time == nil || *list[0].Time != "12:30" || len(list[0].Days) != 5 {
+		t.Errorf("json list = %+v", list)
+	}
+
+	h.mustRun("stable", "update", seed.StableB, "--auto-uncover", "off")
+	if c, _ := read(); c != "off" {
+		t.Errorf("after off = %s", c)
+	}
+	if err := json.Unmarshal([]byte(h.mustRun("--json", "stable", "list")), &list); err != nil || list[0].Time != nil {
+		t.Errorf("json after off = %+v (%v)", list, err)
+	}
+
+	// Create with both flags; the boundaries 04:00 and 14:59 are valid.
+	id := lastLine(h.mustRun("stable", "create", "--name", "Dritter Hof", "--auto-uncover", "14:59", "--auto-uncover-days", "mon,tue"))
+	var clock, days string
+	if err := pool.QueryRow(context.Background(), `SELECT to_char(auto_uncover_time, 'HH24:MI'), array_to_string(auto_uncover_days, ',') FROM stables WHERE id = $1`, id).
+		Scan(&clock, &days); err != nil {
+		t.Fatal(err)
+	}
+	if clock != "14:59" || days != "1,2" {
+		t.Errorf("created stable = %s %s", clock, days)
+	}
+	h.mustRun("stable", "update", id, "--auto-uncover", "04:00")
+}
+
 func TestUserListAndCreateWithSeveralStables(t *testing.T) {
 	pool := dbtest.NewSeeded(t)
 	h := newHarness(t, pool)

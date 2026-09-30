@@ -56,7 +56,14 @@ export type NotificationKind = {
 
 export type NotificationSettings = { items: NotificationKind[]; push_consent: boolean };
 
-export type ReminderTimeInfo = { reminder_time: string; can_edit: boolean };
+export type ReminderTimeInfo = {
+  reminder_time: string;
+  can_edit: boolean;
+  /** Automatic uncovering (read-only, set by the operator): "HH:MM" or null = off. */
+  auto_uncover_time: string | null;
+  /** ISO weekdays, 1 = Monday .. 7 = Sunday. */
+  auto_uncover_days: number[];
+};
 
 // --- kinds ---------------------------------------------------------------------------------
 

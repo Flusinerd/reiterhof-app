@@ -1,6 +1,7 @@
 package reminders_test
 
 import (
+	"context"
 	"slices"
 	"testing"
 	"time"
@@ -115,6 +116,29 @@ func TestNotificationSettings(t *testing.T) {
 	e.do(seed.UserJan, "PUT", "/api/v1/settings/notifications/helper", m{"enabled": true, "x": 1}).status(400)
 	e.do("", "GET", "/api/v1/settings/notifications", nil).errCode(401, "unauthorized")
 	e.do("", "PUT", "/api/v1/settings/notifications/helper", m{"enabled": true}).errCode(401, "unauthorized")
+}
+
+func TestReminderTimeExposesAutoUncover(t *testing.T) {
+	e := newEnv(t)
+	var got struct {
+		AutoUncoverTime *string `json:"auto_uncover_time"`
+		AutoUncoverDays []int   `json:"auto_uncover_days"`
+	}
+	e.do(seed.UserAnna, "GET", "/api/v1/stables/reminder-time", nil).status(200).into(&got)
+	if got.AutoUncoverTime != nil || len(got.AutoUncoverDays) != 5 {
+		t.Errorf("defaults = %+v", got)
+	}
+	if _, err := e.pool.Exec(context.Background(), `UPDATE stables SET auto_uncover_time = '12:30', auto_uncover_days = '{6,7}'`); err != nil {
+		t.Fatal(err)
+	}
+	e.do(seed.UserAnna, "GET", "/api/v1/stables/reminder-time", nil).status(200).into(&got)
+	if got.AutoUncoverTime == nil || *got.AutoUncoverTime != "12:30" || len(got.AutoUncoverDays) != 2 || got.AutoUncoverDays[0] != 6 {
+		t.Errorf("configured = %+v", got)
+	}
+	e.do(seed.UserJan, "PUT", "/api/v1/stables/reminder-time", m{"reminder_time": "19:45"}).status(200).into(&got)
+	if got.AutoUncoverTime == nil || *got.AutoUncoverTime != "12:30" {
+		t.Errorf("put response = %+v", got)
+	}
 }
 
 func TestReminderTimeAdminOnly(t *testing.T) {

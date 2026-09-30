@@ -33,10 +33,12 @@ const (
 )
 
 // Jobs returns the background jobs of this package for cmd/api: the last-person
-// reminder, polled every minute (it decides itself whether a check slot is due).
+// reminder and the automatic uncovering (JAN-78), both polled every minute (each decides
+// itself whether it is due).
 func (s *Service) Jobs() []scheduler.Job {
 	return []scheduler.Job{
 		{Name: "blanket-last-person", Schedule: scheduler.Every(time.Minute), Run: s.RunLastPerson},
+		{Name: "blanket-auto-uncover", Schedule: scheduler.Every(time.Minute), Run: s.RunAutoUncover},
 	}
 }
 

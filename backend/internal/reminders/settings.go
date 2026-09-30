@@ -141,7 +141,7 @@ func (h *handler) putNotification(w http.ResponseWriter, r *http.Request) {
 
 // The last-person job starts at the reminder time and re-checks every 15 minutes until
 // 22:00, so the time has to leave room before that and must stay in the evening (the
-// blanket day rolls over at noon).
+// blanket day rolls over at 04:00).
 const (
 	minReminderMinutes = 16 * 60
 	maxReminderMinutes = 22 * 60
@@ -167,14 +167,20 @@ type reminderTimeResponse struct {
 	ReminderTime string `json:"reminder_time"`
 	// CanEdit is true for admins; everybody else only sees the time.
 	CanEdit bool `json:"can_edit"`
+	// AutoUncoverTime ("HH:MM", null = off) and AutoUncoverDays (ISO weekdays, 1 = Monday)
+	// are the read-only settings of the automatic uncovering (JAN-78); the operator sets
+	// them with stallfunk-admin.
+	AutoUncoverTime *string `json:"auto_uncover_time"`
+	AutoUncoverDays []int16 `json:"auto_uncover_days"`
 }
 
 // getReminderTime handles GET /stables/reminder-time (every member).
 func (h *handler) getReminderTime(w http.ResponseWriter, r *http.Request) {
 	u := user(r)
-	var t string
+	resp := reminderTimeResponse{CanEdit: u.IsAdmin}
 	err := h.deps.Pool.QueryRow(r.Context(),
-		`SELECT to_char(reminder_time, 'HH24:MI') FROM stables WHERE id = $1`, u.StableID).Scan(&t)
+		`SELECT to_char(reminder_time, 'HH24:MI'), to_char(auto_uncover_time, 'HH24:MI'), auto_uncover_days
+		FROM stables WHERE id = $1`, u.StableID).Scan(&resp.ReminderTime, &resp.AutoUncoverTime, &resp.AutoUncoverDays)
 	if errors.Is(err, pgx.ErrNoRows) {
 		httpx.WriteError(w, http.StatusNotFound, "not_found", "stable not found")
 		return
@@ -183,7 +189,7 @@ func (h *handler) getReminderTime(w http.ResponseWriter, r *http.Request) {
 		h.internal(w, "load reminder time", err)
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, reminderTimeResponse{ReminderTime: t, CanEdit: u.IsAdmin})
+	httpx.WriteJSON(w, http.StatusOK, resp)
 }
 
 // putReminderTime handles PUT /stables/reminder-time {"reminder_time": "20:45"} (admin only).
@@ -202,14 +208,17 @@ func (h *handler) putReminderTime(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadRequest, "validation_failed", err.Error())
 		return
 	}
-	tag, err := h.deps.Pool.Exec(r.Context(), `UPDATE stables SET reminder_time = $2::time WHERE id = $1`, u.StableID, t)
+	resp := reminderTimeResponse{CanEdit: true}
+	err = h.deps.Pool.QueryRow(r.Context(), `UPDATE stables SET reminder_time = $2::time WHERE id = $1
+		RETURNING to_char(reminder_time, 'HH24:MI'), to_char(auto_uncover_time, 'HH24:MI'), auto_uncover_days`,
+		u.StableID, t).Scan(&resp.ReminderTime, &resp.AutoUncoverTime, &resp.AutoUncoverDays)
+	if errors.Is(err, pgx.ErrNoRows) {
+		httpx.WriteError(w, http.StatusNotFound, "not_found", "stable not found")
+		return
+	}
 	if err != nil {
 		h.internal(w, "save reminder time", err)
 		return
 	}
-	if tag.RowsAffected() == 0 {
-		httpx.WriteError(w, http.StatusNotFound, "not_found", "stable not found")
-		return
-	}
-	httpx.WriteJSON(w, http.StatusOK, reminderTimeResponse{ReminderTime: t, CanEdit: true})
+	httpx.WriteJSON(w, http.StatusOK, resp)
 }

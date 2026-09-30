@@ -44,8 +44,9 @@ func TestStateDay(t *testing.T) {
 		{"evening cover", berlinAt(2026, 9, 30, 19, 0), blankets.ActionCovered, "2026-09-30"},
 		{"night uncover", berlinAt(2026, 10, 1, 1, 0), blankets.ActionUncovered, "2026-09-30"},
 		{"morning uncover ends the past night", berlinAt(2026, 10, 1, 7, 0), blankets.ActionUncovered, "2026-09-30"},
-		{"uncover just before noon", berlinAt(2026, 10, 1, 11, 59), blankets.ActionUncovered, "2026-09-30"},
-		{"uncover from noon on is for the coming night", berlinAt(2026, 10, 1, 12, 0), blankets.ActionUncovered, "2026-10-01"},
+		{"uncover at 12:30 (staff brings the horses in)", berlinAt(2026, 10, 1, 12, 30), blankets.ActionUncovered, "2026-09-30"},
+		{"uncover just before 15:00", berlinAt(2026, 10, 1, 14, 59), blankets.ActionUncovered, "2026-09-30"},
+		{"uncover from 15:00 on is for the coming night", berlinAt(2026, 10, 1, 15, 0), blankets.ActionUncovered, "2026-10-01"},
 		{"morning cover is for the coming night", berlinAt(2026, 10, 1, 7, 0), blankets.ActionCovered, "2026-10-01"},
 		{"morning check is for the coming night", berlinAt(2026, 10, 1, 7, 0), blankets.ActionChecked, "2026-10-01"},
 	}

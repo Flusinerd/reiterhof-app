@@ -60,6 +60,8 @@ export type BlanketState = {
   covered_with_name: string | null;
   changed_at: string;
   changed_by: { id: string; name: string } | null;
+  /** True when the auto-uncover job wrote the state (no author, the farm staff did it). */
+  automatic: boolean;
 };
 
 export type HorseRef = { id: string; name: string; box: string | null; color_key: string | null };
@@ -185,16 +187,17 @@ export function stateActions(rec: Recommendation): StateAction[] {
   }
 }
 
-/** "Eingedeckt mit Decke 100 g" / "Abgedeckt" / "Geprüft". */
+/** "Eingedeckt mit Decke 100 g" / "Abgedeckt" / "Abgedeckt (Hof, automatisch)" / "Geprüft". */
 export function stateLabel(state: BlanketState): string {
+  if (state.automatic && state.action === "uncovered") return "Abgedeckt (Hof, automatisch)";
   if (state.action === "covered" && state.covered_with_name) return `Eingedeckt mit ${state.covered_with_name}`;
   return actionLabel(state.action);
 }
 
-/** "Mia, 19:04" (time in the stable's time zone). */
+/** "Mia, 19:04", "Hof, 12:30" for automatic states (time in the stable's time zone). */
 export function stateByline(state: BlanketState, timeZone: string): string {
   const time = formatClock(state.changed_at, timeZone);
-  const who = state.changed_by?.name ?? "";
+  const who = state.changed_by?.name ?? (state.automatic ? "Hof" : "");
   return [who, time].filter(Boolean).join(", ");
 }
 

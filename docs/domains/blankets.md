@@ -15,7 +15,7 @@ Backend: `backend/internal/blankets/` (API, store, jobs), pure rule evaluation i
 
 Tables (core schema): `blankets` (per horse: `name, fill_g, color, location, photo_path`),
 `blanket_rules` (per horse, ordered by `position`, unique per horse), `blanket_states`
-(history: every state change is a row), `weather_snapshots`, `stables.reminder_time`. The
+(history: every state change is a row; `automatic` marks rows of the auto-uncover job), `weather_snapshots`, `stables.reminder_time`. The
 helper note is `horses.helper_note`; it is changed through `PATCH /horses/{id}` (horses API),
 this domain only returns it.
 
@@ -30,9 +30,9 @@ A "day" is the night that starts on a stable-local date. The night belongs to th
 1 October the day is still 30 September (late checks count for the running night); from
 04:00 on the app shows the coming night of 1 October (forecast, recommendation, progress),
 because the past night is settled by then. One exception (`blankets.StateDay`):
-"uncovered" recorded before **12:00** (`blankets.UncoverUntilHour`) still belongs to the past
-night, so taking the blankets off in the morning does not mark the horse done for the coming
-one. Covering or checking in the morning already counts for the coming night. The forecast of a day is the newest snapshot with
+"uncovered" recorded before **15:00** (`blankets.UncoverUntilHour`) still belongs to the past
+night (the horses are out from 08:30 to 12:30 and the blankets come off when they are brought
+in), so taking the blankets off does not mark the horse done for the coming one. Covering or checking in the morning already counts for the coming night. The forecast of a day is the newest snapshot with
 `valid_for = day` (the 18:00 to 08:00 summary, see `docs/architecture.md`).
 
 ### Recommendation
@@ -104,6 +104,38 @@ covers the blanket day as `done` and stores a German `payload.feedback` ("Einged
 horses, other days, cancelled and done requests are untouched. The response lists
 `closed_requests`; the app invalidates the requests queries then.
 
+## Automatic uncovering (JAN-78)
+
+On weekdays the farm staff, who do not use the app, take the blankets off at about 12:30 when they
+bring the horses in from the paddock; on weekends the owners do it in the app. So the stable can
+have the app do it for the staff.
+
+Settings (columns of `stables`, set with `stallfunk-admin stable create|update`, read-only in
+`GET /stables/reminder-time` as `auto_uncover_time` and `auto_uncover_days`):
+
+- `auto_uncover_time` (`--auto-uncover HH:MM|off`): stable-local time; NULL = off (default). The
+  CLI only accepts times from `RolloverHour:00` up to before `UncoverUntilHour:00` (04:00 to 14:59).
+- `auto_uncover_days` (`--auto-uncover-days`): ISO weekdays, 1 = Monday .. 7 = Sunday, default
+  Monday to Friday (`mon-fri`); a CHECK allows only 1 to 7.
+
+Job `blanket-auto-uncover` (`Service.RunAutoUncover`, polled every minute): for each stable with
+`auto_uncover_time`, when the stable-local weekday is in `auto_uncover_days`, the local time is
+at or after `auto_uncover_time` and the local hour is before `UncoverUntilHour` (15:00), the day is
+the previous calendar date, i.e. the past night (`StateDay(now, loc, uncovered)`). Every horse of
+the stable whose newest state for that day is `covered` gets an `uncovered` state with
+`automatic = true`, `changed_by` NULL, `changed_at` = now, `covered_with` NULL. Horses that are
+already uncovered or checked, or have no state, are left alone. Each horse runs in its own
+transaction under the same advisory lock as `setState` and re-checks the newest state inside it,
+so repeated runs, a concurrent tap or a manual "uncovered" never produce a second row. Like
+`setState` it closes the open blanket requests of the night (feedback "Automatisch abgedeckt
+(Hof)") and publishes `request.changed` and `blanket_state.changed`. It logs a summary at info
+level only when something was uncovered. After 15:00 the job does nothing any more: a horse still
+covered stays covered (a missed window is not caught up), and the overview of the coming night is
+never affected.
+
+`State` in the API has `automatic` (bool). The app shows such a state as "Abgedeckt (Hof,
+automatisch)" and "Hof" as the author.
+
 ## Last person reminder (JAN-33)
 
 `Service.RunLastPerson` (scheduler job `blanket-last-person`, polled every minute) runs at each
@@ -171,6 +203,7 @@ demo horse that had none (Fanta, Cookie, Merlin, Pepe, Nala). Luna and Balu keep
 
 `go test ./internal/blankets ./internal/requests` (needs `REITERHOF_TEST_DATABASE_URL`):
 permissions and validation, stable isolation, recommendation wiring with fixed snapshots, day
-boundary, progress and ordering, history, realtime events, request auto-close, last person
+boundary, progress and ordering, history, realtime events, request auto-close, automatic uncovering
+(weekday/weekend/disabled/window, idempotent, request closing, schema), last person
 (0/1/2 present, re-check until 22:00, idempotent, opt-out, retry after a failed push), check-out
 hook, weather change. Time is a fake clock.

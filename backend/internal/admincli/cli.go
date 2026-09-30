@@ -193,7 +193,7 @@ func commands() map[string]map[string]command {
 	return map[string]map[string]command{
 		"stable": {
 			"list":   {"stable list", runStableList},
-			"create": {"stable create --name NAME [--farm F] [--city C] [--lat N --lng N] [--timezone TZ] [--reminder-time HH:MM] [--geofence-radius M]", runStableCreate},
+			"create": {"stable create --name NAME [--farm F] [--city C] [--lat N --lng N] [--timezone TZ] [--reminder-time HH:MM] [--geofence-radius M] [--auto-uncover HH:MM|off] [--auto-uncover-days mon-fri|all|mon,tue,...]", runStableCreate},
 			"update": {"stable update ID [--name ...] (same flags as create)", runStableUpdate},
 		},
 		"user": {

@@ -1,10 +1,12 @@
 package blankets
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"sort"
 	"strconv"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -195,15 +197,7 @@ func (h *handler) setState(w http.ResponseWriter, r *http.Request) {
 		case err == nil && latest.Action == in.Action && equalPtr(latest.CoveredWith, coveredWith):
 			state = latest
 		case err == nil || errors.Is(err, pgx.ErrNoRows):
-			state, err = scanState(tx.QueryRow(r.Context(), `
-				WITH ins AS (
-					INSERT INTO blanket_states (stable_id, horse_id, day, action, covered_with, changed_at, changed_by)
-					VALUES ($1, $2, $3::date, $4, $5::uuid, $6, $7::uuid)
-					RETURNING *)
-				SELECT s.id::text, s.horse_id::text, to_char(s.day, 'YYYY-MM-DD'), s.action, s.covered_with::text, b.name,
-				       s.changed_at, s.changed_by::text, u.name
-				FROM ins s LEFT JOIN blankets b ON b.id = s.covered_with LEFT JOIN users u ON u.id = s.changed_by`,
-				user.StableID, horseID, day, in.Action, coveredWith, h.svc.now(), user.ID))
+			state, err = insertState(r.Context(), tx, user.StableID, horseID, day, in.Action, coveredWith, h.svc.now(), &user.ID, false)
 			if err != nil {
 				return err
 			}
@@ -230,6 +224,21 @@ func (h *handler) setState(w http.ResponseWriter, r *http.Request) {
 		closed = []string{}
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"state": state, "closed_requests": closed})
+}
+
+// insertState records a state row and returns it as the API shows it. The caller holds the
+// advisory lock of horse and day. changedBy is nil for automatic states.
+func insertState(ctx context.Context, tx pgx.Tx, stableID, horseID, day, action string, coveredWith *string,
+	at time.Time, changedBy *string, automatic bool) (State, error) {
+	return scanState(tx.QueryRow(ctx, `
+		WITH ins AS (
+			INSERT INTO blanket_states (stable_id, horse_id, day, action, covered_with, changed_at, changed_by, automatic)
+			VALUES ($1, $2, $3::date, $4, $5::uuid, $6, $7::uuid, $8)
+			RETURNING *)
+		SELECT s.id::text, s.horse_id::text, to_char(s.day, 'YYYY-MM-DD'), s.action, s.covered_with::text, b.name,
+		       s.changed_at, s.changed_by::text, u.name, s.automatic
+		FROM ins s LEFT JOIN blankets b ON b.id = s.covered_with LEFT JOIN users u ON u.id = s.changed_by`,
+		stableID, horseID, day, action, coveredWith, at, changedBy, automatic))
 }
 
 func equalPtr(a, b *string) bool {
