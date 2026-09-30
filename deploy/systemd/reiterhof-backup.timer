@@ -1,5 +1,5 @@
 [Unit]
-Description=Daily Reiterhof backup
+Description=Daily Stallfunk backup
 
 [Timer]
 OnCalendar=*-*-* 03:00:00

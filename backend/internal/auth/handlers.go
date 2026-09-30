@@ -21,7 +21,7 @@ import (
 
 const (
 	loginTokenTTL = 15 * time.Minute
-	appScheme     = "reiterhof"
+	appScheme     = "stallfunk"
 
 	inviteAlphabet    = "ABCDEFGHJKMNPQRSTUVWXYZ23456789" // no 0/O, 1/I/L
 	inviteCodeLen     = 8
@@ -157,13 +157,13 @@ func (s *Service) magicLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	appURL := appScheme + "://auth/verify?token=" + url.QueryEscape(token)
-	body := "Hallo!\n\nTippe auf diesen Link, um dich bei Reiterhof anzumelden:\n\n" + appURL + "\n"
+	body := "Hallo!\n\nTippe auf diesen Link, um dich bei Stallfunk anzumelden:\n\n" + appURL + "\n"
 	if base := s.deps.Config.Auth.PublicURL; base != "" {
 		body += "\nFalls sich die App nicht öffnet, nutze diesen Link auf dem Gerät mit der App:\n\n" +
 			base + "/auth/verify?token=" + url.QueryEscape(token) + "\n"
 	}
 	body += "\nDer Link ist 15 Minuten gültig und nur einmal verwendbar. Wenn du dich nicht anmelden wolltest, ignoriere diese E-Mail.\n"
-	if err := s.mailer.Send(r.Context(), Message{To: email, Subject: "Dein Anmeldelink für Reiterhof", Body: body}); err != nil {
+	if err := s.mailer.Send(r.Context(), Message{To: email, Subject: "Dein Anmeldelink für Stallfunk", Body: body}); err != nil {
 		// Still 204: the response must not depend on delivery or on the address.
 		if s.deps.Log != nil {
 			s.deps.Log.Error("auth: send login mail", "err", err)
@@ -205,10 +205,10 @@ func (s *Service) verify(w http.ResponseWriter, r *http.Request) {
 // scanners prefetch links); it only offers the app link.
 var verifyTmpl = template.Must(template.New("verify").Parse(`<!doctype html>
 <html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Reiterhof</title></head><body>
-<h1>Reiterhof</h1>
+<title>Stallfunk</title></head><body>
+<h1>Stallfunk</h1>
 <p><a href="{{.}}">In der App anmelden</a></p>
-<p>Öffne diesen Link auf dem Gerät, auf dem die Reiterhof-App installiert ist.</p>
+<p>Öffne diesen Link auf dem Gerät, auf dem die Stallfunk-App installiert ist.</p>
 </body></html>`))
 
 func (s *Service) verifyPage(w http.ResponseWriter, r *http.Request) {

@@ -1,4 +1,4 @@
-# Reiterhof design system
+# Stallfunk design system
 
 Warm, calm, flat. Built with NativeWind v4 (Tailwind 3) in the shadcn /
 react-native-reusables style: components are plain source files in

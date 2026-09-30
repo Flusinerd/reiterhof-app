@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/auth";
 import { isPlausibleToken } from "@/lib/deep-link";
 
 /**
- * Target of the magic link `reiterhof://auth/verify?token=...` (Expo Router maps the link to
+ * Target of the magic link `stallfunk://auth/verify?token=...` (Expo Router maps the link to
  * this route). Exchanges the token for a session; the root layout then moves on to the
  * join screen or the tabs.
  */
@@ -32,7 +32,7 @@ export default function Verify() {
   return (
     <Screen>
       <Hero
-        eyebrow="Reiterhof"
+        eyebrow="Stallfunk"
         title={error ? "Anmeldung fehlgeschlagen" : "Du wirst angemeldet"}
         description={error ?? "Einen Moment bitte."}
         tone={error ? "warm" : "forest"}

@@ -47,7 +47,7 @@ export async function shareRequest(r: HelpRequest): Promise<CalendarResult> {
 /** Share sheet with the address of the ICS feed of all requests the user helps with. */
 export async function shareCalendarFeed(): Promise<CalendarResult> {
   try {
-    await Share.share({ message: `Meine Reiterhof-Termine: ${icsUrl()}` });
+    await Share.share({ message: `Meine Stallfunk-Termine: ${icsUrl()}` });
     return "shared";
   } catch {
     return "failed";

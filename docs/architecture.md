@@ -111,7 +111,7 @@ bearer token, only its SHA-256 hash is stored, sessions last 90 days from the la
 
 | Route (all `POST`, no auth) | Body | Notes |
 | --- | --- | --- |
-| `/api/v1/auth/magic-link` | `{email}` | Always `204` (no user enumeration), `429` when rate limited (3 per email / 15 min, 20 per IP / h). Mail contains `reiterhof://auth/verify?token=...` and, if `REITERHOF_PUBLIC_URL` is set, an https fallback `<url>/auth/verify?token=...` (a page that only links to the app, it never consumes the token). Tokens live 15 min and work once. |
+| `/api/v1/auth/magic-link` | `{email}` | Always `204` (no user enumeration), `429` when rate limited (3 per email / 15 min, 20 per IP / h). Mail contains `stallfunk://auth/verify?token=...` and, if `REITERHOF_PUBLIC_URL` is set, an https fallback `<url>/auth/verify?token=...` (a page that only links to the app, it never consumes the token). Tokens live 15 min and work once. |
 | `/api/v1/auth/verify` | `{token}` | Creates the user if the email is new. `401 invalid_token` if unknown, used or expired. |
 | `/api/v1/auth/google` | `{id_token}` | RS256 ID token, checked against Google's JWKS (cached), `iss`, `aud` (`REITERHOF_GOOGLE_CLIENT_IDS`), `exp`. |
 | `/api/v1/auth/apple` | `{id_token, name?}` | Same for Apple (`REITERHOF_APPLE_CLIENT_IDS`); Apple sends the name only to the client on first sign-in, so the app passes it along. |
@@ -207,7 +207,7 @@ Configuration (all optional; unset means the feature is off or in dev mode):
 | `REITERHOF_PUBLIC_URL` | public base URL of the API, e.g. `https://api.example.org`, for the mail's https fallback link |
 | `REITERHOF_SMTP_HOST`, `_PORT` (587), `_USER`, `_PASSWORD`, `_FROM` | SMTP for login mails (STARTTLS, port 465 = implicit TLS). Without host the mail is only logged (dev) |
 | `REITERHOF_GOOGLE_CLIENT_IDS` | comma separated OAuth client IDs (web, iOS, Android) accepted as `aud` |
-| `REITERHOF_APPLE_CLIENT_IDS` | comma separated accepted `aud` (iOS bundle ID `org.datenlotse.reiterhof`) |
+| `REITERHOF_APPLE_CLIENT_IDS` | comma separated accepted `aud` (iOS bundle ID `org.datenlotse.stallfunk`) |
 | `REITERHOF_DEV_LOGIN` | `true` enables `/auth/dev-login` |
 
 Rate limits are in memory (per process, reset on restart), fine for the single-VPS setup.

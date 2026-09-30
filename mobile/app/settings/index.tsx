@@ -82,7 +82,7 @@ export default function Settings() {
   return (
     <Screen back>
       <Hero
-        eyebrow="Reiterhof"
+        eyebrow="Stallfunk"
         title="Einstellungen"
         description="Was dich erinnert, wann der Stall ans Decken denkt und wer dich im Stall sieht."
       />

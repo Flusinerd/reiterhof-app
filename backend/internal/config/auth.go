@@ -24,7 +24,7 @@ type Auth struct {
 	SMTPPort     int    // REITERHOF_SMTP_PORT, default 587
 	SMTPUser     string // REITERHOF_SMTP_USER
 	SMTPPassword string // REITERHOF_SMTP_PASSWORD
-	SMTPFrom     string // REITERHOF_SMTP_FROM, e.g. "Reiterhof <login@example.org>"
+	SMTPFrom     string // REITERHOF_SMTP_FROM, e.g. "Stallfunk <login@example.org>"
 }
 
 func authFromEnv() Auth {

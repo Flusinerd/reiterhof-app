@@ -1,4 +1,4 @@
-// Command api starts the Reiterhof cloud API.
+// Command api starts the Stallfunk cloud API.
 package main
 
 import (

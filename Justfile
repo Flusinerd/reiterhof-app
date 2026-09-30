@@ -1,4 +1,4 @@
-# Reiterhof — local development tasks.
+# Stallfunk — local development tasks.
 # Overview: `just` or `just --list`
 
 _default:

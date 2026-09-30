@@ -57,7 +57,7 @@ type SMTPMailer struct {
 	Port     int
 	User     string
 	Password string
-	From     string // "login@example.org" or "Reiterhof <login@example.org>"
+	From     string // "login@example.org" or "Stallfunk <login@example.org>"
 }
 
 // Send implements Mailer.

@@ -58,7 +58,7 @@ export default function PrivacySettings() {
       file.create({ overwrite: true });
       file.write(text);
       if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(file.uri, { mimeType: "application/json", dialogTitle: "Meine Reiterhof-Daten" });
+        await Sharing.shareAsync(file.uri, { mimeType: "application/json", dialogTitle: "Meine Stallfunk-Daten" });
       } else {
         await Share.share({ message: text });
       }

@@ -1,4 +1,4 @@
-# Reiterhof — Anweisungen für KI-Agenten
+# Stallfunk — Anweisungen für KI-Agenten
 
 - `backend/`: Go-Service, `net/http` ServeMux, kein Framework, Tests nur mit der Standardbibliothek.
 - `mobile/`: Expo-/React-Native-App (TypeScript, Expo Router).

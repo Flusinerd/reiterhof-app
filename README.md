@@ -1,4 +1,4 @@
-# Reiterhof
+# Stallfunk
 
 Mobile App für die Stallgasse: Anwesenheit, Decken und Wetter, Anfragen an
 Helfer, Pferdeakte und Training.
@@ -44,6 +44,8 @@ Die App erwartet die API unter `http://10.0.2.2:8080` (Android-Emulator).
 Für ein echtes Gerät `expo.extra.apiUrl` in `mobile/app.json` setzen.
 
 ## Konventionen
+
+- Der Produktname ist **Stallfunk** (App-Name, Deep Links `stallfunk://`, Bundle-ID `org.datenlotse.stallfunk`). Interne Bezeichner heißen weiter `reiterhof` (Repository, Go-Modul, Umgebungsvariablen `REITERHOF_*`, Datenbank, Serverpfade und systemd-Dienste), damit bestehende Konfigurationen gültig bleiben.
 
 - Abhängigkeiten sind exakt gepinnt, keine `^`- oder `~`-Bereiche.
 - Go-Tests nur mit der Standardbibliothek.

@@ -12,8 +12,8 @@ curl -s localhost:8080/api/v1/me -H "Authorization: Bearer <token>"
 
 Seed users are `<name>@example.org` (`jan` is admin and owns Luna). Without SMTP, magic-link mails are
 only written to the API log (`msg="mail (not sent, no SMTP configured)"`, the link is in `body`).
-To sign in on a device with a real link, open `reiterhof://auth/verify?token=...` from the log
-(`adb shell am start -a android.intent.action.VIEW -d "reiterhof://auth/verify?token=..."`).
+To sign in on a device with a real link, open `stallfunk://auth/verify?token=...` from the log
+(`adb shell am start -a android.intent.action.VIEW -d "stallfunk://auth/verify?token=..."`).
 
 ## Email (SMTP)
 
@@ -24,7 +24,7 @@ REITERHOF_SMTP_HOST=smtp.example.org
 REITERHOF_SMTP_PORT=587            # 587 = STARTTLS, 465 = implicit TLS
 REITERHOF_SMTP_USER=login@example.org
 REITERHOF_SMTP_PASSWORD=...
-REITERHOF_SMTP_FROM=Reiterhof <login@example.org>
+REITERHOF_SMTP_FROM=Stallfunk <login@example.org>
 REITERHOF_PUBLIC_URL=https://api.example.org
 ```
 
@@ -34,11 +34,11 @@ links to the app. It does not need Universal Links / App Links (not configured y
 
 ## Sign in with Google
 
-1. Google Cloud Console, project for Reiterhof, "APIs & Services" > "OAuth consent screen": configure (external), app name, support email.
+1. Google Cloud Console, project for Stallfunk, "APIs & Services" > "OAuth consent screen": configure (external), app name, support email.
 2. "Credentials" > "Create credentials" > "OAuth client ID", three clients:
    - Web application (its ID is also used by Expo's auth proxy in development),
-   - iOS, bundle ID `org.datenlotse.reiterhof`,
-   - Android, package `org.datenlotse.reiterhof` and the SHA-1 of the signing key (debug key for development, Play App Signing key for release).
+   - iOS, bundle ID `org.datenlotse.stallfunk`,
+   - Android, package `org.datenlotse.stallfunk` and the SHA-1 of the signing key (debug key for development, Play App Signing key for release).
 3. Put the IDs into `mobile/app.json` under `expo.extra`: `googleWebClientId`, `googleIosClientId`, `googleAndroidClientId`.
    Until the ID of the current platform is set, the button shows "Diese Anmeldung ist noch nicht eingerichtet."
 4. Put **all** client IDs, comma separated, into `REITERHOF_GOOGLE_CLIENT_IDS` on the server; the token's `aud` is the ID of the platform that requested it.
@@ -46,8 +46,8 @@ links to the app. It does not need Universal Links / App Links (not configured y
 
 ## Sign in with Apple (iOS only)
 
-1. Apple Developer account > Identifiers > App ID `org.datenlotse.reiterhof` > enable "Sign in with Apple".
+1. Apple Developer account > Identifiers > App ID `org.datenlotse.stallfunk` > enable "Sign in with Apple".
 2. `app.json` already sets `ios.usesAppleSignIn` and the `expo-apple-authentication` plugin. It needs a development/release build, not Expo Go.
-3. Server: `REITERHOF_APPLE_CLIENT_IDS=org.datenlotse.reiterhof` (the bundle ID is the token's `aud` for native sign-in).
+3. Server: `REITERHOF_APPLE_CLIENT_IDS=org.datenlotse.stallfunk` (the bundle ID is the token's `aud` for native sign-in).
 4. Apple may hide the real address behind `...@privaterelay.appleid.com`; that is accepted as a normal address and never merged with other accounts.
 5. The button is hidden on Android.

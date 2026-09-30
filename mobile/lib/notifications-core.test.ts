@@ -38,7 +38,7 @@ test("everything else is ignored", () => {
     "blankets",
     "//evil.example/blankets",
     "https://evil.example/blankets",
-    "reiterhof://blankets",
+    "stallfunk://blankets",
     "javascript:alert(1)",
     "/blankets/../settings",
     "/horses/../../etc",

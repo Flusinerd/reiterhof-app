@@ -33,7 +33,7 @@ export default function Join() {
   return (
     <Screen keyboardShouldPersistTaps="handled">
       <Hero
-        eyebrow={user ? `Hallo ${user.name}` : "Reiterhof"}
+        eyebrow={user ? `Hallo ${user.name}` : "Stallfunk"}
         title="Stall beitreten"
         description="Gib den Einladungscode ein, den du von deinem Stall bekommen hast."
       />

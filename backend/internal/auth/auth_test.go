@@ -50,7 +50,7 @@ func (m *captureMailer) count() int {
 	return len(m.msgs)
 }
 
-var tokenRe = regexp.MustCompile(`reiterhof://auth/verify\?token=([A-Za-z0-9_-]+)`)
+var tokenRe = regexp.MustCompile(`stallfunk://auth/verify\?token=([A-Za-z0-9_-]+)`)
 
 type env struct {
 	t      *testing.T
@@ -241,7 +241,7 @@ func TestVerifyPageDoesNotConsumeToken(t *testing.T) {
 	e := newEnv(t, auth.Options{}, config.Auth{})
 	token := e.requestLink("page@example.org")
 	rec := e.do("GET", "/auth/verify?token="+token, "", nil)
-	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `href="reiterhof://auth/verify?token=`+token+`"`) {
+	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `href="stallfunk://auth/verify?token=`+token+`"`) {
 		t.Fatalf("page = %d %s", rec.Code, rec.Body)
 	}
 	if rec := e.do("POST", "/api/v1/auth/verify", "", map[string]string{"token": token}); rec.Code != 200 {

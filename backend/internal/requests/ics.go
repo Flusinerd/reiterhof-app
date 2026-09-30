@@ -71,10 +71,10 @@ func BuildICS(reqs []Request, tz *time.Location, now time.Time) string {
 	e := &icsEncoder{}
 	e.line("BEGIN:VCALENDAR")
 	e.line("VERSION:2.0")
-	e.line("PRODID:-//Reiterhof//Anfragen//DE")
+	e.line("PRODID:-//Stallfunk//Anfragen//DE")
 	e.line("CALSCALE:GREGORIAN")
 	e.line("METHOD:PUBLISH")
-	e.line("X-WR-CALNAME:Reiterhof Anfragen")
+	e.line("X-WR-CALNAME:Stallfunk Anfragen")
 	tzid := tz.String()
 	if tzid == "Europe/Berlin" {
 		e.b.WriteString(vtimezoneBerlin)

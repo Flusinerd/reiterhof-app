@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Provisions a fresh Debian 12/13 or Ubuntu 22.04/24.04 VPS for the Reiterhof API.
+# Provisions a fresh Debian 12/13 or Ubuntu 22.04/24.04 VPS for the Stallfunk API.
 #
 # Run as root, from a checkout/copy of the deploy/ directory:
 #

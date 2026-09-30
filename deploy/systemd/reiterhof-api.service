@@ -1,5 +1,5 @@
 [Unit]
-Description=Reiterhof API
+Description=Stallfunk API
 Documentation=https://github.com/Flusinerd/reiterhof-app
 After=network-online.target postgresql.service
 Wants=network-online.target

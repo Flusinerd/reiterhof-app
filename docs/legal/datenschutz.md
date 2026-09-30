@@ -1,6 +1,6 @@
 # Datenschutzerklärung
 
-> **Entwurf – vor Veröffentlichung rechtlich prüfen lassen.** Diese Erklärung beschreibt, wie die App „Reiterhof“ heute technisch arbeitet. Die Platzhalter in eckigen Klammern müssen vor dem Einsatz ausgefüllt werden.
+> **Entwurf – vor Veröffentlichung rechtlich prüfen lassen.** Diese Erklärung beschreibt, wie die App „Stallfunk“ heute technisch arbeitet. Die Platzhalter in eckigen Klammern müssen vor dem Einsatz ausgefüllt werden.
 
 **Textversion:** 2026-09-30
 

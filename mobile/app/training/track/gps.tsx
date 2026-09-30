@@ -107,7 +107,7 @@ function GpsRun({
         <Card className="gap-2">
           <Text variant="bodyStrong">Ortung und Gangarten</Text>
           <Text variant="secondary">
-            Reiterhof nutzt dafür deinen Standort, auch wenn der Bildschirm aus ist. Die Gangart erkennt das Telefon an
+            Stallfunk nutzt dafür deinen Standort, auch wenn der Bildschirm aus ist. Die Gangart erkennt das Telefon an
             der Bewegung; trage es am besten in der Jackentasche oder am Körper.
           </Text>
         </Card>

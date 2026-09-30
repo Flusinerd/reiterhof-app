@@ -1,5 +1,5 @@
 [Unit]
-Description=Reiterhof backup (database, uploads, offsite copy)
+Description=Stallfunk backup (database, uploads, offsite copy)
 After=postgresql.service network-online.target
 Wants=network-online.target
 

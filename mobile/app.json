@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "Reiterhof",
-    "slug": "reiterhof",
+    "name": "Stallfunk",
+    "slug": "stallfunk",
     "version": "0.1.0",
-    "scheme": "reiterhof",
+    "scheme": "stallfunk",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "plugins": [
@@ -15,31 +15,31 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Reiterhof erkennt im Hintergrund, wann du im Stall ankommst oder ihn verlässt, und zeichnet deine Ausritte auf, auch wenn der Bildschirm aus ist.",
-          "locationAlwaysPermission": "Reiterhof erkennt im Hintergrund, wann du im Stall ankommst oder ihn verlässt, und zeichnet deine Ausritte auf, auch wenn der Bildschirm aus ist.",
-          "locationWhenInUsePermission": "Reiterhof nutzt deinen Standort, um zu erkennen, ob du im Stall bist, und um deine Ausritte aufzuzeichnen.",
+          "locationAlwaysAndWhenInUsePermission": "Stallfunk erkennt im Hintergrund, wann du im Stall ankommst oder ihn verlässt, und zeichnet deine Ausritte auf, auch wenn der Bildschirm aus ist.",
+          "locationAlwaysPermission": "Stallfunk erkennt im Hintergrund, wann du im Stall ankommst oder ihn verlässt, und zeichnet deine Ausritte auf, auch wenn der Bildschirm aus ist.",
+          "locationWhenInUsePermission": "Stallfunk nutzt deinen Standort, um zu erkennen, ob du im Stall bist, und um deine Ausritte aufzuzeichnen.",
           "isIosBackgroundLocationEnabled": true,
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
         }
       ],
-      ["expo-calendar", { "calendarPermission": "Reiterhof trägt Termine deiner Anfragen in deinen Kalender ein." }],
+      ["expo-calendar", { "calendarPermission": "Stallfunk trägt Termine deiner Anfragen in deinen Kalender ein." }],
       "expo-document-picker",
-      ["expo-sensors", { "motionPermission": "Reiterhof erkennt aus der Bewegung des Telefons, ob dein Pferd Schritt, Trab oder Galopp geht." }],
-      ["expo-image-picker", { "photosPermission": "Reiterhof braucht Zugriff auf deine Fotos, um Bilder und Dokumente hochzuladen.", "cameraPermission": "Reiterhof braucht die Kamera, um Fotos aufzunehmen." }]
+      ["expo-sensors", { "motionPermission": "Stallfunk erkennt aus der Bewegung des Telefons, ob dein Pferd Schritt, Trab oder Galopp geht." }],
+      ["expo-image-picker", { "photosPermission": "Stallfunk braucht Zugriff auf deine Fotos, um Bilder und Dokumente hochzuladen.", "cameraPermission": "Stallfunk braucht die Kamera, um Fotos aufzunehmen." }]
     ],
     "experiments": { "typedRoutes": true },
     "android": {
-      "package": "org.datenlotse.reiterhof",
+      "package": "org.datenlotse.stallfunk",
       "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION", "ACCESS_BACKGROUND_LOCATION", "FOREGROUND_SERVICE", "FOREGROUND_SERVICE_LOCATION"]
     },
     "ios": {
-      "bundleIdentifier": "org.datenlotse.reiterhof",
+      "bundleIdentifier": "org.datenlotse.stallfunk",
       "usesAppleSignIn": true,
       "infoPlist": {
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Reiterhof erkennt im Hintergrund, wann du im Stall ankommst oder ihn verlässt, und zeichnet deine Ausritte auf, auch wenn der Bildschirm aus ist.",
-        "NSLocationAlwaysUsageDescription": "Reiterhof erkennt im Hintergrund, wann du im Stall ankommst oder ihn verlässt, und zeichnet deine Ausritte auf, auch wenn der Bildschirm aus ist.",
-        "NSLocationWhenInUseUsageDescription": "Reiterhof nutzt deinen Standort, um zu erkennen, ob du im Stall bist, und um deine Ausritte aufzuzeichnen.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Stallfunk erkennt im Hintergrund, wann du im Stall ankommst oder ihn verlässt, und zeichnet deine Ausritte auf, auch wenn der Bildschirm aus ist.",
+        "NSLocationAlwaysUsageDescription": "Stallfunk erkennt im Hintergrund, wann du im Stall ankommst oder ihn verlässt, und zeichnet deine Ausritte auf, auch wenn der Bildschirm aus ist.",
+        "NSLocationWhenInUseUsageDescription": "Stallfunk nutzt deinen Standort, um zu erkennen, ob du im Stall bist, und um deine Ausritte aufzuzeichnen.",
         "UIBackgroundModes": ["location"]
       }
     },

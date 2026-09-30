@@ -1,4 +1,4 @@
-# Caddy configuration for the Reiterhof API.
+# Caddy configuration for the Stallfunk API.
 # The domain comes from the environment (systemd drop-in, /etc/reiterhof/caddy.env).
 # Caddy obtains and renews the Let's Encrypt certificate automatically; ports
 # 80 and 443 must be reachable and the DNS record must point to this server.

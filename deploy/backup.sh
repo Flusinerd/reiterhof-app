@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Daily backup of the Reiterhof database and uploads.
+# Daily backup of the Stallfunk database and uploads.
 #
 #   1. pg_dump -Fc of the database into $BACKUP_DIR/daily
 #   2. tar.gz of the uploads directory

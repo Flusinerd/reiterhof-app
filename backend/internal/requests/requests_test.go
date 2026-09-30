@@ -746,7 +746,7 @@ func TestCalendarAndICS(t *testing.T) {
 	}
 	body := rec.Body.String()
 	for _, want := range []string{
-		"BEGIN:VCALENDAR\r\nVERSION:2.0\r\n", "PRODID:-//Reiterhof//Anfragen//DE\r\n", "BEGIN:VTIMEZONE\r\nTZID:Europe/Berlin\r\n",
+		"BEGIN:VCALENDAR\r\nVERSION:2.0\r\n", "PRODID:-//Stallfunk//Anfragen//DE\r\n", "BEGIN:VTIMEZONE\r\nTZID:Europe/Berlin\r\n",
 		"DTSTART;TZID=Europe/Berlin:20261002T170000\r\n", "DTEND;TZID=Europe/Berlin:20261002T180000\r\n",
 		"UID:" + timed.ID + "@reiterhof.app\r\n", "SUMMARY:Bewegen: Luna\r\n", `LOCATION:Halle\, Bahn 2` + "\r\n",
 		"DTSTART;VALUE=DATE:20261005\r\n", "DTEND;VALUE=DATE:20261008\r\n", // inclusive end 7th -> exclusive 8th

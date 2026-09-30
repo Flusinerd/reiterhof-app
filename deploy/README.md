@@ -1,6 +1,6 @@
 # Deployment auf einen Netcup-VPS
 
-Runbook für den Betrieb der Reiterhof-API auf **einem** Debian-/Ubuntu-Server
+Runbook für den Betrieb der Stallfunk-API auf **einem** Debian-/Ubuntu-Server
 (Netcup-VPS mit 4 GB RAM). Alles läuft auf dem Server:
 
 ```

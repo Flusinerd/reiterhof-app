@@ -80,7 +80,7 @@ export async function startTracking(): Promise<StartResult> {
       pausesUpdatesAutomatically: false,
       showsBackgroundLocationIndicator: true,
       foregroundService: {
-        notificationTitle: "Reiterhof",
+        notificationTitle: "Stallfunk",
         notificationBody: "Dein Ausritt wird aufgezeichnet.",
       },
     });
@@ -107,7 +107,7 @@ export function startFailureText(reason: Exclude<StartResult, { ok: true }>["rea
     case "denied":
       return "Ohne Zugriff auf deinen Standort kann der Ausritt nicht aufgezeichnet werden. Bitte erlaube den Zugriff und versuche es erneut.";
     case "blocked":
-      return "Der Standortzugriff ist ausgeschaltet. Du kannst ihn in den Einstellungen des Telefons für Reiterhof wieder erlauben.";
+      return "Der Standortzugriff ist ausgeschaltet. Du kannst ihn in den Einstellungen des Telefons für Stallfunk wieder erlauben.";
     case "services-off":
       return "Die Ortungsdienste deines Telefons sind ausgeschaltet. Bitte schalte sie ein und versuche es erneut.";
     case "unsupported":

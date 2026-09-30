@@ -35,7 +35,7 @@ export default function SignIn() {
   return (
     <Screen keyboardShouldPersistTaps="handled">
       <Hero
-        eyebrow="Reiterhof"
+        eyebrow="Stallfunk"
         title="Willkommen"
         description="Melde dich ohne Passwort an. Wir schicken dir einen Link per E-Mail."
       />

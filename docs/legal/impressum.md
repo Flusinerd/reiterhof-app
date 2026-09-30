@@ -24,7 +24,7 @@ Verantwortlich im Sinne von § 18 Abs. 2 MStV: [Vor- und Nachname, Anschrift wie
 
 ## Hinweis
 
-„Reiterhof“ ist eine private App für die Stallgasse [Name des Stalls]. Sie richtet sich nur an eingeladene Mitglieder und wird nicht gewerblich betrieben.
+„Stallfunk“ ist eine private App für die Stallgasse [Name des Stalls]. Sie richtet sich nur an eingeladene Mitglieder und wird nicht gewerblich betrieben.
 
 Informationen zum Umgang mit deinen Daten findest du in der Datenschutzerklärung.
 
