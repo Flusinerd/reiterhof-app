@@ -6,7 +6,7 @@ import { View } from "react-native";
 
 import { DayPicker, FieldRow, Stepper } from "@/components/request-form-parts";
 import { RequestTypeIcon } from "@/components/request-type-icon";
-import { Button, Input, PageHeader, Pill, PressableCard, Screen, Section, Switch, Text } from "@/components/ui";
+import { Button, Input, PageHeader, Pill, PressableCard, Screen, Section, Switch, Text, TimeField } from "@/components/ui";
 import { requestKeys, requestsApi, type RequestInput } from "@/lib/api/requests";
 import {
   CREATABLE_TYPES,
@@ -191,12 +191,12 @@ export default function NewRequest() {
             <View className="flex-row gap-3">
               <View className="flex-1 gap-1">
                 <Text variant="caption">{isRide ? "Abfahrt" : "Von"}</Text>
-                <Input value={timeFrom} onChangeText={setTimeFrom} placeholder="18:00" keyboardType="numbers-and-punctuation" accessibilityLabel={isRide ? "Abfahrtszeit" : "Uhrzeit von"} />
+                <TimeField value={timeFrom} onChange={setTimeFrom} placeholder="18:00" clearable accessibilityLabel={isRide ? "Abfahrtszeit" : "Uhrzeit von"} />
               </View>
               {isRide ? null : (
                 <View className="flex-1 gap-1">
                   <Text variant="caption">Bis</Text>
-                  <Input value={timeTo} onChangeText={setTimeTo} placeholder="19:30" keyboardType="numbers-and-punctuation" accessibilityLabel="Uhrzeit bis" />
+                  <TimeField value={timeTo} onChange={setTimeTo} placeholder="19:30" clearable accessibilityLabel="Uhrzeit bis" />
                 </View>
               )}
             </View>
@@ -230,7 +230,7 @@ export default function NewRequest() {
               {classes.map((c, i) => (
                 <View key={i} className="flex-row items-center gap-2">
                   <Input className="flex-1" value={c.name} placeholder="Prüfung" accessibilityLabel={`Prüfung ${i + 1}`} onChangeText={(name) => setClasses(classes.map((x, j) => (j === i ? { ...x, name } : x)))} />
-                  <Input className="w-24" value={c.time ?? ""} placeholder="09:30" keyboardType="numbers-and-punctuation" accessibilityLabel={`Uhrzeit Prüfung ${i + 1}`} onChangeText={(time) => setClasses(classes.map((x, j) => (j === i ? { ...x, time: normalizeTime(time) ?? time } : x)))} />
+                  <TimeField className="w-32" value={c.time ?? ""} placeholder="09:30" clearable accessibilityLabel={`Uhrzeit Prüfung ${i + 1}`} onChange={(time) => setClasses(classes.map((x, j) => (j === i ? { ...x, time: time || undefined } : x)))} />
                   <Button variant="ghost" size="icon" icon={Trash2} accessibilityLabel={`Prüfung ${i + 1} entfernen`} onPress={() => setClasses(classes.filter((_, j) => j !== i))} />
                 </View>
               ))}

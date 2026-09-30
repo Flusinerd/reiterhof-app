@@ -13,5 +13,6 @@ export { Section, SectionTitle, type SectionProps, type SectionTitleProps } from
 export { Sheet, type SheetProps } from "./sheet";
 export { Switch, type SwitchProps } from "./switch";
 export { Tabs, TabsContent, TabsList, TabsTrigger } from "./tabs";
+export { TimeField, type TimeFieldProps } from "./time-field";
 export { Text, type TextProps, type TextTone, type TextVariant } from "./text";
 export { ToggleGroup, ToggleGroupItem, type ToggleGroupProps } from "./toggle-group";
