@@ -1,6 +1,7 @@
 package horses
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strconv"
@@ -8,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/Flusinerd/reiterhof-app/backend/internal/httpx"
 )
@@ -52,20 +54,7 @@ func (h *handler) emergency(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	var (
-		card      EmergencyCard
-		ownerID   *string
-		ownerName *string
-		ownerTel  *string
-	)
-	err := h.deps.Pool.QueryRow(r.Context(), `SELECT h.id, h.name, h.box, h.weight_kg, h.vet_name, h.vet_phone,
-			h.emergency_note, h.emergency_medication, h.permanent_medication, h.allergies, h.insurance,
-			h.owner_id, o.name, o.phone
-		FROM horses h LEFT JOIN users o ON o.id = h.owner_id
-		WHERE h.id = $1 AND h.stable_id = $2`, id, user.StableID).
-		Scan(&card.HorseID, &card.HorseName, &card.Box, &card.WeightKG, &card.VetName, &card.VetPhone,
-			&card.EmergencyNote, &card.EmergencyMedication, &card.PermanentMedication, &card.Allergies,
-			&card.Insurance, &ownerID, &ownerName, &ownerTel)
+	card, err := LoadEmergencyCard(r.Context(), h.deps.Pool, user.StableID, id, user.ID, user.IsAdmin)
 	if errors.Is(err, pgx.ErrNoRows) {
 		notFound(w)
 		return
@@ -74,32 +63,50 @@ func (h *handler) emergency(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, "emergency", err)
 		return
 	}
+	httpx.WriteJSON(w, http.StatusOK, card)
+}
+
+// LoadEmergencyCard reads the emergency card of a horse of the stable (pgx.ErrNoRows if the
+// horse does not exist there). userID and isAdmin only decide CanManage. The observations
+// feature uses it to hand the card back right after an urgent report.
+func LoadEmergencyCard(ctx context.Context, pool *pgxpool.Pool, stableID, horseID, userID string, isAdmin bool) (EmergencyCard, error) {
+	var (
+		card      EmergencyCard
+		ownerID   *string
+		ownerName *string
+		ownerTel  *string
+	)
+	err := pool.QueryRow(ctx, `SELECT h.id, h.name, h.box, h.weight_kg, h.vet_name, h.vet_phone,
+			h.emergency_note, h.emergency_medication, h.permanent_medication, h.allergies, h.insurance,
+			h.owner_id, o.name, o.phone
+		FROM horses h LEFT JOIN users o ON o.id = h.owner_id
+		WHERE h.id = $1 AND h.stable_id = $2`, horseID, stableID).
+		Scan(&card.HorseID, &card.HorseName, &card.Box, &card.WeightKG, &card.VetName, &card.VetPhone,
+			&card.EmergencyNote, &card.EmergencyMedication, &card.PermanentMedication, &card.Allergies,
+			&card.Insurance, &ownerID, &ownerName, &ownerTel)
+	if err != nil {
+		return EmergencyCard{}, err
+	}
 	if ownerID != nil && ownerName != nil {
 		card.Owner = &Owner{ID: *ownerID, Name: *ownerName, Phone: ownerTel}
 	}
-	card.CanManage = user.IsAdmin || (ownerID != nil && *ownerID == user.ID)
+	card.CanManage = isAdmin || (ownerID != nil && *ownerID == userID)
 
-	rows, err := h.deps.Pool.Query(r.Context(), `SELECT id, label, name, phone FROM emergency_contacts
-		WHERE horse_id = $1 AND stable_id = $2 ORDER BY created_at, id`, id, user.StableID)
+	rows, err := pool.Query(ctx, `SELECT id, label, name, phone FROM emergency_contacts
+		WHERE horse_id = $1 AND stable_id = $2 ORDER BY created_at, id`, horseID, stableID)
 	if err != nil {
-		h.fail(w, "contacts", err)
-		return
+		return EmergencyCard{}, err
 	}
 	defer rows.Close()
 	card.Contacts = []Contact{}
 	for rows.Next() {
 		var c Contact
 		if err := rows.Scan(&c.ID, &c.Label, &c.Name, &c.Phone); err != nil {
-			h.fail(w, "contacts scan", err)
-			return
+			return EmergencyCard{}, err
 		}
 		card.Contacts = append(card.Contacts, c)
 	}
-	if err := rows.Err(); err != nil {
-		h.fail(w, "contacts", err)
-		return
-	}
-	httpx.WriteJSON(w, http.StatusOK, card)
+	return card, rows.Err()
 }
 
 type contactInput struct {
