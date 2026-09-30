@@ -6,7 +6,8 @@ Backend: `backend/internal/privacy`, migrations `0110_privacy.up.sql`, `0200_map
 `components/map-consent-gate.tsx`.
 Text: `docs/legal/datenschutz.md` (German draft, **Entwurf – vor Veröffentlichung rechtlich prüfen lassen**). No imprint:
 the app is private and invite-only (owner's decision, 30.09.2026); the privacy text names the controller and the contact.
-What the owner must sign and fill in: [docs/legal/avv-checkliste.md](../legal/avv-checkliste.md).
+What the owner must sign and fill in: [docs/legal/avv-checkliste.md](../legal/avv-checkliste.md); record of processing
+activities, TOM and procedures for requests and breaches: [docs/legal/verarbeitungsverzeichnis.md](../legal/verarbeitungsverzeichnis.md).
 
 ## Consents
 
