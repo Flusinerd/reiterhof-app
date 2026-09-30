@@ -9,6 +9,9 @@ import (
 
 	"github.com/Flusinerd/reiterhof-app/backend/internal/auth"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/devices"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/files"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/health"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/horses"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/httpx"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/presence"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/realtime"
@@ -26,6 +29,9 @@ var registrations = []func(mux *http.ServeMux, deps Deps){
 	presence.Register,
 	realtime.Register,
 	requests.Register,
+	files.Register,
+	health.Register,
+	horses.Register,
 }
 
 // NewHandler builds the router. It uses net/http only, no framework.

@@ -9,3 +9,4 @@ web-build/
 backend/bin/
 backend/tmp/
 .DS_Store
+backend/uploads/

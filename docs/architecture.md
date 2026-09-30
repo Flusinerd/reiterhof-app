@@ -388,7 +388,27 @@ header and does not need it.
 **Mobile:** `useStableEvents(types, handler)` and `useInvalidateOnEvents({ "request.changed":
 [["requests"]] })` in `mobile/lib/realtime.ts`; one shared connection, closed in the background.
 
+## Files
+
+Package `internal/files` stores uploads on local disk (`REITERHOF_UPLOAD_DIR`, default `./uploads`, production
+`/var/lib/reiterhof/uploads`) as `<stable_id>/<random>.<ext>`. Use it for every photo or document; details in
+[domains/horses.md](domains/horses.md#files-internalfiles).
+
+```go
+// Save an upload (JPEG, PNG, WebP, HEIC, PDF; max 20 MB; the content is sniffed) and store saved.Path in your table.
+saved, err := files.Save(ctx, user.StableID, reader, declaredContentType) // errors: files.ErrTooLarge, files.ErrUnsupportedType
+files.Belongs(stableID, path)      // validate a path sent by a client before storing it
+f, contentType, err := files.Open(stableID, path) // ErrInvalidPath (also for other stables), ErrNotFound
+files.Remove(stableID, path)
+files.Serve(w, r, deps, stableID, path) // after your own role check; wrap the route with files.QueryToken(deps) for ?access_token=
+```
+
+HTTP: `POST /api/v1/files` (multipart, field `file`) returns `{path, url, content_type, size}`; `GET /api/v1/files/{path...}`
+serves files to members of the same stable only (`?access_token=` accepted, see the tradeoff in the domain doc).
+In tests call `files.SetDir(t.TempDir())`. The app uses `mobile/lib/upload.ts` (`uploadFile`, `fileSource`).
+
 ## Domains
 
 - [Presence](domains/presence.md): check-in/out, visibility, geofence.
 - Requests (Anfragen, M4): [docs/domains/requests.md](domains/requests.md). Note for push: `new_request` is an opt-in kind (`push.OptIn`), it is only sent to users with an enabling `reminder_settings` row; all other kinds stay opt-out.
+- [Horses, horse record, health, documents, files](domains/horses.md): `internal/horses`, `internal/health`, `internal/files`.

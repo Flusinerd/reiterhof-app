@@ -14,6 +14,7 @@ import (
 
 	"github.com/Flusinerd/reiterhof-app/backend/internal/config"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/db"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/health"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/httpapi"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/presence"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/push"
@@ -67,9 +68,18 @@ func main() {
 		})
 	}
 
+	notifier := push.NewNotifier(pool, push.NewClientFromEnv(), log)
+	healthReminders := &health.Reminders{Pool: pool, Notify: notifier, Log: log, Now: time.Now}
+	(&scheduler.Scheduler{Log: log}).Go(ctx, &jobs, scheduler.Job{
+		Name:       "health-reminders",
+		Schedule:   scheduler.Every(15 * time.Minute),
+		RunOnStart: true,
+		Run:        healthReminders.Run,
+	})
+
 	deps := httpapi.Deps{
 		Pool: pool, Config: cfg, Log: log, Now: time.Now,
-		Notify: push.NewNotifier(pool, push.NewClientFromEnv(), log),
+		Notify: notifier,
 		Events: hub,
 	}
 	// Requests publish their changes after commit; Register reads this hook.
