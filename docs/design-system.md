@@ -28,7 +28,9 @@ Code and identifiers are English; all UI text is German.
    do not add your own.
 8. Colors come from tokens only. The default Tailwind palette (zinc, gray, ...) is removed on purpose.
 9. Never set `fontWeight`. React Native needs one font family per weight; use `Text` variants or `font-sans-semibold` etc.
-10. Icons are Lucide, stroke 2, through `Icon`.
+10. Icons are Lucide, stroke 2, through `Icon`. Lucide has no horse: `Horse` (`@/components/icons/horse`) is drawn in the
+    Lucide style (24 grid, outline, stroke 2, round caps) and built with `createLucideIcon`. Add further custom icons the same
+    way, never as filled glyphs or images.
 11. Use `cn()` (`@/lib/cn`) to merge classes. Do not use `StyleSheet` for things that have a token.
 12. Texts stay short (JAN-80): titles of one to three words, one sentence below, buttons of one or two words.
 
@@ -146,7 +148,7 @@ All exported from `@/components/ui` (barrel) or individually from `@/components/
 ## Navigation
 
 Bottom tab bar (`app/(tabs)/_layout.tsx`): Start, Decken, Anfragen, Training, Pferde with Lucide icons
-(`House`, `Shirt`, `HandHelping`, `Activity`, `PawPrint`). The active tab is a green icon inside a `primary-soft` pill;
+(`House`, `Shirt`, `HandHelping`, `Activity`, and the custom `Horse`). The active tab is a green icon inside a `primary-soft` pill;
 the bar is white with a 1 px top border. Its dimensions are in `tabBar` in `@/lib/theme`.
 Sub pages sit outside `(tabs)` (no tab bar) and use `<Screen back>`.
 

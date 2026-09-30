@@ -1,9 +1,10 @@
 import { router, useLocalSearchParams, type Href } from "expo-router";
-import { Check, HeartPulse, PawPrint, RotateCcw, Siren } from "lucide-react-native";
+import { Check, HeartPulse, RotateCcw, Siren } from "lucide-react-native";
 import { useState } from "react";
 import { Image, Linking, Pressable, View } from "react-native";
 
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
+import { Horse } from "@/components/icons/horse";
 import { Badge, Button, PageHeader, Screen, Section, Text } from "@/components/ui";
 import { errorMessage } from "@/lib/api";
 import { useObservation, useObservationEvents, useSetObservationStatus } from "@/lib/api/observations";
@@ -133,7 +134,7 @@ export default function ObservationDetail() {
         ) : null}
         <Button
           label="Pferdeakte"
-          icon={PawPrint}
+          icon={Horse}
           variant="ghost"
           fullWidth
           onPress={() => router.push(horseRoutes.detail(o.horse_id) as Href)}
