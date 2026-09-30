@@ -13,13 +13,13 @@ Ein AVV ist nötig, wenn ein Dienstleister in deinem Auftrag personenbezogene Da
 - [ ] **Offsite-Backup:** vorerst keins (Stand 30.09.2026); `REITERHOF_SKIP_OFFSITE=1` in `backup.env`, Datenschutztext Abschnitte 5 bis 7 beschreiben nur die Sicherungen auf dem Server. Wird später eines eingerichtet: AVV mit dem Anbieter (Standort EU), rclone-`crypt`-Remote (Pflicht in `backup.sh`, Passwort getrennt vom Server sichern), Abschnitte 5 bis 7 des Datenschutztexts und die Checkliste ergänzen.
 - [ ] **Domain-/DNS-Anbieter:** nur nötig, wenn dort personenbezogene Daten anfallen (in der Regel nicht).
 
-## 2. Expo, Google und Apple
+## 2. Apple und Google (Expo entfällt)
 
 Hier gibt es in der Regel keinen individuell ausgehandelten AVV. Es gelten die Bedingungen der Anbieter, die du mit dem Entwickler- bzw. Dienstkonto akzeptierst.
 
-- [ ] **Expo (Push-Dienst `exp.host`, ggf. EAS-Build):** Nutzungsbedingungen, Datenschutzerklärung und ein angebotenes Data Processing Addendum (DPA) auf expo.dev prüfen und annehmen, soweit angeboten. Sitz in den USA: Drittlandübermittlung im Datenschutztext (Abschnitt 3.9) prüfen.
-- [ ] **Apple (Apple Developer Program, APNs, Sign in with Apple):** Apple Developer Program License Agreement gilt. Datenschutzangaben im App Store Connect („App-Datenschutz“) ausfüllen.
-- [ ] **Google (Firebase Cloud Messaging für Android-Push, Google Sign-In, Play Console, Google Maps SDK für die Ausritt-Karte):** Google-Bedingungen für Entwickler und Datenverarbeitung gelten; für Maps zusätzlich die Google Maps Platform Terms (API-Key, siehe `docs/domains/tracking.md`). Die „Data safety“-Angaben in der Play Console ausfüllen.
+- [x] **Expo:** entfällt. Der Expo-Push-Dienst und EAS werden nicht genutzt (JAN-88): Der Server sendet direkt an APNs und FCM, die App holt das native Gerätetoken, gebaut wird lokal (`npx expo prebuild`, Gradle, Xcode; siehe README). Expo (650 Industries) sieht damit keine Nutzerdaten; ein DPA ist nicht nötig. Das Expo-SDK bleibt als Bibliothek in der App, das ist reiner Code ohne Datenfluss zu Expo.
+- [ ] **Apple (Apple Developer Program, APNs, Sign in with Apple):** Apple Developer Program License Agreement gilt (der Account Holder muss jede neue Fassung annehmen). APNs-Schlüssel (`.p8`) erzeugen und auf dem Server hinterlegen (`REITERHOF_APNS_*`). Datenschutzangaben im App Store Connect („App-Datenschutz“) ausfüllen.
+- [ ] **Google (Firebase Cloud Messaging für Android-Push, Google Sign-In, Play Console, Google Maps SDK für die Ausritt-Karte):** Google-Bedingungen für Entwickler und Datenverarbeitung gelten; für FCM die Firebase Data Processing and Security Terms (Standardvertragsklauseln enthalten, gelten automatisch mit dem Firebase-Projekt, Version und Datum notieren); für Maps zusätzlich die Google Maps Platform Terms (Google ist dort eigener Verantwortlicher; API-Key, siehe `docs/domains/tracking.md`). Firebase-Dienstkonto auf dem Server hinterlegen (`REITERHOF_FCM_SERVICE_ACCOUNT_FILE`), `google-services.json` in `mobile/` (git-ignoriert). Die „Data safety“-Angaben in der Play Console ausfüllen.
 - [ ] **Kartendienste:** Apple Maps (MapKit, iOS) läuft über das Apple Developer Agreement; OpenFreeMap (Web-App) ist ein kostenloses Angebot ohne Vertrag und ohne Zusagen (Alternative: eigener Tile-Server, `EXPO_PUBLIC_MAP_STYLE_URL`). Karten werden erst nach der Einwilligung „Karten anzeigen“ geladen.
 - [ ] Prüfen, ob die Anbieter im Datenschutztext (Abschnitt 6) zutreffend beschrieben sind.
 
@@ -30,7 +30,7 @@ Quelle des Texts: `docs/legal/datenschutz.md`. Nach jeder Änderung `node script
 - [ ] Verantwortlicher: `[Name, Anschrift, E-Mail]` (Datenschutz, Abschnitt 1 und 9)
 - [ ] Name des Stalls: `[Name des Stalls]`
 - [ ] `[zuständige Aufsichtsbehörde, Anschrift, Website]` (Abschnitt 9)
-- [ ] Hinweis `[vor Veröffentlichung prüfen]` (Drittlandübermittlung Expo, Google, Apple) entfernen, sobald erledigt
+- [ ] Hinweis `[vor Veröffentlichung prüfen]` (Drittlandübermittlung Google, Apple: beide sind nach dem EU-US Data Privacy Framework zertifiziert, Eintrag auf dataprivacyframework.gov prüfen) entfernen, sobald erledigt
 - [x] Impressum: entfällt. Entscheidung des Betreibers (30.09.2026): Die App ist nur auf Einladung und rein privat nutzbar, kein geschäftsmäßiges Telemedium (§ 5 DDG). Impressum aus Repository und App entfernt; Kontakt für Eltern und Betroffene steht im Datenschutztext (Abschnitt 1 und 9). Wird die App öffentlich angeboten (Stores, Werbung, Entgelt), neu prüfen.
 - [ ] Die Marke „Entwurf – vor Veröffentlichung rechtlich prüfen lassen“ aus dem Datenschutztext entfernen, wenn die Prüfung abgeschlossen ist.
 - [ ] Bei jeder inhaltlichen Änderung `TextVersion` in `backend/internal/privacy/consents.go` und die „Textversion“ im Datenschutztext gemeinsam erhöhen (der Test `TestLegalTextsMatchTextVersion` schlägt sonst fehl).
@@ -46,7 +46,7 @@ Quelle des Texts: `docs/legal/datenschutz.md`. Nach jeder Änderung `node script
 - [ ] Reitbeteiligungen und Besitzer sind für alle Mitglieder sichtbar (Abschnitt 3.7): Vertrag oder berechtigtes Interesse?
 - [ ] Beschäftigtendaten- oder Vereinsbezug? Ist der Stallbetreiber (Hofbesitzer) Mitverantwortlicher?
 - [ ] Umgang mit Fotos, auf denen Personen zu sehen sind.
-- [ ] Drittlandübermittlung an Expo (USA): Angemessenheitsbeschluss oder Standardvertragsklauseln.
+- [ ] Drittlandübermittlung an Apple und Google (USA) für Push, Anmeldung und Karten: Angemessenheitsbeschluss (Data Privacy Framework) oder Standardvertragsklauseln.
 - [ ] Bewusste Entscheidung: Beim Löschen eines Kontos bleiben Einträge zu Pferden anonymisiert („Gelöschtes Mitglied“) erhalten; Besitzer müssen ihre Pferde vorher übergeben.
 
 ## 5. Weitere Pflichten, die nicht in der App liegen

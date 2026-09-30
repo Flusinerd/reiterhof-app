@@ -124,13 +124,13 @@ Rechtsgrundlage: Nutzungsverhältnis, Art. 6 Abs. 1 lit. b DSGVO.
 
 ### 3.9 Benachrichtigungen (Push)
 
-Damit wir dich erinnern können (Termine, Anfragen, Decken), sendet dein Handy einen Push-Token an unseren Server. Wir speichern ihn mit der Plattform (iOS oder Android). Nachrichten werden über den Push-Dienst von Expo (Expo, 650 Industries, Inc., USA) und die Dienste von Apple (APNs) bzw. Google (Firebase Cloud Messaging) zugestellt. Der Nachrichtentext läuft dabei durch diese Dienste.
+Damit wir dich erinnern können (Termine, Anfragen, Decken), sendet dein Handy einen Push-Token an unseren Server. Wir speichern ihn mit der Plattform (iOS oder Android). Nachrichten schickt unser Server direkt an den Push-Dienst deines Geräteherstellers: auf dem iPhone an Apple (Apple Push Notification service), auf Android an Google (Firebase Cloud Messaging). Ein weiterer Dienst ist nicht beteiligt. Der Nachrichtentext (zum Beispiel „Balu braucht heute eine Decke“) läuft dabei durch den Dienst von Apple bzw. Google.
 
-Nutzt du Stallfunk als Web-App (zum Home-Bildschirm hinzugefügt), speichern wir stattdessen die Push-Adresse deines Browsers mit zwei Schlüsseln und die Browserkennung (User-Agent). Nachrichten werden verschlüsselt an den Push-Dienst des Browser-Herstellers geschickt (bei Safari auf dem iPhone Apple, bei Chrome Google, bei Firefox Mozilla) und erst auf deinem Gerät entschlüsselt; Expo ist dabei nicht beteiligt.
+Nutzt du Stallfunk als Web-App (zum Home-Bildschirm hinzugefügt), speichern wir stattdessen die Push-Adresse deines Browsers mit zwei Schlüsseln und die Browserkennung (User-Agent). Nachrichten werden verschlüsselt an den Push-Dienst des Browser-Herstellers geschickt (bei Safari auf dem iPhone Apple, bei Chrome Google, bei Firefox Mozilla) und erst auf deinem Gerät entschlüsselt.
 
 Rechtsgrundlage: Einwilligung, Art. 6 Abs. 1 lit. a DSGVO. Widerrufst du sie, löschen wir deine Push-Tokens und Browser-Push-Adressen. Einzelne Erinnerungsarten kannst du zusätzlich abschalten.
 
-Drittlandübermittlung: Expo, Resend und ggf. Google und Apple (Anmeldung, Push, Karten) verarbeiten Daten auch in den USA. Grundlage sind der Angemessenheitsbeschluss zum EU-US Data Privacy Framework bzw. Standardvertragsklauseln des jeweiligen Anbieters; für Resend ist beides vereinbart, für Expo, Google und Apple [vor Veröffentlichung prüfen].
+Drittlandübermittlung: Resend und ggf. Google und Apple (Anmeldung, Push, Karten) verarbeiten Daten auch in den USA. Grundlage sind der Angemessenheitsbeschluss zum EU-US Data Privacy Framework bzw. Standardvertragsklauseln des jeweiligen Anbieters; für Resend ist beides vereinbart, für Google und Apple [vor Veröffentlichung prüfen].
 
 ### 3.10 Wetter
 
@@ -163,7 +163,7 @@ Rechtsgrundlage: Art. 8 DSGVO in Verbindung mit Art. 6 Abs. 1 lit. c DSGVO (Nach
 - Mitglieder deines Stalls, soweit oben beschrieben und nach deinen Sichtbarkeits-Einstellungen.
 - Netcup GmbH als Hosting-Anbieter (Auftragsverarbeiter).
 - Resend (Plus Five Five, Inc., USA) als E-Mail-Dienst für Anmelde-Mails und die Mail an Eltern (Auftragsverarbeiter).
-- Expo, Apple und Google für Push-Benachrichtigungen (in der Web-App die Push-Dienste von Apple, Google oder Mozilla, je nach Browser), und Google bzw. Apple, wenn du dich damit anmeldest.
+- Apple und Google für Push-Benachrichtigungen (in der Web-App die Push-Dienste von Apple, Google oder Mozilla, je nach Browser), und Google bzw. Apple, wenn du dich damit anmeldest.
 - Apple, Google oder OpenFreeMap als Kartendienst, wenn du Karten erlaubst (Punkt 3.4).
 - Deutscher Wetterdienst (nur Abruf öffentlicher Daten, keine Übermittlung von Personendaten).
 - Das Elternteil, das du für die Zustimmung nennst, erfährt deinen Namen und deine E-Mail-Adresse (Punkt 4).

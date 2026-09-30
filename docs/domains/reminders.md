@@ -123,5 +123,5 @@ the settings screen links there.
 - The reminder center does not list observation alerts and pushes that are sent without a `reminders` row (new request, request
   changes); they exist as notifications only.
 - Computed items cannot be dismissed.
-- The notification tap handling and the foreground presentation are not tested on a device (needs a real device and an EAS project id).
+- The notification tap handling and the foreground presentation are not tested on a device (needs a real device with APNs or FCM credentials on the server).
 - `lib/api/requests.ts` still has `getNotify`/`setNotify` although no screen uses them.

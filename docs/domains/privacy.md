@@ -21,7 +21,7 @@ without a row was never granted. `stable_id` is nullable (a person may consent b
 | `maps` | loading map tiles from Apple (iOS), Google (Android) or OpenFreeMap (web), which see the viewer's IP address and the map area | none; the app loads a map only with the grant (`MapConsentGate`) |
 | `presence_sharing` | others may see that I am at the stable | revoking sets `users.presence_visibility` to `hidden` |
 | `photos` | camera and photo library | none (device permission plus explanation) |
-| `push` | push notifications | revoking deletes the user's `push_tokens` and `web_push_subscriptions`; `push.Notifier` sends only to users with a current grant (Expo and web alike) |
+| `push` | push notifications | revoking deletes the user's `push_tokens` and `web_push_subscriptions`; `push.Notifier` sends only to users with a current grant (native and web alike) |
 
 `privacy.TextVersion` (`"2026-09-30"`) is the version of the privacy text; a grant stores it. Changing the texts
 means raising both `TextVersion` and the `**Textversion:**` line in `docs/legal/*.md` (a test checks this); existing

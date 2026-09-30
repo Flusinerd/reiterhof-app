@@ -1,7 +1,7 @@
 # Web Push (PWA)
 
 JAN-74. The app ships first as a PWA installed on iPhones through Safari (iOS 16.4+, "Zum Home-Bildschirm").
-Notifications there use the standard Web Push protocol. Kinds, consents and opt-outs are the same as for Expo push
+Notifications there use the standard Web Push protocol. Kinds, consents and opt-outs are the same as for native push
 (see [architecture.md](../architecture.md#push), [reminders.md](reminders.md), [privacy.md](privacy.md)).
 
 ## Setup (operator)
@@ -32,7 +32,7 @@ do not exist on plain http, except `localhost`).
   browser handed to another user is re-assigned; the user must belong to the stable), at most 10 per user (oldest
   dropped), removed with the user, on revoking the `push` consent (`internal/privacy`), on account deletion and when
   the push service answers 404/410. The data export lists them without the endpoint URL (only the push service host).
-- **Recipients**: `push.Notifier.NotifyUsers` builds the recipient list for Expo tokens and web subscriptions from
+- **Recipients**: `push.Notifier.NotifyUsers` builds the recipient list for native tokens and web subscriptions from
   one SQL fragment (`recipientFilter` in `notifier.go`): stable, current `push` consent, opt-out per kind, opt-in for
   `new_request`. Change consent or opt-out semantics there and both paths follow. The `httpx.Notifier` interface is
   unchanged; the two deliveries are independent (a failure on one does not skip the other; errors are joined).
@@ -45,7 +45,7 @@ do not exist on plain http, except `localhost`).
   endpoint is chosen by the client; the API additionally only accepts https URLs with a named host on port 443.
   `push.FakeWeb` records web messages for tests of other packages.
 - **Payload** (JSON, at most 3993 bytes): `{"title", "body", "data": {"screen", "kind", ...}}`, `data` identical to the
-  Expo message. Every push carries `data.screen` (see architecture.md).
+  native message. Every push carries `data.screen` (see architecture.md).
 - **Endpoints** (all need a signed-in user with a stable):
   - `GET /api/v1/push/web/public-key` gives `{"public_key": "<base64url>"}`, or `503 not_configured`.
   - `POST /api/v1/me/web-push-subscriptions` with the browser's `PushSubscription.toJSON()`

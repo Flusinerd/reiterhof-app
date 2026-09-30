@@ -94,6 +94,23 @@ sudo nano /etc/reiterhof/api.env      # Vorlage: deploy/api.env.example
 Die Datenbank-URL ist bereits eingetragen. Weitere Werte kommen hinzu, sobald die API sie
 kennt. Passwörter nie ins Repository committen.
 
+### Push für die native App (APNs und FCM)
+
+Die API sendet direkt an Apple und Google, ohne Expo-Dienst dazwischen. Die Zugangsdaten sind zwei
+Dateien neben `api.env` (Herkunft: README, „Einrichtung durch den Betreiber“, Punkt 5):
+
+```bash
+sudo install -m 0640 -o root -g reiterhof AuthKey_ABC123DEFG.p8 /etc/reiterhof/apns.p8
+sudo install -m 0640 -o root -g reiterhof stallfunk-firebase-adminsdk.json /etc/reiterhof/fcm-service-account.json
+sudo nano /etc/reiterhof/api.env      # REITERHOF_APNS_* und REITERHOF_FCM_SERVICE_ACCOUNT_FILE, Vorlage: api.env.example
+sudo systemctl restart reiterhof-api  # im Journal: "native push" platforms=[ios android]
+```
+
+Fehlt eine Plattform, überspringt die API deren Geräte beim Senden (Logzeile), die andere läuft. Ein
+abgelehnter Schlüssel steht beim Start als Fehler im Journal. Die Dateien sind Geheimnisse wie das
+DB-Passwort: nicht ins Repository, nicht ins Backup außerhalb des Servers, bei Verdacht im Apple- bzw.
+Firebase-Konto widerrufen und neu erzeugen.
+
 ### Web-Push (PWA auf dem iPhone)
 
 Damit die Web-App Mitteilungen zustellen kann (iOS 16.4 oder neuer, Seite über Safari zum

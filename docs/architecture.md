@@ -41,7 +41,8 @@ Configuration (environment):
 | `REITERHOF_TEST_DATABASE_URL` | unset | admin URL for DB tests; unset means they skip |
 | `REITERHOF_WEATHER_ENABLED` | `true` | run the hourly DWD weather job |
 | `REITERHOF_WEATHER_STATION` | unset | force one MOSMIX station id for all stables; unset = nearest per stable |
-| `REITERHOF_EXPO_ACCESS_TOKEN` | unset | optional Expo access token for the push API (`push.NewClientFromEnv`) |
+| `REITERHOF_APNS_KEY_FILE`, `_KEY_ID`, `_TEAM_ID`, `_TOPIC`, `_SANDBOX` | unset | APNs token authentication (.p8 key file, key ID, team ID; topic defaults to the bundle id; sandbox for Xcode builds). Unset = no iOS push (`push.NewClientFromEnv`) |
+| `REITERHOF_FCM_SERVICE_ACCOUNT_FILE` | unset | Firebase service account JSON for FCM HTTP v1. Unset = no Android push |
 | `REITERHOF_VAPID_PUBLIC_KEY`, `_PRIVATE_KEY`, `_SUBJECT` | unset | VAPID identity for Web Push (base64url P-256 keys, `mailto:`/`https:` subject); unset = web push off (`cmd/vapidkeys` generates a pair) |
 | `REITERHOF_PUBLIC_URL`, `REITERHOF_WEB_URL`, `REITERHOF_LOGIN_CODE_KEY`, `REITERHOF_SMTP_*`, `REITERHOF_*_CLIENT_IDS`, `REITERHOF_DEV_LOGIN` | unset | authentication, see [Authentication and roles](#authentication-and-roles) |
 
@@ -282,8 +283,9 @@ The rate limiter uses `X-Forwarded-For` only when the connection comes from loop
 
 ## Push
 
-Package `internal/push` (backend part of JAN-18). Expo push tokens live in
-`push_tokens` (unique per token), per-user opt-outs in `reminder_settings`.
+Package `internal/push` (backend part of JAN-18; native delivery without Expo since JAN-88).
+Native device tokens (APNs token on iOS, FCM registration token on Android) live in
+`push_tokens` (unique per token, with `platform`), per-user opt-outs in `reminder_settings`.
 
 **In handlers, send pushes via `deps.Notify.NotifyUsers(ctx, stableID, userIDs, kind,
 title, body, data)`** (`httpx.Notifier`; never nil, a no-op unless `cmd/api` wires the
@@ -291,14 +293,27 @@ real `*push.Notifier`). In tests pass `Notify: push.NewNotifier(pool, fake, nil)
 `fake := &push.Fake{}` and assert on `fake.Sent()`. Devices register their token via
 `POST /api/v1/me/push-tokens {token, platform}` / `DELETE` (package `internal/devices`).
 
-- `push.Sender` (`Send(ctx, []Message) error`) is the seam. `push.Client` talks to
-  `https://exp.host/--/api/v2/push/send` in batches of 100 (base URL, `*http.Client`
-  and access token are fields, so tests use `httptest`). `push.Fake` records messages
-  for tests of other packages.
-- Problems are returned as `*push.SendError`: `InvalidTokens` (Expo ticket
-  `DeviceNotRegistered`) and `Failures` (other ticket or batch errors). A failing
-  batch does not stop the following ones. `Client.OnInvalidToken` is an optional
-  extra callback.
+- `push.Sender` (`Send(ctx, []Message) error`) is the seam. `push.Client` routes by
+  `Message.Platform`: `APNSClient` posts to APNs over HTTP/2 with token authentication
+  (ES256 provider token from the `.p8` key, cached 50 min, refreshed on
+  `ExpiredProviderToken`), `FCMClient` posts to FCM HTTP v1 with a service account
+  (RS256 assertion, OAuth access token cached until expiry, refreshed on 401). Standard
+  library only; base URLs and `*http.Client` are fields, so tests use `httptest` (the
+  APNs test server runs HTTP/2). A platform without credentials is skipped with a log
+  line. `push.Fake` records messages for tests of other packages.
+- Payloads match what `expo-notifications` expects on the device (it also handled the
+  Expo service's messages this way): APNs `{"aps":{"alert":{"title","body"},"sound"},"body":{data}}`
+  (the top-level `body` object becomes `notification.request.content.data`); FCM is a
+  data-only message with `title`, `message`, `body` (the data as a JSON string) and
+  `channelId: "default"` (the channel `mobile/lib/push.ts` creates); a `notification`
+  block would bypass the library. `Priority` (`PriorityHigh` for `urgent_observation`
+  and `last_person`, else normal: `apns-priority` 10/5, FCM `android.priority`) and
+  `TTL` (`apns-expiration`, `android.ttl`) follow the Web Push urgency and TTL.
+- Problems are returned as `*push.SendError`: `InvalidTokens` (APNs `BadDeviceToken`,
+  `Unregistered`, `DeviceTokenNotForTopic` or 410; FCM `UNREGISTERED`, 404, or
+  `INVALID_ARGUMENT` about the registration token; tokens that do not look like a
+  device token) and `Failures` (everything else, never with the token in the text).
+  One failing device does not stop the others (up to 8 in parallel per service).
 - `push.NewNotifier(pool, sender, log).NotifyUsers(ctx, stableID, userIDs, kind, title,
   body, data)` loads the tokens of those users **within that stable**, skips users
   whose `reminder_settings` row for `kind` has `enabled = false` (no row = enabled),
@@ -311,8 +326,9 @@ real `*push.Notifier`). In tests pass `Notify: push.NewNotifier(pool, fake, nil)
   `KindNewRequest`, `KindUrgentObservation`, `KindObservation`; `push.Kinds()`, `push.ValidKind`).
 - Store: `push.RegisterToken(ctx, pool, stableID, userID, token, platform)` upserts
   by token (a device handed to another user is re-assigned; the user must belong to
-  the stable, else `ErrUnknownUser`); `push.DeleteToken(ctx, pool, stableID, userID,
-  token)`.
+  the stable, else `ErrUnknownUser`; `push.ValidToken` refuses Expo push tokens and
+  anything but printable ASCII, `ErrInvalidToken`); `push.DeleteToken(ctx, pool,
+  stableID, userID, token)`. Migration 0220 dropped the Expo tokens of old builds.
 - `POST /api/v1/me/push-tokens` (and `DELETE`, package `internal/devices`) wrap
   `RegisterToken` / `DeleteToken`; `cmd/api` builds one `push.NewNotifier` and passes it to
   `httpapi.Deps.Notify` and to the reminder jobs.
@@ -321,12 +337,14 @@ real `*push.Notifier`). In tests pass `Notify: push.NewNotifier(pool, fake, nil)
   `/horses/<id>/reha`, `/horses/<id>/blanket-plan`, `/blankets`). Add the ids the screen needs
   (`horse_id`, ...) next to it. `push.Notifier` adds `data.kind`. Health and reha pushes also
   keep the older key `route` with the same value.
-- Web Push (PWA, JAN-74) runs next to Expo push in the same `Notifier` with the same filters:
+- Web Push (PWA, JAN-74) runs next to native push in the same `Notifier` with the same filters:
   [domains/push-web.md](domains/push-web.md).
 - Mobile: `mobile/lib/push.ts` `registerForPush()` asks for permission and returns
-  `{ token, platform }` (needs `expo.extra.eas.projectId` in `app.json` and a real
-  device; it does not throw). `useDeviceSetup` (`lib/use-push-registration.ts`) sends the token
-  to the backend once per app start, only with the `push` consent.
+  `{ token, platform }` from `Notifications.getDevicePushTokenAsync()` (a real device;
+  Android needs `google-services.json` in `mobile/`, wired in by `app.config.js` when
+  the file exists; it does not throw). `useDeviceSetup` (`lib/use-push-registration.ts`)
+  sends the token to the backend once per app start, only with the `push` consent.
+  No Expo project id, no EAS.
 
 ## Time handling
 
