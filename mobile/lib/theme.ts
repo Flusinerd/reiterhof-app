@@ -18,8 +18,8 @@ export const tabBar = {
   inactiveTint: colors.muted,
   background: colors.card,
   borderColor: colors.border,
-  /** Size of the pill behind the active icon. */
-  pill: { width: 56, height: 32 },
+  /** Size of the pill behind the active icon and label. */
+  pill: { width: 68, height: 52 },
   iconSize: icon.sizes.md,
   labelFont: "Geist_500Medium",
   labelSize: 12,
