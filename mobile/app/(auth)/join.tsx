@@ -1,11 +1,14 @@
+import { useRouter } from "expo-router";
 import { useState } from "react";
 
+import { LegalLinks } from "@/components/consent-legal-links";
 import { Button, Card, Hero, Input, Screen, SectionLabel, Text } from "@/components/ui";
 import { errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { formatInviteCode, normalizeInviteCode } from "@/lib/validation";
 
 export default function Join() {
+  const router = useRouter();
   const { joinStable, signOut, user } = useAuth();
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
@@ -55,6 +58,8 @@ export default function Join() {
         ) : null}
       </Card>
 
+      <Button variant="ghost" label="Datenschutz und Konto" fullWidth onPress={() => router.push("/settings/privacy")} />
+      <LegalLinks />
       <Button variant="ghost" label="Abmelden" fullWidth onPress={signOut} />
     </Screen>
   );
