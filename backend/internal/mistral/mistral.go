@@ -34,11 +34,11 @@ const (
 	// the EEA (subprocessor list in the Trust Center); the US API endpoint runs at Google in the
 	// United States and must not be used (docs/legal/avv-checkliste.md, Teil 1).
 	DefaultURL = "https://api.mistral.ai/v1/chat/completions"
-	// DefaultModel is a fixed model version: on the free plan only the versions listed under
-	// Admin Console, API, Limits are enabled, and a "-latest" alias may point to one that is not
-	// (HTTP 429 rate_limited on the first request). ministral-14b-2512 works there; for better
-	// German and plans set REITERHOF_MISTRAL_MODEL=mistral-large-2512.
-	DefaultModel = "ministral-14b-2512"
+	// DefaultModel is Mistral's strongest general model, pinned to a version: it follows the
+	// long week plan prompt best, writes the best German and keeps to the JSON format. It needs
+	// a paid API tier (on the free tier it answers 403 tier_not_allowed; there
+	// REITERHOF_MISTRAL_MODEL=ministral-14b-2512 works, a "-latest" alias may answer 429).
+	DefaultModel = "mistral-large-2512"
 	// MaxTokens caps the answer; a week plan needs a few hundred.
 	MaxTokens = 1500
 )
