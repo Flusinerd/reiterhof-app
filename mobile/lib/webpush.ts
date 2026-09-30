@@ -15,7 +15,7 @@ import {
 } from "./webpush-core.ts";
 
 // Web Push for the PWA (JAN-74). Only does anything on Platform.OS === "web"; native keeps
-// using Expo push (lib/push.ts). Never throws; problems come back as a `reason`.
+// using native push (lib/push.ts). Never throws; problems come back as a `reason`.
 
 export type WebPushResult = { ok: true } | { ok: false; reason: WebPushReason };
 

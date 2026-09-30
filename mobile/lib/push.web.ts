@@ -1,4 +1,4 @@
-// Web build: Expo push tokens do not exist in the browser and expo-notifications stays out of the
+// Web build: native push tokens do not exist in the browser and expo-notifications stays out of the
 // web bundle. The PWA uses Web Push instead (lib/webpush.ts, `enableWebPush` / `syncWebPush`).
 export type { PushRegistration, PushResult } from "./push.ts";
 

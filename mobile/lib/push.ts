@@ -1,19 +1,19 @@
-import Constants from "expo-constants";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 
 export type PushRegistration = {
-  /** Expo push token, e.g. `ExponentPushToken[xxxx]`. */
+  /** Native device token: the APNs token (hex) on iOS, the FCM registration token on Android. */
   token: string;
   platform: "ios" | "android";
 };
 
 export type PushResult =
   | { ok: true; registration: PushRegistration }
-  | { ok: false; reason: "not_a_device" | "permission_denied" | "no_project_id" | "error" };
+  | { ok: false; reason: "not_a_device" | "permission_denied" | "error" };
 
-// Android requires a channel before any notification is shown.
+// Android requires a channel before any notification is shown. The backend names it in
+// every FCM message (`channelId`), so keep the id in sync with internal/push/fcm.go.
 async function ensureAndroidChannel(): Promise<void> {
   if (Platform.OS !== "android") return;
   await Notifications.setNotificationChannelAsync("default", {
@@ -23,8 +23,11 @@ async function ensureAndroidChannel(): Promise<void> {
 }
 
 /**
- * Asks for notification permission (if not yet decided) and returns the Expo
- * push token. `useDeviceSetup` sends it to `POST /me/push-tokens`. Never throws; failures are reported through `reason`.
+ * Asks for notification permission (if not yet decided) and returns the native device
+ * token. The backend sends to APNs and FCM directly (JAN-88), so no Expo project is
+ * involved; on Android this needs the Firebase config (`google-services.json`, see
+ * README), without it the token call throws and the result is `error`.
+ * `useDeviceSetup` sends the token to `POST /me/push-tokens`. Never throws.
  */
 export async function registerForPush(): Promise<PushResult> {
   if (!Device.isDevice) return { ok: false, reason: "not_a_device" };
@@ -40,12 +43,8 @@ export async function registerForPush(): Promise<PushResult> {
     }
     if (status !== "granted") return { ok: false, reason: "permission_denied" };
 
-    const projectId =
-      Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
-    if (typeof projectId !== "string" || projectId === "") {
-      return { ok: false, reason: "no_project_id" };
-    }
-    const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
+    const { data } = await Notifications.getDevicePushTokenAsync();
+    if (typeof data !== "string" || data === "") return { ok: false, reason: "error" };
     return { ok: true, registration: { token: data, platform: Platform.OS } };
   } catch {
     return { ok: false, reason: "error" };

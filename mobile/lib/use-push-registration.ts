@@ -11,7 +11,7 @@ import { syncWebPush } from "./webpush";
 
 /**
  * Once per app start and signed-in user: asks for notification permission and sends the
- * Expo push token to `POST /api/v1/me/push-tokens` (the backend upserts by token, so
+ * native device token to `POST /api/v1/me/push-tokens` (the backend upserts by token, so
  * repeating it is harmless). Only with the push consent (JAN-19; asked by ConsentOnboarding).
  * On the web (PWA) it refreshes the Web Push subscription instead, and only when the browser
  * permission is already granted. Failures are silent; without permission or a real device nothing happens. Also re-arms the geofence if this device opted in.
