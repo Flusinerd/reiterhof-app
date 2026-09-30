@@ -111,7 +111,7 @@ export function planStatusText(state: PlanState, dayIndex: number, total: number
     case "upcoming":
       return `Startet am ${formatDate(startDate)}`;
     case "finished":
-      return "Alle Phasen sind abgeschlossen";
+      return "Alle Phasen abgeschlossen";
     default:
       return `Tag ${dayIndex} von ${total}`;
   }
@@ -128,13 +128,13 @@ export function planProgress(state: PlanState, dayIndex: number, total: number):
 export function rehaErrorText(code: string): string | null {
   switch (code) {
     case "not_active":
-      return "Dieser Reha-Plan ist bereits beendet.";
+      return "Plan ist schon beendet.";
     case "forbidden":
-      return "Dafür hast du bei diesem Pferd keine Berechtigung.";
+      return "Keine Berechtigung.";
     case "conflict":
-      return "Für dieses Pferd gibt es schon einen aktiven Reha-Plan.";
+      return "Es gibt schon einen aktiven Reha-Plan.";
     case "not_found":
-      return "Der Reha-Plan wurde nicht gefunden.";
+      return "Reha-Plan nicht gefunden.";
     default:
       return null;
   }
@@ -221,23 +221,23 @@ function wholeNumber(text: string): number | null {
 export function checkPhase(d: PhaseDraft, n: number): PhaseCheck {
   const where = `Phase ${n}`;
   const name = d.name.trim();
-  if (!name) return { ok: false, error: `${where}: Bitte einen Namen eingeben.` };
-  if (name.length > 80) return { ok: false, error: `${where}: Der Name darf höchstens 80 Zeichen haben.` };
+  if (!name) return { ok: false, error: `${where}: Name fehlt.` };
+  if (name.length > 80) return { ok: false, error: `${where}: Name max. 80 Zeichen.` };
   const days = wholeNumber(d.days);
   if (days === null || days < 1 || days > MAX_PHASE_DAYS) {
-    return { ok: false, error: `${where}: Die Dauer muss zwischen 1 und ${MAX_PHASE_DAYS} Tagen liegen.` };
+    return { ok: false, error: `${where}: Dauer 1 bis ${MAX_PHASE_DAYS} Tage.` };
   }
   const conditions = d.conditions.trim();
-  if (conditions.length > 500) return { ok: false, error: `${where}: Die Bedingungen dürfen höchstens 500 Zeichen haben.` };
+  if (conditions.length > 500) return { ok: false, error: `${where}: Bedingungen max. 500 Zeichen.` };
   if (d.activity === "rest") {
     return { ok: true, phase: { name, days, activity: "rest", min_minutes: 0, max_minutes: 0, conditions } };
   }
   const min = wholeNumber(d.minMinutes);
   const max = wholeNumber(d.maxMinutes);
   if (min === null || max === null || min < 1 || max > MAX_MINUTES) {
-    return { ok: false, error: `${where}: Die Minuten müssen zwischen 1 und ${MAX_MINUTES} liegen.` };
+    return { ok: false, error: `${where}: Minuten 1 bis ${MAX_MINUTES}.` };
   }
-  if (min > max) return { ok: false, error: `${where}: „Von“ darf nicht größer sein als „Bis“.` };
+  if (min > max) return { ok: false, error: `${where}: „Von“ darf nicht über „Bis“ liegen.` };
   return { ok: true, phase: { name, days, activity: d.activity, min_minutes: min, max_minutes: max, conditions } };
 }
 
@@ -246,20 +246,20 @@ export type PlanCheck = { ok: true; input: PlanInput } | { ok: false; error: str
 /** Validates the plan form; dates are YYYY-MM-DD, `checkupDate` may be empty. */
 export function draftToInput(d: PlanDraft): PlanCheck {
   const diagnosis = d.diagnosis.trim();
-  if (!diagnosis) return { ok: false, error: "Bitte die Diagnose eingeben." };
-  if (diagnosis.length > 200) return { ok: false, error: "Die Diagnose darf höchstens 200 Zeichen haben." };
+  if (!diagnosis) return { ok: false, error: "Diagnose fehlt." };
+  if (diagnosis.length > 200) return { ok: false, error: "Diagnose max. 200 Zeichen." };
   const vet = d.vet.trim();
-  if (vet.length > 120) return { ok: false, error: "Der Name der Tierarztpraxis darf höchstens 120 Zeichen haben." };
+  if (vet.length > 120) return { ok: false, error: "Tierarzt max. 120 Zeichen." };
   const abort = d.abortCriteria.trim();
-  if (abort.length > 1000) return { ok: false, error: "Die Abbruchkriterien dürfen höchstens 1000 Zeichen haben." };
-  if (!isValidDate(d.startDate)) return { ok: false, error: "Bitte ein gültiges Startdatum eingeben (JJJJ-MM-TT)." };
+  if (abort.length > 1000) return { ok: false, error: "Abbruchkriterien max. 1000 Zeichen." };
+  if (!isValidDate(d.startDate)) return { ok: false, error: "Startdatum ungültig (JJJJ-MM-TT)." };
   const checkup = d.checkupDate.trim();
   if (checkup) {
-    if (!isValidDate(checkup)) return { ok: false, error: "Bitte ein gültiges Kontrolldatum eingeben (JJJJ-MM-TT)." };
-    if (checkup < d.startDate) return { ok: false, error: "Die Kontrolle kann nicht vor dem Start liegen." };
+    if (!isValidDate(checkup)) return { ok: false, error: "Kontrolldatum ungültig (JJJJ-MM-TT)." };
+    if (checkup < d.startDate) return { ok: false, error: "Kontrolle nicht vor dem Start." };
   }
-  if (d.phases.length === 0) return { ok: false, error: "Bitte mindestens eine Phase anlegen." };
-  if (d.phases.length > MAX_PHASES) return { ok: false, error: `Höchstens ${MAX_PHASES} Phasen sind möglich.` };
+  if (d.phases.length === 0) return { ok: false, error: "Mindestens eine Phase nötig." };
+  if (d.phases.length > MAX_PHASES) return { ok: false, error: `Max. ${MAX_PHASES} Phasen.` };
   const phases: PlanInput["phases"] = [];
   for (const [i, p] of d.phases.entries()) {
     const r = checkPhase(p, i + 1);
@@ -267,7 +267,7 @@ export function draftToInput(d: PlanDraft): PlanCheck {
     phases.push(r.phase);
   }
   if (totalDays(phases) > MAX_TOTAL_DAYS) {
-    return { ok: false, error: `Der Plan darf höchstens ${MAX_TOTAL_DAYS} Tage dauern.` };
+    return { ok: false, error: `Plan max. ${MAX_TOTAL_DAYS} Tage.` };
   }
   return { ok: true, input: { diagnosis, vet, start_date: d.startDate, checkup_date: checkup, abort_criteria: abort, phases } };
 }

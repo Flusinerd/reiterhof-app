@@ -111,7 +111,7 @@ export default function RehaEdit() {
     return (
       <Screen back>
         <Card>
-          <Text variant="secondary">Nur der Besitzer und Admins können den Reha-Plan ändern.</Text>
+          <Text variant="secondary">Nur Besitzer und Admins können den Plan ändern.</Text>
         </Card>
       </Screen>
     );
@@ -120,7 +120,7 @@ export default function RehaEdit() {
     return (
       <Screen back>
         <Card>
-          <Text variant="secondary">Dieser Reha-Plan ist nicht mehr aktiv und kann nicht mehr geändert werden.</Text>
+          <Text variant="secondary">Dieser Plan ist beendet.</Text>
         </Card>
       </Screen>
     );
@@ -150,7 +150,7 @@ export default function RehaEdit() {
         tone="soft"
         eyebrow={view.horse_name}
         title={editingPlan ? "Reha-Plan bearbeiten" : "Reha-Plan anlegen"}
-        description="Die Phasen laufen ab dem Startdatum nacheinander. In „Was heute?“ gilt dann nur noch die erlaubte Einheit."
+        description="Phasen laufen nacheinander. Im Training gilt nur die erlaubte Einheit."
       />
 
       <SectionLabel>Diagnose</SectionLabel>
@@ -177,7 +177,7 @@ export default function RehaEdit() {
             onChangeText={(startDate) => patch({ startDate })}
           />
         </Field>
-        <Field label="Kontrolltermin (optional)" hint="Zwei Tage vorher und am Morgen des Termins gibt es eine Erinnerung.">
+        <Field label="Kontrolltermin (optional)" hint="Erinnerung zwei Tage vorher und am Termintag.">
           <Input
             accessibilityLabel="Kontrolltermin"
             placeholder="JJJJ-MM-TT"
@@ -192,7 +192,7 @@ export default function RehaEdit() {
       <SectionLabel>Phasen</SectionLabel>
       {draft.phases.length === 0 ? (
         <Card>
-          <Text variant="secondary">Noch keine Phase. Lege zum Beispiel „Boxenruhe“, „Schritt führen“ und „Schritt reiten“ an.</Text>
+          <Text variant="secondary">Noch keine Phase. z. B. „Boxenruhe“, „Schritt führen“.</Text>
         </Card>
       ) : (
         <Card padded={false}>
@@ -262,7 +262,7 @@ export default function RehaEdit() {
       ) : null}
 
       <SectionLabel>Abbruchkriterien</SectionLabel>
-      <Field label="Wann muss sofort abgebrochen werden? (optional)">
+      <Field label="Sofort abbrechen bei (optional)">
         <Input
           accessibilityLabel="Abbruchkriterien"
           placeholder="z. B. Lahmheit, Wärme oder Schwellung im Bein"
@@ -276,14 +276,14 @@ export default function RehaEdit() {
       </Field>
 
       {replacesActive ? (
-        <Text variant="secondary">Der bisherige aktive Plan wird beendet, sobald du diesen speicherst.</Text>
+        <Text variant="secondary">Der aktive Plan wird beim Speichern beendet.</Text>
       ) : null}
       {error ? (
         <Text variant="bodySm" tone="danger" accessibilityRole="alert">
           {error}
         </Text>
       ) : null}
-      <Button label={editingPlan ? "Änderungen speichern" : "Plan speichern"} size="lg" fullWidth loading={busy} onPress={submit} />
+      <Button label={"Speichern"} size="lg" fullWidth loading={busy} onPress={submit} />
 
       <RehaPhaseSheet
         open={sheetOpen}

@@ -54,14 +54,14 @@ test("validation messages are German", () => {
     assert.ok(!r.ok);
     return r.ok ? "" : r.error;
   };
-  assert.match(bad({ sessionsMin: "vier" }), /ganze Zahlen/);
+  assert.match(bad({ sessionsMin: "vier" }), /nur ganze Zahlen/);
   assert.match(bad({ sessionsMin: "0" }), /Einheiten pro Woche/);
   assert.match(bad({ sessionsMin: "6", sessionsMax: "5" }), /Einheiten pro Woche/);
   assert.match(bad({ restDaysMax: "9" }), /Ruhetage/);
   assert.match(bad({ sessionsMin: "7", restDaysMin: "1", sessionsMax: "7" }), /passen nicht/);
   assert.match(bad({ maxMinutes: "300" }), /240/);
   assert.match(bad({ seasonEnd: "31.10." }), /Saisonende/);
-  assert.match(bad({ shows: [{ date: "morgen", name: "T", classes: "", helper: "" }] }), /Turnierdaten/);
+  assert.match(bad({ shows: [{ date: "morgen", name: "T", classes: "", helper: "" }] }), /Turnierdatum/);
   assert.match(bad({ shows: [{ date: "2026-05-17", name: " ", classes: "", helper: "" }] }), /Namen/);
   assert.match(
     bad({ modes: { ...base.modes, hall: { mode: "conditional", note: " " } } }),

@@ -115,8 +115,8 @@ export default function BlanketPlan() {
           <Card>
             <Text variant="secondary">
               {canManage
-                ? "Noch keine Regeln. Lege fest, welche Decke bei welchem Wetter gilt."
-                : "Für dieses Pferd sind noch keine Regeln eingetragen."}
+                ? "Noch keine Regeln. Lege fest, welche Decke wann gilt."
+                : "Noch keine Regeln."}
             </Text>
           </Card>
         ) : (
@@ -152,7 +152,7 @@ export default function BlanketPlan() {
         </SectionLabel>
         {p.blankets.length === 0 ? (
           <Card>
-            <Text variant="secondary">Noch keine Decken angelegt.</Text>
+            <Text variant="secondary">Noch keine Decken.</Text>
           </Card>
         ) : (
           <View className="flex-row flex-wrap gap-3">
@@ -209,7 +209,7 @@ export default function BlanketPlan() {
           Hinweise für Helfer
         </SectionLabel>
         <Card>
-          <Text variant={p.helper_note ? "body" : "secondary"}>{p.helper_note || "Noch kein Hinweis eingetragen."}</Text>
+          <Text variant={p.helper_note ? "body" : "secondary"}>{p.helper_note || "Noch kein Hinweis."}</Text>
         </Card>
       </View>
 
@@ -241,12 +241,12 @@ export default function BlanketPlan() {
             horseId={id}
             blanket={editing?.blanket ?? null}
           />
-          <Sheet open={noteOpen} onOpenChange={setNoteOpen} title="Hinweise für Helfer" description="Zum Beispiel: Decke nie über den Kopf ziehen.">
+          <Sheet open={noteOpen} onOpenChange={setNoteOpen} title="Hinweise für Helfer">
             <Input
               value={note}
               onChangeText={setNote}
               accessibilityLabel="Hinweise für Helfer"
-              placeholder="Was sollen Helfer beachten?"
+              placeholder="z. B. Decke nie über den Kopf ziehen"
               multiline
               maxLength={2000}
               className="h-32 py-3"

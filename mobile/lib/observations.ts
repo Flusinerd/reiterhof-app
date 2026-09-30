@@ -154,7 +154,7 @@ export function nextStatus(status: string): Status {
 
 /** Label of the button that switches to `nextStatus(status)`. */
 export function statusActionLabel(status: string): string {
-  return status === "done" ? "Wieder beobachten" : "Als erledigt markieren";
+  return status === "done" ? "Wieder beobachten" : "Erledigt";
 }
 
 // --- texts ---------------------------------------------------------------------------------
@@ -230,9 +230,9 @@ export type ReportDraft = {
 
 /** German error message for an incomplete report, or null if it can be sent. */
 export function reportProblem(draft: ReportDraft): string | null {
-  if (!draft.horseId) return "Bitte wähle ein Pferd aus.";
-  if (!draft.category) return "Bitte wähle aus, was dir aufgefallen ist.";
-  if (draft.description.trim().length > MAX_DESCRIPTION) return `Die Beschreibung ist zu lang (höchstens ${MAX_DESCRIPTION} Zeichen).`;
+  if (!draft.horseId) return "Pferd wählen.";
+  if (!draft.category) return "Wähle, was aufgefallen ist.";
+  if (draft.description.trim().length > MAX_DESCRIPTION) return `Beschreibung zu lang (max. ${MAX_DESCRIPTION} Zeichen).`;
   if (draft.photos > MAX_PHOTOS) return `Höchstens ${MAX_PHOTOS} Fotos pro Meldung.`;
   return null;
 }

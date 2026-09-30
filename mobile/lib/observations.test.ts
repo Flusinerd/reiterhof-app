@@ -68,7 +68,7 @@ test("status labels and toggling", () => {
   assert.equal(statusBadgeVariant("watch"), "info");
   assert.equal(nextStatus("watch"), "done");
   assert.equal(nextStatus("done"), "watch");
-  assert.equal(statusActionLabel("watch"), "Als erledigt markieren");
+  assert.equal(statusActionLabel("watch"), "Erledigt");
   assert.equal(statusActionLabel("done"), "Wieder beobachten");
 });
 

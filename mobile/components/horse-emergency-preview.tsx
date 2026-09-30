@@ -42,7 +42,7 @@ export function HorseEmergencyPreview({ card, onPress }: { card: EmergencyCard; 
           </View>
         ))}
       {!card.emergency_note && !card.vet_name && !card.owner?.phone ? (
-        <Text variant="secondary">Noch keine Angaben. Tippen, um die Karte zu sehen.</Text>
+        <Text variant="secondary">Noch keine Angaben.</Text>
       ) : null}
     </PressableCard>
   );

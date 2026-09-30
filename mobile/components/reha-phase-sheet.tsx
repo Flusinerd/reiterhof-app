@@ -54,7 +54,7 @@ export function RehaPhaseSheet({ open, onOpenChange, initial, position, onSave }
       open={open}
       onOpenChange={onOpenChange}
       title={`Phase ${position}`}
-      description="Die Minuten steigen von „Von“ am ersten bis „Bis“ am letzten Tag der Phase."
+      description="Minuten steigen von „Von“ (erster Tag) bis „Bis“ (letzter Tag)."
       className="gap-4"
     >
       <Field label="Name">
@@ -86,7 +86,7 @@ export function RehaPhaseSheet({ open, onOpenChange, initial, position, onSave }
       </Field>
 
       {rest ? (
-        <Text variant="secondary">Boxenruhe: In dieser Phase wird das Pferd nicht bewegt.</Text>
+        <Text variant="secondary">Boxenruhe: Das Pferd wird nicht bewegt.</Text>
       ) : (
         <View className="flex-row gap-3">
           <View className="flex-1">

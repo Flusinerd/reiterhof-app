@@ -83,11 +83,11 @@ test("labels", () => {
   assert.equal(checkupText(-3), "Seit 3 Tagen überfällig");
   assert.equal(planStatusText("running", 9, 42, "2026-03-17"), "Tag 9 von 42");
   assert.equal(planStatusText("upcoming", 0, 42, "2026-03-30"), "Startet am 30.03.2026");
-  assert.equal(planStatusText("finished", 0, 42, "2026-03-01"), "Alle Phasen sind abgeschlossen");
+  assert.equal(planStatusText("finished", 0, 42, "2026-03-01"), "Alle Phasen abgeschlossen");
   assert.equal(planProgress("running", 21, 42), 0.5);
   assert.equal(planProgress("finished", 0, 42), 1);
   assert.equal(planProgress("upcoming", 0, 42), 0);
-  assert.equal(rehaErrorText("not_active"), "Dieser Reha-Plan ist bereits beendet.");
+  assert.equal(rehaErrorText("not_active"), "Plan ist schon beendet.");
   assert.equal(rehaErrorText("nope"), null);
 });
 
@@ -112,15 +112,15 @@ test("checkPhase validates with German messages", () => {
     assert.equal(r.ok, false);
     return r.ok ? "" : r.error;
   };
-  assert.match(err({ name: " " }), /^Phase 2: Bitte einen Namen/);
+  assert.match(err({ name: " " }), /^Phase 2: Name fehlt/);
   assert.match(err({ name: "x".repeat(81) }), /80 Zeichen/);
-  assert.match(err({ days: "0" }), /zwischen 1 und 365 Tagen/);
-  assert.match(err({ days: "abc" }), /zwischen 1 und 365 Tagen/);
-  assert.match(err({ days: "366" }), /zwischen 1 und 365 Tagen/);
-  assert.match(err({ minMinutes: "" }), /Minuten müssen/);
-  assert.match(err({ minMinutes: "0" }), /Minuten müssen/);
-  assert.match(err({ maxMinutes: "241" }), /Minuten müssen/);
-  assert.match(err({ minMinutes: "30" }), /„Von“ darf nicht größer/);
+  assert.match(err({ days: "0" }), /Dauer 1 bis 365 Tage/);
+  assert.match(err({ days: "abc" }), /Dauer 1 bis 365 Tage/);
+  assert.match(err({ days: "366" }), /Dauer 1 bis 365 Tage/);
+  assert.match(err({ minMinutes: "" }), /Minuten 1 bis/);
+  assert.match(err({ minMinutes: "0" }), /Minuten 1 bis/);
+  assert.match(err({ maxMinutes: "241" }), /Minuten 1 bis/);
+  assert.match(err({ minMinutes: "30" }), /„Von“ darf nicht über/);
   assert.match(err({ conditions: "x".repeat(501) }), /500 Zeichen/);
   // A rest phase has no minutes, whatever the fields hold.
   assert.deepEqual(checkPhase(phase({ activity: "rest", minMinutes: "", maxMinutes: "" }), 1), {
@@ -158,11 +158,11 @@ test("draftToInput builds the API body and rejects bad forms", () => {
   assert.match(bad({ startDate: "2026-02-30" }), /Startdatum/);
   assert.match(bad({ checkupDate: "bald" }), /Kontrolldatum/);
   assert.match(bad({ checkupDate: "2026-03-01" }), /vor dem Start/);
-  assert.match(bad({ phases: [] }), /mindestens eine Phase/);
+  assert.match(bad({ phases: [] }), /Mindestens eine Phase/);
   assert.match(bad({ phases: [phase(), phase({ name: "" })] }), /^Phase 2:/);
   assert.match(bad({ abortCriteria: "x".repeat(1001) }), /1000 Zeichen/);
-  assert.match(bad({ phases: [phase({ days: "365" }), phase({ days: "365" }), phase({ days: "1" })] }), /730 Tage/);
-  assert.match(bad({ phases: Array.from({ length: 21 }, () => phase()) }), /Höchstens 20 Phasen/);
+  assert.match(bad({ phases: [phase({ days: "365" }), phase({ days: "365" }), phase({ days: "1" })] }), /max. 730 Tage/);
+  assert.match(bad({ phases: Array.from({ length: 21 }, () => phase()) }), /Max. 20 Phasen/);
   // The checkup is optional.
   const noCheckup = draftToInput(draft({ checkupDate: "" }));
   assert.equal(noCheckup.ok && noCheckup.input.checkup_date, "");

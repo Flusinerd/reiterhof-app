@@ -104,22 +104,22 @@ export function draftToInput(d: ProfileDraft): DraftResult {
   const rMax = int(d.restDaysMax);
   const maxMin = int(d.maxMinutes);
   if (sMin === null || sMax === null || rMin === null || rMax === null || maxMin === null) {
-    return { ok: false, error: "Bitte gib für den Rhythmus ganze Zahlen ein." };
+    return { ok: false, error: "Rhythmus: nur ganze Zahlen." };
   }
   if (sMin < 1 || sMax > 7 || sMin > sMax) {
-    return { ok: false, error: "Einheiten pro Woche: von 1 bis 7, das Minimum darf das Maximum nicht überschreiten." };
+    return { ok: false, error: "Einheiten pro Woche: 1 bis 7, Minimum höchstens Maximum." };
   }
   if (rMax > 6 || rMin > rMax) {
-    return { ok: false, error: "Ruhetage pro Woche: von 0 bis 6, das Minimum darf das Maximum nicht überschreiten." };
+    return { ok: false, error: "Ruhetage pro Woche: 0 bis 6, Minimum höchstens Maximum." };
   }
   if (sMin + rMin > 7) return { ok: false, error: "Einheiten und Ruhetage passen nicht in eine Woche." };
-  if (maxMin > 240) return { ok: false, error: "Die maximale Dauer darf höchstens 240 Minuten betragen." };
+  if (maxMin > 240) return { ok: false, error: "Höchstdauer max. 240 Minuten." };
 
   const allowed: ProfileLike["allowed_activities"] = [];
   for (const a of ACTIVITIES) {
     const { mode, note } = d.modes[a];
     if (mode === "conditional") {
-      if (!note.trim()) return { ok: false, error: "Bitte beschreibe die Bedingung für jede bedingte Aktivität." };
+      if (!note.trim()) return { ok: false, error: "Bedingung für jede bedingte Aktivität fehlt." };
       allowed.push({ activity: a, mode, note: note.trim() });
     } else {
       allowed.push({ activity: a, mode });
@@ -128,7 +128,7 @@ export function draftToInput(d: ProfileDraft): DraftResult {
 
   const shows: ProfileLike["shows"] = [];
   for (const s of d.shows) {
-    if (!isValidDate(s.date.trim())) return { ok: false, error: "Turnierdaten bitte als JJJJ-MM-TT eingeben, z. B. 2026-05-17." };
+    if (!isValidDate(s.date.trim())) return { ok: false, error: "Turnierdatum als JJJJ-MM-TT, z. B. 2026-05-17." };
     if (!s.name.trim()) return { ok: false, error: "Jedes Turnier braucht einen Namen." };
     shows.push({
       date: s.date.trim(),
@@ -139,7 +139,7 @@ export function draftToInput(d: ProfileDraft): DraftResult {
   }
   const seasonEnd = d.seasonEnd.trim();
   if (seasonEnd && !isValidDate(seasonEnd)) {
-    return { ok: false, error: "Saisonende bitte als JJJJ-MM-TT eingeben, z. B. 2026-10-31." };
+    return { ok: false, error: "Saisonende als JJJJ-MM-TT, z. B. 2026-10-31." };
   }
 
   return {

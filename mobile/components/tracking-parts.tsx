@@ -16,7 +16,7 @@ export function GaitChip({ gait }: { gait: Gait | null }) {
     <View className="flex-row items-center gap-2" accessibilityLabel={gait ? `Gangart: ${gaitLabel(gait)}` : "Gangart wird erkannt"}>
       <View className="h-3 w-3 rounded-pill" style={{ backgroundColor: color }} />
       <Text variant="bodyStrong" tone="inverse">
-        {gait ? gaitLabel(gait) : "Erkennung läuft …"}
+        {gait ? gaitLabel(gait) : "Erkennt …"}
       </Text>
     </View>
   );
@@ -70,7 +70,7 @@ export function TrackingControls({
   onFinish: () => void;
 }) {
   const confirmFinish = () =>
-    Alert.alert("Einheit beenden?", "Danach kannst du die Einheit abschließen und speichern.", [
+    Alert.alert("Einheit beenden?", "Danach kannst du speichern.", [
       { text: "Weiter", style: "cancel" },
       { text: "Beenden", onPress: onFinish },
     ]);

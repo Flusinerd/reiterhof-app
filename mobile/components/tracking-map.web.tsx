@@ -146,7 +146,7 @@ export function TrackingMap({ points, height = 280, follow = true }: { points: G
   if (failed) {
     return (
       <View style={{ height }} className="items-center justify-center rounded-card border border-border bg-card px-6">
-        <Text variant="secondary">Die Karte konnte nicht geladen werden.</Text>
+        <Text variant="secondary">Karte lädt nicht.</Text>
       </View>
     );
   }

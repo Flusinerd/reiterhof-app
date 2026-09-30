@@ -83,7 +83,7 @@ export async function stopTracking(): Promise<void> {
 /** Same texts as native, except that a blocked permission is allowed again in the browser settings. */
 export function startFailureText(reason: Exclude<StartResult, { ok: true }>["reason"]): string {
   if (reason === "blocked") {
-    return "Der Standortzugriff ist blockiert. Erlaube ihn in den iPhone-Einstellungen unter „Datenschutz & Sicherheit“ und „Ortungsdienste“ für Safari-Websites bzw. Stallfunk und lade die Seite neu.";
+    return "Standortzugriff blockiert. Erlaube ihn in den iPhone-Einstellungen (Datenschutz & Sicherheit, Ortungsdienste, Safari-Websites) und lade die Seite neu.";
   }
   return nativeText(reason);
 }

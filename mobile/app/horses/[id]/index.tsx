@@ -108,7 +108,7 @@ export default function HorseRecord() {
       <View className="gap-3">
         <SectionLabel
           action={
-            <Button label="Alle Termine" variant="ghost" size="sm" onPress={() => go(horseRoutes.health(h.id))} />
+            <Button label="Alle" variant="ghost" size="sm" onPress={() => go(horseRoutes.health(h.id))} />
           }
         >
           Gesundheit
@@ -127,7 +127,7 @@ export default function HorseRecord() {
           renderActions={(o) =>
             h.can_manage && !o.reha_plan_id ? (
               <Button
-                label="In Reha-Plan umwandeln"
+                label="Reha-Plan erstellen"
                 icon={ClipboardPlus}
                 variant="outline"
                 size="sm"
@@ -149,7 +149,7 @@ export default function HorseRecord() {
           <SectionLabel>Dokumente</SectionLabel>
           <LinkRow
             icon={FileText}
-            label="Dokumente ansehen"
+            label="Alle Dokumente"
             description={
               documents.data
                 ? documents.data.length === 0

@@ -33,7 +33,7 @@ export default function GpsTrack() {
   if (!horse || !isActivity(activity)) {
     return (
       <Screen back>
-        <Text variant="body">Für diese Einheit fehlen Angaben. Bitte starte sie im Tab „Training“.</Text>
+        <Text variant="body">Angaben fehlen. Starte die Einheit im Tab „Training“.</Text>
       </Screen>
     );
   }
@@ -104,26 +104,24 @@ function GpsRun({
   if (!started) {
     return (
       <Screen back>
-        <Hero tone="deep" eyebrow={label} title="Bereit für den Ausritt" description="Route, Strecke, Tempo und Höhenmeter werden aufgezeichnet." />
+        <Hero tone="deep" eyebrow={label} title="Bereit" description="Route, Tempo und Höhe werden aufgezeichnet." />
         <Card className="gap-2">
           <Text variant="bodyStrong">Ortung und Gangarten</Text>
           <Text variant="secondary">
             {isWeb
-              ? "Stallfunk nutzt dafür deinen Standort, solange die Seite geöffnet ist. "
-              : "Stallfunk nutzt dafür deinen Standort, auch wenn der Bildschirm aus ist. "}
-            Die Gangart erkennt das Telefon an der Bewegung; trage es am besten in der Jackentasche oder am Körper.
+              ? "Dein Standort wird genutzt, solange die Seite geöffnet ist. "
+              : "Dein Standort wird auch bei ausgeschaltetem Bildschirm genutzt. "}
+            Trag das Telefon am Körper, z. B. in der Jackentasche: Die Gangart wird an der Bewegung erkannt.
           </Text>
           {isWeb ? (
             <Text variant="secondary" tone="accent">
-              Bildschirm während der Aufzeichnung anlassen. Sperrt das Telefon den Bildschirm, hält die Aufzeichnung an.
-              Mit der App aus dem App Store geht es auch bei gesperrtem Bildschirm.
+              Bildschirm anlassen, sonst hält die Aufzeichnung an. Die App zeichnet auch bei gesperrtem Bildschirm auf.
             </Text>
           ) : null}
         </Card>
         {declined ? (
           <Text variant="secondary" tone="danger" accessibilityRole="alert">
-            Ohne deine Einwilligung zur Standortaufzeichnung kann der Ausritt nicht aufgezeichnet werden. Du kannst die
-            Einheit auch ohne Aufzeichnung eintragen.
+            Ohne Einwilligung keine Standortaufzeichnung. Du kannst die Einheit auch nur eintragen.
           </Text>
         ) : null}
         {failure ? (
@@ -143,7 +141,7 @@ function GpsRun({
       <Hero tone="deep" eyebrow={`${label}${t.paused ? " · pausiert" : ""}`} value={formatClock(seconds)} valueSize="lg">
         {t.paused ? (
           <Text variant="secondary" className="text-white/70">
-            Die Aufzeichnung ist angehalten.
+            Pausiert.
           </Text>
         ) : (
           <GaitChip gait={t.gait ?? (t.points.length > 0 ? t.points[t.points.length - 1]!.gait : null)} />
@@ -160,7 +158,7 @@ function GpsRun({
       </View>
 
       {t.points.length === 0 && !t.paused ? (
-        <Text variant="secondary">Warte auf das GPS-Signal. Draußen mit freier Sicht geht es am schnellsten.</Text>
+        <Text variant="secondary">Warte auf GPS. Freie Sicht hilft.</Text>
       ) : null}
       {isWeb ? (
         <Text variant="secondary" tone="accent">
@@ -168,7 +166,7 @@ function GpsRun({
         </Text>
       ) : noBackground ? (
         <Text variant="secondary" tone="accent">
-          Ohne die Erlaubnis „Immer“ für den Standort wird nur aufgezeichnet, solange die App geöffnet bleibt.
+          Ohne Standort-Erlaubnis „Immer“ nur bei geöffneter App.
         </Text>
       ) : null}
       {failure ? (
@@ -177,7 +175,7 @@ function GpsRun({
         </Text>
       ) : null}
       {t.sensorAvailable === false ? (
-        <Text variant="secondary">Kein Bewegungssensor gefunden: Die Gangart wird aus dem GPS-Tempo geschätzt.</Text>
+        <Text variant="secondary">Kein Bewegungssensor: Gangart wird aus dem GPS-Tempo geschätzt.</Text>
       ) : null}
 
       <SectionLabel>Aufzeichnung</SectionLabel>

@@ -73,7 +73,7 @@ export default function Emergency() {
   async function saveDraft() {
     if (!draft) return;
     if (!draft.label.trim() || !draft.name.trim() || !draft.phone.trim()) {
-      setError("Bitte fülle Bezeichnung, Name und Telefonnummer aus.");
+      setError("Bezeichnung, Name und Telefonnummer fehlen.");
       return;
     }
     setError(null);
@@ -102,7 +102,7 @@ export default function Emergency() {
         tone="warm"
         eyebrow="Notfallkarte"
         title={c.horse_name}
-        description={c.emergency_note ?? "Kein Notfall-Hinweis eingetragen."}
+        description={c.emergency_note ?? "Kein Notfall-Hinweis."}
       >
         {c.can_manage ? (
           <Button

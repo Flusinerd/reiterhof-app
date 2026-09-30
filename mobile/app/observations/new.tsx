@@ -64,7 +64,7 @@ export default function NewObservation() {
 
   async function takePhoto() {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
-    if (!perm.granted) return setError("Ohne Kamerazugriff kann kein Foto aufgenommen werden.");
+    if (!perm.granted) return setError("Kamerazugriff fehlt.");
     const res = await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 0.7 });
     if (!res.canceled) await addPhotos(res.assets);
   }
@@ -129,9 +129,8 @@ export default function NewObservation() {
   return (
     <Screen back keyboardShouldPersistTaps="handled">
       <Hero
-        eyebrow="Auffälligkeit"
-        title="Melden"
-        description="Was ist dir am Pferd aufgefallen? Besitzer und Reitbeteiligungen werden informiert."
+        title="Auffälligkeit melden"
+        description="Besitzer und Reitbeteiligungen werden informiert."
       />
 
       <SectionLabel>Pferd</SectionLabel>
@@ -139,7 +138,7 @@ export default function NewObservation() {
         {(horses.data ?? []).map((h) => (
           <Pill key={h.id} label={h.name} selected={horseId === h.id} onPress={() => setHorseId(h.id)} />
         ))}
-        {horses.isPending ? <Text variant="secondary">Pferde werden geladen …</Text> : null}
+        {horses.isPending ? <Text variant="secondary">Lädt …</Text> : null}
         {horses.isError ? <Text variant="secondary" tone="danger">{errorMessage(horses.error)}</Text> : null}
       </View>
 
@@ -158,7 +157,7 @@ export default function NewObservation() {
         value={description}
         onChangeText={setDescription}
         accessibilityLabel="Beschreibung"
-        placeholder="Seit wann, wie stark, was hast du gesehen? (optional)"
+        placeholder="Seit wann, wie stark? (optional)"
         multiline
         textAlignVertical="top"
         maxLength={MAX_DESCRIPTION}
@@ -195,7 +194,7 @@ export default function NewObservation() {
             <Button label="Aus Fotos" icon={ImageIcon} variant="outline" className="flex-1" onPress={() => void pickPhotos()} />
           </View>
         ) : null}
-        <Text variant="caption">Bis zu {MAX_PHOTOS} Fotos.</Text>
+        <Text variant="caption">Max. {MAX_PHOTOS} Fotos.</Text>
       </View>
 
       <SectionLabel>Wie dringend?</SectionLabel>

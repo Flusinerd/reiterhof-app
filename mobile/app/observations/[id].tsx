@@ -118,7 +118,7 @@ export default function ObservationDetail() {
             onPress={() => void change()}
           />
         ) : (
-          <Text variant="caption">Den Status ändern Besitzer, Admins und wer die Meldung erstellt hat.</Text>
+          <Text variant="caption">Status ändern nur Besitzer, Admins und Melder.</Text>
         )}
         {o.urgency === "urgent" ? (
           <Button
@@ -131,7 +131,7 @@ export default function ObservationDetail() {
         ) : null}
         {o.reha_plan_id ? (
           <Button
-            label="Reha-Plan ansehen"
+            label="Reha-Plan"
             icon={HeartPulse}
             variant="outline"
             fullWidth
@@ -139,7 +139,7 @@ export default function ObservationDetail() {
           />
         ) : null}
         <Button
-          label="Zur Pferdeakte"
+          label="Pferdeakte"
           icon={PawPrint}
           variant="ghost"
           fullWidth

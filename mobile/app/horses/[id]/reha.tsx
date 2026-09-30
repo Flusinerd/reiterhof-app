@@ -54,7 +54,7 @@ function PlanCard({ plan }: { plan: RehaPlan }) {
         <Text variant="bodySm">{planStatusText(plan.state, plan.day_index, plan.total_days, plan.start_date)}</Text>
         <ProgressBar value={planProgress(plan.state, plan.day_index, plan.total_days)} />
         <Text variant="caption">
-          {plan.done_days.length === 1 ? "1 Tag als erledigt markiert" : `${plan.done_days.length} Tage als erledigt markiert`}
+          {plan.done_days.length === 1 ? "1 Tag erledigt" : `${plan.done_days.length} Tage erledigt`}
         </Text>
       </View>
       <Fact label="Tierarzt" value={plan.vet} />
@@ -100,7 +100,7 @@ function CheckupCard({ plan }: { plan: RehaPlan }) {
           <Badge variant={overdue ? "danger" : plan.checkup_in_days <= 2 ? "accent" : "neutral"} label={checkupText(plan.checkup_in_days)} />
         ) : null}
       </View>
-      <Text variant="caption">Du bekommst zwei Tage vorher und am Morgen des Termins eine Erinnerung.</Text>
+      <Text variant="caption">Erinnerung zwei Tage vorher und am Termintag.</Text>
     </Card>
   );
 }
@@ -166,7 +166,7 @@ export default function Reha() {
   const fail = (e: unknown) => setError(rehaError(e));
 
   const confirmEnd = () => {
-    Alert.alert("Reha-Plan beenden?", `Der Plan für ${view.horse_name} wird beendet und der Trainingsstatus wieder auf „fit“ gesetzt.`, [
+    Alert.alert("Reha-Plan beenden?", `Der Trainingsstatus von ${view.horse_name} wird wieder „fit“.`, [
       { text: "Abbrechen", style: "cancel" },
       { text: "Plan beenden", style: "destructive", onPress: () => end.mutate(undefined, { onError: fail }) },
     ]);
@@ -194,7 +194,7 @@ export default function Reha() {
 
       {view.view === "today" ? (
         <Text variant="secondary">
-          Du siehst nur, was heute erlaubt ist. Den ganzen Plan sehen der Besitzer und die Reitbeteiligungen.
+          Den ganzen Plan sehen nur Besitzer und Reitbeteiligungen.
         </Text>
       ) : null}
 

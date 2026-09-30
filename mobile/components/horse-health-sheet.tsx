@@ -51,9 +51,9 @@ export function HorseHealthSheet({ open, onOpenChange, item, saving, error, onSa
     const days = interval.trim() === "" ? 0 : parseWholeNumber(interval);
     const time = dailyTime.trim() === "" ? "" : parseTime(dailyTime);
     const finalLabel = label.trim() || healthKindLabel(kind);
-    if (dueIso === null) return setProblem("Bitte gib das Datum als TT.MM.JJJJ ein.");
-    if (days === null || days > 3650) return setProblem("Das Intervall muss eine Zahl von Tagen sein.");
-    if (time === null) return setProblem("Bitte gib die Uhrzeit als HH:MM ein.");
+    if (dueIso === null) return setProblem("Datum als TT.MM.JJJJ eingeben.");
+    if (days === null || days > 3650) return setProblem("Intervall in Tagen als Zahl eingeben.");
+    if (time === null) return setProblem("Uhrzeit als HH:MM eingeben.");
     setProblem(null);
     onSave({
       kind,

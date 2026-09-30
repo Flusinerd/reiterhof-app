@@ -17,14 +17,13 @@ export default function NewHorse() {
   return (
     <Screen back keyboardShouldPersistTaps="handled">
       <Hero
-        eyebrow="Stall"
         title="Pferd anlegen"
-        description="Du wirst als Besitzer eingetragen. Reitbeteiligungen kannst du danach hinzufügen."
+        description="Du wirst als Besitzer eingetragen."
       />
       <HorseForm
         isAdmin={!!user?.is_admin}
         members={members.data}
-        submitLabel="Pferd anlegen"
+        submitLabel="Anlegen"
         saving={create.isPending}
         error={error}
         onSubmit={async (input) => {

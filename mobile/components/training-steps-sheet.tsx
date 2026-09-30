@@ -20,7 +20,7 @@ export function StepsSheet({
   onOpenChange: (open: boolean) => void;
 }) {
   return (
-    <Sheet open={open && !!exercise} onOpenChange={onOpenChange} title={exercise?.title} description="Ablauf der Übung">
+    <Sheet open={open && !!exercise} onOpenChange={onOpenChange} title={exercise?.title} description="Ablauf">
       {exercise?.level ? (
         <Badge variant="primary" label={LEVEL_LABELS[exercise.level] ?? exercise.level} />
       ) : null}

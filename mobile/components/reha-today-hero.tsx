@@ -27,7 +27,7 @@ export function RehaTodayHero({ view, busy, onDone, onUndo }: Props) {
         tone="soft"
         eyebrow={view.horse_name}
         title="Kein Reha-Plan"
-        description={`Für ${view.horse_name} ist gerade kein Reha-Plan aktiv. Es gelten die normalen Trainingsregeln.`}
+        description={"Es gelten die normalen Trainingsregeln."}
       />
     );
   }
@@ -44,8 +44,8 @@ export function RehaTodayHero({ view, busy, onDone, onUndo }: Props) {
           upcoming && plan
             ? `Der Plan startet am ${formatDate(plan.start_date)}. Bis dahin nur leichte Bewegung nach Absprache.`
             : finished
-              ? "Alle Phasen sind abgeschlossen. Der Besitzer kann den Plan beenden oder anpassen."
-              : "Für heute ist nichts vorgesehen. Bitte beim Besitzer nachfragen."
+              ? "Alle Phasen abgeschlossen. Der Besitzer kann den Plan beenden oder anpassen."
+              : "Heute nichts vorgesehen. Frag den Besitzer."
         }
       />
     );
@@ -53,8 +53,8 @@ export function RehaTodayHero({ view, busy, onDone, onUndo }: Props) {
 
   const ramp =
     today.min_minutes !== today.max_minutes
-      ? `Tag ${today.day_in_phase} von ${today.days_in_phase}: steigert sich von ${today.min_minutes} auf ${today.max_minutes} Minuten.`
-      : `Tag ${today.day_in_phase} von ${today.days_in_phase} dieser Phase.`;
+      ? `Tag ${today.day_in_phase} von ${today.days_in_phase}: ${today.min_minutes} bis ${today.max_minutes} Minuten.`
+      : `Tag ${today.day_in_phase} von ${today.days_in_phase}.`;
   const eyebrow = `${view.horse_name} · Heute erlaubt · Phase ${today.phase_index} von ${today.phases}`;
 
   if (today.rest) {

@@ -21,7 +21,7 @@ const badgeVariant = { none: "neutral", overdue: "danger", soon: "accent", ok: "
 
 function itemSubtitle(item: HealthItem): string {
   if (item.daily_time) return `täglich um ${item.daily_time} Uhr`;
-  if (!item.due_date) return "Kein Termin eingetragen";
+  if (!item.due_date) return "Kein Termin";
   return `${formatDate(item.due_date)}${item.interval_days ? ` · alle ${item.interval_days} Tage` : ""}`;
 }
 
@@ -103,7 +103,7 @@ export default function Health() {
       <SectionLabel>Termine</SectionLabel>
       {items.length === 0 ? (
         <Card>
-          <Text variant="secondary">Noch keine Termine eingetragen.</Text>
+          <Text variant="secondary">Noch keine Termine.</Text>
         </Card>
       ) : (
         <View className="gap-3">

@@ -24,14 +24,14 @@ export type StartResult =
 export function startFailureText(reason: Exclude<StartResult, { ok: true }>["reason"]): string {
   switch (reason) {
     case "denied":
-      return "Ohne Zugriff auf deinen Standort kann der Ausritt nicht aufgezeichnet werden. Bitte erlaube den Zugriff und versuche es erneut.";
+      return "Ohne Standortzugriff keine Aufzeichnung. Erlaube den Zugriff und versuche es erneut.";
     case "blocked":
-      return "Der Standortzugriff ist ausgeschaltet. Du kannst ihn in den Einstellungen des Telefons für Stallfunk wieder erlauben.";
+      return "Standortzugriff ausgeschaltet. Erlaube ihn in den Telefon-Einstellungen für Stallfunk.";
     case "services-off":
-      return "Die Ortungsdienste deines Telefons sind ausgeschaltet. Bitte schalte sie ein und versuche es erneut.";
+      return "Ortungsdienste sind aus. Schalte sie ein und versuche es erneut.";
     case "unsupported":
-      return "Die Ortung ist auf diesem Gerät nicht verfügbar.";
+      return "Ortung ist auf diesem Gerät nicht verfügbar.";
     default:
-      return "Die Ortung konnte nicht gestartet werden.";
+      return "Ortung konnte nicht starten.";
   }
 }

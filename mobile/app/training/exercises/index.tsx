@@ -30,14 +30,10 @@ export default function ExerciseLibrary() {
 
   return (
     <Screen back>
-      <Hero
-        tone="soft"
-        title="Übungen"
-        description="Die Bibliothek für Halle und Platz. Öffne eine Übung für den Ablauf und die nächste Stufe."
-      />
+      <Hero tone="soft" title="Übungen" description="Für Halle und Platz." />
 
       {list.isPending ? (
-        <ActivityIndicator accessibilityLabel="Übungen werden geladen" />
+        <ActivityIndicator accessibilityLabel="Lädt" />
       ) : list.isError ? (
         <View className="gap-3">
           <Text variant="body" tone="danger" accessibilityRole="alert">
@@ -91,7 +87,7 @@ export default function ExerciseLibrary() {
           </SectionLabel>
           {shown.length === 0 ? (
             <Text variant="body" tone="muted">
-              {all.length === 0 ? "Die Bibliothek ist noch leer." : "Keine Übung passt zu diesen Filtern."}
+              {all.length === 0 ? "Noch keine Übungen." : "Keine Treffer."}
             </Text>
           ) : (
             <View className="gap-3">
