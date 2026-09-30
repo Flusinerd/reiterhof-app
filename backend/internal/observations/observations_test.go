@@ -433,6 +433,47 @@ func TestListGetPatch(t *testing.T) {
 	}
 }
 
+func TestRehaPlanLink(t *testing.T) {
+	e := setup(t)
+	rec := e.call(seed.UserMia, "POST", "/api/v1/observations", report(seed.HorseLuna, map[string]any{"category": "lameness"}))
+	e.expect(rec, 201)
+	id := decode[observations.CreateResponse](t, rec).Observation.ID
+	get := func() observations.Observation {
+		rec := e.call(seed.UserKai, "GET", "/api/v1/observations/"+id, nil)
+		e.expect(rec, 200)
+		return decode[observations.Observation](t, rec)
+	}
+	if o := get(); o.RehaPlanID != nil {
+		t.Fatalf("reha_plan_id = %v, want null", *o.RehaPlanID)
+	}
+	// Two plans refer to it: an ended, older one and the active one; the active one is reported.
+	var oldID, activeID string
+	for _, c := range []struct {
+		active bool
+		age    string
+		dst    *string
+	}{{false, "10 days", &oldID}, {true, "1 day", &activeID}} {
+		err := e.pool.QueryRow(context.Background(),
+			`INSERT INTO reha_plans (stable_id, horse_id, diagnosis, start_date, active, observation_id, created_at)
+			 VALUES ($1, $2, 'Test', CURRENT_DATE, $3, $4, now() - $5::interval) RETURNING id::text`,
+			seed.StableB, seed.HorseLuna, c.active, id, c.age).Scan(c.dst)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if o := get(); o.RehaPlanID == nil || *o.RehaPlanID != activeID {
+		t.Fatalf("reha_plan_id = %v, want %s", o.RehaPlanID, activeID)
+	}
+	// The list carries it as well; without an active plan the newest one wins.
+	e.exec(`UPDATE reha_plans SET active = false WHERE id = $1`, activeID)
+	rec = e.call(seed.UserKai, "GET", "/api/v1/horses/"+seed.HorseLuna+"/observations", nil)
+	e.expect(rec, 200)
+	if l := decode[[]observations.Observation](t, rec); len(l) != 1 || l[0].RehaPlanID == nil || *l[0].RehaPlanID != activeID {
+		t.Fatalf("list = %+v", l)
+	}
+	_ = oldID
+}
+
 func TestRealtimeEvent(t *testing.T) {
 	e := setup(t)
 	sub, cancel := e.hub.Subscribe(seed.StableB)
