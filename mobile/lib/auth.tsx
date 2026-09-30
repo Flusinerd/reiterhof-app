@@ -19,6 +19,8 @@ export type AuthContextValue = {
   hasStable: boolean;
   /** Completes a magic link: exchanges the emailed token for a session. Throws ApiError. */
   signInWithMagicToken: (token: string) => Promise<void>;
+  /** Signs in with the 6-digit code from the login mail. Throws ApiError (`invalid_code`). */
+  signInWithCode: (email: string, code: string) => Promise<void>;
   signInWithGoogle: (idToken: string) => Promise<void>;
   signInWithApple: (idToken: string, name?: string) => Promise<void>;
   /** Joins a stable with an invite code and updates the profile. Throws ApiError. */
@@ -87,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       me,
       hasStable: !!me?.stable,
       signInWithMagicToken: async (t) => startSession(await api.verifyMagicLink(t)),
+      signInWithCode: async (email, code) => startSession(await api.verifyLoginCode(email, code)),
       signInWithGoogle: async (idToken) => startSession(await api.signInWithGoogle(idToken)),
       signInWithApple: async (idToken, name) => startSession(await api.signInWithApple(idToken, name)),
       joinStable: async (code) => {

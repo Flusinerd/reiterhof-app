@@ -11,7 +11,14 @@ curl -s localhost:8080/api/v1/me -H "Authorization: Bearer <token>"
 ```
 
 Seed users are `<name>@example.org` (`jan` is admin and owns Luna). Without SMTP, magic-link mails are
-only written to the API log (`msg="mail (not sent, no SMTP configured)"`, the link is in `body`).
+only written to the API log (`msg="mail (not sent, no SMTP configured)"`, the 6-digit code is in `subject`
+and `body`, the link in `body`). Sign in with the code:
+
+```sh
+curl -s localhost:8080/api/v1/auth/magic-link -d '{"email":"jan@example.org"}'   # 204; read the code from the API log
+curl -s localhost:8080/api/v1/auth/verify-code -d '{"email":"jan@example.org","code":"123456"}'   # {"token": "...", "user": {...}}
+```
+
 To sign in on a device with a real link, open `stallfunk://auth/verify?token=...` from the log
 (`adb shell am start -a android.intent.action.VIEW -d "stallfunk://auth/verify?token=..."`).
 
@@ -34,6 +41,19 @@ create an API key restricted to "Sending access" for that domain. Add a DMARC re
 (`_dmarc.stallfunk.de TXT "v=DMARC1; p=none;"` to start), otherwise login mails may land in spam.
 `REITERHOF_PUBLIC_URL` adds an https fallback link (`/auth/verify?token=...`) to the mail; it opens a page that
 links to the app. It does not need Universal Links / App Links (not configured yet, see open points in the JAN-6 report).
+
+## Login code key
+
+The mail contains a 6-digit code next to the link (needed for the iPhone PWA, where the link opens in Safari and
+not in the installed app). The API stores only an HMAC of it. Set a secret key once in `/etc/reiterhof/api.env`:
+
+```
+REITERHOF_LOGIN_CODE_KEY=...       # openssl rand -hex 32
+```
+
+Without it the API generates a random key per start (and logs a warning): codes from mails sent before a restart
+then stop working, links keep working. Changing the key has the same effect, so it is safe to rotate. Details:
+[architecture.md](architecture.md#authentication-and-roles).
 
 ## Sign in with Google
 

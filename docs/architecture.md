@@ -94,7 +94,7 @@ Conventions: `400 invalid_json` / `validation_failed`, `401 unauthorized`,
 - Never edit a migration that has been merged; add a new one.
 - **Numbering:** use the next free number, or the number assigned to you. Gaps are
   allowed and expected. Current allocation: `0001`-`0003` core schema
-  (JAN-23), `0010` auth tables (auth agent). Unapplied lower numbers still apply
+  (JAN-23), `0010` auth tables (auth agent), `0140` login code columns (JAN-76). Unapplied lower numbers still apply
   after higher ones, so parallel branches do not block each other. Two files with the
   same number make the migrator fail, which surfaces a clash at merge time.
 - Schema conventions: UUID primary keys (`gen_random_uuid()`), `created_at timestamptz`,
@@ -111,11 +111,37 @@ bearer token, only its SHA-256 hash is stored, sessions last 90 days from the la
 
 | Route (all `POST`, no auth) | Body | Notes |
 | --- | --- | --- |
-| `/api/v1/auth/magic-link` | `{email}` | Always `204` (no user enumeration), `429` when rate limited (3 per email / 15 min, 20 per IP / h). Mail contains `stallfunk://auth/verify?token=...` and, if `REITERHOF_PUBLIC_URL` is set, an https fallback `<url>/auth/verify?token=...` (a page that only links to the app, it never consumes the token). Tokens live 15 min and work once. |
+| `/api/v1/auth/magic-link` | `{email}` | Always `204` (no user enumeration), `429` when rate limited (3 per email / 15 min, 20 per IP / h). Mail contains `stallfunk://auth/verify?token=...` and, if `REITERHOF_PUBLIC_URL` is set, an https fallback `<url>/auth/verify?token=...` (a page that only links to the app, it never consumes the token). Tokens live 15 min and work once. The same mail carries a 6-digit login code (see below); subject `Dein Anmeldecode für Stallfunk: 123456`. |
 | `/api/v1/auth/verify` | `{token}` | Creates the user if the email is new. `401 invalid_token` if unknown, used or expired. |
+| `/api/v1/auth/verify-code` | `{email, code}` | Signs in with the 6-digit code from the mail, exactly like `/auth/verify` (`code` may contain spaces or dashes). `401 invalid_code` for every failure (unknown email, wrong, expired, used, locked out), `429 rate_limited` after 30 calls per IP / 15 min. |
 | `/api/v1/auth/google` | `{id_token}` | RS256 ID token, checked against Google's JWKS (cached), `iss`, `aud` (`REITERHOF_GOOGLE_CLIENT_IDS`), `exp`. |
 | `/api/v1/auth/apple` | `{id_token, name?}` | Same for Apple (`REITERHOF_APPLE_CLIENT_IDS`); Apple sends the name only to the client on first sign-in, so the app passes it along. |
 | `/api/v1/auth/dev-login` | `{email}` | `404` unless `REITERHOF_DEV_LOGIN=true`. Signs in (or creates) any email, for local testing with seed users (`jan@example.org` is admin). Never enable in production. |
+
+**Login code** (migration `0140_login_code.up.sql`, `internal/auth/logincode.go`). Why: on iOS the
+mail link opens in Safari, not in the installed home-screen PWA (separate storage), so the
+user types a code instead; native users can use it too.
+
+- Every magic-link request creates one `login_tokens` row (one login attempt) holding both the link
+  token hash and `code_hash`. The code is 6 digits from `crypto/rand` (uniform, leading zeros
+  allowed) and valid 15 minutes like the link. Using **either** the link or the code sets
+  `used_at` and thereby consumes both.
+- Storage: `code_hash = HMAC-SHA256(REITERHOF_LOGIN_CODE_KEY, email || 0x00 || code)`. A plain
+  or salted hash of a 6-digit code falls to an offline search in milliseconds if the table
+  leaks (a per-row salt does not help, there are only 10^6 inputs); the secret key lives
+  outside the database, so a database leak alone is not enough. The email binds a hash to its
+  address. Without the env var a random per-process key is used (warning in the log): codes
+  requested before a restart stop working, links do not.
+- Brute force: at most 5 wrong codes per login attempt; the fifth sets `code_hash = NULL`
+  (the code is dead, the 256-bit link of the same attempt stays valid), plus 30 calls per IP
+  / 15 min, and the existing request limits (3 mails per email / 15 min) cap guesses at 15 per
+  email and window. A row is locked with `FOR UPDATE` while checked, so parallel guesses cannot
+  race the counter. The compare is constant time; unknown emails do the same work.
+- A new request for an email revokes the codes of all older unused attempts of that email (their
+  links keep working until they expire). Only the newest mail's code is valid.
+- The code is in the subject on purpose: convenient (visible in the notification, autofill),
+  and it is only usable together with the email address, within 15 minutes, once, and with 5
+  guesses. Trade-off: it shows on a lock screen. Change the subject in `magicLink` if that matters.
 
 Identity of Google/Apple users is the provider `sub` (`auth_identities`, unique per
 provider and subject). A new identity is attached to the account with the same *verified*

@@ -37,7 +37,7 @@ export default function SignIn() {
       <Hero
         eyebrow="Stallfunk"
         title="Willkommen"
-        description="Melde dich ohne Passwort an. Wir schicken dir einen Link per E-Mail."
+        description="Melde dich ohne Passwort an. Wir schicken dir einen Code und einen Link per E-Mail."
       />
 
       <SectionLabel>Mit E-Mail</SectionLabel>
