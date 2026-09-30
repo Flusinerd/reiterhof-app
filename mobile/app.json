@@ -43,6 +43,16 @@
         "UIBackgroundModes": ["location"]
       }
     },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "name": "Stallfunk",
+      "shortName": "Stallfunk",
+      "lang": "de",
+      "favicon": "./public/favicon.png",
+      "backgroundColor": "#f6f4ee",
+      "themeColor": "#f6f4ee"
+    },
     "extra": {
       "apiUrl": "https://api.stallfunk.de",
       "googleWebClientId": "",

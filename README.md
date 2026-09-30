@@ -44,6 +44,13 @@ Die App spricht standardmäßig mit `https://api.stallfunk.de` (`expo.extra.apiU
 `just app` setzt für die lokale Entwicklung `STALLFUNK_API_URL=http://10.0.2.2:8080` (Android-Emulator);
 für ein echtes Gerät im WLAN die IP deines Rechners angeben, z. B. `STALLFUNK_API_URL=http://192.168.1.20:8080 just app`.
 
+## Web-App (PWA)
+
+Dieselbe Codebasis läuft als installierbare Web-App für iPhone-Safari („Teilen“, „Zum Home-Bildschirm“):
+`cd mobile && npx expo export --platform web` erzeugt `dist/` (SPA, der Host liefert `index.html` für unbekannte
+Pfade und leitet `/api` an das Backend). Ohne Geofence, ohne Apple-Anmeldung, GPS nur im Vordergrund. Details,
+Grenzen und Anforderungen an den Host: [`docs/domains/pwa.md`](docs/domains/pwa.md).
+
 ## Konventionen
 
 - Der Produktname ist **Stallfunk** (App-Name, Deep Links `stallfunk://`, Bundle-ID `de.flusinerd.stallfunk`). Interne Bezeichner heißen weiter `reiterhof` (Repository, Go-Modul, Umgebungsvariablen `REITERHOF_*`, Datenbank, Serverpfade und systemd-Dienste), damit bestehende Konfigurationen gültig bleiben.
