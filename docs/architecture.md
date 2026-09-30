@@ -22,6 +22,7 @@ backend/
     blanketplan/      pure rule evaluation (Recommend, Changed) + LoadRules
     stables/          stable data access: ground condition, stables with coordinates
     httpx/            Deps, WriteJSON, ReadJSON, WriteError (shared by all handlers)
+    auth/             sessions, sign-in, middleware, role checks; authtest/ for domain tests
     httpapi/          router assembly: NewHandler, /healthz, /readyz, registration list
     <domain>/         one package per domain, e.g. horses, requests, blankets
 ```
@@ -39,6 +40,7 @@ Configuration (environment):
 | `REITERHOF_WEATHER_ENABLED` | `true` | run the hourly DWD weather job |
 | `REITERHOF_WEATHER_STATION` | unset | force one MOSMIX station id for all stables; unset = nearest per stable |
 | `REITERHOF_EXPO_ACCESS_TOKEN` | unset | optional Expo access token for the push API (`push.NewClientFromEnv`) |
+| `REITERHOF_PUBLIC_URL`, `REITERHOF_SMTP_*`, `REITERHOF_*_CLIENT_IDS`, `REITERHOF_DEV_LOGIN` | unset | authentication, see [Authentication and roles](#authentication-and-roles) |
 
 ## Adding a domain package
 
@@ -99,23 +101,117 @@ Conventions: `400 invalid_json` / `validation_failed`, `401 unauthorized`,
   `stable_id uuid NOT NULL REFERENCES stables(id)` on every domain table, enums as
   `text` + `CHECK`, an index starting with `stable_id` for list queries.
 
-## Authentication (placeholder)
+## Authentication and roles
 
-The auth agent adds middleware that authenticates the request and puts the current
-user into the context. Domain handlers will use:
+Passwordless, no SMS, no external auth service: sessions live in our Postgres
+(`backend/internal/auth`, migration `0010_auth.up.sql`).
+
+Sign-in methods (all return `{"token": "...", "user": {...}}`; the token is an opaque
+bearer token, only its SHA-256 hash is stored, sessions last 90 days from the last use):
+
+| Route (all `POST`, no auth) | Body | Notes |
+| --- | --- | --- |
+| `/api/v1/auth/magic-link` | `{email}` | Always `204` (no user enumeration), `429` when rate limited (3 per email / 15 min, 20 per IP / h). Mail contains `reiterhof://auth/verify?token=...` and, if `REITERHOF_PUBLIC_URL` is set, an https fallback `<url>/auth/verify?token=...` (a page that only links to the app, it never consumes the token). Tokens live 15 min and work once. |
+| `/api/v1/auth/verify` | `{token}` | Creates the user if the email is new. `401 invalid_token` if unknown, used or expired. |
+| `/api/v1/auth/google` | `{id_token}` | RS256 ID token, checked against Google's JWKS (cached), `iss`, `aud` (`REITERHOF_GOOGLE_CLIENT_IDS`), `exp`. |
+| `/api/v1/auth/apple` | `{id_token, name?}` | Same for Apple (`REITERHOF_APPLE_CLIENT_IDS`); Apple sends the name only to the client on first sign-in, so the app passes it along. |
+| `/api/v1/auth/dev-login` | `{email}` | `404` unless `REITERHOF_DEV_LOGIN=true`. Signs in (or creates) any email, for local testing with seed users (`jan@example.org` is admin). Never enable in production. |
+
+Identity of Google/Apple users is the provider `sub` (`auth_identities`, unique per
+provider and subject). A new identity is attached to the account with the same *verified*
+email (merge); Apple relay addresses are ordinary emails and so match nothing. Tokens
+without verified email are rejected (`401 email_not_verified`).
+
+Authenticated routes: `POST /api/v1/auth/logout` (`204`), `GET /api/v1/me` (user, stable
+or `null`, `roles.owned_horse_ids`, `roles.rider_horse_ids`), `PATCH /api/v1/me`
+(`name`, `phone`, `avatar_color`, `presence_visibility`; `""` clears phone/avatar_color),
+`POST /api/v1/stables/join` (`{code}`, sets `users.stable_id`; `404 invalid_code`,
+`409 already_in_stable`), `POST /api/v1/stables/invites` (admin only, optional
+`{expires_in_days (1..90, default 7), max_uses (1..100, default 10)}`, returns
+`{code: "ABCD-EFGH", expires_at, max_uses}`). Codes are case- and separator-insensitive.
+
+Stable-less users: a person may sign up before joining a stable, so `users.stable_id`
+is **nullable**. Domain handlers must never see such users; wrap them in `RequireStable`.
+(The first stable and its first admin are created by seed/ops, there is no API for it.)
+
+### Contract for domain packages
 
 ```go
+// IDs are UUIDs in text form (string), as pgx reads and writes uuid columns.
 type User struct {
-    ID       string // UUID in text form (pgx reads/writes uuid columns as string)
-    StableID string
+    ID       string
+    StableID string // "" only if the user has not joined a stable (never behind RequireStable)
     IsAdmin  bool
+    Name     string
 }
 
-func auth.UserFrom(ctx context.Context) (User, bool)
+func UserFrom(ctx context.Context) (User, bool)
+
+func Middleware(deps httpx.Deps) func(http.Handler) http.Handler // wraps the whole mux; httpapi does it
+func RequireUser(h http.Handler) http.Handler   // 401 unauthorized
+func RequireStable(h http.Handler) http.Handler // 401 unauthorized, 403 no_stable
+func RequireAdmin(h http.Handler) http.Handler  // RequireStable + 403 forbidden unless IsAdmin
 ```
 
-Until it exists, do not invent your own identity mechanism; write handlers so the user
-is obtained in one place at the top of each handler, and take `stable_id` from it.
+`Middleware` never rejects; it only sets the user when the `Authorization: Bearer` token
+is valid. Protect every domain route:
+
+```go
+func Register(mux *http.ServeMux, deps httpx.Deps) {
+    h := &handler{deps: deps}
+    mux.Handle("GET /api/v1/horses/{id}", auth.RequireStable(http.HandlerFunc(h.get)))
+}
+
+func (h *handler) get(w http.ResponseWriter, r *http.Request) {
+    user, _ := auth.UserFrom(r.Context()) // ok is always true behind RequireStable
+    ok, err := auth.HorseInStable(r.Context(), h.deps.Pool, user, r.PathValue("id"))
+    ...
+}
+```
+
+Role model (derived from data, nothing stored; all helpers filter by `stable_id`, take a
+`*pgxpool.Pool` or `pgx.Tx` as `q`, return `false` for users without stable or malformed ids):
+
+| Role | Definition | May |
+| --- | --- | --- |
+| member | user with a stable | see presence, blanket list, requests, emergency cards; accept requests, blanket horses, report |
+| rider (RB) | row in `horse_riders` for the horse; `rules` is a positive list (`["ride","groom"]`) | in addition: log sessions, report observations, take week slots for that horse. Never change rules or profiles |
+| owner | `horses.owner_id = user` | full control of the own horse: profile, riders and rules |
+| admin | `users.is_admin` | everything owners may on every horse of the stable, plus `stables/invites` |
+
+```go
+auth.HorseInStable(ctx, q, user, horseID) (bool, error)
+auth.IsOwner(ctx, q, user, horseID) (bool, error)
+auth.CanManageHorse(ctx, q, user, horseID) (bool, error) // owner or admin
+auth.IsRider(ctx, q, user, horseID) (bool, error)        // owners are not implicit riders
+auth.RiderRules(ctx, q, user, horseID) (rules []string, isRider bool, err error)
+```
+
+Return `404` for a horse that is not in the stable (do not reveal other stables) and `403 forbidden`
+for a horse in the stable the user may not change.
+
+Testing helpers (`internal/auth/authtest`):
+
+```go
+pool := dbtest.NewSeeded(t)
+req := httptest.NewRequest("GET", "/api/v1/horses", nil)
+authtest.Authorize(t, pool, req, seed.UserJan)     // real session, Bearer header set
+ctx := authtest.WithUser(ctx, auth.User{ID: seed.UserAnna, StableID: seed.StableB}) // for direct handler calls
+token := authtest.Token(t, pool, seed.UserMia)      // TokenAt(t, pool, id, now) if the test fixes the clock
+```
+
+Configuration (all optional; unset means the feature is off or in dev mode):
+
+| Variable | Purpose |
+| --- | --- |
+| `REITERHOF_PUBLIC_URL` | public base URL of the API, e.g. `https://api.example.org`, for the mail's https fallback link |
+| `REITERHOF_SMTP_HOST`, `_PORT` (587), `_USER`, `_PASSWORD`, `_FROM` | SMTP for login mails (STARTTLS, port 465 = implicit TLS). Without host the mail is only logged (dev) |
+| `REITERHOF_GOOGLE_CLIENT_IDS` | comma separated OAuth client IDs (web, iOS, Android) accepted as `aud` |
+| `REITERHOF_APPLE_CLIENT_IDS` | comma separated accepted `aud` (iOS bundle ID `org.datenlotse.reiterhof`) |
+| `REITERHOF_DEV_LOGIN` | `true` enables `/auth/dev-login` |
+
+Rate limits are in memory (per process, reset on restart), fine for the single-VPS setup.
+The rate limiter uses `X-Forwarded-For` only when the connection comes from loopback (Caddy).
 
 ## Push
 

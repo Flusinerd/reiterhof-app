@@ -17,6 +17,8 @@ type Config struct {
 	// WeatherStation forces one MOSMIX station id for all stables
 	// (REITERHOF_WEATHER_STATION); empty picks the nearest station per stable.
 	WeatherStation string
+	// Auth holds the authentication settings.
+	Auth Auth
 }
 
 // FromEnv reads the configuration from environment variables and applies defaults.
@@ -26,6 +28,7 @@ func FromEnv() Config {
 		DatabaseURL:    getenv("REITERHOF_DATABASE_URL", "postgres://postgres:postgres@localhost:5432/reiterhof?sslmode=disable"),
 		WeatherEnabled: getbool("REITERHOF_WEATHER_ENABLED", true),
 		WeatherStation: os.Getenv("REITERHOF_WEATHER_STATION"),
+		Auth:           authFromEnv(),
 	}
 }
 

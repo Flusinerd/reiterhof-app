@@ -105,6 +105,7 @@ All exported from `@/components/ui` (barrel) or individually from `@/components/
 ### Actions and inputs
 
 - **`Button`**: `label`, `variant` (`primary|secondary|outline|ghost|danger`), `size` (`sm` 44, `md` 48, `lg` 56, `icon` 44 x 44), `icon`, `loading`, `disabled`, `fullWidth`, plus all `Pressable` props. Icon-only buttons need `accessibilityLabel`.
+- **`Input`**: single-line text field (48 px, white surface, 1 px border), all `TextInput` props. Always set `accessibilityLabel`.
 - **`Switch`**: `value`, `onValueChange`, optional `label` / `description` (whole row tappable), `disabled`.
 - **`ToggleGroup`** + **`ToggleGroupItem`**: `type="single"` (`value: string`) or `type="multiple"` (`value: string[]`), items have `value`, `label`, `icon`.
 - **`Tabs`**, **`TabsList`**, **`TabsTrigger`**, **`TabsContent`**: in-page segmented tabs, controlled with `value` / `onValueChange`.
