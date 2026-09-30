@@ -79,7 +79,7 @@ func (h *handler) notify(ctx context.Context, reporter auth.User, o Observation)
 	case o.Urgency == UrgencyCheck:
 		body = reporter.Name + " meldet: " + what + ". Bitte ansehen."
 	}
-	data := map[string]any{"observation_id": o.ID, "horse_id": o.HorseID, "urgency": o.Urgency}
+	data := map[string]any{"observation_id": o.ID, "horse_id": o.HorseID, "urgency": o.Urgency, "screen": "/observations/" + o.ID}
 	if err := h.deps.Notify.NotifyUsers(context.WithoutCancel(ctx), reporter.StableID, users, kind, title, body, data); err != nil {
 		h.deps.Log.Error("observations: notify", "err", err)
 	}

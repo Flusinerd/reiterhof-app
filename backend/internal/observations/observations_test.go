@@ -275,12 +275,14 @@ func TestNotificationRecipients(t *testing.T) {
 	// Non-urgent: owner (Jan) and rider (Mia) of Luna, never the reporter; Tom is present but
 	// not involved, so he is not notified.
 	e.present(seed.UserTom)
-	e.expect(e.call(seed.UserKai, "POST", "/api/v1/observations", report(seed.HorseLuna, map[string]any{"urgency": "check"})), 201)
+	rec1 := e.call(seed.UserKai, "POST", "/api/v1/observations", report(seed.HorseLuna, map[string]any{"urgency": "check"}))
+	e.expect(rec1, 201)
+	first := decode[observations.CreateResponse](t, rec1)
 	if got := e.recipients(names); !slices.Equal(got, []string{"jan", "mia"}) {
 		t.Fatalf("check recipients = %v, want [jan mia]", got)
 	}
 	for _, m := range e.fake.Sent() {
-		if m.Data["kind"] != push.KindObservation || m.Data["horse_id"] != seed.HorseLuna || m.Data["urgency"] != "check" {
+		if m.Data["kind"] != push.KindObservation || m.Data["horse_id"] != seed.HorseLuna || m.Data["urgency"] != "check" || m.Data["screen"] != "/observations/"+first.Observation.ID {
 			t.Errorf("data = %v", m.Data)
 		}
 		if !strings.Contains(m.Body, "Kai meldet: Husten. Bitte ansehen.") || m.Title != "Auffälligkeit: Luna" {
@@ -313,7 +315,7 @@ func TestNotificationRecipients(t *testing.T) {
 	}
 	resp := decode[observations.CreateResponse](t, rec)
 	for _, m := range e.fake.Sent() {
-		if m.Data["kind"] != push.KindUrgentObservation || m.Data["observation_id"] != resp.Observation.ID {
+		if m.Data["kind"] != push.KindUrgentObservation || m.Data["observation_id"] != resp.Observation.ID || m.Data["screen"] != "/observations/"+resp.Observation.ID {
 			t.Errorf("data = %v", m.Data)
 		}
 		if m.Title != "Dringend: Luna" || !strings.Contains(m.Body, "Kai meldet: Kolik.") {

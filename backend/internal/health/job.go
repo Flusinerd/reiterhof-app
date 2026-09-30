@@ -192,7 +192,7 @@ func (s *Reminders) send(ctx context.Context, stableID string, it dueItem, kind 
 	if len(claimed) == 0 {
 		return nil
 	}
-	data := map[string]any{"horse_id": it.horseID, "item_id": it.id, "route": "/horses/" + it.horseID + "/health"}
+	data := map[string]any{"horse_id": it.horseID, "item_id": it.id, "route": "/horses/" + it.horseID + "/health", "screen": "/horses/" + it.horseID + "/health"}
 	if err := s.Notify.NotifyUsers(ctx, stableID, claimed, kind, title, body, data); err != nil {
 		// Release the claims so the next run retries.
 		if _, derr := s.Pool.Exec(context.WithoutCancel(ctx), `DELETE FROM reminders
