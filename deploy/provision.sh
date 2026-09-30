@@ -10,7 +10,8 @@
 #        ./provision.sh
 #
 # The script is idempotent: running it again converges the server to the same
-# state and never overwrites /etc/reiterhof/api.env once it exists.
+# state and never overwrites /etc/reiterhof/api.env once it exists. On a re-run,
+# REITERHOF_DB_PASSWORD may be omitted: the password is taken from api.env.
 #
 # Required environment variables:
 #   REITERHOF_DOMAIN             public DNS name served by Caddy (A/AAAA record must point here)
@@ -27,6 +28,19 @@ set -euo pipefail
 
 # --- Inputs -----------------------------------------------------------------
 : "${REITERHOF_DOMAIN:?set REITERHOF_DOMAIN (e.g. api.example.org)}"
+# On a re-run, api.env already holds the database password (and is never overwritten).
+# Reuse it, so a re-run cannot set a different role password and lock the API out.
+existing_db_password=""
+if [[ -r /etc/reiterhof/api.env ]]; then
+  existing_db_password="$(sed -n 's#^REITERHOF_DATABASE_URL=postgres://[^:]*:\([^@]*\)@.*#\1#p' /etc/reiterhof/api.env | head -n1)"
+fi
+if [[ -n "$existing_db_password" ]]; then
+  if [[ -n "${REITERHOF_DB_PASSWORD:-}" && "$REITERHOF_DB_PASSWORD" != "$existing_db_password" ]]; then
+    printf 'ERROR: %s\n' "REITERHOF_DB_PASSWORD differs from the password in /etc/reiterhof/api.env; unset it to keep the existing one" >&2
+    exit 1
+  fi
+  REITERHOF_DB_PASSWORD="$existing_db_password"
+fi
 : "${REITERHOF_DB_PASSWORD:?set REITERHOF_DB_PASSWORD (e.g. openssl rand -hex 24)}"
 : "${REITERHOF_ADMIN_SSH_PUBKEY:?set REITERHOF_ADMIN_SSH_PUBKEY (password login gets disabled!)}"
 : "${REITERHOF_DEPLOY_SSH_PUBKEY:?set REITERHOF_DEPLOY_SSH_PUBKEY}"

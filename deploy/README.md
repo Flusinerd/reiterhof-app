@@ -238,10 +238,18 @@ scp deploy/stallfunk-admin.sh admin@<server-ip>:/tmp/stallfunk-admin.sh
 ssh admin@<server-ip> 'sudo install -m 0755 -o root -g root /tmp/stallfunk-admin.sh /usr/local/bin/stallfunk-admin && rm /tmp/stallfunk-admin.sh'
 ```
 
-Alternativ das Repository aktualisieren (`git pull`) und `sudo ./provision.sh` erneut ausführen,
-dann aber mit **denselben** Werten wie beim ersten Mal, insbesondere `REITERHOF_DB_PASSWORD`: Das
-Skript setzt das Datenbankpasswort neu, `api.env` wird aber nicht überschrieben. Ein anderes
-Passwort würde die API von der Datenbank aussperren.
+Alternativ das Repository auf dem Server aktualisieren und `provision.sh` erneut ausführen. Das
+Datenbankpasswort liest das Skript bei einem erneuten Lauf aus `/etc/reiterhof/api.env`, es muss
+nicht angegeben werden (ein abweichendes `REITERHOF_DB_PASSWORD` bricht ab). Die SSH-Schlüssel
+werden aus den bestehenden Benutzern übernommen:
+
+```sh
+sudo bash -c 'cd /root/stallfunk && git pull --ff-only && cd deploy &&
+  REITERHOF_DOMAIN=api.stallfunk.de \
+  REITERHOF_ADMIN_SSH_PUBKEY="$(head -n1 /home/admin/.ssh/authorized_keys)" \
+  REITERHOF_DEPLOY_SSH_PUBKEY="$(head -n1 /home/deploy/.ssh/authorized_keys)" \
+  ./provision.sh'
+```
 
 ## Wartung
 
