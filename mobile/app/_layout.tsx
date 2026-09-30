@@ -9,6 +9,7 @@ import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { ConsentOnboarding } from "@/components/consent-onboarding";
 import { Button, Screen, Text } from "@/components/ui";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { fontAssets } from "@/lib/fonts";
@@ -55,6 +56,8 @@ function AuthGate() {
   const segments = useSegments() as string[];
   const inAuthGroup = segments[0] === "(auth)";
   const inVerify = segments[0] === "auth";
+  const inLegal = segments[0] === "legal"; // privacy text and imprint: readable before sign-in
+  const inSettings = segments[0] === "settings"; // privacy settings: export and deletion need no stable
 
   const stack = (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }} />
@@ -81,9 +84,9 @@ function AuthGate() {
 
   let redirect = null;
   if (status === "signedOut") {
-    if (!inAuthGroup && !inVerify) redirect = <Redirect href="/(auth)/sign-in" />;
+    if (!inAuthGroup && !inVerify && !inLegal) redirect = <Redirect href="/(auth)/sign-in" />;
   } else if (!hasStable) {
-    if (!(inAuthGroup && segments[1] === "join")) redirect = <Redirect href="/(auth)/join" />;
+    if (!(inAuthGroup && segments[1] === "join") && !inLegal && !inSettings) redirect = <Redirect href="/(auth)/join" />;
   } else if (inAuthGroup || inVerify) {
     redirect = <Redirect href="/(tabs)" />;
   }
@@ -92,6 +95,7 @@ function AuthGate() {
     <>
       {stack}
       {redirect}
+      <ConsentOnboarding />
     </>
   );
 }

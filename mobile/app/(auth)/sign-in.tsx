@@ -2,6 +2,7 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Platform } from "react-native";
 
+import { LegalLinks } from "@/components/consent-legal-links";
 import { AppleSignInButton, GoogleSignInButton } from "@/components/social-sign-in";
 import { Button, Card, Hero, Input, Screen, SectionLabel, Text } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
@@ -68,6 +69,8 @@ export default function SignIn() {
           {error}
         </Text>
       ) : null}
+
+      <LegalLinks />
     </Screen>
   );
 }

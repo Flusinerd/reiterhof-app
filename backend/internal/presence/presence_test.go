@@ -113,8 +113,48 @@ func TestRequiresSession(t *testing.T) {
 	}
 }
 
+func (e *env) grantGeofence(userID string) {
+	e.exec(`INSERT INTO consents (user_id, stable_id, kind, version, granted_at)
+		SELECT id, stable_id, 'location_geofence', 'test', $2 FROM users WHERE id = $1`, userID, clock)
+}
+
+// Geofence check-ins are only accepted with the location consent (JAN-19); manual ones always.
+func TestGeofenceCheckInNeedsConsent(t *testing.T) {
+	e := newEnv(t)
+	rec := e.do(seed.UserAnna, "POST", "/api/v1/presence/check-in", `{"source":"geofence"}`)
+	if rec.Code != 403 || !strings.Contains(rec.Body.String(), "consent_required") {
+		t.Fatalf("geofence without consent = %d %s, want 403 consent_required", rec.Code, rec.Body)
+	}
+	var n int
+	_ = e.pool.QueryRow(context.Background(), `SELECT count(*) FROM presence WHERE user_id = $1`, seed.UserAnna).Scan(&n)
+	if n != 0 {
+		t.Fatalf("%d visits stored for a rejected check-in", n)
+	}
+	if rec := e.do(seed.UserAnna, "POST", "/api/v1/presence/check-in", `{"source":"manual"}`); rec.Code != 200 {
+		t.Fatalf("manual check-in = %d", rec.Code)
+	}
+	e.do(seed.UserAnna, "POST", "/api/v1/presence/check-out", "")
+
+	e.grantGeofence(seed.UserAnna)
+	if rec := e.do(seed.UserAnna, "POST", "/api/v1/presence/check-in", `{"source":"geofence"}`); rec.Code != 200 {
+		t.Fatalf("geofence with consent = %d %s", rec.Code, rec.Body)
+	}
+	e.do(seed.UserAnna, "POST", "/api/v1/presence/check-out", "")
+
+	e.exec(`UPDATE consents SET revoked_at = $2 WHERE user_id = $1`, seed.UserAnna, clock)
+	if rec := e.do(seed.UserAnna, "POST", "/api/v1/presence/check-in", `{"source":"geofence"}`); rec.Code != 403 {
+		t.Fatalf("geofence after revocation = %d, want 403", rec.Code)
+	}
+	// Another user's consent does not help.
+	e.grantGeofence(seed.UserTom)
+	if rec := e.do(seed.UserAnna, "POST", "/api/v1/presence/check-in", `{"source":"geofence"}`); rec.Code != 403 {
+		t.Fatalf("geofence with a foreign consent = %d, want 403", rec.Code)
+	}
+}
+
 func TestCheckInOutIsIdempotent(t *testing.T) {
 	e := newEnv(t)
+	e.grantGeofence(seed.UserAnna)
 
 	first := e.do(seed.UserAnna, "POST", "/api/v1/presence/check-in", "") // empty body = manual
 	if first.Code != 200 {

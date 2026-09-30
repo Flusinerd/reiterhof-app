@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { LogIn, LogOut } from "lucide-react-native";
+import { useRouter } from "expo-router";
+import { LogIn, LogOut, ShieldCheck } from "lucide-react-native";
 import { useState } from "react";
 import { RefreshControl, View } from "react-native";
 
+import { useConsentPrompt } from "@/components/consent-prompt";
 import { Avatar, Button, Card, Divider, Hero, Screen, SectionLabel, Switch, Text, ToggleGroup, ToggleGroupItem } from "@/components/ui";
 import { errorMessage, api, type PresenceVisibility } from "@/lib/api";
 import { PRESENCE_EVENT, PRESENCE_KEY, presenceApi } from "@/lib/api/presence";
@@ -22,6 +24,8 @@ import { useInvalidateOnEvents } from "@/lib/realtime";
 
 export default function PresenceScreen() {
   const { me, user } = useAuth();
+  const router = useRouter();
+  const consent = useConsentPrompt();
   const queryClient = useQueryClient();
   const timeZone = me?.stable?.timezone ?? "Europe/Berlin";
   const [actionError, setActionError] = useState<string | null>(null);
@@ -45,6 +49,26 @@ export default function PresenceScreen() {
   });
 
   const geofence = useGeofence(me?.stable);
+
+  // Being seen at the stable needs the presence consent (JAN-19). Declining keeps the person hidden.
+  async function confirmPresenceSharing(): Promise<void> {
+    if (visibility === "hidden") return;
+    if (!(await consent.ensure("presence_sharing"))) changeVisibility.mutate("hidden");
+  }
+
+  async function arriveOrLeave(arrive: boolean) {
+    if (arrive) await confirmPresenceSharing();
+    toggleVisit.mutate(arrive);
+  }
+
+  // The geofence needs the location consent first; the server refuses geofence check-ins without it.
+  async function toggleGeofence(on: boolean) {
+    if (on) {
+      if (!(await consent.ensure("location_geofence"))) return;
+      await confirmPresenceSharing();
+    }
+    void geofence.toggle(on);
+  }
 
   const data = overview.data;
   const open = data?.me.open_visit ?? null;
@@ -82,7 +106,7 @@ export default function PresenceScreen() {
           fullWidth
           loading={toggleVisit.isPending}
           disabled={overview.isPending}
-          onPress={() => toggleVisit.mutate(!open)}
+          onPress={() => void arriveOrLeave(!open)}
         />
         {actionError ? (
           <Text variant="bodySm" tone="inverse">
@@ -100,7 +124,7 @@ export default function PresenceScreen() {
               description="Die App meldet dich an und ab, wenn du den Stall erreichst oder verlässt. Nur auf diesem Gerät."
               value={geofence.enabled}
               disabled={geofence.busy}
-              onValueChange={(on) => void geofence.toggle(on)}
+              onValueChange={(on) => void toggleGeofence(on)}
             />
             {geofence.failure ? (
               <Text variant="secondary" tone="danger">
@@ -108,8 +132,7 @@ export default function PresenceScreen() {
               </Text>
             ) : null}
             <Text variant="caption">
-              Die Datenschutz-Einwilligung folgt in einer späteren Version. Dein Standort bleibt auf dem Handy, der
-              Server erfährt nur „angekommen“ und „gegangen“.
+              Dein Standort bleibt auf dem Handy, der Server erfährt nur „angekommen“ und „gegangen“.
             </Text>
             <Divider />
           </>
@@ -127,7 +150,16 @@ export default function PresenceScreen() {
           </ToggleGroup>
           <Text variant="secondary">{visibilityDescription(visibility)}</Text>
         </View>
+        <Divider />
+        <Button
+          label="Datenschutz und Einwilligungen"
+          icon={ShieldCheck}
+          variant="outline"
+          fullWidth
+          onPress={() => router.push("/settings/privacy")}
+        />
       </Card>
+      {consent.sheet}
 
       <SectionLabel>Jetzt da</SectionLabel>
       {overview.isError ? (

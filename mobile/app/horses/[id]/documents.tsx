@@ -5,6 +5,7 @@ import { Camera, FileText, Image as ImageIcon, Paperclip, Plus, Trash2 } from "l
 import { useState } from "react";
 import { Alert, Image, Linking, View } from "react-native";
 
+import { useConsentPrompt } from "@/components/consent-prompt";
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
 import { Badge, Button, Card, Hero, Icon, Input, Pill, PressableCard, Screen, SectionLabel, Sheet, Text } from "@/components/ui";
 import { errorMessage } from "@/lib/api";
@@ -27,6 +28,7 @@ export default function Documents() {
   const [kind, setKind] = useState<string>("passport");
   const [title, setTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const consent = useConsentPrompt();
 
   if (!docs.data) {
     return (
@@ -59,7 +61,19 @@ export default function Documents() {
     }
   }
 
+  // Camera and photo library need the photos consent (JAN-19). Two sheets must not be open at once.
+  async function photoConsent(): Promise<boolean> {
+    let closed = false;
+    const ok = await consent.ensure("photos", () => {
+      closed = true;
+      setOpen(false);
+    });
+    if (closed) setOpen(true);
+    return ok;
+  }
+
   async function takePhoto() {
+    if (!(await photoConsent())) return;
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) return setError("Ohne Kamerazugriff kann kein Foto aufgenommen werden.");
     const res = await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 0.8 });
@@ -70,6 +84,7 @@ export default function Documents() {
   }
 
   async function pickPhoto() {
+    if (!(await photoConsent())) return;
     const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.8 });
     const a = res.assets?.[0];
     if (!res.canceled && a) {
@@ -187,6 +202,7 @@ export default function Documents() {
         <Button label="Aus Fotos wählen" icon={ImageIcon} variant="outline" fullWidth loading={busy} onPress={() => void pickPhoto()} />
         <Button label="Datei wählen (PDF)" icon={Paperclip} fullWidth loading={busy} onPress={() => void pickFile()} />
       </Sheet>
+      {consent.sheet}
     </Screen>
   );
 }

@@ -16,7 +16,9 @@ import { loadToken } from "./token";
  *   for enter/exit and runs the task below, which calls the presence API with source "geofence".
  * - Everything here is a no-op on web and where the task manager is unavailable.
  * - The location itself never leaves the device; the server only sees the check-in.
- * - The privacy consent (JAN-19) comes later; until then the screen says so.
+ * - The location consent (JAN-19, kind location_geofence) is asked by the presence screen before
+ *   the switch turns on; the server refuses geofence check-ins without it. Revoking the consent
+ *   calls disableGeofence() (lib/consent.ts).
  *
  * Importing this module (root layout) registers the background task; that has to happen at
  * app start, in the global scope, so the OS can run it while the app is closed.
