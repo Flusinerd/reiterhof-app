@@ -412,3 +412,4 @@ In tests call `files.SetDir(t.TempDir())`. The app uses `mobile/lib/upload.ts` (
 - [Presence](domains/presence.md): check-in/out, visibility, geofence.
 - Requests (Anfragen, M4): [docs/domains/requests.md](domains/requests.md). Note for push: `new_request` is an opt-in kind (`push.OptIn`), it is only sent to users with an enabling `reminder_settings` row; all other kinds stay opt-out.
 - [Horses, horse record, health, documents, files](domains/horses.md): `internal/horses`, `internal/health`, `internal/files`.
+- [Training](domains/training.md): profile, "Was heute?", sessions, week view and exercise library (`internal/trainingapi`, M6).

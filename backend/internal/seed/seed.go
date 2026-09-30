@@ -3,6 +3,7 @@ package seed
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -21,6 +22,9 @@ func Run(ctx context.Context, pool *pgxpool.Pool) error {
 		return err
 	}
 	if err := insertHorseCare(ctx, tx); err != nil {
+		return err
+	}
+	if err := insertTraining(ctx, tx, time.Now()); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)
