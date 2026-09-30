@@ -116,7 +116,9 @@ Rechtsgrundlage: Nutzungsverhältnis, Art. 6 Abs. 1 lit. b DSGVO.
 
 Damit wir dich erinnern können (Termine, Anfragen, Decken), sendet dein Handy einen Push-Token an unseren Server. Wir speichern ihn mit der Plattform (iOS oder Android). Nachrichten werden über den Push-Dienst von Expo (Expo, 650 Industries, Inc., USA) und die Dienste von Apple (APNs) bzw. Google (Firebase Cloud Messaging) zugestellt. Der Nachrichtentext läuft dabei durch diese Dienste.
 
-Rechtsgrundlage: Einwilligung, Art. 6 Abs. 1 lit. a DSGVO. Widerrufst du sie, löschen wir deine Push-Tokens. Einzelne Erinnerungsarten kannst du zusätzlich abschalten.
+Nutzt du Stallfunk als Web-App (zum Home-Bildschirm hinzugefügt), speichern wir stattdessen die Push-Adresse deines Browsers mit zwei Schlüsseln. Nachrichten werden verschlüsselt an den Push-Dienst des Browser-Herstellers geschickt (bei Safari auf dem iPhone Apple, bei Chrome Google, bei Firefox Mozilla) und erst auf deinem Gerät entschlüsselt; Expo ist dabei nicht beteiligt.
+
+Rechtsgrundlage: Einwilligung, Art. 6 Abs. 1 lit. a DSGVO. Widerrufst du sie, löschen wir deine Push-Tokens und Browser-Push-Adressen. Einzelne Erinnerungsarten kannst du zusätzlich abschalten.
 
 Drittlandübermittlung: Expo, Resend und ggf. Google und Apple verarbeiten Daten auch in den USA. Grundlage sind Angemessenheitsbeschluss (EU-US Data Privacy Framework) bzw. Standardvertragsklauseln des jeweiligen Anbieters [vor Veröffentlichung prüfen].
 
@@ -136,7 +138,7 @@ Die Wetterdaten stammen vom Deutschen Wetterdienst (Open Data). Der Abruf erfolg
 - Netcup GmbH als Hosting-Anbieter (Auftragsverarbeiter).
 - Anbieter des externen Backup-Speichers (Auftragsverarbeiter).
 - Resend, Inc. (USA) als E-Mail-Dienst für den Versand der Anmelde-Links (Auftragsverarbeiter).
-- Expo, Apple und Google für Push-Benachrichtigungen, und Google bzw. Apple, wenn du dich damit anmeldest.
+- Expo, Apple und Google für Push-Benachrichtigungen (in der Web-App die Push-Dienste von Apple, Google oder Mozilla, je nach Browser), und Google bzw. Apple, wenn du dich damit anmeldest.
 - Deutscher Wetterdienst (nur Abruf öffentlicher Daten, keine Übermittlung von Personendaten).
 
 Wir verkaufen keine Daten und geben sie nicht zu Werbezwecken weiter.
@@ -156,7 +158,7 @@ Wir verkaufen keine Daten und geben sie nicht zu Werbezwecken weiter.
 
 In der App unter Einstellungen, Datenschutz, „Konto löschen“. Dann gilt:
 
-- Gelöscht werden: Anmeldungen und Sitzungen, Push-Tokens, Erinnerungs-Einstellungen, Anwesenheits-Besuche, Reitbeteiligungen, Hilfe-Zusagen, Einwilligungen, aufgezeichnete Strecken und Fotos deiner Meldungen.
+- Gelöscht werden: Anmeldungen und Sitzungen, Push-Tokens und Browser-Push-Adressen, Erinnerungs-Einstellungen, Anwesenheits-Besuche, Reitbeteiligungen, Hilfe-Zusagen, Einwilligungen, aufgezeichnete Strecken und Fotos deiner Meldungen.
 - Dein Name, deine E-Mail-Adresse, Telefonnummer und Farbe werden entfernt. Einträge, die für die Pferde wichtig bleiben (zum Beispiel gemeldete Auffälligkeiten und Trainingseinheiten), bleiben ohne Bezug zu dir bestehen und werden als „Gelöschtes Mitglied“ angezeigt. Deine offenen Anfragen werden abgesagt.
 - Besitzt du Pferde, musst du sie vorher einem anderen Mitglied übergeben oder löschen lassen. Der letzte Admin eines Stalls muss vorher einen Nachfolger bestimmen.
 

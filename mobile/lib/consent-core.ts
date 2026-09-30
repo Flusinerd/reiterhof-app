@@ -94,7 +94,7 @@ export const CONSENT_COPY: Record<ConsentKind, ConsentCopy> = {
     summary: "Die App erinnert dich an Termine, neue Anfragen und Deckenwechsel.",
     points: [
       "Dein Handy sendet dafür einen Geräte-Schlüssel (Push-Token) an den Server.",
-      "Nachrichten laufen über die Push-Dienste von Expo, Apple und Google.",
+      "Nachrichten laufen über die Push-Dienste von Expo, Apple und Google (in der Web-App über den Push-Dienst deines Browsers).",
       "Einzelne Erinnerungen kannst du später abschalten.",
     ],
     declined: "Ohne Erlaubnis bekommst du keine Benachrichtigungen.",
