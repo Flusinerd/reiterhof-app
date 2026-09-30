@@ -38,6 +38,7 @@ Configuration (environment):
 | `REITERHOF_TEST_DATABASE_URL` | unset | admin URL for DB tests; unset means they skip |
 | `REITERHOF_WEATHER_ENABLED` | `true` | run the hourly DWD weather job |
 | `REITERHOF_WEATHER_STATION` | unset | force one MOSMIX station id for all stables; unset = nearest per stable |
+| `REITERHOF_EXPO_ACCESS_TOKEN` | unset | optional Expo access token for the push API (`push.NewClientFromEnv`) |
 
 ## Adding a domain package
 
@@ -115,6 +116,38 @@ func auth.UserFrom(ctx context.Context) (User, bool)
 
 Until it exists, do not invent your own identity mechanism; write handlers so the user
 is obtained in one place at the top of each handler, and take `stable_id` from it.
+
+## Push
+
+Package `internal/push` (backend part of JAN-18). Expo push tokens live in
+`push_tokens` (unique per token), per-user opt-outs in `reminder_settings`.
+
+- `push.Sender` (`Send(ctx, []Message) error`) is the seam. `push.Client` talks to
+  `https://exp.host/--/api/v2/push/send` in batches of 100 (base URL, `*http.Client`
+  and access token are fields, so tests use `httptest`). `push.Fake` records messages
+  for tests of other packages.
+- Problems are returned as `*push.SendError`: `InvalidTokens` (Expo ticket
+  `DeviceNotRegistered`) and `Failures` (other ticket or batch errors). A failing
+  batch does not stop the following ones. `Client.OnInvalidToken` is an optional
+  extra callback.
+- `push.NewNotifier(pool, sender, log).NotifyUsers(ctx, stableID, userIDs, kind, title,
+  body, data)` loads the tokens of those users **within that stable**, skips users
+  whose `reminder_settings` row for `kind` has `enabled = false` (no row = enabled),
+  adds `data.kind`, sends, and deletes the invalid tokens (by `stable_id` + token).
+  Only non-token failures are returned as error.
+- Kinds are constants (`push.KindLastPerson`, `KindWeatherChange`, `KindMedication`,
+  `KindHelper`, `KindTrainingPlan`, `KindHealthDue`, `KindRehaCheckup`,
+  `KindNewRequest`, `KindUrgentObservation`; `push.Kinds()`, `push.ValidKind`).
+- Store: `push.RegisterToken(ctx, pool, stableID, userID, token, platform)` upserts
+  by token (a device handed to another user is re-assigned; the user must belong to
+  the stable, else `ErrUnknownUser`); `push.DeleteToken(ctx, pool, stableID, userID,
+  token)`.
+- Not wired yet: `POST /api/v1/me/push-tokens` (and `DELETE`) follow once
+  `auth.UserFrom` exists; the handler is a thin wrapper around `RegisterToken`.
+  Wiring `NewNotifier` into the API is also left to the features that send reminders.
+- Mobile: `mobile/lib/push.ts` `registerForPush()` asks for permission and returns
+  `{ token, platform }` (needs `expo.extra.eas.projectId` in `app.json` and a real
+  device; it does not throw). Sending the token to the backend comes with auth.
 
 ## Time handling
 
