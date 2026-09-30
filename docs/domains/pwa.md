@@ -89,7 +89,8 @@ Produktion: `https://stallfunk.de`, derselbe VPS wie die API (Runbook: [`deploy/
 - **Header** (Web-Host): HSTS, `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`; CSP
   `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://tiles.openfreemap.org; worker-src 'self' blob:; font-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'`
   und `Permissions-Policy: camera=(), microphone=(), geolocation=(self), accelerometer=(self), gyroscope=(self), screen-wake-lock=(self)`.
-  Für die proxied Pfade gelten die Header des API-Hosts (`default-src 'none'`). Das `index.html` hat kein
+  Für die proxied Pfade gilt als Default die CSP des API-Hosts (`default-src 'none'`; `?Content-Security-Policy`,
+  d. h. eine vom Backend gesetzte CSP bleibt stehen, siehe Login-Mail). Das `index.html` hat kein
   Inline-Skript; die Google-Anmeldung öffnet `accounts.google.com` in einem Popup (von der CSP nicht betroffen).
   Wer die Kartenquelle wechselt (`EXPO_PUBLIC_MAP_STYLE_URL`), muss `connect-src` anpassen.
 - **Deploy**: `deploy.yml` baut den Export (Node 22, `npm ci`, `npx expo export --platform web`), lädt
@@ -100,7 +101,9 @@ Produktion: `https://stallfunk.de`, derselbe VPS wie die API (Runbook: [`deploy/
   (`REITERHOF_VAPID_PUBLIC_KEY`, `REITERHOF_VAPID_PRIVATE_KEY`, `REITERHOF_VAPID_SUBJECT`) in `api.env` setzen
   ([push-web.md](push-web.md)); ohne Schlüssel antwortet `/api/v1/push/web/public-key` mit 503 und Web-Push ist aus.
 - **Login-Mail**: `/auth/verify?token=…` (falls `REITERHOF_PUBLIC_URL` gesetzt ist) zeigt die Seite der API mit dem
-  Link `stallfunk://…`; sie meldet nicht in der Web-App an.
+  Link `stallfunk://…`; sie meldet nicht in der Web-App an. Die Seite ist im Stallfunk-Design (Systemschriften, Logo
+  als `data:`-URI) und setzt ihre eigene CSP (`style-src` mit SHA-256-Hash des Stylesheets, `img-src data:`);
+  Caddy setzt `default-src 'none'` nur, wenn das Backend keine CSP mitschickt.
 
 ## Anforderungen an den Host
 

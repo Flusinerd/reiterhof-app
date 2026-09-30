@@ -3,6 +3,8 @@ package auth
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 	"errors"
 	"html/template"
 	"net"
@@ -245,13 +247,41 @@ func loginMail(email, code, token, publicURL string) MailContent {
 }
 
 // verifyPage is the https fallback for the magic link. It never consumes the token (mail
-// scanners prefetch links); it only offers the app link.
+// scanners prefetch links); it only offers the app link. The page is styled like the app
+// (docs/design-system.md) with system fonts and sends its own Content-Security-Policy: the
+// inline stylesheet is allowed by its SHA-256 hash and the logo travels as a data URI, so no
+// request leaves the page. Caddy only sets a default CSP where the backend sets none.
+const verifyStyle = `:root{color-scheme:light}
+body{margin:0;background:#f6f4ee;color:#1c1917;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:24px}
+main{max-width:480px;margin:0 auto;padding:48px 24px 40px;display:flex;flex-direction:column;gap:24px}
+.brand{display:flex;align-items:center;gap:12px}
+.brand img{width:44px;height:44px;border-radius:11px}
+.brand span{font-family:Fraunces,Georgia,"Times New Roman",serif;font-size:20px;line-height:26px;font-weight:600;color:#1c3a27}
+h1{margin:0;font-family:Fraunces,Georgia,"Times New Roman",serif;font-size:32px;line-height:38px;font-weight:600;text-wrap:balance}
+p{margin:0;color:#6b6560}
+.button{display:block;box-sizing:border-box;min-height:56px;padding:16px 24px;border-radius:14px;background:#2d5a3d;color:#fff;font-weight:600;text-align:center;text-decoration:none}
+.button:hover{background:#24503a}
+.button:focus-visible{outline:3px solid #1c3a27;outline-offset:3px}
+small{font-size:13px;line-height:18px;color:#6b6560}
+`
+
+var (
+	verifyStyleHash = base64.StdEncoding.EncodeToString(func() []byte { h := sha256.Sum256([]byte(verifyStyle)); return h[:] }())
+	verifyCSP       = "default-src 'none'; style-src 'sha256-" + verifyStyleHash + "'; img-src data:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
+	verifyLogoURL   = template.URL("data:image/png;base64," + base64.StdEncoding.EncodeToString(mailLogo))
+)
+
 var verifyTmpl = template.Must(template.New("verify").Parse(`<!doctype html>
 <html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Stallfunk</title></head><body>
-<h1>Stallfunk</h1>
-<p><a href="{{.}}">In der App anmelden</a></p>
+<title>Stallfunk</title>
+<style>{{.Style}}</style></head><body>
+<main>
+<div class="brand"><img src="{{.Logo}}" alt="" width="44" height="44"><span>Stallfunk</span></div>
+<h1>Anmelden</h1>
 <p>Öffne diesen Link auf dem Gerät mit der Stallfunk-App.</p>
+<a class="button" href="{{.AppLink}}">In der App anmelden</a>
+<small>Der Link gilt 15 Minuten und nur einmal.</small>
+</main>
 </body></html>`))
 
 func (s *Service) verifyPage(w http.ResponseWriter, r *http.Request) {
@@ -263,8 +293,13 @@ func (s *Service) verifyPage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Referrer-Policy", "no-referrer")
+	w.Header().Set("Content-Security-Policy", verifyCSP)
 	// The token matches [A-Za-z0-9_-]+ so the URL is safe to mark as trusted.
-	_ = verifyTmpl.Execute(w, template.URL(appScheme+"://auth/verify?token="+token))
+	_ = verifyTmpl.Execute(w, struct {
+		Style   template.CSS
+		Logo    template.URL
+		AppLink template.URL
+	}{template.CSS(verifyStyle), verifyLogoURL, template.URL(appScheme + "://auth/verify?token=" + token)})
 }
 
 // --- social sign-in -----------------------------------------------------------
