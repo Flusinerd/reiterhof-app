@@ -44,6 +44,10 @@ export type Stable = {
   farm_name: string | null;
   city: string | null;
   timezone: string;
+  /** Location of the stable for the presence geofence; null until set. */
+  lat: number | null;
+  lng: number | null;
+  geofence_radius_m: number;
 };
 
 export type Me = {
