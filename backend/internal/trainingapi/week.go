@@ -192,12 +192,13 @@ func (h *handler) buildWeek(ctx context.Context, a access, start time.Time, loc 
 			if !a.manage && !s.Visible && s.UserID != a.user.ID {
 				continue // hidden from this rider: counts as done, without details
 			}
-			detailed = true
-			if d.User == nil || d.Minutes == 0 {
+			// Several sessions on one day: the first one names the row, minutes add up.
+			if !detailed {
+				act := s.Activity
 				d.User = &personOut{ID: s.UserID, Name: s.UserName}
+				d.Activity, d.Label = &act, act.GermanName()
 			}
-			act := s.Activity
-			d.Activity, d.Label = &act, act.GermanName()
+			detailed = true
 			d.Minutes += s.Minutes
 		}
 		if done && !detailed {

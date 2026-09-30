@@ -28,6 +28,7 @@ func TestWeekAggregation(t *testing.T) {
 	e := newEnv(t)
 	e.call(seed.UserJan, http.MethodPut, "/api/v1/horses/"+luna+"/training-profile", validProfile, http.StatusOK) // show Sat 28th
 	e.insertSession(luna, seed.UserJan, "hall", time.Date(2026, 3, 23, 17, 0, 0, 0, berlin), 45, 39.6, true)
+	e.insertSession(luna, seed.UserMia, "walker", time.Date(2026, 3, 23, 18, 0, 0, 0, berlin), 30, 9, true) // second session on Monday
 	e.insertSession(luna, seed.UserMia, "arena", time.Date(2026, 3, 24, 17, 0, 0, 0, berlin), 70, 70, true)
 	e.exec(`INSERT INTO week_slots (stable_id, horse_id, day, user_id, activity, status) VALUES ($1, $2, '2026-03-26', $3, 'hack', 'planned')`, seed.StableB, luna, seed.UserMia)
 
@@ -67,7 +68,10 @@ func TestWeekAggregation(t *testing.T) {
 	if obj(segs[0])["level"] != "medium" || obj(segs[1])["level"] != "intense" || obj(segs[2])["level"] != "none" {
 		t.Fatalf("segments = %v", segs)
 	}
-	if num(got["sessions"]) != 2 || !strings.Contains(str(got["assessment"]), "2 von 5 Einheiten") {
+	if mon := d[0]; mon["activity"] != "hall" || obj(mon["user"])["name"] != "Jan" || num(mon["minutes"]) != 75 {
+		t.Fatalf("two sessions on one day: the first names the row, minutes add up: %v", mon)
+	}
+	if num(got["sessions"]) != 3 || !strings.Contains(str(got["assessment"]), "3 von 5 Einheiten") {
 		t.Fatalf("sessions = %v, assessment = %q", got["sessions"], got["assessment"])
 	}
 
