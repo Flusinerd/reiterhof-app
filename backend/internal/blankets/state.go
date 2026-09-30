@@ -130,7 +130,7 @@ type stateInput struct {
 // covered_with is only allowed with "covered" and must be a blanket of the horse; when
 // it is omitted and the plan recommends a blanket, that blanket is stored. Posting the
 // same action and blanket as the newest state of the night is a no-op (double taps do not
-// clutter the history). Open blanket requests of the horse for that night are closed
+// clutter the history). The night is StateDay: "uncovered" in the morning ends the past night. Open blanket requests of the horse for that night are closed
 // (JAN-39). The event blanket_state.changed is sent after commit.
 func (h *handler) setState(w http.ResponseWriter, r *http.Request) {
 	user, horseID, ok := h.access(w, r, false)
@@ -179,16 +179,18 @@ func (h *handler) setState(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	day := StateDay(h.svc.now(), n.Loc, in.Action)
+
 	var state State
 	var closed []string
 	err = h.svc.tx(r.Context(), func(tx pgx.Tx) error {
 		// Serialise concurrent taps on the same horse and night.
-		if _, err := tx.Exec(r.Context(), `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, horseID+n.Day); err != nil {
+		if _, err := tx.Exec(r.Context(), `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, horseID+day); err != nil {
 			return err
 		}
 		latest, err := scanState(tx.QueryRow(r.Context(), stateSQL+`
 			WHERE s.stable_id = $1 AND s.horse_id = $2 AND s.day = $3::date
-			ORDER BY s.changed_at DESC, s.created_at DESC LIMIT 1`, user.StableID, horseID, n.Day))
+			ORDER BY s.changed_at DESC, s.created_at DESC LIMIT 1`, user.StableID, horseID, day))
 		switch {
 		case err == nil && latest.Action == in.Action && equalPtr(latest.CoveredWith, coveredWith):
 			state = latest
@@ -201,14 +203,14 @@ func (h *handler) setState(w http.ResponseWriter, r *http.Request) {
 				SELECT s.id::text, s.horse_id::text, to_char(s.day, 'YYYY-MM-DD'), s.action, s.covered_with::text, b.name,
 				       s.changed_at, s.changed_by::text, u.name
 				FROM ins s LEFT JOIN blankets b ON b.id = s.covered_with LEFT JOIN users u ON u.id = s.changed_by`,
-				user.StableID, horseID, n.Day, in.Action, coveredWith, h.svc.now(), user.ID))
+				user.StableID, horseID, day, in.Action, coveredWith, h.svc.now(), user.ID))
 			if err != nil {
 				return err
 			}
 		default:
 			return err
 		}
-		closed, err = requests.CompleteBlanketRequests(r.Context(), tx, user.StableID, horseID, n.Day,
+		closed, err = requests.CompleteBlanketRequests(r.Context(), tx, user.StableID, horseID, day,
 			feedbackText(in.Action, blanketName, user.Name))
 		if err != nil {
 			return err
@@ -218,7 +220,7 @@ func (h *handler) setState(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 		}
-		return realtime.Publish(r.Context(), tx, user.StableID, EventStateChanged, map[string]any{"horse_id": horseID, "day": n.Day})
+		return realtime.Publish(r.Context(), tx, user.StableID, EventStateChanged, map[string]any{"horse_id": horseID, "day": day})
 	})
 	if err != nil {
 		h.internal(w, "set state", err)

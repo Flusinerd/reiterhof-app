@@ -26,11 +26,14 @@ A horse of another stable is `404 not_found`.
 ### The blanket day
 
 A "day" is the night that starts on a stable-local date. The night belongs to that date until
-**12:00 the next morning** (`blankets.RolloverHour`, `blankets.NightDay`): at 00:30 or 07:00
-on 1 October the day is still 30 September (people blanket in the evening and take the
-blankets off in the morning; both are states of the same night); from 12:00 on 1 October
-all horses are open again for the night of 1 October. The forecast of a day is the newest
-snapshot with `valid_for = day` (the 18:00 to 08:00 summary, see `docs/architecture.md`).
+**04:00 the next morning** (`blankets.RolloverHour`, `blankets.NightDay`): at 00:30 on
+1 October the day is still 30 September (late checks count for the running night); from
+04:00 on the app shows the coming night of 1 October (forecast, recommendation, progress),
+because the past night is settled by then. One exception (`blankets.StateDay`):
+"uncovered" recorded before **12:00** (`blankets.UncoverUntilHour`) still belongs to the past
+night, so taking the blankets off in the morning does not mark the horse done for the coming
+one. Covering or checking in the morning already counts for the coming night. The forecast of a day is the newest snapshot with
+`valid_for = day` (the 18:00 to 08:00 summary, see `docs/architecture.md`).
 
 ### Recommendation
 
@@ -118,7 +121,7 @@ looks at the horses without a state tonight:
 Presence visibility is irrelevant here: people who hide from others still count, and only the
 recipient learns anything. Each user is reminded at most once per night: the job claims
 `(user, kind, source, night)` by inserting a `reminders` row (`source_table = blanket_night`,
-`source_id` = stable, `due_at` = 12:00 stable-local of the day; unique index in migration
+`source_id` = stable, `due_at` = 04:00 (`RolloverHour`) stable-local of the day; unique index in migration
 `0070`); a failed push releases the claim so the next slot retries. Users switch it off with
 `reminder_settings` kind `last_person` (honored by the notifier).
 

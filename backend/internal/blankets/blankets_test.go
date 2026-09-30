@@ -19,17 +19,39 @@ func TestNightDay(t *testing.T) {
 	}{
 		{"evening", berlinAt(2026, 9, 30, 19, 0), "2026-09-30"},
 		{"just before midnight", berlinAt(2026, 9, 30, 23, 59), "2026-09-30"},
-		{"after midnight belongs to the previous night", berlinAt(2026, 10, 1, 0, 30), "2026-09-30"},
-		{"morning uncovering", berlinAt(2026, 10, 1, 7, 0), "2026-09-30"},
-		{"just before noon", berlinAt(2026, 10, 1, 11, 59), "2026-09-30"},
-		{"noon starts the new day", berlinAt(2026, 10, 1, 12, 0), "2026-10-01"},
-		{"month change", berlinAt(2026, 11, 1, 9, 0), "2026-10-31"},
+		{"after midnight belongs to the running night", berlinAt(2026, 10, 1, 0, 30), "2026-09-30"},
+		{"just before the rollover", berlinAt(2026, 10, 1, 3, 59), "2026-09-30"},
+		{"04:00 starts the coming night", berlinAt(2026, 10, 1, 4, 0), "2026-10-01"},
+		{"morning shows the coming night", berlinAt(2026, 10, 1, 7, 0), "2026-10-01"},
+		{"month change", berlinAt(2026, 11, 1, 2, 0), "2026-10-31"},
 		{"utc input is converted", time.Date(2026, 9, 30, 22, 30, 0, 0, time.UTC), "2026-09-30"}, // 00:30 Berlin on 1 Oct
 		{"dst end night", berlinAt(2026, 10, 25, 3, 0), "2026-10-24"},
 	}
 	for _, c := range cases {
 		if got := blankets.NightDay(c.at, berlin); got != c.want {
 			t.Errorf("%s: NightDay(%s) = %s, want %s", c.name, c.at, got, c.want)
+		}
+	}
+}
+
+func TestStateDay(t *testing.T) {
+	cases := []struct {
+		name   string
+		at     time.Time
+		action string
+		want   string
+	}{
+		{"evening cover", berlinAt(2026, 9, 30, 19, 0), blankets.ActionCovered, "2026-09-30"},
+		{"night uncover", berlinAt(2026, 10, 1, 1, 0), blankets.ActionUncovered, "2026-09-30"},
+		{"morning uncover ends the past night", berlinAt(2026, 10, 1, 7, 0), blankets.ActionUncovered, "2026-09-30"},
+		{"uncover just before noon", berlinAt(2026, 10, 1, 11, 59), blankets.ActionUncovered, "2026-09-30"},
+		{"uncover from noon on is for the coming night", berlinAt(2026, 10, 1, 12, 0), blankets.ActionUncovered, "2026-10-01"},
+		{"morning cover is for the coming night", berlinAt(2026, 10, 1, 7, 0), blankets.ActionCovered, "2026-10-01"},
+		{"morning check is for the coming night", berlinAt(2026, 10, 1, 7, 0), blankets.ActionChecked, "2026-10-01"},
+	}
+	for _, c := range cases {
+		if got := blankets.StateDay(c.at, berlin, c.action); got != c.want {
+			t.Errorf("%s: StateDay(%s, %s) = %s, want %s", c.name, c.at, c.action, got, c.want)
 		}
 	}
 }
@@ -295,34 +317,42 @@ func TestPlanRecommendation(t *testing.T) {
 func TestDayBoundary(t *testing.T) {
 	e := newEnv(t)
 	e.snapshot("2026-09-30", berlinAt(2026, 9, 30, 6, 0), 3, true)
+	e.snapshot("2026-10-01", berlinAt(2026, 9, 30, 6, 0), 8, false)
 	luna := "/api/v1/horses/" + seed.HorseLuna + "/blanket-state"
+	var res struct{ State stateJSON }
 
 	// 00:30: still the night of 30 September, the state counts for that day.
 	e.at(berlinAt(2026, 10, 1, 0, 30))
-	var res struct{ State stateJSON }
 	e.do(seed.UserMia, "POST", luna, m{"action": "covered"}).status(t, 200).into(t, &res)
 	if res.State.Day != "2026-09-30" {
 		t.Fatalf("state day = %s, want 2026-09-30", res.State.Day)
 	}
-	// 07:00 in the morning: still that night, the overview shows Luna done with tonight's forecast.
+	// 07:00: the overview shows the coming night with its forecast, everything open.
 	e.at(berlinAt(2026, 10, 1, 7, 0))
 	td := e.today(seed.UserMia)
-	if td.Day != "2026-09-30" || td.Progress.Done != 1 || td.Weather == nil {
+	if td.Day != "2026-10-01" || td.Progress.Done != 0 || td.Weather == nil || td.Weather.NightMinC != 8 {
 		t.Fatalf("today at 07:00 = %+v", td)
 	}
-	// 12:00: new day, everything open again, no forecast for it yet.
-	e.at(berlinAt(2026, 10, 1, 12, 0))
-	td = e.today(seed.UserMia)
-	if td.Day != "2026-10-01" || td.Progress.Done != 0 || td.Weather != nil || td.Horses[0].Recommendation.Status != "no_weather" {
-		t.Fatalf("today at 12:00 = %+v", td)
+	// Taking the blanket off in the morning ends the past night; Luna stays open for tonight.
+	e.do(seed.UserMia, "POST", luna, m{"action": "uncovered"}).status(t, 200).into(t, &res)
+	if res.State.Day != "2026-09-30" {
+		t.Fatalf("morning uncover day = %s, want 2026-09-30", res.State.Day)
 	}
-	// The history keeps the old day.
+	if td = e.today(seed.UserMia); td.Progress.Done != 0 {
+		t.Fatalf("morning uncover marked tonight done: %+v", td)
+	}
+	// Covering in the morning already counts for the coming night.
+	e.do(seed.UserMia, "POST", luna, m{"action": "covered"}).status(t, 200).into(t, &res)
+	if res.State.Day != "2026-10-01" {
+		t.Fatalf("morning cover day = %s, want 2026-10-01", res.State.Day)
+	}
+	// The history keeps both nights.
 	var hist struct {
 		Today  string
 		States []stateJSON
 	}
 	e.do(seed.UserMia, "GET", "/api/v1/horses/"+seed.HorseLuna+"/blanket-states", nil).status(t, 200).into(t, &hist)
-	if hist.Today != "2026-10-01" || len(hist.States) != 1 || hist.States[0].Day != "2026-09-30" {
+	if hist.Today != "2026-10-01" || len(hist.States) != 3 || hist.States[0].Day != "2026-10-01" || hist.States[2].Day != "2026-09-30" {
 		t.Fatalf("history = %+v", hist)
 	}
 }

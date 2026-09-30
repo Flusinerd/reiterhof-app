@@ -14,11 +14,16 @@ import (
 
 // RolloverHour is the stable-local hour at which the blanket day changes. The "day" of a
 // moment is the stable-local calendar day of the night it belongs to: a night starts in
-// the evening of its day and still belongs to that day until 12:00 the next morning. So
-// at 07:00 on 1 October people still blanket for the night of 30 September (they take
-// the blankets off in the morning), and from 12:00 on the horses count as open for the
-// coming night. The forecast of a day is the weather snapshot with valid_for = day.
-const RolloverHour = 12
+// the evening of its day and still belongs to that day until 04:00 the next morning (late
+// checks after midnight count for the running night). From 04:00 on the app shows the
+// coming night: its forecast, recommendation and progress. The forecast of a day is the
+// weather snapshot with valid_for = day.
+const RolloverHour = 4
+
+// UncoverUntilHour ends the morning in which "uncovered" still belongs to the past night:
+// taking the blankets off in the morning finishes that night and must not mark the horse
+// as done for the coming one.
+const UncoverUntilHour = 12
 
 // NightDay returns the blanket day (YYYY-MM-DD) of now in loc.
 func NightDay(now time.Time, loc *time.Location) string {
@@ -29,7 +34,17 @@ func NightDay(now time.Time, loc *time.Location) string {
 	return t.Format("2006-01-02")
 }
 
-// nightStart is the instant the blanket day begins (12:00 stable-local of the day). It is
+// StateDay returns the blanket day a state recorded now belongs to: the NightDay, except
+// for "uncovered" in the morning (RolloverHour to UncoverUntilHour), which ends the past night.
+func StateDay(now time.Time, loc *time.Location, action string) string {
+	t := now.In(loc)
+	if action == ActionUncovered && t.Hour() >= RolloverHour && t.Hour() < UncoverUntilHour {
+		return t.AddDate(0, 0, -1).Format("2006-01-02")
+	}
+	return NightDay(now, loc)
+}
+
+// nightStart is the instant the blanket day begins (RolloverHour stable-local of the day). It is
 // the due_at of reminder claims, so a claim is unique per night.
 func nightStart(day string, loc *time.Location) (time.Time, error) {
 	d, err := time.ParseInLocation("2006-01-02", day, loc)
