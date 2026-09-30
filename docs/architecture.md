@@ -236,7 +236,9 @@ real `*push.Notifier`). In tests pass `Notify: push.NewNotifier(pool, fake, nil)
   body, data)` loads the tokens of those users **within that stable**, skips users
   whose `reminder_settings` row for `kind` has `enabled = false` (no row = enabled),
   adds `data.kind`, sends, and deletes the invalid tokens (by `stable_id` + token).
-  Only non-token failures are returned as error.
+  Only non-token failures are returned as error. It also skips users without a current
+  `push` consent (`consents`, not revoked; never consented = nothing is sent). Tests that
+  register tokens call `pushtest.GrantConsent`.
 - Kinds are constants (`push.KindLastPerson`, `KindWeatherChange`, `KindMedication`,
   `KindHelper`, `KindTrainingPlan`, `KindHealthDue`, `KindRehaCheckup`,
   `KindNewRequest`, `KindUrgentObservation`, `KindObservation`; `push.Kinds()`, `push.ValidKind`).
@@ -418,3 +420,4 @@ In tests call `files.SetDir(t.TempDir())`. The app uses `mobile/lib/upload.ts` (
 - [Training](domains/training.md): profile, "Was heute?", sessions, week view and exercise library (`internal/trainingapi`, M6).
 - [Session tracking](domains/tracking.md): GPS rides, indoor sessions with gait detection, exercise library screens; `internal/trainingapi` stores the track and raw gait windows (M7).
 - [Reha plan](domains/reha.md): phases, "Heute erlaubt", checkup reminders and the rule text of exercise requests (`internal/reha`, M7).
+- [Reminders and settings](domains/reminders.md): reminder center, notification switches per push kind, the stable's reminder time, evening training plan push, notification tap handling (`internal/reminders`, M8).

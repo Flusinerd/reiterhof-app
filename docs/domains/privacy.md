@@ -17,7 +17,7 @@ without a row was never granted. `stable_id` is nullable (a person may consent b
 | `location_tracking` | recording the GPS track of a training session | none yet: the tracking feature checks `privacy.Has(ctx, pool, userID, privacy.KindLocationTracking)` |
 | `presence_sharing` | others may see that I am at the stable | revoking sets `users.presence_visibility` to `hidden` |
 | `photos` | camera and photo library | none (device permission plus explanation) |
-| `push` | push notifications | revoking deletes the user's `push_tokens` |
+| `push` | push notifications | revoking deletes the user's `push_tokens`; `push.Notifier` sends only to users with a current grant |
 
 `privacy.TextVersion` (`"2026-09-30"`) is the version of the privacy text; a grant stores it. Changing the texts
 means raising both `TextVersion` and the `**Textversion:**` line in `docs/legal/*.md` (a test checks this); existing
