@@ -16,6 +16,7 @@ import (
 	"github.com/Flusinerd/reiterhof-app/backend/internal/db"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/httpapi"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/push"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/requests"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/scheduler"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/weather"
 	"github.com/Flusinerd/reiterhof-app/backend/migrations"
@@ -57,12 +58,18 @@ func main() {
 		})
 	}
 
+	deps := httpapi.Deps{
+		Pool: pool, Config: cfg, Log: log, Now: time.Now,
+		Notify: push.NewNotifier(pool, push.NewClientFromEnv(), log),
+	}
+	requestJobs := &scheduler.Scheduler{Log: log}
+	for _, job := range requests.NewService(deps).Jobs() {
+		requestJobs.Go(ctx, &jobs, job)
+	}
+
 	srv := &http.Server{
-		Addr: cfg.Addr,
-		Handler: httpapi.NewHandler(httpapi.Deps{
-			Pool: pool, Config: cfg, Log: log, Now: time.Now,
-			Notify: push.NewNotifier(pool, push.NewClientFromEnv(), log),
-		}),
+		Addr:              cfg.Addr,
+		Handler:           httpapi.NewHandler(deps),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
