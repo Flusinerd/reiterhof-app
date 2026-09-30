@@ -99,8 +99,8 @@ check also covers tokens registered without consent. Tests that register tokens 
 `PUT` `{reminder_time: "HH:MM"}` is **admin only** (`403 forbidden`), `400 validation_failed` unless `HH:MM` between `16:00` and `22:00`
 (the last-person job starts at that time and re-checks every 15 minutes until 22:00; the blanket day rolls over at 04:00). The blankets
 job (`RunLastPerson`) reads `stables.reminder_time` in every run, so the new time applies the same evening (test
-`TestLastPersonJobUsesNewReminderTime`). Presence visibility is not duplicated: the settings screen uses `PATCH /me`
-(`presence_visibility`) like the presence screen.
+`TestLastPersonJobUsesNewReminderTime`). Presence visibility lives on the presence screen only (`PATCH /me`, `presence_visibility`);
+the settings screen links there.
 
 ## Mobile
 
@@ -108,9 +108,9 @@ job (`RunLastPerson`) reads `stables.reminder_time` in every run, so the new tim
   heading per day. Tapping a row opens its `screen` (only internal whitelisted routes), the check icon "Erledigt" dismisses a stored
   reminder. Refreshes on `blanket_state.changed` and `request.changed`.
 - `/settings`: "Benachrichtigungen" (switch per kind, banner "Mitteilungen erlauben" without push consent, which opens the consent
-  sheet), "Stallgasse" (reminder time in quarter-hour steps with Speichern, admins only; members see the time), "Anwesenheit"
-  (visibility), "Datenschutz" (link to `/settings/privacy`), "Konto" (Abmelden). Entry points: bell and gear icons on the start
-  screen, "Alle Einstellungen" on the presence screen, link on the requests tab.
+  sheet, then the reminder time in quarter-hour steps with Speichern, admins only; members see the time), "Konto" (links to
+  `/presence` for geofence and visibility and to `/settings/privacy`, then Abmelden). Entry points: bell and gear in the app menu
+  top right on every screen (see [design system](../design-system.md)).
 - Notification taps (`lib/notifications.ts`, `useNotificationNavigation` in the root layout): the tap while the app runs (listener) and
   the tap that started it (`getLastNotificationResponse`, cleared after handling) open `data.screen`, else `data.route` (health and reha
   pushes still use that key), else `request_id` / `observation_id` (`notificationRoute`). Only routes starting with `/blankets`,

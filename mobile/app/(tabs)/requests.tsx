@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { Bell, CalendarDays, Plus } from "lucide-react-native";
+import { CalendarDays, Plus } from "lucide-react-native";
 import { useState } from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
 
@@ -119,20 +119,11 @@ export default function Requests() {
         )}
       </Section>
 
-      <View className="gap-3">
-        <Button
-          label="Benachrichtigungen"
-          icon={Bell}
-          variant="outline"
-          fullWidth
-          onPress={() => router.push("/settings")}
-        />
-        {thanks.data && thanks.data.count > 0 ? (
-          <Text variant="secondary" className="text-center">
-            {`${thanks.data.count}-mal bedankt.`}
-          </Text>
-        ) : null}
-      </View>
+      {thanks.data && thanks.data.count > 0 ? (
+        <Text variant="secondary" className="text-center">
+          {`${thanks.data.count}-mal bedankt.`}
+        </Text>
+      ) : null}
     </Screen>
   );
 }

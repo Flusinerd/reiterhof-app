@@ -1,6 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { router, type Href } from "expo-router";
-import { Settings } from "lucide-react-native";
 import { useState } from "react";
 import { ActivityIndicator, RefreshControl, View } from "react-native";
 
@@ -114,14 +113,6 @@ export default function Reminders() {
           </Section>
         ))
       )}
-
-      <Button
-        label="Benachrichtigungen einstellen"
-        icon={Settings}
-        variant="ghost"
-        fullWidth
-        onPress={() => router.push("/settings" as Href)}
-      />
     </Screen>
   );
 }

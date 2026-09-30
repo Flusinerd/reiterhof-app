@@ -9,8 +9,9 @@ import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { AppMenu } from "@/components/app-menu";
 import { ConsentOnboarding } from "@/components/consent-onboarding";
-import { Button, Screen, Text } from "@/components/ui";
+import { Button, Screen, ScreenMenuContext, Text } from "@/components/ui";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { fontAssets } from "@/lib/fonts";
 import "@/lib/geofence"; // registers the background geofence task at app start
@@ -96,11 +97,14 @@ function AuthGate() {
     redirect = <Redirect href="/(tabs)" />;
   }
 
+  // The app menu needs a stable: presence and reminders belong to it.
+  const menu = status === "signedIn" && hasStable ? AppMenu : null;
+
   return (
-    <>
+    <ScreenMenuContext.Provider value={menu}>
       {stack}
       {redirect}
       <ConsentOnboarding />
-    </>
+    </ScreenMenuContext.Provider>
   );
 }

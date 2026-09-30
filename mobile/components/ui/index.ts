@@ -8,7 +8,7 @@ export { Input, type InputProps } from "./input";
 export { LivePanel, type LivePanelProps } from "./live-panel";
 export { PageHeader, type PageHeaderProps } from "./page-header";
 export { Pill, type PillProps } from "./pill";
-export { Screen, type ScreenProps } from "./screen";
+export { Screen, ScreenMenuContext, type ScreenProps } from "./screen";
 export { Section, SectionTitle, type SectionProps, type SectionTitleProps } from "./section";
 export { Sheet, type SheetProps } from "./sheet";
 export { Switch, type SwitchProps } from "./switch";

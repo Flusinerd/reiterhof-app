@@ -61,6 +61,14 @@ person's visits in the last 8 weeks, rounded to the hour ("kommt meist gegen 19 
 set when the person has at least 4 visits in that window and visibility `all`, and only in
 `recent`.
 
+## Mobile
+
+- The app menu top right on every screen has a check-in/out button ("Bin da" / "Ich gehe"); a long press opens `/presence`.
+  It and the presence screen share `usePresenceCheckIn` (`components/presence-check-in.tsx`), which asks for the
+  `presence_sharing` consent before a check-in.
+- `/presence`: the big check-in/out button, "Jetzt da", "Zuletzt gesehen", and the geofence switch and visibility. The start
+  screen's presence tile opens it.
+
 ## Check-out hook
 
 `presence.AfterCheckOut` (package variable, nil = no-op) is called by `POST /presence/check-out`
