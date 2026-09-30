@@ -134,6 +134,9 @@ func Set(ctx context.Context, db interface {
 			switch kind {
 			case KindPush:
 				_, err = tx.Exec(ctx, `DELETE FROM push_tokens WHERE user_id = $1`, userID)
+				if err == nil {
+					_, err = tx.Exec(ctx, `DELETE FROM web_push_subscriptions WHERE user_id = $1`, userID)
+				}
 			case KindPresenceSharing:
 				_, err = tx.Exec(ctx, `UPDATE users SET presence_visibility = 'hidden' WHERE id = $1`, userID)
 			}

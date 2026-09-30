@@ -123,6 +123,27 @@ func Export(ctx context.Context, q DB, userID string, now time.Time) (map[string
 	}
 	doc["push_tokens"] = tokens
 
+	// Browser subscriptions: the endpoint is a secret capability URL, so only its host is exported.
+	webSubs := []map[string]any{}
+	wrows, err := q.Query(ctx, `SELECT split_part(endpoint, '/', 3), user_agent, created_at FROM web_push_subscriptions WHERE user_id = $1 ORDER BY created_at`, userID)
+	if err != nil {
+		return nil, err
+	}
+	for wrows.Next() {
+		var host, agent string
+		var created time.Time
+		if err := wrows.Scan(&host, &agent, &created); err != nil {
+			wrows.Close()
+			return nil, err
+		}
+		webSubs = append(webSubs, map[string]any{"push_service": host, "user_agent": agent, "created_at": created})
+	}
+	wrows.Close()
+	if err := wrows.Err(); err != nil {
+		return nil, err
+	}
+	doc["web_push_subscriptions"] = webSubs
+
 	files, err := uploadedFiles(ctx, q, userID)
 	if err != nil {
 		return nil, err

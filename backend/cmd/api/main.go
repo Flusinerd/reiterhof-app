@@ -58,6 +58,14 @@ func main() {
 	(&scheduler.Scheduler{Log: log}).Go(ctx, &jobs, privacy.Job(pool, log, time.Now))
 
 	notifier := push.NewNotifier(pool, push.NewClientFromEnv(), log)
+	switch vapid, err := push.VAPIDFromEnv(); {
+	case err == nil:
+		notifier.WithWeb(push.NewWebClient(vapid))
+	case errors.Is(err, push.ErrVAPIDNotConfigured):
+		log.Info("web push disabled: no VAPID keys (REITERHOF_VAPID_*)")
+	default:
+		log.Error("web push disabled: invalid VAPID configuration", "err", err)
+	}
 	healthReminders := &health.Reminders{Pool: pool, Notify: notifier, Log: log, Now: time.Now}
 	(&scheduler.Scheduler{Log: log}).Go(ctx, &jobs, scheduler.Job{
 		Name:       "health-reminders",

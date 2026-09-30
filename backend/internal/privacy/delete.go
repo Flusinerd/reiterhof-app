@@ -126,6 +126,7 @@ func DeleteAccount(ctx context.Context, db interface {
 		`DELETE FROM reminders WHERE user_id = $1`,
 		`DELETE FROM reminder_settings WHERE user_id = $1`,
 		`DELETE FROM push_tokens WHERE user_id = $1`,
+		`DELETE FROM web_push_subscriptions WHERE user_id = $1`,
 		`DELETE FROM consents WHERE user_id = $1`,
 		`DELETE FROM auth_sessions WHERE user_id = $1`,
 		`DELETE FROM auth_identities WHERE user_id = $1`,
