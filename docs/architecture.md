@@ -218,6 +218,12 @@ The rate limiter uses `X-Forwarded-For` only when the connection comes from loop
 Package `internal/push` (backend part of JAN-18). Expo push tokens live in
 `push_tokens` (unique per token), per-user opt-outs in `reminder_settings`.
 
+**In handlers, send pushes via `deps.Notify.NotifyUsers(ctx, stableID, userIDs, kind,
+title, body, data)`** (`httpx.Notifier`; never nil, a no-op unless `cmd/api` wires the
+real `*push.Notifier`). In tests pass `Notify: push.NewNotifier(pool, fake, nil)` with
+`fake := &push.Fake{}` and assert on `fake.Sent()`. Devices register their token via
+`POST /api/v1/me/push-tokens {token, platform}` / `DELETE` (package `internal/devices`).
+
 - `push.Sender` (`Send(ctx, []Message) error`) is the seam. `push.Client` talks to
   `https://exp.host/--/api/v2/push/send` in batches of 100 (base URL, `*http.Client`
   and access token are fields, so tests use `httptest`). `push.Fake` records messages

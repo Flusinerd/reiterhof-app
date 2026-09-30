@@ -5,6 +5,7 @@
 package httpx
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -29,6 +30,24 @@ type Deps struct {
 	// Now returns the current time. Use it instead of time.Now so tests can
 	// control the clock.
 	Now func() time.Time
+	// Notify sends push notifications. httpapi.NewHandler replaces nil with a
+	// no-op, so handlers can always call it. Tests can pass
+	// push.NewNotifier(pool, &push.Fake{}, nil) to inspect what was sent.
+	Notify Notifier
+}
+
+// Notifier delivers push notifications to users of a stable; *push.Notifier
+// implements it. kind must be one of the push.Kind* constants.
+type Notifier interface {
+	NotifyUsers(ctx context.Context, stableID string, userIDs []string, kind, title, body string, data map[string]any) error
+}
+
+// NopNotifier discards all notifications.
+type NopNotifier struct{}
+
+// NotifyUsers implements Notifier.
+func (NopNotifier) NotifyUsers(context.Context, string, []string, string, string, string, map[string]any) error {
+	return nil
 }
 
 // ErrorBody is the JSON error envelope: {"error":{"code":"...","message":"..."}}.

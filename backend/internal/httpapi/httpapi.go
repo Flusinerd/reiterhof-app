@@ -3,10 +3,12 @@ package httpapi
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/Flusinerd/reiterhof-app/backend/internal/auth"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/devices"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/httpx"
 )
 
@@ -17,13 +19,19 @@ type Deps = httpx.Deps
 // Add one line per domain, e.g. horses.Register.
 var registrations = []func(mux *http.ServeMux, deps Deps){
 	auth.Register,
-	// horses.Register,
+	devices.Register,
 }
 
 // NewHandler builds the router. It uses net/http only, no framework.
 func NewHandler(deps Deps) http.Handler {
 	if deps.Now == nil {
 		deps.Now = time.Now
+	}
+	if deps.Log == nil {
+		deps.Log = slog.Default()
+	}
+	if deps.Notify == nil {
+		deps.Notify = httpx.NopNotifier{}
 	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", healthz)
