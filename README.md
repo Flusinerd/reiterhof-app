@@ -45,7 +45,7 @@ Für ein echtes Gerät `expo.extra.apiUrl` in `mobile/app.json` setzen.
 
 ## Konventionen
 
-- Der Produktname ist **Stallfunk** (App-Name, Deep Links `stallfunk://`, Bundle-ID `org.datenlotse.stallfunk`). Interne Bezeichner heißen weiter `reiterhof` (Repository, Go-Modul, Umgebungsvariablen `REITERHOF_*`, Datenbank, Serverpfade und systemd-Dienste), damit bestehende Konfigurationen gültig bleiben.
+- Der Produktname ist **Stallfunk** (App-Name, Deep Links `stallfunk://`, Bundle-ID `de.flusinerd.stallfunk`). Interne Bezeichner heißen weiter `reiterhof` (Repository, Go-Modul, Umgebungsvariablen `REITERHOF_*`, Datenbank, Serverpfade und systemd-Dienste), damit bestehende Konfigurationen gültig bleiben.
 
 - Abhängigkeiten sind exakt gepinnt, keine `^`- oder `~`-Bereiche.
 - Go-Tests nur mit der Standardbibliothek.

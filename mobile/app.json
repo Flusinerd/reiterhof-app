@@ -30,11 +30,11 @@
     ],
     "experiments": { "typedRoutes": true },
     "android": {
-      "package": "org.datenlotse.stallfunk",
+      "package": "de.flusinerd.stallfunk",
       "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION", "ACCESS_BACKGROUND_LOCATION", "FOREGROUND_SERVICE", "FOREGROUND_SERVICE_LOCATION"]
     },
     "ios": {
-      "bundleIdentifier": "org.datenlotse.stallfunk",
+      "bundleIdentifier": "de.flusinerd.stallfunk",
       "usesAppleSignIn": true,
       "infoPlist": {
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Stallfunk erkennt im Hintergrund, wann du im Stall ankommst oder ihn verlässt, und zeichnet deine Ausritte auf, auch wenn der Bildschirm aus ist.",

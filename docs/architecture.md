@@ -207,7 +207,7 @@ Configuration (all optional; unset means the feature is off or in dev mode):
 | `REITERHOF_PUBLIC_URL` | public base URL of the API, e.g. `https://api.example.org`, for the mail's https fallback link |
 | `REITERHOF_SMTP_HOST`, `_PORT` (587), `_USER`, `_PASSWORD`, `_FROM` | SMTP for login mails (STARTTLS, port 465 = implicit TLS). Without host the mail is only logged (dev) |
 | `REITERHOF_GOOGLE_CLIENT_IDS` | comma separated OAuth client IDs (web, iOS, Android) accepted as `aud` |
-| `REITERHOF_APPLE_CLIENT_IDS` | comma separated accepted `aud` (iOS bundle ID `org.datenlotse.stallfunk`) |
+| `REITERHOF_APPLE_CLIENT_IDS` | comma separated accepted `aud` (iOS bundle ID `de.flusinerd.stallfunk`) |
 | `REITERHOF_DEV_LOGIN` | `true` enables `/auth/dev-login` |
 
 Rate limits are in memory (per process, reset on restart), fine for the single-VPS setup.

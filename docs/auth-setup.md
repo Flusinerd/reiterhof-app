@@ -37,8 +37,8 @@ links to the app. It does not need Universal Links / App Links (not configured y
 1. Google Cloud Console, project for Stallfunk, "APIs & Services" > "OAuth consent screen": configure (external), app name, support email.
 2. "Credentials" > "Create credentials" > "OAuth client ID", three clients:
    - Web application (its ID is also used by Expo's auth proxy in development),
-   - iOS, bundle ID `org.datenlotse.stallfunk`,
-   - Android, package `org.datenlotse.stallfunk` and the SHA-1 of the signing key (debug key for development, Play App Signing key for release).
+   - iOS, bundle ID `de.flusinerd.stallfunk`,
+   - Android, package `de.flusinerd.stallfunk` and the SHA-1 of the signing key (debug key for development, Play App Signing key for release).
 3. Put the IDs into `mobile/app.json` under `expo.extra`: `googleWebClientId`, `googleIosClientId`, `googleAndroidClientId`.
    Until the ID of the current platform is set, the button shows "Diese Anmeldung ist noch nicht eingerichtet."
 4. Put **all** client IDs, comma separated, into `REITERHOF_GOOGLE_CLIENT_IDS` on the server; the token's `aud` is the ID of the platform that requested it.
@@ -46,8 +46,8 @@ links to the app. It does not need Universal Links / App Links (not configured y
 
 ## Sign in with Apple (iOS only)
 
-1. Apple Developer account > Identifiers > App ID `org.datenlotse.stallfunk` > enable "Sign in with Apple".
+1. Apple Developer account > Identifiers > App ID `de.flusinerd.stallfunk` > enable "Sign in with Apple".
 2. `app.json` already sets `ios.usesAppleSignIn` and the `expo-apple-authentication` plugin. It needs a development/release build, not Expo Go.
-3. Server: `REITERHOF_APPLE_CLIENT_IDS=org.datenlotse.stallfunk` (the bundle ID is the token's `aud` for native sign-in).
+3. Server: `REITERHOF_APPLE_CLIENT_IDS=de.flusinerd.stallfunk` (the bundle ID is the token's `aud` for native sign-in).
 4. Apple may hide the real address behind `...@privaterelay.appleid.com`; that is accepted as a normal address and never merged with other accounts.
 5. The button is hidden on Android.
