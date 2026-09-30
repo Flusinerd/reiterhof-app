@@ -20,23 +20,34 @@ func TestExerciseLibrary(t *testing.T) {
 	e.call("", http.MethodGet, "/api/v1/exercises", "", http.StatusUnauthorized)
 
 	all := e.call(seed.UserMia, http.MethodGet, "/api/v1/exercises", "", http.StatusOK) // any stable member
-	if n := len(list(all["exercises"])); n != 11 {
+	if n := len(list(all["exercises"])); n != 41 {
 		t.Fatalf("library has %d exercises: %v", n, exerciseTitles(all))
 	}
-	dressage := exerciseTitles(e.call(seed.UserSarah, http.MethodGet, "/api/v1/exercises?discipline=dressage", "", http.StatusOK))
-	want := []string{"Übergänge", "Zirkel verkleinern und vergrößern", "Schulterherein", "Travers", "Traversale"}
-	if len(dressage) != len(want) {
-		t.Fatalf("dressage = %v", dressage)
+	dressage := list(e.call(seed.UserSarah, http.MethodGet, "/api/v1/exercises?discipline=dressage", "", http.StatusOK)["exercises"])
+	if len(dressage) != 17 {
+		t.Fatalf("dressage = %d exercises", len(dressage))
 	}
-	for i := range want { // easiest first
-		if dressage[i] != want[i] {
-			t.Fatalf("dressage = %v, want %v", dressage, want)
+	rank := map[string]int{"beginner": 0, "intermediate": 1, "advanced": 2}
+	pos := map[string]int{}
+	for i, x := range dressage { // easiest first
+		pos[str(obj(x)["title"])] = i
+		if i > 0 && rank[str(obj(x)["level"])] < rank[str(obj(dressage[i-1])["level"])] {
+			t.Fatalf("dressage not ordered by level: %v", dressage)
 		}
 	}
-	if got := exerciseTitles(e.call(seed.UserJan, http.MethodGet, "/api/v1/exercises?discipline=jumping&level=beginner", "", http.StatusOK)); len(got) != 2 {
+	chain := []string{"Volte", "Schulterherein", "Travers", "Renvers", "Traversale"} // along the progression
+	for i := 1; i < len(chain); i++ {
+		if pos[chain[i-1]] > pos[chain[i]] {
+			t.Fatalf("%s must come before %s: %v", chain[i-1], chain[i], pos)
+		}
+	}
+	if got := exerciseTitles(e.call(seed.UserJan, http.MethodGet, "/api/v1/exercises?discipline=jumping&level=beginner", "", http.StatusOK)); len(got) != 3 {
 		t.Fatalf("jumping beginner = %v", got)
 	}
-	if got := exerciseTitles(e.call(seed.UserJan, http.MethodGet, "/api/v1/exercises?tag=seitengaenge", "", http.StatusOK)); len(got) != 3 {
+	if got := exerciseTitles(e.call(seed.UserJan, http.MethodGet, "/api/v1/exercises?discipline=lunge", "", http.StatusOK)); len(got) != 6 || got[0] != "Aufwärmen im Schritt" {
+		t.Fatalf("lunge = %v", got)
+	}
+	if got := exerciseTitles(e.call(seed.UserJan, http.MethodGet, "/api/v1/exercises?tag=seitengaenge", "", http.StatusOK)); len(got) != 4 {
 		t.Fatalf("tag seitengaenge = %v", got)
 	}
 	if got := exerciseTitles(e.call(seed.UserJan, http.MethodGet, "/api/v1/exercises?discipline=polo", "", http.StatusOK)); len(got) != 0 {
@@ -63,10 +74,10 @@ func TestExerciseStableScope(t *testing.T) {
 	e.exec(`INSERT INTO exercises (id, stable_id, discipline, level, title, steps) VALUES ($1, $2, 'dressage', 'beginner', 'Eigene Übung', '["Schritt 1"]')`, mine, other)
 
 	// visible to the stable that owns it, invisible to everybody else
-	if got := exerciseTitles(e.call(otherUser, http.MethodGet, "/api/v1/exercises?discipline=dressage", "", http.StatusOK)); len(got) != 6 {
+	if got := exerciseTitles(e.call(otherUser, http.MethodGet, "/api/v1/exercises?discipline=dressage", "", http.StatusOK)); len(got) != 18 {
 		t.Fatalf("own stable sees %v", got)
 	}
-	if got := exerciseTitles(e.call(seed.UserJan, http.MethodGet, "/api/v1/exercises?discipline=dressage", "", http.StatusOK)); len(got) != 5 {
+	if got := exerciseTitles(e.call(seed.UserJan, http.MethodGet, "/api/v1/exercises?discipline=dressage", "", http.StatusOK)); len(got) != 17 {
 		t.Fatalf("other stable sees %v", got)
 	}
 	e.call(otherUser, http.MethodGet, "/api/v1/exercises/"+mine, "", http.StatusOK)

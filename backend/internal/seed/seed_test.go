@@ -21,7 +21,7 @@ func TestRunIsIdempotent(t *testing.T) {
 	counts := map[string]int{
 		"stables": 1, "users": 8, "horses": 7, "horse_riders": 2,
 		"blankets": 9, "blanket_rules": 17, "training_profiles": 7,
-		"exercises": 11, "sessions": 20, "week_slots": 3, "reha_plans": 1, "observations": 4,
+		"exercises": 41, "sessions": 20, "week_slots": 3, "reha_plans": 1, "observations": 4,
 	}
 	for table, want := range counts {
 		var got int

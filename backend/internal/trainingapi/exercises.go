@@ -146,7 +146,9 @@ func exerciseDiscipline(a training.Activity, horseDiscipline string) string {
 		return "jumping"
 	case training.ActivityGroundwork:
 		return "groundwork"
-	case training.ActivityHall, training.ActivityArena, training.ActivityLunge:
+	case training.ActivityLunge:
+		return "lunge"
+	case training.ActivityHall, training.ActivityArena:
 		if horseDiscipline == "jumping" {
 			return "jumping"
 		}

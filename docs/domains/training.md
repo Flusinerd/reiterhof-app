@@ -77,8 +77,8 @@ session days are calendar dates in that zone.
 Context line: `Regen, 6 °C · Boden nass · Turnier in 3 Tagen · Reha: Phase 2`, each part only when
 known (weather snapshot, ground not dry, next show within 14 days, active reha phase).
 
-Each recommendation may carry `exercise` (with steps): for hall, arena and lunge the dressage
-library (jumping library for jumping horses), for jumping and groundwork the matching library. It is
+Each recommendation may carry `exercise` (with steps): for hall and arena the dressage
+library (jumping library for jumping horses), for jumping, groundwork and lunge the matching library. It is
 the first exercise, easiest first along the progression, that the horse has not mastered yet
 (no session with focus rating "Sitzt" for it).
 
@@ -164,11 +164,18 @@ stable's timezone, so DST weeks still have seven days.
 ## Seed
 
 `internal/seed/training.go`: profiles for all seven demo horses (the three minimal rows are filled
-only while `discipline` is still empty, so local edits survive), 11 global exercises (dressage
-Übergänge, Zirkel verkleinern und vergrößern, Schulterherein, Travers, Traversale; jumping
-Stangenarbeit, Cavaletti, Gymnastikreihe; groundwork Führen und Halten, Rückwärtsrichten,
-Freiarbeit), a reha plan for Fanta (with abort criteria), 20 sessions in the two weeks before the day of seeding and
+only while `discipline` is still empty, so local edits survive), the global exercise library
+(`internal/seed/exercises.go`, 41 exercises: 17 dressage, 8 jumping, 10 groundwork, 6 lunging), a reha plan for Fanta (with abort criteria), 20 sessions in the two weeks before the day of seeding and
 three planned week slots for Luna.
+
+**Exercise library.** Every exercise lists the pages it is based on (`sources`, not stored); nothing is
+made up, a step without a figure in the sources leaves it out. Main sources: the FN member magazine
+"Pferd und Mensch" (series "Lektion im Fokus", "10 Tipps", Springausbildung with figures from Richtlinien
+Band 1/2), the FN Merkblätter for the badges Bodenarbeit, Vormustern and Longieren, de.wikipedia and
+established riding magazines. Levels: beginner = basic training and Klasse E/A, intermediate = A* to L*,
+advanced = L** and M (groundwork and lunging: the FN badge stages). Distances are for horses
+(Großpferde). The global rows are upserted on every seed (the app has no editor for them), so corrections
+reach existing databases.
 
 ## Open points
 

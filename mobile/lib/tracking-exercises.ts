@@ -44,6 +44,11 @@ const TAG_LABELS: Record<string, string> = {
   balance: "Balance",
   aufmerksamkeit: "Aufmerksamkeit",
   vertrauen: "Vertrauen",
+  anlehnung: "Anlehnung",
+  schwung: "Schwung",
+  geraderichten: "Geraderichten",
+  versammlung: "Versammlung",
+  gelassenheit: "Gelassenheit",
 };
 
 const capitalize = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);

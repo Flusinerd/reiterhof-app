@@ -19,7 +19,7 @@ import (
 
 // Seed ids of the exercise library (see internal/seed/training.go).
 const (
-	exUebergaenge    = "00000000-0000-4000-8000-000000000808"
+	exAufwaermen     = "00000000-0000-4000-8000-000000000840"
 	exSchulterherein = "00000000-0000-4000-8000-000000000810"
 	exTravers        = "00000000-0000-4000-8000-000000000811"
 )

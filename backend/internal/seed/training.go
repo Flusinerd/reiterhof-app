@@ -12,8 +12,8 @@ import (
 	"github.com/Flusinerd/reiterhof-app/backend/internal/training/load"
 )
 
-// Training seed (M6): profiles for all demo horses, a starter exercise library
-// (global rows, stable_id NULL), a reha plan for Fanta, about two weeks of sessions
+// Training seed (M6): profiles for all demo horses, the exercise library
+// (global rows, stable_id NULL, see exercises.go), a reha plan for Fanta, about two weeks of sessions
 // relative to the day of seeding and a few planned week slots.
 //
 // ID scheme continues the one in ids.go: 8YY exercises, 9YY sessions, a01.. week slots,
@@ -21,80 +21,6 @@ import (
 
 func seedID(table string, n int) string {
 	return fmt.Sprintf("00000000-0000-4000-8000-000000000%s%02d", table, n)
-}
-
-type exerciseSeed struct {
-	n          int
-	discipline string
-	level      string
-	title      string
-	tags       []string
-	steps      []string
-	next       int // n of the follow-up exercise, 0 = none
-}
-
-// Library, ordered so that every follow-up exercise is inserted before its predecessor
-// (next_exercise_id is a foreign key).
-var exerciseLibrary = []exerciseSeed{
-	{12, "dressage", "advanced", "Traversale", []string{"seitengaenge", "biegung"}, []string{
-		"Aus dem Travers auf der Diagonalen ansetzen, Pferd bleibt in der Längsbiegung.",
-		"Schulter führt leicht voraus, die Hinterhand folgt auf eigenem Hufschlag.",
-		"Nach wenigen Tritten gerade richten und aus der Seitwärtsbewegung herausreiten.",
-	}, 0},
-	{11, "dressage", "intermediate", "Travers", []string{"seitengaenge", "biegung"}, []string{
-		"Auf dem Zirkel oder an der langen Seite mit Stellung und Biegung in Bewegungsrichtung beginnen.",
-		"Hinterhand leicht nach innen bringen, die Schultern bleiben auf dem Hufschlag.",
-		"Wenige Tritte reiten, gerade richten und loben.",
-		"Auf beiden Händen im Wechsel wiederholen.",
-	}, 12},
-	{10, "dressage", "intermediate", "Schulterherein", []string{"seitengaenge", "losgelassenheit"}, []string{
-		"Im Schritt auf der Zirkellinie beginnen, Pferd leicht nach innen stellen.",
-		"Vorhand von der Hufschlaglinie nach innen führen, innerer Hinterfuß tritt unter den Schwerpunkt.",
-		"Erst wenige Tritte, dann gerade reiten und die Zügel nachgeben.",
-		"Im Trab wiederholen, sobald der Schritt gleichmäßig gelingt.",
-	}, 11},
-	{9, "dressage", "beginner", "Zirkel verkleinern und vergrößern", []string{"biegung", "losgelassenheit"}, []string{
-		"Auf dem 20-Meter-Zirkel im Trab anreiten, Tempo und Takt halten.",
-		"Mit dem inneren Schenkel zum äußeren Zügel auf 15 Meter verkleinern.",
-		"Nach einer Runde mit treibendem Schenkel wieder auf 20 Meter vergrößern.",
-		"Beide Hände wechseln, zum Schluss lang zügeln.",
-	}, 10},
-	{8, "dressage", "beginner", "Übergänge", []string{"durchlaessigkeit", "losgelassenheit"}, []string{
-		"Schritt-Trab-Schritt an markierten Punkten reiten.",
-		"Vor jedem Übergang halbe Parade, dann Übergang sanft mit Kreuz und Schenkel einleiten.",
-		"Nach dem Übergang den Takt sofort wiederfinden.",
-		"Steigern: Trab-Galopp-Trab und Übergänge innerhalb der Gangart.",
-	}, 9},
-	{22, "jumping", "intermediate", "Gymnastikreihe", []string{"springgymnastik", "rhythmus"}, []string{
-		"Drei Cavaletti im Abstand von 1,30 m, danach ein Kreuz im Abstand von 2,70 m aufbauen.",
-		"Im Trab anreiten, gleichmäßigen Rhythmus halten.",
-		"Nach dem Sprung ruhig weiterreiten und auf Linie bleiben.",
-	}, 0},
-	{21, "jumping", "beginner", "Cavaletti", []string{"rhythmus", "springgymnastik"}, []string{
-		"Vier Cavaletti im Abstand von 1,30 m aufbauen (Trab).",
-		"In der Mitte anreiten, im leichten Sitz mitgehen.",
-		"Abstand für den Galopp auf 2,80 m vergrößern.",
-	}, 22},
-	{20, "jumping", "beginner", "Stangenarbeit", []string{"takt", "balance"}, []string{
-		"Vier Stangen im Abstand von 1,30 m auf den Boden legen.",
-		"Im Schritt darüber führen, dann im Trab reiten.",
-		"Auf gleichmäßige Tritte und eine ruhige Hand achten.",
-		"Stangen versetzen und die Hand wechseln.",
-	}, 21},
-	{32, "groundwork", "advanced", "Freiarbeit", []string{"vertrauen", "aufmerksamkeit"}, []string{
-		"Im Round Pen ohne Strick auf Stimme und Körpersprache arbeiten.",
-		"Anhalten, Antreten und Richtungswechsel auf ein Signal üben.",
-	}, 0},
-	{31, "groundwork", "intermediate", "Rückwärtsrichten", []string{"aufmerksamkeit", "balance"}, []string{
-		"Aus dem Stand mit leichtem Druck am Halfter zum Rückwärtstreten auffordern.",
-		"Jeden Schritt gerade und ohne Widerstand belohnen.",
-		"Mehrere Schritte aneinanderreihen, dann vorwärts antreten.",
-	}, 32},
-	{30, "groundwork", "beginner", "Führen und Halten", []string{"vertrauen", "aufmerksamkeit"}, []string{
-		"Neben der Schulter in gleichmäßigem Tempo führen.",
-		"Mit der Stimme und Körperhaltung anhalten, das Pferd wartet ruhig.",
-		"Antreten und Halten im Wechsel, Abstand zum Pferd konstant halten.",
-	}, 31},
 }
 
 type profileSeed struct {
@@ -136,8 +62,14 @@ func insertTraining(ctx context.Context, tx pgx.Tx, now time.Time) error {
 			id := seedID("8", e.next)
 			next = &id
 		}
-		q(`INSERT INTO exercises (id, stable_id, discipline, level, goal_tags, title, steps, next_exercise_id)
-		   VALUES ($1, NULL, $2, $3, $4, $5, $6, $7)`,
+		// Global rows have no editor in the app, so a re-seed brings corrections of the
+		// library to existing databases.
+		b.Queue(`INSERT INTO exercises (id, stable_id, discipline, level, goal_tags, title, steps, next_exercise_id)
+			VALUES ($1, NULL, $2, $3, $4, $5, $6, $7)
+			ON CONFLICT (id) DO UPDATE SET
+				discipline = EXCLUDED.discipline, level = EXCLUDED.level, goal_tags = EXCLUDED.goal_tags,
+				title = EXCLUDED.title, steps = EXCLUDED.steps, next_exercise_id = EXCLUDED.next_exercise_id
+			WHERE exercises.stable_id IS NULL`,
 			seedID("8", e.n), e.discipline, e.level, e.tags, e.title, steps, next)
 	}
 

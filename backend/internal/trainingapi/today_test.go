@@ -62,7 +62,7 @@ func TestTodayRainRecommendsHall(t *testing.T) {
 		t.Fatalf("dots = %v", dots)
 	}
 	// the hall exercise comes from the library (easiest not yet mastered dressage exercise)
-	if ex := obj(r[0]["exercise"]); ex["title"] != "Übergänge" || len(list(ex["steps"])) == 0 {
+	if ex := obj(r[0]["exercise"]); ex["title"] != "Rückwärtsrichten" || len(list(ex["steps"])) == 0 {
 		t.Fatalf("exercise = %v", r[0]["exercise"])
 	}
 	if got["can_log"] != true || got["has_profile"] != true {
@@ -173,6 +173,9 @@ func TestTodayRehaPhase(t *testing.T) {
 	got = e.call(seed.UserAnna, http.MethodGet, "/api/v1/horses/"+fanta+"/today", "", http.StatusOK)
 	if recs(got)[0]["activity"] != "lunge" || obj(got["reha"])["phase"] != "Longieren im Schritt" {
 		t.Fatalf("phase 2 = %v", got["recommendations"])
+	}
+	if ex := obj(recs(got)[0]["exercise"]); ex["title"] != "Aufwärmen im Schritt" { // lunging exercises for lunging
+		t.Fatalf("lunge exercise = %v", recs(got)[0]["exercise"])
 	}
 
 	// after the last phase (and without an active plan) the reha status is plain light-only
