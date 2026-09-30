@@ -65,12 +65,12 @@ export function BlanketRulesSheet({ open, onOpenChange, horseId, rules, blankets
     <Sheet
       open={open}
       onOpenChange={onOpenChange}
-      title="Regeln bearbeiten"
-      description="Die erste passende Regel von oben gilt. Leere Temperaturfelder bedeuten „egal“."
+      title="Regeln"
+      description="Die erste passende Regel gilt. Leere Felder heißen „egal“."
     >
       <ScrollView style={{ maxHeight: height * 0.55 }} contentContainerClassName="gap-3" keyboardShouldPersistTaps="handled">
         {drafts.length === 0 ? (
-          <Text variant="secondary">Noch keine Regeln. Ohne Regel gibt es keine Deckenempfehlung.</Text>
+          <Text variant="secondary">Noch keine Regeln, also keine Empfehlung.</Text>
         ) : null}
         {drafts.map((d, i) => (
           <Card key={d.key} shape="tile" className="gap-3 p-4">
@@ -84,7 +84,7 @@ export function BlanketRulesSheet({ open, onOpenChange, horseId, rules, blankets
             </View>
             {unreachable.includes(i + 1) ? (
               <Text variant="caption" tone="accent">
-                Diese Regel wird nie erreicht, weil eine Regel darüber schon alles abdeckt.
+                Wird nie erreicht: Eine Regel darüber deckt schon alles ab.
               </Text>
             ) : null}
             <View className="flex-row gap-3">
@@ -111,7 +111,7 @@ export function BlanketRulesSheet({ open, onOpenChange, horseId, rules, blankets
                 ))}
               </View>
             </View>
-            <Input value={d.note} onChangeText={(v) => patch(d.key, { note: v })} accessibilityLabel={`Regel ${i + 1}: Wunsch`} placeholder="Wunsch an die Helfer (optional)" maxLength={200} />
+            <Input value={d.note} onChangeText={(v) => patch(d.key, { note: v })} accessibilityLabel={`Regel ${i + 1}: Wunsch`} placeholder="Wunsch (optional)" maxLength={200} />
           </Card>
         ))}
         <Button

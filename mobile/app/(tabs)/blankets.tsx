@@ -13,7 +13,6 @@ import {
   nightLine,
   progressFraction,
   progressLabel,
-  progressText,
   reminderHint,
   type StateAction,
 } from "@/lib/blankets";
@@ -69,7 +68,7 @@ export default function Blankets() {
         value={data ? progressLabel(data.progress) : "–"}
         valueSize="lg"
         unit="versorgt"
-        description={data ? `${nightLine(data.weather)}\n${progressText(data.progress)}` : "Wird geladen ..."}
+        description={data ? nightLine(data.weather) : "Wird geladen ..."}
       >
         {data ? (
           <View className="gap-2">
@@ -119,12 +118,7 @@ export default function Blankets() {
             </View>
           ) : (
             <Card>
-              <Text variant="bodyStrong">{data.horses.length === 0 ? "Keine Pferde" : "Alles erledigt"}</Text>
-              <Text variant="secondary">
-                {data.horses.length === 0
-                  ? "Sobald Pferde im Stall angelegt sind, erscheinen sie hier."
-                  : "Alle Pferde sind für heute Nacht versorgt. Danke!"}
-              </Text>
+              <Text variant="bodyStrong">{data.horses.length === 0 ? "Noch keine Pferde" : "Alles erledigt"}</Text>
             </Card>
           )}
 

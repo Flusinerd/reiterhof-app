@@ -7,21 +7,21 @@ export function requestErrorMessage(err: unknown): string {
   if (err instanceof ApiError) {
     switch (err.code) {
       case "request_full":
-        return "Leider schon vergeben: Alle Plätze sind belegt.";
+        return "Schon vergeben.";
       case "not_open":
-        return "Diese Anfrage ist bereits erledigt oder abgesagt.";
+        return "Schon erledigt oder abgesagt.";
       case "expired":
-        return "Diese Anfrage liegt in der Vergangenheit.";
+        return "Liegt in der Vergangenheit.";
       case "own_request":
-        return "Du kannst deine eigene Anfrage nicht annehmen.";
+        return "Das ist deine eigene Anfrage.";
       case "forbidden":
-        return "Das darfst du bei dieser Anfrage nicht.";
+        return "Nicht erlaubt.";
       case "not_found":
         return "Diese Anfrage gibt es nicht mehr.";
       case "too_many_helpers":
-        return "Es haben sich schon mehr Helfer eingetragen. Bitte sie zuerst, sich abzumelden.";
+        return "Schon mehr Helfer eingetragen. Sie müssen sich erst abmelden.";
       case "conflict":
-        return "An diesem Tag gibt es schon eine Anfrage dieser Serie.";
+        return "Für diesen Tag gibt es schon eine Anfrage der Serie.";
     }
   }
   return errorMessage(err);

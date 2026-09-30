@@ -76,7 +76,7 @@ export default function PresenceScreen() {
   const visibility = (user?.presence_visibility ?? data?.me.visibility ?? "all") as PresenceVisibility;
   const today = localDate(new Date(), timeZone);
 
-  let heroDescription = "Tippe auf „Bin da“, wenn du im Stall ankommst.";
+  let heroDescription: string | undefined;
   if (open) heroDescription = `Andere sehen dich ${visibility === "all" ? sinceLabel(open.arrived_at, timeZone) : "nach deiner Einstellung"}.`;
   else if (data?.me.last_visit?.left_at) {
     heroDescription = `Zuletzt im Stall: ${lastSeenLabel(
@@ -92,11 +92,10 @@ export default function PresenceScreen() {
       refreshControl={<RefreshControl refreshing={overview.isRefetching} onRefresh={() => void overview.refetch()} />}
     >
       <Hero
-        eyebrow="Anwesenheit"
-        title={open ? "Du bist im Stall" : "Du bist nicht im Stall"}
+        title={open ? "Im Stall" : "Nicht im Stall"}
         value={open ? formatClock(open.arrived_at, timeZone) : undefined}
         valueSize="sm"
-        unit={open ? "Uhr, seit Ankunft" : undefined}
+        unit={open ? "Uhr" : undefined}
         description={heroDescription}
       >
         <Button
@@ -122,7 +121,7 @@ export default function PresenceScreen() {
           <>
             <Switch
               label="Automatisch erkennen"
-              description="Die App meldet dich an und ab, wenn du den Stall erreichst oder verlässt. Nur auf diesem Gerät."
+              description="Meldet dich automatisch an und ab. Nur auf diesem Gerät."
               value={geofence.enabled}
               disabled={geofence.busy}
               onValueChange={(on) => void toggleGeofence(on)}
@@ -133,13 +132,13 @@ export default function PresenceScreen() {
               </Text>
             ) : null}
             <Text variant="caption">
-              Dein Standort bleibt auf dem Handy, der Server erfährt nur „angekommen“ und „gegangen“.
+              Dein Standort bleibt auf dem Handy. Der Server erfährt nur Ankunft und Abgang.
             </Text>
             <Divider />
           </>
         ) : isWeb ? (
           <>
-            <Text variant="caption">Automatisch ein- und auschecken gibt es nur in der App aus dem App Store.</Text>
+            <Text variant="caption">Automatisches Ein- und Auschecken gibt es nur in der App.</Text>
             <Divider />
           </>
         ) : null}
@@ -165,7 +164,7 @@ export default function PresenceScreen() {
           onPress={() => router.push("/settings")}
         />
         <Button
-          label="Datenschutz und Einwilligungen"
+          label="Datenschutz"
           icon={ShieldCheck}
           variant="outline"
           fullWidth
@@ -196,7 +195,7 @@ export default function PresenceScreen() {
       ) : (
         <Card>
           <Text variant="body" tone="muted">
-            {data ? "Gerade ist niemand sonst im Stall." : "Wird geladen ..."}
+            {data ? "Sonst niemand da." : "Wird geladen ..."}
           </Text>
         </Card>
       )}
@@ -225,7 +224,7 @@ export default function PresenceScreen() {
         ) : (
           <View className="p-5">
             <Text variant="body" tone="muted">
-              {data ? "Noch niemand war im Stall." : "Wird geladen ..."}
+              {data ? "Noch keine Besuche." : "Wird geladen ..."}
             </Text>
           </View>
         )}

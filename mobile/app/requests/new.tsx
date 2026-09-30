@@ -82,15 +82,15 @@ export default function NewRequest() {
     setError(null);
     const from = timeFrom.trim() ? normalizeTime(timeFrom) : null;
     const to = timeTo.trim() ? normalizeTime(timeTo) : null;
-    if (timeFrom.trim() && !from) return setError("Bitte gib die Uhrzeit so ein: 18:00");
-    if (timeTo.trim() && !to) return setError("Bitte gib das Ende so ein: 19:30");
-    if (NEEDS_HORSE.includes(type) && !horseId) return setError("Bitte wähle ein Pferd aus.");
+    if (timeFrom.trim() && !from) return setError("Uhrzeit im Format 18:00.");
+    if (timeTo.trim() && !to) return setError("Ende im Format 19:30.");
+    if (NEEDS_HORSE.includes(type) && !horseId) return setError("Pferd wählen.");
 
     let payload: Record<string, unknown> = {};
     let departure: string | null = null;
     switch (type) {
       case "show_helper":
-        if (!showName.trim()) return setError("Wie heißt das Turnier?");
+        if (!showName.trim()) return setError("Turniername fehlt.");
         payload = {
           show_name: showName.trim(),
           classes: classes.filter((c) => c.name.trim()).map((c) => ({ name: c.name.trim(), ...(c.time ? { time: c.time } : {}) })),
@@ -100,8 +100,8 @@ export default function NewRequest() {
         break;
       case "ride_share":
         departure = from;
-        if (!destination.trim()) return setError("Wohin geht die Fahrt?");
-        if (!departure) return setError("Bitte gib die Abfahrtszeit an, z. B. 07:15");
+        if (!destination.trim()) return setError("Ziel fehlt.");
+        if (!departure) return setError("Abfahrtszeit fehlt, z. B. 07:15.");
         payload = { destination: destination.trim(), departure_time: departure, seats_free: seats };
         break;
       case "exercise":
@@ -147,11 +147,7 @@ export default function NewRequest() {
 
   return (
     <Screen back keyboardShouldPersistTaps="handled">
-      <Hero
-        eyebrow="Neue Anfrage"
-        title="Wobei brauchst du Hilfe?"
-        description="Die Anfrage geht an alle im Stall, auch wenn sie gerade nicht da sind."
-      />
+      <Hero title="Neue Anfrage" description="Geht an alle im Stall." />
 
       <View className="gap-3">
         <SectionLabel>Art der Anfrage</SectionLabel>
@@ -286,7 +282,7 @@ export default function NewRequest() {
                 <Pill label="Reiten" selected={mode === "ride"} onPress={() => setMode("ride")} />
               </View>
             </FieldRow>
-            <FieldRow label="Regeln für dieses Pferd" hint="Optional, zum Beispiel: nur Schritt und Trab">
+            <FieldRow label="Regeln für dieses Pferd" hint="Optional, z. B. nur Schritt und Trab">
               <Input value={rulesNote} onChangeText={setRulesNote} accessibilityLabel="Regeln" />
             </FieldRow>
           </Card>
@@ -328,7 +324,7 @@ export default function NewRequest() {
         <SectionLabel>Weitere Angaben</SectionLabel>
         <Card className="gap-5">
           {type !== "show_helper" ? (
-            <FieldRow label="Checkliste" hint="Optional, was der Helfer tun soll">
+            <FieldRow label="Checkliste" hint="Optional">
               <View className="flex-row items-center gap-2">
                 <Input className="flex-1" value={taskDraft} onChangeText={setTaskDraft} onSubmitEditing={addTask} placeholder="z. B. Hufe auskratzen" accessibilityLabel="Neue Aufgabe" />
                 <Button variant="outline" size="icon" icon={Plus} accessibilityLabel="Aufgabe hinzufügen" onPress={addTask} />
@@ -363,7 +359,7 @@ export default function NewRequest() {
           </FieldRow>
 
           {dateEnd ? null : (
-            <FieldRow label="Wiederholung" hint={ruleText ? `Wird ${ruleText} neu angelegt.` : undefined}>
+            <FieldRow label="Wiederholung" hint={ruleText ? `Wiederholt sich ${ruleText}.` : undefined}>
               <View className="flex-row flex-wrap gap-2">
                 <Pill label="Einmalig" selected={recurrence === "none"} onPress={() => setRecurrence("none")} />
                 <Pill label="Täglich" selected={recurrence === "daily"} onPress={() => setRecurrence("daily")} />

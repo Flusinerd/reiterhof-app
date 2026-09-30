@@ -12,9 +12,9 @@ import { REQUEST_FILTERS, filterParams, toIsoDate, type RequestFilter } from "@/
 import { requestErrorMessage } from "@/lib/requests-errors";
 
 const EMPTY_TEXT: Record<RequestFilter, string> = {
-  open: "Aktuell sucht niemand Hilfe. Schön!",
-  mine: "Du hast noch keine Anfrage gestellt.",
-  helping: "Du hilfst gerade bei keiner Anfrage.",
+  open: "Keine offenen Anfragen.",
+  mine: "Noch keine eigenen Anfragen.",
+  helping: "Du hilfst bei keiner Anfrage.",
   done: "Noch nichts erledigt.",
 };
 
@@ -56,10 +56,8 @@ export default function Requests() {
       }
     >
       <Hero
-        eyebrow="Stallgasse"
         value={String(open)}
         unit={open === 1 ? "offene Anfrage" : "offene Anfragen"}
-        description={open === 0 ? "Gerade braucht niemand Hilfe." : "Vielleicht kannst du heute jemandem helfen."}
       >
         <View className="flex-row flex-wrap gap-3">
           <Button
@@ -67,7 +65,7 @@ export default function Requests() {
             icon={Plus}
             variant="secondary"
             onPress={() => router.push("/requests/new")}
-            accessibilityLabel="Neue Anfrage stellen"
+            accessibilityLabel="Neue Anfrage"
           />
         </View>
       </Hero>
@@ -124,9 +122,8 @@ export default function Requests() {
 
       <SectionLabel>Benachrichtigungen</SectionLabel>
       <Card className="gap-2">
-        <Text variant="body">Ob dich neue Anfragen und Erinnerungen benachrichtigen, stellst du in den Einstellungen ein.</Text>
         <Button
-          label="Benachrichtigungen einstellen"
+          label="Einstellungen"
           icon={Bell}
           variant="outline"
           fullWidth
@@ -134,7 +131,7 @@ export default function Requests() {
         />
         {thanks.data && thanks.data.count > 0 ? (
           <Text variant="secondary">
-            {thanks.data.count === 1 ? "Dir wurde 1-mal Danke gesagt." : `Dir wurde ${thanks.data.count}-mal Danke gesagt.`}
+            {`${thanks.data.count}-mal bedankt.`}
           </Text>
         ) : null}
       </Card>

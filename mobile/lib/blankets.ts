@@ -115,7 +115,7 @@ function temp(c: number): string {
 
 /** "Heute Nacht 3 °C, Regen" / "Heute Nacht 8 °C, trocken" / text without a forecast. */
 export function nightLine(weather: Weather | null): string {
-  if (!weather) return "Noch keine Wettervorhersage für heute Nacht";
+  if (!weather) return "Noch keine Vorhersage";
   return `Heute Nacht ${temp(weather.night_min_c)}, ${weather.will_rain ? "Regen" : "trocken"}`;
 }
 
@@ -134,11 +134,11 @@ export function progressFraction(p: Progress): number {
   return p.total === 0 ? 1 : Math.min(1, p.done / p.total);
 }
 
-/** "Noch 3 Pferde offen" / "Alle Pferde versorgt". */
+/** "Noch 3 Pferde offen" / "Alle versorgt". */
 export function progressText(p: Progress): string {
   const open = p.total - p.done;
-  if (p.total === 0) return "Noch keine Pferde im Stall";
-  if (open <= 0) return "Alle Pferde versorgt";
+  if (p.total === 0) return "Noch keine Pferde";
+  if (open <= 0) return "Alle versorgt";
   return open === 1 ? "Noch 1 Pferd offen" : `Noch ${open} Pferde offen`;
 }
 
@@ -167,11 +167,11 @@ export function recommendationDetail(rec: Recommendation): string {
     case "blanket":
       return rec.blanket?.location ? `Ort: ${rec.blanket.location}` : "Ort nicht eingetragen";
     case "none":
-      return "Laut Deckenplan bleibt das Pferd ohne Decke";
+      return "Laut Deckenplan";
     case "no_rule":
-      return "Für diese Vorhersage gibt es keine Regel im Deckenplan";
+      return "Für diese Vorhersage fehlt eine Regel";
     case "no_weather":
-      return "Die Wettervorhersage fehlt noch";
+      return "Vorhersage fehlt noch";
   }
 }
 
@@ -253,9 +253,9 @@ export function coveredNights(states: readonly BlanketState[]): number {
 /** German text for a failed blanket call. */
 export function blanketErrorMessage(err: unknown): string {
   if (err instanceof ApiError) {
-    if (err.status === 403) return "Nur die Besitzerin, der Besitzer oder Admins dürfen den Deckenplan ändern.";
-    if (err.code === "in_use") return "Die Decke wird von einer Regel verwendet. Ändere zuerst die Regel.";
-    if (err.code === "file_too_large") return "Das Foto ist zu groß (höchstens 20 MB).";
+    if (err.status === 403) return "Nur Besitzerin, Besitzer oder Admins dürfen das ändern.";
+    if (err.code === "in_use") return "Die Decke wird in einer Regel verwendet.";
+    if (err.code === "file_too_large") return "Foto zu groß (max. 20 MB).";
   }
   return errorMessage(err);
 }
@@ -282,8 +282,8 @@ export function myBlanketLines(horses: readonly TodayHorse[], mineIds: ReadonlyS
 
 /** Description of the weather hero on the start screen. */
 export function startWeatherText(lines: readonly string[], hasWeather: boolean, hasHorses: boolean): string {
-  if (!hasWeather) return "Sobald die Vorhersage da ist, siehst du hier die Deckenempfehlung.";
-  if (!hasHorses) return "Du hast keine eigenen Pferde oder Reitbeteiligungen. Alle Pferde findest du unter Decken.";
-  if (lines.length === 0) return "Für deine Pferde gibt es noch keine Empfehlung.";
+  if (!hasWeather) return "Noch keine Vorhersage.";
+  if (!hasHorses) return "Keine eigenen Pferde. Alle findest du unter Decken.";
+  if (lines.length === 0) return "Noch keine Empfehlung.";
   return lines.join("\n");
 }

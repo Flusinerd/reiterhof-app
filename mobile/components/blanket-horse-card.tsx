@@ -61,7 +61,7 @@ export function BlanketHorseCard({ item, pending, onAction, onOpenPlan }: Props)
           <Icon as={MessageSquareQuote} size={16} className="mt-0.5 text-accent-text" />
           <Text variant="bodySm" className="flex-1">
             <Text variant="bodySm" tone="accent">
-              Wunsch der Besitzerin oder des Besitzers:{" "}
+              Besitzerwunsch:{" "}
             </Text>
             {rec.note}
           </Text>
@@ -115,7 +115,7 @@ export function BlanketDoneRow({
           />
           <Pressable accessibilityRole="button" onPress={onOpenPlan} className="min-h-touch justify-center">
             <Text variant="bodySm" tone="primary">
-              Deckenplan von {horse.name} ansehen
+              Deckenplan ansehen
             </Text>
           </Pressable>
         </View>

@@ -18,7 +18,7 @@ test("visibility labels", () => {
   assert.equal(visibilityLabel("all"), "Alle");
   assert.equal(visibilityLabel("only_day"), "Nur Tag");
   assert.equal(visibilityLabel("hidden"), "Versteckt");
-  assert.match(visibilityDescription("only_day"), /keine Uhrzeiten/);
+  assert.match(visibilityDescription("only_day"), /keine Uhrzeit/);
 });
 
 test("formatClock uses the stable time zone (summer and winter time)", () => {

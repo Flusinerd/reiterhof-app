@@ -13,7 +13,7 @@ import { useInvalidateOnEvents } from "@/lib/realtime";
 import { groupByDay, reminderErrorMessage, type ReminderItem, type RemindersResponse } from "@/lib/reminders";
 import { colors } from "@/lib/theme";
 
-const EMPTY_TEXT = { today: "Heute steht nichts an.", week: "In den nächsten Tagen steht nichts an." } as const;
+const EMPTY_TEXT = { today: "Heute steht nichts an.", week: "Diese Woche steht nichts an." } as const;
 
 /** Reminder center (JAN-69): tonight's blanket check, then today's and this week's reminders. */
 export default function Reminders() {

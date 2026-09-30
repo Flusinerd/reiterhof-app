@@ -37,7 +37,7 @@ export function BlanketHistory({
   if (groups.length === 0) {
     return (
       <Card>
-        <Text variant="secondary">In den letzten {days} Tagen wurde noch nichts eingetragen.</Text>
+        <Text variant="secondary">Noch nichts eingetragen.</Text>
       </Card>
     );
   }

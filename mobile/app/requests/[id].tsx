@@ -96,7 +96,7 @@ export default function RequestDetail() {
   async function exportToCalendar() {
     if (!r) return;
     const result = await addToDeviceCalendar(r);
-    setNotice(result === "failed" ? "Das hat leider nicht geklappt." : null);
+    setNotice(result === "failed" ? "Das hat nicht geklappt." : null);
   }
 
   return (
@@ -106,7 +106,7 @@ export default function RequestDetail() {
         <RefreshControl refreshing={query.isRefetching} onRefresh={() => void query.refetch()} tintColor={colors.primary.DEFAULT} />
       }
     >
-      <Hero eyebrow={`Anfrage von ${r.is_creator ? "dir" : r.creator_name}`} title={requestTitle(r)} description={formatWhen(r)}>
+      <Hero eyebrow={`Von ${r.is_creator ? "dir" : r.creator_name}`} title={requestTitle(r)} description={formatWhen(r)}>
         <View className="flex-row items-center gap-3">
           <RequestTypeIcon type={r.type} size={36} />
           <Badge label={status.label} variant={status.variant} />
@@ -201,9 +201,9 @@ export default function RequestDetail() {
                 {h.user_id === user?.id ? `${h.name} (du)` : h.name}
               </Text>
               {h.thanked ? (
-                <Badge label="Danke gesagt" variant="primary" />
+                <Badge label="Bedankt" variant="primary" />
               ) : r.is_creator && r.status !== "cancelled" ? (
-                <Pill label="Danke sagen" icon={Heart} onPress={() => thank.mutate(h.user_id)} />
+                <Pill label="Danke" icon={Heart} onPress={() => thank.mutate(h.user_id)} />
               ) : null}
             </View>
           ))}
@@ -240,7 +240,7 @@ export default function RequestDetail() {
         {r.status === "done" ? (
           <View className="flex-row items-center gap-2">
             <Icon as={Check} size={18} className="text-primary" />
-            <Text variant="secondary">Erledigt. Danke an alle, die geholfen haben.</Text>
+            <Text variant="secondary">Erledigt. Danke an alle Helfer.</Text>
           </View>
         ) : null}
       </View>
@@ -253,7 +253,7 @@ export default function RequestDetail() {
       >
         <View className="gap-3">
           <Button
-            label={r.series_id ? "Nur diese Anfrage absagen" : "Anfrage absagen"}
+            label={r.series_id ? "Nur diese absagen" : "Anfrage absagen"}
             variant="danger"
             fullWidth
             onPress={() => {

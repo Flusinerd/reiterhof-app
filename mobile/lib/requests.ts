@@ -153,7 +153,7 @@ export function helperCountText(count: number, needed: number, type?: RequestTyp
 /** Longer status sentence for the detail screen. */
 export function helperStatusText(count: number, needed: number, type?: RequestType): string {
   const left = needed - count;
-  if (left <= 0) return type === "ride_share" ? "Alle Plätze sind belegt" : "Alle Helfer sind gefunden";
+  if (left <= 0) return type === "ride_share" ? "Alle Plätze belegt" : "Alle Helfer gefunden";
   if (type === "ride_share") return left === 1 ? "Noch 1 Platz frei" : `Noch ${left} Plätze frei`;
   return left === 1 ? "Noch 1 Helfer gesucht" : `Noch ${left} Helfer gesucht`;
 }
@@ -450,7 +450,7 @@ export function payloadDetails(r: Pick<HelpRequest, "type" | "payload">): { labe
       if (classes.length > 0) {
         rows.push({ label: "Prüfungen", value: classes.map((c) => (c.time ? `${c.name} (${c.time})` : c.name)).join(", ") });
       }
-      if (p.ride_along === true) rows.push({ label: "Mitfahrgelegenheit", value: "Im Hänger ist Platz" });
+      if (p.ride_along === true) rows.push({ label: "Mitfahrgelegenheit", value: "Platz im Hänger" });
       break;
     }
     case "ride_share":

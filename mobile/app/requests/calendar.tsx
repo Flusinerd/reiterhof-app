@@ -42,10 +42,9 @@ export default function HelperCalendar() {
       }
     >
       <Hero
-        eyebrow="Mein Helferkalender"
+        eyebrow="Mein Kalender"
         value={String(requests.length)}
         unit={requests.length === 1 ? "Termin" : "Termine"}
-        description={requests.length === 0 ? "Du hast dich noch nirgends eingetragen." : "Hier hilfst du demnächst."}
       />
 
       {query.isPending ? (
@@ -57,7 +56,7 @@ export default function HelperCalendar() {
         </Card>
       ) : requests.length === 0 ? (
         <Card className="gap-3">
-          <Text variant="secondary">Sobald du bei einer Anfrage „Mach ich“ sagst, erscheint sie hier.</Text>
+          <Text variant="secondary">Hier stehen Anfragen, bei denen du hilfst.</Text>
           <Button label="Zu den Anfragen" variant="outline" onPress={() => router.replace("/(tabs)/requests")} />
         </Card>
       ) : (
