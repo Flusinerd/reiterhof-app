@@ -172,6 +172,18 @@ Unattended-Upgrade::Automatic-Reboot-Time "04:30";
 Unattended-Upgrade::Remove-Unused-Dependencies "true";
 EOF
 
+# --- Journal retention ------------------------------------------------------------------
+# API and Caddy errors can contain client IP addresses; keep them four weeks at most
+# (stated in the privacy text, section 5).
+log "Limiting journal retention to four weeks"
+install -d -m 0755 /etc/systemd/journald.conf.d
+journald_conf='[Journal]
+MaxRetentionSec=4week'
+if [[ "$(cat /etc/systemd/journald.conf.d/reiterhof.conf 2>/dev/null)" != "$journald_conf" ]]; then
+  printf '%s\n' "$journald_conf" >/etc/systemd/journald.conf.d/reiterhof.conf
+  systemctl restart systemd-journald
+fi
+
 # --- PostgreSQL 16 (PGDG repository, identical on Debian and Ubuntu) -------------------
 log "Installing PostgreSQL 16"
 if [[ ! -f /etc/apt/sources.list.d/pgdg.sources && ! -f /etc/apt/sources.list.d/pgdg.list ]]; then

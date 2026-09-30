@@ -72,6 +72,7 @@ Das Skript erledigt:
 - Systembenutzer `reiterhof` (ohne Login), Login-Benutzer `admin` und `deploy`
 - SSH-Härtung: kein Root-Login, keine Passwort-Anmeldung
 - `ufw` (22 mit Rate-Limit, 80, 443), automatische Sicherheitsupdates (Neustart bei Bedarf um 04:30)
+- Systemjournal höchstens vier Wochen aufbewahren (Fehlerprotokolle können IP-Adressen enthalten)
 - PostgreSQL 16 (PGDG-Repository) inkl. Tuning, Datenbank und Rolle
 - Caddy (offizielles Repository), systemd-Units, Verzeichnisse `/opt/reiterhof`,
   `/var/www/stallfunk` (Web-App, gehört dem Benutzer `deploy`, Caddy liest nur),
@@ -292,7 +293,8 @@ DSGVO (Art. 28) brauchst du dafür einen **Auftragsverarbeitungsvertrag (AVV/DPA
    Verarbeitungstätigkeiten festhalten; für den Backup-Speicher ebenfalls einen AVV abschließen.
 
 Das ersetzt keine Rechtsberatung. Die Caddy-Konfiguration schreibt bewusst kein Access-Log
-mit IP-Adressen.
+mit IP-Adressen, PostgreSQL protokolliert langsame Abfragen ohne Parameterwerte, das Systemjournal
+wird nach vier Wochen gelöscht.
 
 ## Betrieb: stallfunk-admin
 
