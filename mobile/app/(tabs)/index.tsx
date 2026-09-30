@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { ActivityIndicator } from "react-native";
 
+import { PresenceTile } from "@/components/presence-tile";
 import { Card, Hero, Screen, SectionLabel, Text } from "@/components/ui";
 import { fetchHealth } from "@/lib/api";
 
@@ -14,6 +15,8 @@ export default function Home() {
         title="Start"
         description="Wetter und Deckenempfehlung folgen in Meilenstein 3."
       />
+      <SectionLabel>Anwesenheit</SectionLabel>
+      <PresenceTile />
       <SectionLabel>Verbindung</SectionLabel>
       <Card className="flex-row items-center justify-between">
         <Text variant="body">Server</Text>
