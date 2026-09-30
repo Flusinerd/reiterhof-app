@@ -29,7 +29,9 @@ const (
 )
 
 const (
-	// DefaultURL is the chat completions endpoint.
+	// DefaultURL is the chat completions endpoint. It is the EU endpoint: Mistral runs it in
+	// the EEA (subprocessor list in the Trust Center); the US API endpoint runs at Google in the
+	// United States and must not be used (docs/legal/avv-checkliste.md, Teil 1).
 	DefaultURL = "https://api.mistral.ai/v1/chat/completions"
 	// DefaultModel is small, cheap and good enough for a JSON week plan.
 	DefaultModel = "mistral-small-latest"

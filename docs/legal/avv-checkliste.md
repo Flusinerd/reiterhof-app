@@ -11,7 +11,7 @@ Diese Liste ist für den Betreiber (nicht für die App). Sie sagt, was vor dem S
 3. Apple und Google: Konten, Schlüssel, „App-Datenschutz“ bzw. „Data safety“, Status „kein Unternehmer“ nach dem DSA, Datenschutz-Link (Teil 2 und 5).
 4. Laufend: Restore-Test vierteljährlich, Postfach für Anfragen lesen (Teil 5).
 5. Auf bestehenden Servern `provision.sh` einmal erneut ausführen, damit die Protokoll-Einstellungen greifen (Teil 5).
-6. Mistral: Unterauftragsverarbeiter im Trust Center ansehen und Updates abonnieren (Teil 1).
+6. Mistral: Updates zu Unterauftragsverarbeitern im Trust Center abonnieren, DPF-Einträge von Cloudflare und CrowdStrike nachsehen (Teil 1).
 
 ## 1. Auftragsverarbeitungsverträge (AVV, Art. 28 DSGVO)
 
@@ -30,7 +30,12 @@ Ein AVV ist nötig, wenn ein Dienstleister in deinem Auftrag personenbezogene Da
   - Unterauftragsverarbeiter: Liste im Trust Center; Benachrichtigung über neue nur, wer die Updates dort abonniert; Widerspruch binnen 10 Tagen an privacy@mistral.ai (7). Drittland: nur mit Angemessenheitsbeschluss oder Standardvertragsklauseln (8.1); laut Datenschutzerklärung vorrangig Dienstleister in der EU.
 - [x] **Mistral, Free-Plan im Betrieb:** Die Commercial Terms beschränken nur Beta-Produkte (2.3) und Labs- oder Preview-Modelle (4.3) auf Tests, nicht den Free-Plan. Der Einsatz in der App ist damit zulässig.
 - [x] **Mistral, Minderjährige:** Commercial Terms 2.2 (c) verbieten personenbezogene Daten von Kindern unter dem Alter der digitalen Einwilligung (in Deutschland 16) als Customer Data. Der Server fragt die KI nur für Pferde, deren Besitzer selbst „16 oder älter“ angegeben hat (`users.age_confirmed_at`; bei Zustimmung der Eltern nicht, `ai_status: owner_under_16`). Einheiten minderjähriger Reitbeteiligungen gehen ohne Namen, Kennung und Datum mit; für Mistral sind sie keiner Person zuzuordnen (Einschätzung: vertretbar).
-- [ ] **Mistral, Unterauftragsverarbeiter:** trust.mistral.ai/subprocessors im Browser ansehen (die Seite ließ sich hier nicht maschinell lesen), Standorte notieren und dort die Updates abonnieren, damit die Widerspruchsfrist von 10 Tagen nicht ungenutzt verstreicht. Der Datenschutztext deckt Übermittlungen außerhalb der EU allgemein ab (Angemessenheit oder Standardvertragsklauseln); nennt die Liste einen Dienstleister in den USA ohne DPF-Zertifizierung, Abschnitt 3.12 konkretisieren.
+- [x] **Mistral, Unterauftragsverarbeiter (Liste aus dem Trust Center, 30.09.2026):** Für die Anfragen der App (Chat Completions über den EU-Endpunkt `api.mistral.ai`, ohne Bilder, Websuche oder Code-Interpreter) sind relevant:
+  - Verarbeitung im EWR: Mistral Compute (Frankreich), Microsoft Azure (Schweden, Norwegen), Google (Niederlande, Belgien; die USA nur für den US-API-Endpunkt, den der Server nicht nutzt), CoreWeave (EWR), Kong (API-Sicherheit, EWR), Sentry (Fehler, EWR), Wiz (EWR).
+  - Mögliche Zugriffe aus Drittländern: Cloudflare (CDN und Traffic, weltweit, „local to customer“), CrowdStrike (Sicherheit, EWR und USA), verbundene Unternehmen von Mistral (u. a. Mistral AI Inc., USA; Mistral AI Pte Ltd, Singapur; Vereinigtes Königreich und Schweiz mit Angemessenheitsbeschluss). Grundlage laut DPA 8.1: Angemessenheit (für die USA das DPF) oder Standardvertragsklauseln. Datenschutztext 3.12 nennt Orte und Grundlagen.
+  - Nicht relevant für die App: Black Forest Labs (Bilder), Brave (Websuche), Foundrylabs/E2B (Code-Interpreter), die Anbieter von „Vibe Code Web“ (Scaleway, Latitude.sh, OVH, Backblaze, Vultr), Stripe und Lago (nur bezahlte Tarife), Gradual (Partner Academy). Ory, Resend, Intercom und Twilio (Telefonnummer-Prüfung, USA) betreffen nur das Mistral-Konto des Betreibers, nicht die Daten der Nutzer.
+  - Einschätzung: passt. Der Server darf nur den EU-Endpunkt nutzen (Kommentar an `mistral.DefaultURL`).
+- [ ] **Mistral, laufend:** Im Trust Center (Subprocessors, „Updates“) die Benachrichtigungen abonnieren, sonst erfährt der Betreiber nichts von neuen Unterauftragsverarbeitern (Widerspruch binnen 10 Tagen an privacy@mistral.ai). DPF-Zertifizierung von Cloudflare, Inc. und CrowdStrike, Inc. einmal auf dataprivacyframework.gov nachsehen (hier nicht maschinell lesbar); fehlt sie, stützt sich die Übermittlung auf die Standardvertragsklauseln, der Text deckt beides ab.
 - [x] **Domain-/DNS-Anbieter:** kein AVV nötig. Beim DNS-Anbieter fallen keine Daten der Nutzer an (Namensauflösung läuft über die Resolver der Nutzer, die Seiten liegen auf dem eigenen Server).
 
 ## 2. Apple und Google (Expo entfällt)
