@@ -40,8 +40,9 @@ Datenbanktests laufen nur mit `REITERHOF_TEST_DATABASE_URL` (Admin-URL, z. B.
 Aufbau des Backends, Migrationen und Konventionen: [`docs/architecture.md`](docs/architecture.md).
 Anmeldung (E-Mail-Link, Google, Apple) einrichten: [`docs/auth-setup.md`](docs/auth-setup.md). Lokal: `REITERHOF_DEV_LOGIN=true just api`, dann `POST /api/v1/auth/dev-login {"email":"jan@example.org"}`.
 
-Die App erwartet die API unter `http://10.0.2.2:8080` (Android-Emulator).
-Für ein echtes Gerät `expo.extra.apiUrl` in `mobile/app.json` setzen.
+Die App spricht standardmäßig mit `https://api.stallfunk.de` (`expo.extra.apiUrl` in `mobile/app.json`).
+`just app` setzt für die lokale Entwicklung `STALLFUNK_API_URL=http://10.0.2.2:8080` (Android-Emulator);
+für ein echtes Gerät im WLAN die IP deines Rechners angeben, z. B. `STALLFUNK_API_URL=http://192.168.1.20:8080 just app`.
 
 ## Konventionen
 

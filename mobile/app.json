@@ -44,7 +44,7 @@
       }
     },
     "extra": {
-      "apiUrl": "http://10.0.2.2:8080",
+      "apiUrl": "https://api.stallfunk.de",
       "googleWebClientId": "",
       "googleIosClientId": "",
       "googleAndroidClientId": ""

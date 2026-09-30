@@ -15,7 +15,7 @@ api:
 
 # Start the Expo dev server
 app:
-  cd mobile && npm start
+  cd mobile && STALLFUNK_API_URL="${STALLFUNK_API_URL:-http://10.0.2.2:8080}" npm start
 
 # Local Postgres admin connection (used by db-reset) and the app database it (re)creates.
 # The API, migrate and seed read REITERHOF_DATABASE_URL (default: database "reiterhof").
