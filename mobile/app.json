@@ -5,6 +5,7 @@
     "version": "0.1.0",
     "scheme": "stallfunk",
     "orientation": "portrait",
+    "icon": "./assets/icon-1024.png",
     "userInterfaceStyle": "light",
     "plugins": [
       "expo-router",

@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { Platform } from "react-native";
+import { Image, Platform } from "react-native";
 
 import { LegalLinks } from "@/components/consent-legal-links";
 import { AppleSignInButton, GoogleSignInButton } from "@/components/social-sign-in";
@@ -34,6 +34,11 @@ export default function SignIn() {
 
   return (
     <Screen keyboardShouldPersistTaps="handled">
+      <Image
+        source={require("../../assets/logo-256.png")}
+        accessibilityLabel="Stallfunk"
+        style={{ width: 64, height: 64, borderRadius: 16 }}
+      />
       <Hero
         eyebrow="Stallfunk"
         title="Willkommen"

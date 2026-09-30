@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Stallfunk">
+  <rect width="512" height="512" rx="112" fill="#2d5a3d"/>
+  <path d="M 376.68 262.56 A 120.68 120.68 0 0 1 135.32 262.56" fill="none" stroke="#f6f4ee" stroke-width="62.96" stroke-linecap="butt"/>
+  <rect x="103.84" y="173.36" width="62.96" height="91.82" fill="#f6f4ee"/>
+  <rect x="345.2" y="173.36" width="62.96" height="91.82" fill="#f6f4ee"/>
+  <circle cx="135.32" cy="199.6" r="8.4" fill="#2d5a3d"/>
+  <circle cx="135.32" cy="257.31" r="8.4" fill="#2d5a3d"/>
+  <circle cx="376.68" cy="199.6" r="8.4" fill="#2d5a3d"/>
+  <circle cx="376.68" cy="257.31" r="8.4" fill="#2d5a3d"/>
+  <circle cx="341.33" cy="347.89" r="8.4" fill="#2d5a3d"/>
+  <circle cx="170.67" cy="347.89" r="8.4" fill="#2d5a3d"/>
+  <circle cx="256" cy="231.08" r="22.3" fill="#fbbf24"/>
+  <path d="M 207.77 182.85 A 68.21 68.21 0 0 1 304.23 182.85" fill="none" stroke="#fbbf24" stroke-width="24.92" stroke-linecap="round"/>
+  <path d="M 181.7 135.98 A 120.68 120.68 0 0 1 330.3 135.98" fill="none" stroke="#fbbf24" stroke-width="24.92" stroke-linecap="round"/>
+</svg>

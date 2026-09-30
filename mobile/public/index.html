@@ -5,8 +5,9 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <!--
       HTML shell of the PWA. `web.output` is "single" (SPA), where Expo uses this file instead of
-      app/+html.tsx (which only static rendering reads). `%LANG_ISO_CODE%` and `%WEB_TITLE%` come
-      from app.json (`expo.web.lang`, `expo.name`); Expo appends the script and CSS links and the
+      app/+html.tsx (which only static rendering reads). `%LANG_ISO_CODE%` comes from
+      app.json (`expo.web.lang`); the title is written here because Expo no longer fills
+      `%WEB_TITLE%` in the single output. Expo appends the script and CSS links and the
       theme-color meta (`expo.web.themeColor`).
 
       - viewport-fit=cover: use the whole screen on an iPhone with a notch. The screens pad the
@@ -16,7 +17,7 @@
       - manifest, icons: see public/manifest.webmanifest and scripts/gen-icons.mjs.
     -->
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>%WEB_TITLE%</title>
+    <title>Stallfunk</title>
     <meta name="description" content="Anwesenheit, Decken, Anfragen, Pferdeakte und Training für die Stallgasse." />
 
     <link rel="manifest" href="/manifest.webmanifest" />
