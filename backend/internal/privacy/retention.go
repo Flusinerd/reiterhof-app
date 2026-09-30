@@ -14,8 +14,8 @@ import (
 const (
 	// PresenceMonths is how long finished presence visits are kept.
 	PresenceMonths = 12
-	// TrackMonths is how long the raw GPS track of a training session is kept; the session
-	// with its duration, distance and gait shares stays.
+	// TrackMonths is how long the raw GPS track and the raw gait windows of a training
+	// session are kept; the session with its duration, distance and gait shares stays.
 	TrackMonths = 12
 	// ReminderMonths is how long delivered reminders are kept.
 	ReminderMonths = 12
@@ -25,6 +25,7 @@ const (
 type PruneResult struct {
 	PresenceVisits int64
 	Tracks         int64
+	GaitWindows    int64
 	Reminders      int64
 	LoginTokens    int64
 	AuthSessions   int64
@@ -40,6 +41,7 @@ func Prune(ctx context.Context, pool *pgxpool.Pool, now time.Time) (PruneResult,
 	}{
 		{&res.PresenceVisits, `DELETE FROM presence WHERE left_at IS NOT NULL AND left_at < $1`, []any{months(now, PresenceMonths)}},
 		{&res.Tracks, `UPDATE sessions SET track = NULL WHERE track IS NOT NULL AND started_at < $1`, []any{months(now, TrackMonths)}},
+		{&res.GaitWindows, `DELETE FROM gait_windows g USING sessions s WHERE s.id = g.session_id AND s.started_at < $1`, []any{months(now, TrackMonths)}},
 		{&res.Reminders, `DELETE FROM reminders WHERE due_at < $1`, []any{months(now, ReminderMonths)}},
 		{&res.LoginTokens, `DELETE FROM login_tokens WHERE expires_at < $1`, []any{now}},
 		{&res.AuthSessions, `DELETE FROM auth_sessions WHERE expires_at < $1`, []any{now}},

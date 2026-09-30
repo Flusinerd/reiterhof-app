@@ -64,7 +64,7 @@ Rechtsgrundlage: Einwilligung, Art. 6 Abs. 1 lit. a DSGVO. Ohne Einwilligung leh
 
 ### 3.4 Strecken aufzeichnen (GPS-Tracking beim Reiten)
 
-Wenn du beim Reiten die Aufzeichnung einschaltest, wird deine Strecke (Positionspunkte mit Zeit, Strecke, Dauer und Gangarten) als Teil der Trainingseinheit auf dem Server gespeichert. Ohne Aufzeichnung wird kein Standort übertragen.
+Wenn du beim Reiten die Aufzeichnung einschaltest, wird deine Strecke (Positionspunkte mit Zeit, Strecke, Dauer und Gangarten) als Teil der Trainingseinheit auf dem Server gespeichert. Zusätzlich werden aus dem Bewegungssensor berechnete Merkmale je Zeitabschnitt (keine Positionsdaten) gespeichert, um die Gangarterkennung zu verbessern. Ohne Aufzeichnung wird kein Standort übertragen.
 
 Zweck: Trainingsdokumentation für dich und für das Pferd (Belastung, Gangarten-Anteile).
 
@@ -72,7 +72,7 @@ Wer sieht das? Die Trainingseinheit sehen der Besitzer des Pferdes, die Reitbete
 
 Rechtsgrundlage: Einwilligung, Art. 6 Abs. 1 lit. a DSGVO.
 
-Speicherdauer: Die Positionspunkte werden nach 12 Monaten gelöscht. Die Einheit mit Dauer, Strecke und Gangarten-Anteilen bleibt als Trainingsverlauf des Pferdes erhalten.
+Speicherdauer: Die Positionspunkte und die Sensormerkmale werden nach 12 Monaten gelöscht. Die Einheit mit Dauer, Strecke und Gangarten-Anteilen bleibt als Trainingsverlauf des Pferdes erhalten.
 
 ### 3.5 Fotos und Dokumente
 

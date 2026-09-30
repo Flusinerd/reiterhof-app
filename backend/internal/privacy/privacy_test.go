@@ -476,6 +476,9 @@ func TestPrune(t *testing.T) {
 		seed.UserTom, clock.Add(-time.Minute), clock.Add(time.Hour))
 	e.exec(`INSERT INTO reminders (stable_id, user_id, kind, title, due_at) VALUES ($1, $2, 'health_due', 'alt', $3), ($1, $2, 'health_due', 'neu', $4)`,
 		seed.StableB, seed.UserTom, old, recent)
+	// Raw gait windows follow the track: the old session's windows go, the recent ones stay.
+	e.exec(`INSERT INTO gait_windows (session_id, stable_id, window_count, windows)
+		SELECT id, stable_id, 1, '[{}]' FROM sessions WHERE user_id = $1 AND track IS NOT NULL`, seed.UserTom)
 	sessionsBefore := e.count(`SELECT count(*) FROM sessions`)
 
 	res, err := privacy.Prune(ctx, e.pool, clock)
@@ -493,6 +496,12 @@ func TestPrune(t *testing.T) {
 	}
 	if n := e.count(`SELECT count(*) FROM presence WHERE user_id = $1 AND left_at IS NULL`, seed.UserAnna); n != 1 {
 		t.Errorf("open visit was pruned")
+	}
+	if n := e.count(`SELECT count(*) FROM gait_windows g JOIN sessions s ON s.id = g.session_id WHERE s.started_at < $1`, clock.AddDate(0, -12, 0)); n != 0 {
+		t.Errorf("%d old gait windows remain", n)
+	}
+	if n := e.count(`SELECT count(*) FROM gait_windows g JOIN sessions s ON s.id = g.session_id WHERE s.track = '[2]'::jsonb`); n != 1 {
+		t.Errorf("recent gait windows were pruned")
 	}
 	if n := e.count(`SELECT count(*) FROM sessions WHERE track IS NOT NULL AND started_at < $1`, clock.AddDate(0, -12, 0)); n != 0 {
 		t.Errorf("%d old tracks remain", n)

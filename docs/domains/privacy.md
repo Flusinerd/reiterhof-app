@@ -56,7 +56,7 @@ Decisions:
   cleared, `is_admin = false`, `deleted_at` set. Without a stable the row does not show up in any member list.
 - **Deleted:** sessions, sign-in identities, login tokens for the email, push tokens, reminder settings, reminders,
   presence visits, rider roles, helper assignments (a request that was `assigned` only to this user is `open` again),
-  consents, GPS tracks (`sessions.track`), the media of reported observations (files are removed from disk after the
+  consents, GPS tracks (`sessions.track`) and raw gait windows (`gait_windows`), the media of reported observations (files are removed from disk after the
   commit; photos may show people and carry location metadata).
 - **Kept, now attributed to "Gelöschtes Mitglied":** observation text, training sessions (without track), requests
   (open and assigned ones are `cancelled`), week slots, document metadata.
@@ -73,13 +73,14 @@ Scheduler job `privacy-retention`, daily 03:30 Europe/Berlin (`privacy.Job`, `pr
 | --- | --- | --- |
 | finished presence visits (`presence.left_at`) | 12 months | deleted (open visits are closed by `presence-close-stale` after 12 hours) |
 | `sessions.track` (raw GPS) | 12 months after `started_at` | set to `NULL`, the session (duration, distance, gait shares) stays |
+| `gait_windows` (raw gait features) | 12 months after the session's `started_at` | deleted |
 | `reminders` | 12 months after `due_at` | deleted |
 | `login_tokens` | until `expires_at` (15 minutes) | deleted when expired |
 | `auth_sessions` | 90 days sliding | deleted when expired |
 | Backups | 14 daily + 8 weekly on the server, 90 days offsite (`deploy/backup.sh`) | deleted |
 
-There is no table of raw gait sensor data (the app computes gait shares on the device); if one is added, add it to
-`privacy.Prune` with the same 12 months. Everything else (horse record, documents, requests) is kept until a user with
+Raw gait windows (`gait_windows`, stored with tracked sessions to improve the gait model) follow the track: deleted
+12 months after the session's `started_at`, and immediately when the account is deleted. Everything else (horse record, documents, requests) is kept until a user with
 the right deletes it or the account is deleted.
 
 ## Texts and how the app shows them
