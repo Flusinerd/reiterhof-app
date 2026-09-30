@@ -1,6 +1,6 @@
 # Datenschutzerklärung
 
-**Textversion:** 2026-09-30
+**Textversion:** 2026-09-30.2
 
 ## 1. Wer ist verantwortlich?
 
@@ -14,11 +14,12 @@ Die App ist ein privates Angebot einer Privatperson, die selbst Einstaller ist, 
 
 - Wir speichern nur, was die App für ihre Funktionen braucht.
 - Dein Standort verlässt dein Handy nur, wenn du das Aufzeichnen einer Strecke beim Reiten selbst einschaltest. Die automatische Anmeldung im Stall (Geofence) läuft komplett auf dem Handy; der Server erfährt nur „angekommen“ und „gegangen“.
-- Für Standort, Karten, Fotos, Benachrichtigungen und das Zeigen deiner Anwesenheit fragen wir dich vorher um Erlaubnis. Du kannst jede Erlaubnis jederzeit in der App zurücknehmen (Einstellungen, Datenschutz).
+- Für Standort, Karten, Fotos, Benachrichtigungen, das Zeigen deiner Anwesenheit und KI-Vorschläge im Wochenplan fragen wir dich vorher um Erlaubnis. Du kannst jede Erlaubnis jederzeit in der App zurücknehmen (Einstellungen, Datenschutz).
 - Fotos werden beim Hochladen von Metadaten wie dem Aufnahmeort befreit.
 - Wer jünger als 16 ist, braucht die Zustimmung eines Elternteils (Punkt 4).
 - Du kannst alle deine Daten in der App als Datei herunterladen und dein Konto selbst löschen.
 - Die Daten liegen auf einem Server in Deutschland.
+- Den Wochenplan eines Pferdes kann auf Wunsch des Besitzers eine KI von Mistral AI (Frankreich) vorschlagen. Sie bekommt nur Trainingsdaten des Pferdes ohne Namen und nutzt sie nicht zum Training ihrer Modelle (Punkt 3.12).
 
 ## 3. Welche Daten verarbeiten wir wozu?
 
@@ -128,7 +129,7 @@ Nutzt du Stallfunk als Web-App (zum Home-Bildschirm hinzugefügt), speichern wir
 
 Rechtsgrundlage: Einwilligung, Art. 6 Abs. 1 lit. a DSGVO. Widerrufst du sie, löschen wir deine Push-Tokens und Browser-Push-Adressen. Einzelne Erinnerungsarten kannst du zusätzlich abschalten.
 
-Drittlandübermittlung: Resend und ggf. Google und Apple (Anmeldung, Push, Karten) verarbeiten Daten auch in den USA. Grundlage sind der Angemessenheitsbeschluss zum EU-US Data Privacy Framework bzw. Standardvertragsklauseln des jeweiligen Anbieters; für Resend ist beides vereinbart. Google (Google LLC) ist nach dem EU-US Data Privacy Framework zertifiziert; Apple stützt die Übermittlung in die USA auf die Standardvertragsklauseln der EU-Kommission.
+Drittlandübermittlung: Resend und ggf. Google und Apple (Anmeldung, Push, Karten) verarbeiten Daten auch in den USA. Grundlage sind der Angemessenheitsbeschluss zum EU-US Data Privacy Framework bzw. Standardvertragsklauseln des jeweiligen Anbieters; für Resend ist beides vereinbart. Google (Google LLC) ist nach dem EU-US Data Privacy Framework zertifiziert; Apple stützt die Übermittlung in die USA auf die Standardvertragsklauseln der EU-Kommission. Zu Mistral (KI-Vorschläge) siehe Punkt 3.12.
 
 ### 3.10 Wetter
 
@@ -140,9 +141,23 @@ Die App fragt das Betriebssystem erst um eine Berechtigung, wenn du die Funktion
 
 Auf deinem Gerät speichert die App nur, was sie zum Funktionieren braucht: den Sitzungs-Schlüssel (in der App im geschützten Speicher des Betriebssystems, Keychain bzw. Keystore; in der Web-App im Browserspeicher „localStorage“), die Einstellung der automatischen Anmeldung und ob dich die App schon nach einer Erlaubnis gefragt hat. Die Web-App richtet außerdem einen Service Worker für Mitteilungen ein. Es gibt keine Cookies zu Werbe- oder Analysezwecken und keine Zählpixel. Diese Speicherung ist für den Dienst unbedingt erforderlich (§ 25 Abs. 2 TDDDG) und wird beim Abmelden gelöscht.
 
+### 3.12 Wochenplan mit KI-Vorschlägen (Mistral AI)
+
+Besitzer und Admins können sich für ein Pferd einen Vorschlag für die offenen Tage der Woche machen lassen („Woche planen“). Hat der Besitzer des Pferdes „KI-Vorschläge für den Wochenplan“ erlaubt und angegeben, mindestens 16 Jahre alt zu sein, fragt unser Server dafür ein Sprachmodell der Mistral AI SAS (Paris, Frankreich). Sonst kommt der Vorschlag nur aus den festen Regeln der App, und es wird nichts an Mistral gesendet.
+
+Gesendet werden nur Trainingsdaten des Pferdes: Disziplin, Trainingsstatus (fit, Reha, Pause), der gewünschte Rhythmus, die freigegebenen Aktivitäten, die Trainingseinheiten der letzten 14 Tage (vor wie vielen Tagen, Aktivität, Minuten, Belastung, Galopp-Anteil, wie sich das Pferd angefühlt hat), in wie vielen Tagen Turniere sind, die Vorgaben eines Reha-Plans je Tag (Aktivität und Minuten), Wetter und Boden von heute und welche Tage der Woche schon vergeben sind.
+
+Nicht gesendet werden Namen von Personen oder Pferden, Kennungen, Notizen und andere Freitexte (auch keine Turniernamen, Diagnosen oder Reha-Bedingungen), Kalenderdaten und Standortdaten. Wer eine Einheit geritten hat, erfährt Mistral nicht.
+
+Die festen Regeln der App prüfen jeden Vorschlag (Profil, Reha-Plan, Ruhetag nach dem Turnier, Rhythmus) und ersetzen, was nicht passt. Gespeichert wird der Vorschlag erst, wenn du ihn übernimmst; im Wochenplan steht dann „KI-Vorschlag“ dabei.
+
+Mistral verarbeitet die Anfragen als Auftragsverarbeiter in unserem Auftrag; der Vertrag zur Auftragsverarbeitung nach Art. 28 DSGVO ist Teil der Geschäftsbedingungen von Mistral. In unserem Konto bei Mistral ist ausgeschaltet, dass Anfragen zum Training der Modelle genutzt werden, und wir verwenden keine Modelle, bei denen Mistral trotzdem trainiert („Labs“). Für eine automatische Missbrauchskontrolle speichert Mistral Anfrage und Antwort 30 Tage und ist dafür selbst verantwortlich (Datenschutzerklärung von Mistral unter legal.mistral.ai); danach werden sie gelöscht. Unser Server speichert weder die Anfrage noch die Antwort. Die Anfragen werden in Rechenzentren im Europäischen Wirtschaftsraum verarbeitet (Frankreich, Schweden, Norwegen, Niederlande, Belgien). Zugriffe aus Ländern außerhalb der EU sind über den Netzwerkdienst Cloudflare, über Sicherheitsdienstleister und über verbundene Unternehmen von Mistral möglich (unter anderem in den USA, im Vereinigten Königreich, in der Schweiz und in Singapur). Sie stützen sich auf Angemessenheitsbeschlüsse der EU-Kommission (für die USA das EU-US Data Privacy Framework, soweit der Empfänger zertifiziert ist) oder auf die Standardvertragsklauseln der EU-Kommission.
+
+Rechtsgrundlage: Einwilligung des Besitzers, Art. 6 Abs. 1 lit. a DSGVO. Einheiten, die Reitbeteiligungen eingetragen haben, gehen ohne Namen und ohne Datum mit in die Anfrage ein; Rechtsgrundlage dafür ist das berechtigte Interesse an einer guten Trainingsplanung für das Pferd, Art. 6 Abs. 1 lit. f DSGVO. Die Einwilligung kannst du jederzeit in den Einstellungen unter Datenschutz zurücknehmen; danach wird nichts mehr an Mistral gesendet.
+
 ## 4. Mindestalter und Zustimmung der Eltern
 
-Standort, Karten, Fotos, Mitteilungen und das Zeigen deiner Anwesenheit beruhen auf deiner Einwilligung. Nach Art. 8 DSGVO kann in Deutschland nur einwilligen, wer mindestens 16 Jahre alt ist; jüngere Personen brauchen die Zustimmung eines Elternteils oder einer erziehungsberechtigten Person.
+Standort, Karten, Fotos, Mitteilungen, das Zeigen deiner Anwesenheit und KI-Vorschläge im Wochenplan beruhen auf deiner Einwilligung. Nach Art. 8 DSGVO kann in Deutschland nur einwilligen, wer mindestens 16 Jahre alt ist; jüngere Personen brauchen die Zustimmung eines Elternteils oder einer erziehungsberechtigten Person.
 
 Deshalb fragt die App dich beim ersten Start nach deinem Alter. Wir speichern kein Geburtsdatum, nur deine Angabe „16 oder älter“ mit Zeitpunkt. Bist du jünger, nennst du die E-Mail-Adresse eines Elternteils. Diese Person erhält eine Mail (Versand über Resend, Punkt 3.1) mit deinem Namen, deiner E-Mail-Adresse, einer Beschreibung dessen, was die App speichert, und einem Link. Über den Link stimmt sie zu; der Link gilt 7 Tage und funktioniert einmal, gespeichert wird nur ein Hash. Bis zur Zustimmung kannst du keinem Stall beitreten und keine Erlaubnis erteilen; dein Konto kannst du in dieser Zeit ansehen und löschen.
 
@@ -163,6 +178,7 @@ Rechtsgrundlage: Art. 8 DSGVO in Verbindung mit Art. 6 Abs. 1 lit. c DSGVO (Nach
 - Resend (Plus Five Five, Inc., USA) als E-Mail-Dienst für Anmelde-Mails und die Mail an Eltern (Auftragsverarbeiter).
 - Apple und Google für Push-Benachrichtigungen (in der Web-App die Push-Dienste von Apple, Google oder Mozilla, je nach Browser), und Google bzw. Apple, wenn du dich damit anmeldest.
 - Apple, Google oder OpenFreeMap als Kartendienst, wenn du Karten erlaubst (Punkt 3.4).
+- Mistral AI SAS (Paris, Frankreich) für KI-Vorschläge im Wochenplan, wenn der Besitzer des Pferdes sie erlaubt (Auftragsverarbeiter; für die Missbrauchskontrolle eigener Verantwortlicher, Punkt 3.12).
 - Deutscher Wetterdienst (nur Abruf öffentlicher Daten, keine Übermittlung von Personendaten).
 - Das Elternteil, das du für die Zustimmung nennst, erfährt deinen Namen und deine E-Mail-Adresse (Punkt 4).
 
@@ -179,6 +195,7 @@ Wir verkaufen keine Daten und geben sie nicht zu Werbezwecken weiter.
 - **Links an Eltern:** 7 Tage; die Adresse des Elternteils und die Zustimmung, solange das Konto besteht.
 - **Einwilligungen und Altersangabe:** solange das Konto besteht (als Nachweis).
 - **Pferdeakte, Dokumente, Anfragen, Trainingseinheiten:** solange sie gebraucht werden; sie können vom Besitzer oder Admin gelöscht werden. Beim Löschen deines Kontos bleiben Einträge, die andere betreffen, ohne deinen Namen erhalten (siehe 8).
+- **Anfragen für KI-Vorschläge:** bei uns gar nicht; bei Mistral 30 Tage (Punkt 3.12). Übernommene Vorschläge bleiben im Wochenplan wie andere Einträge.
 - **Fehlerprotokolle des Servers:** 4 Wochen.
 - **Backups:** bis zu 8 Wochen (siehe 5).
 
@@ -206,7 +223,7 @@ Schreibe für alles andere an die E-Mail-Adresse aus Punkt 1.
 
 ## 10. Automatisierte Entscheidungen
 
-Es gibt keine automatisierten Entscheidungen mit rechtlicher Wirkung und kein Profiling. Empfehlungen wie „Was heute?“ und die Deckenempfehlung folgen festen Regeln, sind Vorschläge und betreffen Pferde, nicht dich.
+Es gibt keine automatisierten Entscheidungen mit rechtlicher Wirkung und kein Profiling. Empfehlungen wie „Was heute?“ und die Deckenempfehlung folgen festen Regeln. Den Wochenplan kann zusätzlich ein Sprachmodell vorschlagen (Punkt 3.12); die festen Regeln prüfen jeden dieser Vorschläge. Alles sind Vorschläge, die Pferde betreffen, nicht dich; eingetragen wird nur, was jemand übernimmt.
 
 ## 11. Sicherheit
 

@@ -18,7 +18,7 @@ import (
 // TextVersion identifies the current wording of the privacy text and the consent
 // explanations (docs/legal/datenschutz.md, mobile/lib/legal). A grant records it. Change it
 // together with the texts; then users have to confirm again ("up_to_date": false).
-const TextVersion = "2026-09-30"
+const TextVersion = "2026-09-30.2"
 
 // Consent kinds (consents.kind).
 const (
@@ -30,11 +30,14 @@ const (
 	KindPresenceSharing = "presence_sharing"
 	KindPhotos          = "photos"
 	KindPush            = "push"
+	// KindAITraining lets the training week plan send the owner's horse data (without names)
+	// to the language model of Mistral AI (JAN-89). The owner's grant covers their horses.
+	KindAITraining = "ai_training"
 )
 
 // Kinds lists all consent kinds in display order.
 func Kinds() []string {
-	return []string{KindLocationGeofence, KindLocationTracking, KindMaps, KindPresenceSharing, KindPhotos, KindPush}
+	return []string{KindLocationGeofence, KindLocationTracking, KindMaps, KindPresenceSharing, KindPhotos, KindPush, KindAITraining}
 }
 
 // ErrAgeUnconfirmed is returned when a consent is granted before the person confirmed being

@@ -38,6 +38,9 @@ type Deps struct {
 	// replaces nil with a no-op; cmd/api wires the real *realtime.Hub. Publishing
 	// does not need it: use realtime.Publish(ctx, q, ...) inside your transaction.
 	Events EventBus
+	// Chat asks a language model for a JSON answer (*mistral.Client, JAN-89). nil when no
+	// model is configured; the training week plan then comes from the rules alone.
+	Chat Chat
 }
 
 // Event is one realtime message for the members of a stable.
@@ -65,6 +68,12 @@ func (NopEvents) Subscribe(string) (<-chan Event, func()) { return make(chan Eve
 // implements it. kind must be one of the push.Kind* constants.
 type Notifier interface {
 	NotifyUsers(ctx context.Context, stableID string, userIDs []string, kind, title, body string, data map[string]any) error
+}
+
+// Chat is a language model that answers with a JSON object; *mistral.Client implements it.
+// Errors must not contain the messages, so callers may log them.
+type Chat interface {
+	CompleteJSON(ctx context.Context, system, user string) (string, error)
 }
 
 // NopNotifier discards all notifications.

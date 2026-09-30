@@ -2,7 +2,14 @@
 // docs/domains/privacy.md. The explanation texts here are UI copy (German); the full legal
 // text is docs/legal/datenschutz.md, bundled through consent-legal-texts.ts.
 
-export type ConsentKind = "location_geofence" | "location_tracking" | "maps" | "presence_sharing" | "photos" | "push";
+export type ConsentKind =
+  | "location_geofence"
+  | "location_tracking"
+  | "maps"
+  | "presence_sharing"
+  | "photos"
+  | "push"
+  | "ai_training";
 
 /** Same order as the server (`privacy.Kinds()`). */
 export const CONSENT_KINDS: readonly ConsentKind[] = [
@@ -12,6 +19,7 @@ export const CONSENT_KINDS: readonly ConsentKind[] = [
   "presence_sharing",
   "photos",
   "push",
+  "ai_training",
 ];
 
 /** One entry of `GET /api/v1/me/consents`. */
@@ -113,6 +121,20 @@ export const CONSENT_COPY: Record<ConsentKind, ConsentCopy> = {
       "Einzelne Erinnerungen kannst du abschalten.",
     ],
     declined: "Ohne Erlaubnis bekommst du keine Benachrichtigungen.",
+    accept: "Erlauben",
+  },
+  ai_training: {
+    label: "KI-Vorschläge für den Wochenplan",
+    title: "Wochenplan von einer KI vorschlagen lassen?",
+    summary: "Für deine Pferde fragt der Server beim Planen einer Woche ein Sprachmodell von Mistral AI (Frankreich).",
+    points: [
+      "Gesendet werden nur Trainingsdaten: Profil, Einheiten der letzten 14 Tage, Turniertage, Reha-Vorgaben, Wetter und Boden.",
+      "Keine Namen von Personen oder Pferden, keine Notizen, keine Daten, aus denen man auf dich schließen könnte.",
+      "Mistral nutzt die Anfragen nicht, um seine Modelle zu trainieren, speichert sie aber 30 Tage, um Missbrauch zu erkennen.",
+      "Nur für Pferde von Besitzern ab 16 Jahren (Bedingungen von Mistral).",
+      "Die festen Regeln der App prüfen jeden Vorschlag. Eingetragen wird nur, was du übernimmst.",
+    ],
+    declined: "Ohne Erlaubnis kommt der Wochenplan nur aus den festen Regeln.",
     accept: "Erlauben",
   },
 };

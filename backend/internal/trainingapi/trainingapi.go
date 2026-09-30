@@ -1,6 +1,6 @@
 // Package trainingapi is the HTTP and storage layer of the training feature (M6):
 // training profile (JAN-55), "Was heute?" (JAN-57), exercise library (JAN-58), week view
-// (JAN-59) and sessions (JAN-60, JAN-61).
+// (JAN-59), sessions (JAN-60, JAN-61) and the week plan (JAN-89).
 //
 // The rules live in the pure packages training, training/load and training/recommend; this
 // package only reads and writes the database, maps roles to rules and shapes the JSON.
@@ -52,6 +52,7 @@ func Register(mux *http.ServeMux, deps httpx.Deps) {
 	route("GET /api/v1/horses/{id}/sessions", h.listSessions)
 	route("GET /api/v1/horses/{id}/week", h.getWeek)
 	route("PUT /api/v1/horses/{id}/week/{day}", h.putWeekDay)
+	route("POST /api/v1/horses/{id}/week/plan", h.planWeek)
 	route("GET /api/v1/exercises", h.listExercises)
 	route("GET /api/v1/exercises/{id}", h.getExercise)
 }

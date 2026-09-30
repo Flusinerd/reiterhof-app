@@ -1,7 +1,7 @@
-# Privacy and consents (JAN-19, JAN-85, JAN-86)
+# Privacy and consents (JAN-19, JAN-85, JAN-86, JAN-89)
 
 Backend: `backend/internal/privacy`, migrations `0110_privacy.up.sql`, `0200_maps_consent.up.sql`,
-`0210_age_confirmation.up.sql`; age confirmation in `backend/internal/auth/agegate.go`. Mobile: `app/settings/privacy.tsx`,
+`0210_age_confirmation.up.sql`, `0230_ai_training_consent.up.sql`; age confirmation in `backend/internal/auth/agegate.go`. Mobile: `app/settings/privacy.tsx`,
 `app/legal/{privacy,licenses}.tsx`, `app/(auth)/age.tsx`, `lib/consent*.ts`, `lib/api/privacy.ts`, `components/consent-*.tsx`,
 `components/map-consent-gate.tsx`.
 Text: `docs/legal/datenschutz.md` (German, final as of 30.09.2026; tests reject placeholders in square brackets). No imprint:
@@ -23,8 +23,9 @@ without a row was never granted. `stable_id` is nullable (a person may consent b
 | `presence_sharing` | others may see that I am at the stable | revoking sets `users.presence_visibility` to `hidden` |
 | `photos` | camera and photo library | none (device permission plus explanation) |
 | `push` | push notifications | revoking deletes the user's `push_tokens` and `web_push_subscriptions`; `push.Notifier` sends only to users with a current grant (native and web alike) |
+| `ai_training` | the week plan may send the training data of the user's horses (no names, ids or free text) to the language model of Mistral AI (JAN-89) | `POST /horses/{id}/week/plan` asks the model only when the horse's **owner** has a grant and stated to be 16 or older, whoever plans; otherwise the rules plan alone (see [training.md](training.md#week-plan)) |
 
-`privacy.TextVersion` (`"2026-09-30"`) is the version of the privacy text; a grant stores it. Changing the texts
+`privacy.TextVersion` (`"2026-09-30.2"`) is the version of the privacy text; a grant stores it. Changing the texts
 means raising both `TextVersion` and the `**Textversion:**` line in `docs/legal/*.md` (a test checks this); existing
 grants then show `up_to_date: false` and the app asks again, but nothing is locked.
 
@@ -33,7 +34,7 @@ or a parent consented), else `403 age_unconfirmed`. Revoking always works. See "
 
 | Route (signed-in user, stable **not** required) | Notes |
 | --- | --- |
-| `GET /api/v1/me/consents` | `{current_version, items: [{kind, granted, version, granted_at, revoked_at, current_version, up_to_date}]}`, always all six kinds in the order above |
+| `GET /api/v1/me/consents` | `{current_version, items: [{kind, granted, version, granted_at, revoked_at, current_version, up_to_date}]}`, always all seven kinds in the order above |
 | `PUT /api/v1/me/consents/{kind}` | body `{granted: bool, version?: string}`; `version` is the text the app shows, a different one on a grant gives `409 version_mismatch`; unknown kind `404`; `403 age_unconfirmed` (grant only); returns the item |
 
 For other packages: `privacy.Has(ctx, q, userID, kind)` tells whether a grant exists and is not revoked.
@@ -153,7 +154,8 @@ without a usable text fails the install, and with it CI and the deploy. `app/leg
   everywhere they are offered (horse documents, observation report, blanket photo; `photos`), push registration
   (`useDeviceSetup` registers the token only with the consent; the first-run sheet comes from `ConsentOnboarding` in the
   root layout, asked once per device).
-  **New features that record location, show maps, take photos or send notifications must call `ensure` first.**
+  The week plan offers "KI-Vorschläge erlauben" (`ai_training`) to the owner when the plan came from the rules for lack of it.
+  **New features that record location, show maps, take photos, send notifications or send data to an outside service must call `ensure` first.**
 - `app/settings/privacy.tsx`: switch per consent (revoking the geofence consent also stops it on the device), data
   export (JSON file written to the cache and shared with the system share sheet), links to the texts and the
   open-source notices, "Konto löschen" with a confirmation. Reachable from the presence screen, the join screen and

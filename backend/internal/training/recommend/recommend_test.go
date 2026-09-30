@@ -515,3 +515,110 @@ func TestAllReasonsAreNonEmptyGerman(t *testing.T) {
 		}
 	}
 }
+
+func TestCheckAcceptsAllowedActivityAndFitsMinutes(t *testing.T) {
+	in := base(allOn())
+	v := Check(in, training.ActivityHack, 90)
+	if !v.OK || v.Why != "" || v.Recommendation.Activity != training.ActivityHack {
+		t.Fatalf("verdict = %+v", v)
+	}
+	if v.Recommendation.Minutes != 60 { // rhythm maximum
+		t.Errorf("minutes = %d, want 60", v.Recommendation.Minutes)
+	}
+	if v := Check(in, training.ActivityLunge, 0); !v.OK || v.Recommendation.Minutes != 25 {
+		t.Errorf("zero minutes should become the default duration: %+v", v)
+	}
+	in.Profile.Rhythm.MaxMinutes = 0
+	if v := Check(in, training.ActivityHack, 500); v.Recommendation.Minutes != MaxPlanMinutes {
+		t.Errorf("no rhythm maximum: minutes = %d", v.Recommendation.Minutes)
+	}
+}
+
+func TestCheckRestAlwaysPasses(t *testing.T) {
+	in := base(allOn())
+	in.Profile.Status = training.StatusReha
+	in.Reha = &RehaPhase{Name: "Phase 1", Activity: training.ActivityWalker, MinMinutes: 10, MaxMinutes: 20}
+	if v := Check(in, training.ActivityRest, 0); !v.OK || v.Recommendation.Activity != training.ActivityRest {
+		t.Fatalf("verdict = %+v", v)
+	}
+}
+
+func TestCheckReplacesHiddenActivity(t *testing.T) {
+	in := base(only(training.ActivityHall, training.ActivityLunge))
+	v := Check(in, training.ActivityJumping, 40)
+	if v.OK || v.Recommendation.Activity == training.ActivityJumping {
+		t.Fatalf("verdict = %+v", v)
+	}
+	contains(t, v.Why, "Springen ausgeblendet")
+	if v.Recommendation.Activity != Recommend(in).Recommendations[0].Activity {
+		t.Errorf("replacement %v is not the top recommendation", v.Recommendation.Activity)
+	}
+	if v := Check(in, "swimming", 30); v.OK {
+		t.Errorf("unknown activity passed: %+v", v)
+	}
+}
+
+func TestCheckHardFilters(t *testing.T) {
+	in := base(allOn())
+	in.Profile.Shows = []training.Show{{Date: day(1), Name: "Turnier Nord"}}
+	v := Check(in, training.ActivityHall, 45)
+	if v.OK {
+		t.Fatalf("medium work the day before a show passed: %+v", v)
+	}
+	contains(t, v.Why, "Turnier Nord ist morgen")
+	if v := Check(in, training.ActivityLunge, 45); !v.OK || v.Recommendation.Minutes != ShowLightMaxMinutes {
+		t.Errorf("light work before a show: %+v", v)
+	}
+
+	in = base(allOn())
+	in.Ground = GroundFrozen
+	if v := Check(in, training.ActivityJumping, 30); v.OK || !strings.Contains(v.Why, "gefroren") {
+		t.Errorf("jumping on frozen ground: %+v", v)
+	}
+
+	in = base(allOn())
+	in.Profile.Status = training.StatusPause
+	if v := Check(in, training.ActivityHack, 60); v.OK || !strings.Contains(v.Why, "Pause") {
+		t.Errorf("hack during a pause: %+v", v)
+	}
+	if v := Check(in, training.ActivityWalker, 60); !v.OK || v.Recommendation.Minutes != PauseMaxMinutes {
+		t.Errorf("walker during a pause: %+v", v)
+	}
+}
+
+func TestCheckRehaPhaseAndRestAfterShow(t *testing.T) {
+	in := base(allOn())
+	in.Profile.Status = training.StatusReha
+	in.Reha = &RehaPhase{Name: "Phase 2", Activity: training.ActivityWalker, MinMinutes: 10, MaxMinutes: 25}
+	if v := Check(in, training.ActivityHall, 45); v.OK || v.Recommendation.Activity != training.ActivityWalker {
+		t.Errorf("reha phase: %+v", v)
+	}
+	if v := Check(in, training.ActivityWalker, 5); !v.OK || v.Recommendation.Minutes != 10 {
+		t.Errorf("reha minimum: %+v", v)
+	}
+	if v := Check(in, training.ActivityWalker, 40); !v.OK || v.Recommendation.Minutes != 25 {
+		t.Errorf("reha maximum: %+v", v)
+	}
+
+	in = base(allOn())
+	in.Profile.Shows = []training.Show{{Date: day(-1), Name: "Turnier Süd"}}
+	v := Check(in, training.ActivityHall, 45)
+	if v.OK || v.Recommendation.Activity != training.ActivityRest {
+		t.Fatalf("rest after show: %+v", v)
+	}
+	contains(t, v.Why, "Turnier Süd")
+}
+
+func TestCheckWeekMaximum(t *testing.T) {
+	in := base(allOn()) // Wednesday; SessionsMax 5
+	in.Recent = []training.Session{sess(-2, training.ActivityHall, 30), sess(-1, training.ActivityHack, 30)}
+	if v := Check(in, training.ActivityArena, 45); !v.OK {
+		t.Fatalf("two sessions this week: %+v", v)
+	}
+	in.Profile.Rhythm.SessionsMax = 2
+	v := Check(in, training.ActivityArena, 45)
+	if v.OK || v.Recommendation.Activity != training.ActivityRest {
+		t.Fatalf("week full: %+v", v)
+	}
+	contains(t, v.Why, "2 Einheiten")
+}

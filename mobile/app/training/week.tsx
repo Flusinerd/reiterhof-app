@@ -1,18 +1,32 @@
 import { useLocalSearchParams } from "expo-router";
-import { ChevronLeft, ChevronRight } from "lucide-react-native";
+import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react-native";
 import { useState } from "react";
 import { ActivityIndicator, RefreshControl, View } from "react-native";
 
+import { useConsentPrompt } from "@/components/consent-prompt";
 import { ActivityIcon } from "@/components/training-activity-icon";
 import { LoadBar } from "@/components/training-dots";
 import { HorseSwitcher } from "@/components/training-horse-switcher";
+import { PlanSheet } from "@/components/training-plan-sheet";
 import { Badge, Button, Card, Divider, PageHeader, Screen, Text } from "@/components/ui";
 import { colors } from "@/lib/theme";
-import { trainingError, useTakeDay, useTrainingHorses, useWeek, type WeekDay } from "@/lib/api/training";
+import {
+  trainingError,
+  useApplyPlan,
+  usePlanWeek,
+  useTakeDay,
+  useTrainingHorses,
+  useWeek,
+  type WeekDay,
+} from "@/lib/api/training";
 import { weekRehaText } from "@/lib/reha";
 import { addDays, dayStatusLabel, formatDayLong, weekRangeLabel, weekdayShort } from "@/lib/training";
 
-/** Week view (JAN-59): who trains on which day, show days, load bar and an assessment. */
+/**
+ * Week view (JAN-59): who trains on which day, show days, load bar and an assessment. Owners and
+ * admins can have the open days planned ("Woche planen", JAN-89): by the rules, and with the
+ * owner's consent by a language model whose proposals the rules check.
+ */
 export default function TrainingWeek() {
   const params = useLocalSearchParams<{ horse?: string }>();
   const horses = useTrainingHorses();
@@ -23,6 +37,10 @@ export default function TrainingWeek() {
   const activeId = horseId ?? list[0]?.id;
   const week = useWeek(activeId, start);
   const take = useTakeDay(activeId ?? "");
+  const plan = usePlanWeek(activeId ?? "");
+  const apply = useApplyPlan(activeId ?? "");
+  const consent = useConsentPrompt();
+  const [planOpen, setPlanOpen] = useState(false);
   const data = week.data;
 
   if (horses.isPending || (week.isPending && !!activeId)) {
@@ -47,6 +65,14 @@ export default function TrainingWeek() {
 
   const horseName = list.find((h) => h.id === activeId)?.name ?? "";
   const shift = (days: number) => setStart(addDays(data.start, days));
+  const planWeek = () => {
+    apply.reset();
+    plan.mutate(data.start, { onSuccess: () => setPlanOpen(true) });
+  };
+  const allowAI = async () => {
+    setPlanOpen(false);
+    if (await consent.ensure("ai_training")) planWeek();
+  };
 
   return (
     <Screen
@@ -77,6 +103,15 @@ export default function TrainingWeek() {
         <Button variant="outline" size="icon" icon={ChevronRight} accessibilityLabel="Nächste Woche" onPress={() => shift(7)} />
       </View>
 
+      {data.can_edit ? (
+        <Button label="Woche planen" variant="secondary" icon={Sparkles} loading={plan.isPending} onPress={planWeek} />
+      ) : null}
+      {plan.isError ? (
+        <Text variant="secondary" tone="danger" accessibilityRole="alert">
+          {trainingError(plan.error)}
+        </Text>
+      ) : null}
+
       <Card padded={false}>
         {data.days.map((d, i) => (
           <View key={d.date}>
@@ -94,6 +129,17 @@ export default function TrainingWeek() {
           {trainingError(take.error)}
         </Text>
       ) : null}
+
+      <PlanSheet
+        plan={plan.data ?? null}
+        open={planOpen}
+        onOpenChange={setPlanOpen}
+        applying={apply.isPending}
+        error={apply.isError ? trainingError(apply.error) : null}
+        onAllowAI={() => void allowAI()}
+        onApply={(days) => apply.mutate(days, { onSuccess: () => setPlanOpen(false) })}
+      />
+      {consent.sheet}
     </Screen>
   );
 }
@@ -122,6 +168,11 @@ function DayRow({ day, busy, onTake }: { day: WeekDay; busy: boolean; onTake: ()
                 {day.minutes > 0 ? ` · ${day.minutes} Min.` : ""}
               </Text>
             </View>
+          ) : null}
+          {day.note && day.status !== "done" ? (
+            <Text variant="caption" numberOfLines={2}>
+              {day.note}
+            </Text>
           ) : null}
         </View>
         {day.can_take && !day.is_me ? (

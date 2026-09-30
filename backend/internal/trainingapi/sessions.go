@@ -99,10 +99,14 @@ func (h *handler) querySessions(ctx context.Context, stableID, horseID string, f
 func domainSessions(rows []sessionRow, loc *time.Location) []training.Session {
 	out := make([]training.Session, 0, len(rows))
 	for _, s := range rows {
-		out = append(out, training.Session{
+		ts := training.Session{
 			Day: training.Day(s.StartedAt.In(loc)), Activity: s.Activity,
 			Minutes: s.Minutes, CanterShare: s.canter(), Load: s.Load,
-		})
+		}
+		if s.Feel != nil {
+			ts.Feel = *s.Feel
+		}
+		out = append(out, ts)
 	}
 	return out
 }

@@ -21,6 +21,7 @@ backend/
     admincli/         commands of stallfunk-admin (env file parser, stable/user/invite/horse/...)
     scheduler/        reusable periodic / daily jobs (see "Scheduler")
     weather/          DWD MOSMIX client, night summary, weather_snapshots, hourly job
+    mistral/          chat completions client for the AI week plan (httpx.Deps.Chat)
     blanketplan/      pure rule evaluation (Recommend, Changed) + LoadRules
     stables/          stable data access: ground condition, stables with coordinates
     httpx/            Deps, WriteJSON, ReadJSON, WriteError (shared by all handlers)
@@ -366,6 +367,8 @@ real `*push.Notifier`). In tests pass `Notify: push.NewNotifier(pool, fake, nil)
 - Run with the database: `REITERHOF_TEST_DATABASE_URL='postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable' just test`.
 - Test handlers via `httpapi.NewHandler(httpapi.Deps{Pool: pool, Now: fixedClock})`
   and `httptest`, or call your `Register` on a fresh `http.NewServeMux()`.
+- Language model: `deps.Chat` is nil without `REITERHOF_MISTRAL_API_KEY`; handlers must then work
+  without it. Tests pass a fake `Chat` (see `trainingapi/plan_test.go`). Never log prompts or answers.
 - Blanket rules semantics (seed and evaluation): rules are evaluated by `position`,
   the first match wins; `temp_min <= temp < temp_max`, `NULL` bound = open, `NULL` rain
   = any; with `rain = true` also `rain_min_mm <= rain_mm < rain_max_mm` (`NULL` = open);
@@ -387,6 +390,12 @@ Pure packages (no HTTP, no DB, no clock; "today" is always an input):
   weather/ground, available time, status). All weights are named `Weight*` constants;
   ties are broken by the canonical activity order. The top 3 are returned, each with a
   German one-sentence reason (the strongest factor). Full description in the package doc.
+  `Check(Input, activity, minutes)` (JAN-89) tests a proposed unit against the same hard
+  rules plus the weekly maximum and returns the rule-based replacement when it fails.
+- `training/weekplan` (JAN-89): plans the open days of a week. `Rules` uses the recommender day by
+  day (each planned unit becomes a simulated session for the next days); `Prompt`/`Parse` build the
+  language model's input (no names, ids, free text or dates) and read its JSON answer; `Merge`
+  checks every proposal with `recommend.Check` and lets the rules fill the rest.
 - German reason texts are UI text and live in these packages; everything else is English.
 
 ## Scheduler

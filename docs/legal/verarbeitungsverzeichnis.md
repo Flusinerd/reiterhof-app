@@ -7,10 +7,10 @@ Für den Betreiber, nicht für die App. Verzeichnis nach Art. 30 Abs. 1 DSGVO, B
 - **Verantwortlicher:** Jan Krüger (Privatperson), jankrueger1999@gmail.com. Betreibt die App als Einstaller für die Einstaller seines Stalls, nicht gewerblich, nur auf Einladung.
 - **Stallbetrieb:** betreibt die App nicht, entscheidet nicht über Zwecke und Mittel, hat keinen Zugang zu Server oder Admin-Werkzeug. Keine gemeinsame Verantwortlichkeit (Art. 26), solange das so bleibt (siehe Checkliste, Teil 4).
 - **Datenschutzbeauftragter:** nicht benannt; nicht erforderlich (§ 38 BDSG: weniger als 20 Personen, keine Art. 35-Pflicht, siehe Abschnitt D).
-- **Auftragsverarbeiter:** Netcup GmbH (Hosting, AVV vom 30.09.2026), Resend / Plus Five Five, Inc. (E-Mail, DPA mit EU-Standardvertragsklauseln, DPF).
+- **Auftragsverarbeiter:** Netcup GmbH (Hosting, AVV vom 30.09.2026), Resend / Plus Five Five, Inc. (E-Mail, DPA mit EU-Standardvertragsklauseln, DPF), Mistral AI SAS, Paris (Sprachmodell für KI-Vorschläge im Wochenplan, nur mit Einwilligung des Besitzers ab 16; Data Processing Addendum vom 27.07.2026 als Teil der Commercial Terms of Service; Training mit API-Anfragen im Konto ausgeschaltet; für die Missbrauchskontrolle, 30 Tage, eigener Verantwortlicher; Einzelheiten in der Checkliste, Teil 1).
 - **Eigene Verantwortliche bzw. Übermittlungsempfänger:** Apple (APNs, Sign in with Apple, Apple Maps; Drittland USA über Standardvertragsklauseln), Google (FCM, Google Sign-In, Google Maps; Google LLC nach dem EU-US Data Privacy Framework zertifiziert), Push-Dienste der Browser (Apple, Google, Mozilla; Inhalt Ende-zu-Ende verschlüsselt), OpenFreeMap (Kartenkacheln der Web-App).
 - **Betroffene allgemein:** Einstaller und Reitbeteiligungen (Nutzer, auch Minderjährige), Erziehungsberechtigte minderjähriger Nutzer, von Nutzern eingetragene Kontaktpersonen (Notfallkarte, Tierarzt).
-- **Keine** besonderen Kategorien (Art. 9), kein Profiling, keine automatisierten Entscheidungen, keine Werbung, keine Analyse-Dienste.
+- **Keine** besonderen Kategorien (Art. 9), kein Profiling, keine automatisierten Entscheidungen, keine Werbung, keine Analyse-Dienste. Die KI-Vorschläge im Wochenplan (B9) betreffen Pferde, werden von festen Regeln geprüft und nur übernommen, wenn eine Person das bestätigt.
 
 ## B. Verarbeitungstätigkeiten
 
@@ -72,6 +72,15 @@ Rechtsgrundlagen und Einzelheiten stehen im Datenschutztext (Abschnittsnummern i
 - **Empfänger:** Resend (Mail an das Elternteil), das Elternteil (Name und E-Mail-Adresse des Kindes).
 - **Löschung:** solange das Konto besteht; Links an Eltern nach 7 Tagen.
 
+### B9. KI-Vorschläge im Wochenplan (3.12)
+
+- **Zweck:** Vorschlag für die offenen Trainingstage einer Woche.
+- **Betroffene:** Besitzer ab 16 mit Einwilligung (`ai_training`; bei Zustimmung der Eltern statt eigener Altersangabe läuft keine KI); Reitbeteiligungen und andere Eintragende nur mittelbar über die Einheiten ihres Pferdes, ohne Namen und ohne Datum.
+- **Daten:** Disziplin, Status, Rhythmus, freigegebene Aktivitäten, Einheiten der letzten 14 Tage (Tage zurück, Aktivität, Minuten, Belastung, Galopp-Anteil, Gefühl), Turniere in Tagen, Reha-Vorgaben je Tag, Wetter und Boden von heute, belegte Tage der Woche. Keine Namen, Kennungen, Freitexte, Kalenderdaten oder Standortdaten (`backend/internal/training/weekplan`, Funktion `Prompt`, mit Test).
+- **Empfänger:** Mistral AI SAS (Auftragsverarbeiter, EU; für die automatische Missbrauchskontrolle eigener Verantwortlicher). Verarbeitung im EWR (Mistral Compute Frankreich, Microsoft Azure Schweden/Norwegen, Google Niederlande/Belgien, CoreWeave EWR); mögliche Zugriffe aus Drittländern über Cloudflare (weltweit), CrowdStrike (USA) und verbundene Unternehmen (USA, Vereinigtes Königreich, Schweiz, Singapur), gestützt auf Angemessenheitsbeschlüsse (DPF) oder Standardvertragsklauseln (DPA Ziffer 8). Stand der Liste: 30.09.2026, Checkliste Teil 1.
+- **Rechtsgrundlage:** Einwilligung des Besitzers (Art. 6 Abs. 1 lit. a), für die Einheiten anderer Personen berechtigtes Interesse (lit. f).
+- **Löschung:** Anfrage und Antwort werden auf dem Server nicht gespeichert; bei Mistral 30 Tage (Missbrauchskontrolle, Datenschutzerklärung von Mistral, Abschnitt 5). Übernommene Tage liegen in `week_slots` wie andere Einträge (B5).
+
 ### B8. Betrieb: Protokolle, Missbrauchsschutz, Backups (5)
 
 - **Zweck:** sicherer Betrieb, Wiederherstellung.
@@ -88,7 +97,7 @@ Quelle: `deploy/` (Runbook `deploy/README.md`), Anwendungscode.
 - **Zugang zum Server:** SSH nur mit Schlüssel (`PasswordAuthentication no`, `PermitRootLogin no`, `AllowUsers admin deploy`, `MaxAuthTries 3`), Passwörter der Login-Benutzer gesperrt; Firewall `ufw` lässt nur 22 (rate-limitiert), 80 und 443 zu.
 - **Zugriff:** Nur der Benutzer `admin` (der Betreiber) hat volle Rechte. Der Deploy-Schlüssel (GitHub Actions) darf nur Dateien in `/opt/reiterhof` ablegen und den Dienst neu starten. Die API läuft als Systembenutzer `reiterhof` ohne Shell, mit systemd-Sandbox (`ProtectSystem=strict`, `NoNewPrivileges`, leere Capabilities, Systemaufruf-Filter). Geheimnisse (`/etc/reiterhof/*.env`, APNs- und FCM-Schlüssel) sind nur für root und die Gruppe `reiterhof` lesbar. `stallfunk-admin` läuft nur per sudo.
 - **In der App:** Rollen (Mitglied, Reitbeteiligung, Besitzer, Admin) werden auf dem Server geprüft; jede Abfrage ist auf den Stall beschränkt; Dateien werden nur mit der Sichtbarkeit des zugehörigen Eintrags ausgeliefert; Einwilligungen werden auf dem Server durchgesetzt.
-- **Weitergabe und Transport:** TLS über Caddy (Let's Encrypt, HSTS), strenge Sicherheits-Header und CSP; API und Datenbank lauschen nur auf `localhost`; Mails per STARTTLS; Web-Push Ende-zu-Ende verschlüsselt.
+- **Weitergabe und Transport:** TLS über Caddy (Let's Encrypt, HSTS), strenge Sicherheits-Header und CSP; API und Datenbank lauschen nur auf `localhost`; Mails per STARTTLS; Web-Push Ende-zu-Ende verschlüsselt; Anfragen an Mistral per TLS, nur mit Einwilligung des Besitzers und ohne Namen oder Freitext; der API-Schlüssel (`REITERHOF_MISTRAL_API_KEY`) liegt in `/etc/reiterhof/api.env`; Labs-Modelle lehnt der Server ab.
 - **Speicherung:** Sitzungs-Schlüssel, Anmelde-Links und Links an Eltern nur als SHA-256-Hash, Anmelde-Codes als HMAC; Datenbank-Passwort mit SCRAM-SHA-256. Keine eigene Festplattenverschlüsselung auf dem VPS, lokale Backups unverschlüsselt (nur Dateirechte 0700/0750).
 - **Datenminimierung:** keine Zugriffsprotokolle mit IP-Adressen; Systemjournal höchstens vier Wochen, Datenbank-Protokolle ohne Parameterwerte; Metadaten aus Fotos entfernt; Geofence ohne Standortübertragung; Löschfristen automatisch (Job `privacy-retention`, täglich 03:30).
 - **Missbrauchsschutz:** Rate-Limits für Anmeldung, Code-Prüfung, Beitritt und Mails an Eltern; die Anmeldung verrät nicht, ob eine Adresse registriert ist.
@@ -103,7 +112,8 @@ Kriterien der Artikel-29-Gruppe (WP 248) und der Muss-Liste der Datenschutzkonfe
 - **Standortdaten:** ja, aber nur freiwillig (Einwilligung, jederzeit abschaltbar); Geofence bleibt auf dem Gerät, GPS-Strecken nur bei selbst gestarteter Aufzeichnung.
 - **Schutzbedürftige Betroffene:** ja, Minderjährige können Nutzer sein (mit Zustimmung der Eltern).
 - **Umfang:** nein, ein Stall, einige Dutzend Personen.
-- **Systematische Überwachung, Bewertung, Scoring, neue Technologien, Zusammenführung von Datenbeständen, Ausschluss von Rechten:** nein.
+- **Neue Technologien:** KI (Sprachmodell) für Trainingsvorschläge, aber sie bewertet Pferde und keine Personen, bekommt keine Namen, entscheidet nichts (feste Regeln prüfen, eine Person übernimmt) und läuft nur mit Einwilligung. Kein Fall der Muss-Liste (die dort genannten KI-Fälle betreffen die Bewertung oder Steuerung von Personen).
+- **Systematische Überwachung, Bewertung, Scoring, Zusammenführung von Datenbeständen, Ausschluss von Rechten:** nein.
 
 Ergebnis: Zwei Kriterien sind berührt, aber der Umfang ist klein und die Verarbeitung von Standortdaten freiwillig und für die Betroffenen steuerbar; kein Fall der Muss-Liste. Eine vollständige Folgenabschätzung ist nach dieser Einschätzung nicht erforderlich. Neu prüfen, wenn die App für mehrere Ställe oder deutlich mehr Personen betrieben wird oder Standortdaten ohne eigenes Zutun erhoben werden.
 

@@ -30,7 +30,7 @@ function item(kind: ConsentKind, over: Partial<ConsentItem> = {}): ConsentItem {
 }
 
 test("every kind has German copy with a button and an explanation", () => {
-  assert.equal(CONSENT_KINDS.length, 6);
+  assert.equal(CONSENT_KINDS.length, 7);
   assert.ok(CONSENT_KINDS.includes("maps"));
   assert.match(CONSENT_COPY.maps.points.join(" "), /OpenFreeMap/);
   for (const kind of CONSENT_KINDS) {

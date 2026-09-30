@@ -177,6 +177,9 @@ var durationTable = map[training.Activity]durations{
 	training.ActivityJumping:    {40, 30},
 }
 
+// DefaultMinutes is the usual duration of an activity (0 for rest or unknown ones).
+func DefaultMinutes(a training.Activity) int { return durationTable[a].def }
+
 type disciplineInfo struct {
 	name       string
 	activities []training.Activity
@@ -280,13 +283,7 @@ func Recommend(in Input) Result {
 	showNear := showDays >= 0 && showDays <= 1
 	var kept []*candidate
 	for _, c := range cands {
-		if recentOnly && training.DefaultIntensity(c.activity) != training.IntensityLight {
-			continue
-		}
-		if showNear && training.DefaultIntensity(c.activity) != training.IntensityLight {
-			continue
-		}
-		if in.Ground == GroundFrozen && c.activity == training.ActivityJumping {
+		if filterReason(in, c.activity, recentOnly, showNear, showDays, showName, horse) != "" {
 			continue
 		}
 		kept = append(kept, c)
@@ -418,6 +415,146 @@ func filteredReason(in Input, pause, show bool, showName, horse string) string {
 		return fmt.Sprintf("%s steht kurz bevor und nur Intensives ist freigegeben – heute Ruhetag.", showName)
 	}
 	return fmt.Sprintf("Bei diesem Boden ist für %s heute nichts Passendes freigegeben – Ruhetag.", horse)
+}
+
+// filterReason applies the hard filters of step 3 to one activity. It returns a German
+// sentence why the activity is out today, or "" when it passes.
+func filterReason(in Input, act training.Activity, recentOnly, showNear bool, showDays int, showName, horse string) string {
+	light := training.DefaultIntensity(act) == training.IntensityLight
+	switch {
+	case recentOnly && !light && in.Profile.Status == training.StatusPause:
+		return fmt.Sprintf("%s macht gerade Pause – nur leichte Arbeit.", horse)
+	case recentOnly && !light:
+		return fmt.Sprintf("%s ist in der Reha – nur leichte Arbeit.", horse)
+	case showNear && !light:
+		when := "morgen"
+		if showDays == 0 {
+			when = "heute"
+		}
+		return fmt.Sprintf("%s ist %s – nur leichte Arbeit.", showName, when)
+	case in.Ground == GroundFrozen && act == training.ActivityJumping:
+		return "Der Boden ist gefroren – kein Springen."
+	}
+	return ""
+}
+
+// Verdict is the result of Check.
+type Verdict struct {
+	// OK is true when the proposal passes the rules.
+	OK bool
+	// Recommendation is the proposal with its minutes fitted to the limits when OK, else the
+	// rule-based replacement (the top recommendation of Recommend, or a rest day when the
+	// week already has enough sessions). Reason is empty for an accepted proposal.
+	Recommendation Recommendation
+	// Why says in German why the proposal was replaced; empty when OK.
+	Why string
+}
+
+// MaxPlanMinutes caps a checked duration when the rhythm sets no maximum.
+const MaxPlanMinutes = 120
+
+// Check tests a proposed activity (training.ActivityRest for a rest day) with a duration
+// for in.Today against the hard rules of Recommend: visibility (profile, rider rules), the
+// active reha phase, the rest day after a show, the filters for pause/reha, a near show and
+// frozen ground, and in addition the weekly maximum of sessions (Rhythm.SessionsMax). The
+// soft scoring does not apply: every activity that passes the rules is fine.
+//
+// A rest day always passes. Minutes are fitted into the limits: the reha phase range, the
+// rhythm maximum (MaxPlanMinutes without one), PauseMaxMinutes and ShowLightMaxMinutes;
+// zero or negative minutes become the activity's default duration.
+func Check(in Input, act training.Activity, minutes int) Verdict {
+	today := training.Day(in.Today)
+	horse := in.Profile.HorseName
+	if horse == "" {
+		horse = "das Pferd"
+	}
+	rider := in.RiderName
+	if rider == "" {
+		rider = "den Reiter"
+	}
+	if act == training.ActivityRest {
+		return Verdict{OK: true, Recommendation: rest("")}
+	}
+	replace := func(why string) Verdict {
+		return Verdict{Recommendation: Recommend(in).Recommendations[0], Why: why}
+	}
+	if !act.Valid() {
+		return replace(fmt.Sprintf("„%s“ ist keine bekannte Aktivität.", act))
+	}
+
+	// Overrides of Recommend: reha phase and rest after a show fix the day.
+	if in.Reha != nil && in.Profile.Status != training.StatusPause {
+		forced := Recommend(in).Recommendations[0]
+		if forced.Activity != act {
+			return Verdict{Recommendation: forced, Why: forced.Reason}
+		}
+		m := minutes
+		if m <= 0 || m > in.Reha.MaxMinutes {
+			m = in.Reha.MaxMinutes
+		}
+		if m < in.Reha.MinMinutes {
+			m = in.Reha.MinMinutes
+		}
+		forced.Minutes, forced.Reason, forced.Score = m, "", 0
+		return Verdict{OK: true, Recommendation: forced}
+	}
+	if in.Profile.Rhythm.RestAfterShow {
+		for _, s := range in.Profile.Shows {
+			if training.DaysBetween(s.Date, today) == 1 {
+				forced := Recommend(in).Recommendations[0]
+				return Verdict{Recommendation: forced, Why: forced.Reason}
+			}
+		}
+	}
+
+	// Visibility and hard filters.
+	hidden, cands := visibility(in, horse, rider)
+	for _, h := range hidden {
+		if h.Activity == act {
+			return replace(h.Reason + ".")
+		}
+	}
+	var cand *candidate
+	for _, c := range cands {
+		if c.activity == act {
+			cand = c
+		}
+	}
+	if cand == nil {
+		return replace(fmt.Sprintf("%s ist für %s nicht freigegeben.", act.GermanName(), horse))
+	}
+	recentOnly := in.Profile.Status == training.StatusPause || in.Profile.Status == training.StatusReha
+	showDays, showName := nextShow(in.Profile.Shows, today)
+	showNear := showDays >= 0 && showDays <= 1
+	if why := filterReason(in, act, recentOnly, showNear, showDays, showName, horse); why != "" {
+		return replace(why)
+	}
+	if r := in.Profile.Rhythm; r.SessionsMax > 0 && weekSessions(in.Recent, today) >= r.SessionsMax {
+		why := fmt.Sprintf("Diese Woche gab es schon %d Einheiten – mehr sieht der Rhythmus nicht vor.", weekSessions(in.Recent, today))
+		return Verdict{Recommendation: rest(why), Why: why}
+	}
+
+	// Minutes.
+	dur := durationTable[act]
+	if minutes <= 0 {
+		minutes = dur.def
+	}
+	limit := MaxPlanMinutes
+	if m := in.Profile.Rhythm.MaxMinutes; m > 0 {
+		limit = m
+	}
+	if recentOnly && PauseMaxMinutes < limit {
+		limit = PauseMaxMinutes
+	}
+	if showNear && ShowLightMaxMinutes < limit {
+		limit = ShowLightMaxMinutes
+	}
+	if minutes > limit {
+		minutes = limit
+	}
+	return Verdict{OK: true, Recommendation: Recommendation{
+		Activity: act, Minutes: minutes, Intensity: training.DefaultIntensity(act), Note: cand.note,
+	}}
 }
 
 // nextShow returns days until the next show (today counts as 0), or -1.
