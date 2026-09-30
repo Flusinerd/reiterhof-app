@@ -72,6 +72,36 @@ Voraussetzungen und Grenzen:
   (`scripts/copy-maplibre-worker.mjs`) nach `public/maplibre/` kopiert (git-ignoriert), weil MapLibre die
   Worker-Adresse sonst aus `import.meta.url` ableitet.
 
+## Hosting (JAN-77)
+
+Produktion: `https://stallfunk.de`, derselbe VPS wie die API (Runbook: [`deploy/README.md`](../../deploy/README.md#web-app-pwa)).
+
+- **Caddy** (`deploy/Caddyfile`, Host aus `REITERHOF_WEB_DOMAIN` in `/etc/reiterhof/caddy.env`): `/api/*` und
+  `/auth/verify` gehen an die API (`127.0.0.1:8080`, gleiche Einstellungen wie der API-Host: Upload-Limit 25 MB,
+  Health-Check; der Echtzeit-Stream `text/event-stream` wird nicht gepuffert und nicht komprimiert). Alles
+  andere kommt aus `/var/www/stallfunk/current`. `api.stallfunk.de` bleibt unverändert für die native App.
+- **SPA-Fallback**: Pfade ohne Dateiendung und ohne Datei (`/horses`, `/requests/12`) liefern `index.html`;
+  `/_expo/*`, `/maplibre/*`, `/assets/*` und alles mit Endung liefern bei fehlender Datei **404**.
+- **Cache**: `/_expo/static/*` und `/assets/*` (Hash im Namen) `public, max-age=31536000, immutable`; alles andere
+  (`index.html`, `sw.js`, `manifest.webmanifest`, Icons, MapLibre-Worker) `no-cache`. Fehlerantworten `no-store`.
+- **MIME**: `.mjs` und `.js` als `text/javascript` (Caddy-Standard), `manifest.webmanifest` wird vom Caddyfile als
+  `application/manifest+json` gesetzt (Caddy liefert sonst `text/plain`).
+- **Header** (Web-Host): HSTS, `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`; CSP
+  `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://tiles.openfreemap.org; worker-src 'self' blob:; font-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'`
+  und `Permissions-Policy: camera=(), microphone=(), geolocation=(self), accelerometer=(self), gyroscope=(self), screen-wake-lock=(self)`.
+  Für die proxied Pfade gelten die Header des API-Hosts (`default-src 'none'`). Das `index.html` hat kein
+  Inline-Skript; die Google-Anmeldung öffnet `accounts.google.com` in einem Popup (von der CSP nicht betroffen).
+  Wer die Kartenquelle wechselt (`EXPO_PUBLIC_MAP_STYLE_URL`), muss `connect-src` anpassen.
+- **Deploy**: `deploy.yml` baut den Export (Node 22, `npm ci`, `npx expo export --platform web`), lädt
+  `web.tar.gz` hoch, `remote-swap.sh` entpackt nach `/var/www/stallfunk/releases/<sha>` und schaltet den Symlink
+  `current` atomar um (nach dem API-Health-Check, letzte 3 Releases bleiben). CI baut den Export ebenfalls.
+- **Betreiber-Checkliste**: DNS (`stallfunk.de` A/AAAA, `api.stallfunk.de` CNAME), einmalig `provision.sh` mit
+  `REITERHOF_WEB_DOMAIN=stallfunk.de` erneut ausführen, Deploy starten. Für Web-Push das VAPID-Paar
+  (`REITERHOF_VAPID_PUBLIC_KEY`, `REITERHOF_VAPID_PRIVATE_KEY`, `REITERHOF_VAPID_SUBJECT`) in `api.env` setzen
+  ([push-web.md](push-web.md)); ohne Schlüssel antwortet `/api/v1/push/web/public-key` mit 503 und Web-Push ist aus.
+- **Login-Mail**: `/auth/verify?token=…` (falls `REITERHOF_PUBLIC_URL` gesetzt ist) zeigt die Seite der API mit dem
+  Link `stallfunk://…`; sie meldet nicht in der Web-App an.
+
 ## Anforderungen an den Host
 
 - `index.html` für alle unbekannten Pfade (SPA-Fallback), aber **nicht** für Dateien mit Endung

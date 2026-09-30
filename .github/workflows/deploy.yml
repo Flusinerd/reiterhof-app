@@ -36,6 +36,10 @@ jobs:
       DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
       # Optional: public URL for the final external health check, e.g. https://api.example.org
       DEPLOY_PUBLIC_URL: ${{ vars.DEPLOY_PUBLIC_URL }}
+      # Optional: public URL of the web app (PWA) for a final check that it is served, e.g. https://example.org
+      DEPLOY_WEB_URL: ${{ vars.DEPLOY_WEB_URL }}
+      # The commit that is deployed; names the web release directory on the server.
+      RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
@@ -60,6 +64,21 @@ jobs:
           go build -trimpath -ldflags "-s -w" -o "$RUNNER_TEMP/api" ./cmd/api
           go build -trimpath -ldflags "-s -w" -o "$RUNNER_TEMP/stallfunk-admin" ./cmd/admin
 
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      # Same-origin build: the web app calls the API at the origin of the page (Caddy proxies /api).
+      # npm ci runs the postinstall that copies the MapLibre worker to public/maplibre/.
+      - name: Build web app (PWA)
+        working-directory: mobile
+        run: |
+          npm ci
+          npx expo export --platform web --output-dir dist
+          tar -czf "$RUNNER_TEMP/web.tar.gz" -C dist .
+
       - name: Configure SSH
         run: |
           install -d -m 0700 ~/.ssh
@@ -74,12 +93,23 @@ jobs:
             "$RUNNER_TEMP/api" "$DEPLOY_USER@$DEPLOY_HOST:/opt/reiterhof/api.new"
           scp -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes \
             "$RUNNER_TEMP/stallfunk-admin" "$DEPLOY_USER@$DEPLOY_HOST:/opt/reiterhof/stallfunk-admin.new"
+          scp -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$RUNNER_TEMP/web.tar.gz" "$DEPLOY_USER@$DEPLOY_HOST:/opt/reiterhof/web.new.tar.gz"
 
-      - name: Swap binaries, restart service, check health
+      # After a healthy API the script also installs the operator tool and the web release (see remote-swap.sh).
+      - name: Swap binaries, restart service, check health, install web app
         run: |
           ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes \
-            "$DEPLOY_USER@$DEPLOY_HOST" 'bash -s' < deploy/remote-swap.sh
+            "$DEPLOY_USER@$DEPLOY_HOST" "RELEASE_SHA=$RELEASE_SHA bash -s" < deploy/remote-swap.sh
 
       - name: Check public health endpoint
         if: env.DEPLOY_PUBLIC_URL != ''
         run: curl -fsS --max-time 10 --retry 5 --retry-delay 3 "${DEPLOY_PUBLIC_URL%/}/healthz"
+
+      - name: Check public web app
+        if: env.DEPLOY_WEB_URL != ''
+        run: |
+          curl -fsS --max-time 10 --retry 5 --retry-delay 3 "${DEPLOY_WEB_URL%/}/manifest.webmanifest" >/dev/null
+          # A deep link must return the app shell (SPA fallback), not a 404.
+          page="$(curl -fsS --max-time 10 --retry 5 --retry-delay 3 "${DEPLOY_WEB_URL%/}/horses")"
+          grep -q '<div id="root">' <<<"$page"

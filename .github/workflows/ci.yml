@@ -67,6 +67,9 @@ jobs:
         run: npm test
       - name: Check Expo SDK versions
         run: npx expo install --check
+      # The PWA build (the deploy workflow runs the same): a broken web export fails CI.
+      - name: Export web app
+        run: npx expo export --platform web --output-dir dist
 
   pins:
     runs-on: ubuntu-24.04

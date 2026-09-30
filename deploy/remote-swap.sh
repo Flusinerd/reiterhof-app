@@ -9,9 +9,19 @@
 # The operator tool /opt/reiterhof/stallfunk-admin.new (optional) is installed the same
 # way (atomic rename, no sudo needed: /opt/reiterhof belongs to the deploy user), but only
 # after the API is healthy, so that the tool always matches the running API version.
+#
+# The web app (PWA) is installed the same way: the optional tarball /opt/reiterhof/web.new.tar.gz
+# (Expo web export) is unpacked to /var/www/stallfunk/releases/<RELEASE_SHA> and the symlink
+# /var/www/stallfunk/current is switched atomically (ln -sfn + mv -T). Caddy serves "current".
+# The last 3 releases are kept, so a rollback is one symlink switch (see deploy/README.md).
+# RELEASE_SHA (the deployed commit) is passed in by the workflow:
+#   ssh deploy@host "RELEASE_SHA=<sha> bash -s" < deploy/remote-swap.sh
+# No sudo is needed: /var/www/stallfunk belongs to the deploy user (provision.sh).
 set -euo pipefail
 
 APP_DIR=/opt/reiterhof
+WEB_ROOT="${WEB_ROOT:-/var/www/stallfunk}"
+WEB_KEEP=3
 HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:8080/healthz}"
 
 cd "$APP_DIR"
@@ -45,15 +55,50 @@ install_admin() {
   echo "Installed $APP_DIR/stallfunk-admin."
 }
 
+# install_web: unpack web.new.tar.gz (uploaded by the workflow) as a new release and make it
+# current. The release directory is built under a temporary name and renamed into place, so a
+# release directory is always complete. The symlink is replaced by renaming a new one over it.
+install_web() {
+  [[ -f web.new.tar.gz ]] || return 0
+  [[ "${RELEASE_SHA:-}" =~ ^[0-9a-f]{7,64}$ ]] || { echo "ERROR: RELEASE_SHA missing or invalid" >&2; return 1; }
+  local releases="$WEB_ROOT/releases" release incoming
+  release="$releases/$RELEASE_SHA"
+  incoming="$releases/.incoming-$RELEASE_SHA"
+  rm -rf "$releases"/.incoming-* # leftovers of an aborted run (deploys never run in parallel)
+  if [[ -d "$release" ]]; then
+    echo "Web release $RELEASE_SHA is already installed; reusing it."
+  else
+    mkdir "$incoming"
+    tar -xzf web.new.tar.gz -C "$incoming" --no-same-owner --no-same-permissions
+    [[ -f "$incoming/index.html" ]] || { echo "ERROR: web archive has no index.html" >&2; rm -rf "$incoming"; return 1; }
+    chmod -R u=rwX,go=rX "$incoming" # Caddy (user caddy) only reads
+    mv -T "$incoming" "$release"
+  fi
+  touch "$release" # newest release = most recently activated; the retention below goes by this
+  ln -sfn "$release" "$WEB_ROOT/current.new"
+  mv -T "$WEB_ROOT/current.new" "$WEB_ROOT/current"
+  rm -f web.new.tar.gz
+  echo "Web release $RELEASE_SHA is current."
+
+  # Keep the newest WEB_KEEP releases (the current one is always among them).
+  local old
+  while IFS= read -r old; do
+    [[ "$old" != "$(readlink "$WEB_ROOT/current")" ]] || continue
+    rm -rf -- "$old"
+  done < <(find "$releases" -mindepth 1 -maxdepth 1 -type d ! -name '.*' -printf '%T@ %p\n' |
+    sort -rn | tail -n +$((WEB_KEEP + 1)) | cut -d' ' -f2-)
+}
+
 sudo systemctl restart reiterhof-api.service
 if healthy; then
   echo "Deployment healthy."
   install_admin
+  install_web
   exit 0
 fi
 
 echo "ERROR: new version is not healthy." >&2
-rm -f stallfunk-admin.new # keep the operator tool matching the API that runs again
+rm -f stallfunk-admin.new web.new.tar.gz # keep tool and web app matching the API that runs again
 journalctl -u reiterhof-api.service -n 30 --no-pager >&2 || true
 if [[ -f api.prev ]]; then
   echo "Rolling back to the previous binary." >&2

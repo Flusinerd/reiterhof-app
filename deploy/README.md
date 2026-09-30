@@ -1,22 +1,24 @@
 # Deployment auf einen Netcup-VPS
 
-Runbook für den Betrieb der Stallfunk-API auf **einem** Debian-/Ubuntu-Server
+Runbook für den Betrieb der Stallfunk-API und der Web-App (PWA) auf **einem** Debian-/Ubuntu-Server
 (Netcup-VPS mit 4 GB RAM). Alles läuft auf dem Server:
 
 ```
 Internet -> Caddy (80/443, automatisches TLS) -> reiterhof-api (127.0.0.1:8080) -> PostgreSQL 16 (localhost)
+             |-- api.stallfunk.de   nur die API (native App)
+             `-- stallfunk.de       Web-App aus /var/www/stallfunk/current, /api/* an dieselbe API
 ```
 
 | Datei | Zweck |
 | --- | --- |
 | `provision.sh` | Einmalige, wiederholbare Server-Einrichtung (als root) |
-| `Caddyfile` | Reverse Proxy, TLS, Security-Header, Upload-Limit 25 MB |
+| `Caddyfile` | Reverse Proxy und Web-App-Hosting, TLS, Security-Header (inkl. CSP der Web-App), Upload-Limit 25 MB |
 | `postgresql.conf.d/reiterhof.conf` | PostgreSQL-Tuning für 4 GB RAM |
 | `systemd/reiterhof-api.service` | API als gehärteter systemd-Dienst |
 | `api.env.example` | Vorlage für `/etc/reiterhof/api.env` |
 | `backup.sh`, `systemd/reiterhof-backup.*` | Tägliches Backup + Offsite-Kopie |
 | `restore-test.sh`, `restore.md` | Restore-Anleitung und Restore-Test |
-| `remote-swap.sh` | Wird vom Deploy-Workflow auf dem Server ausgeführt |
+| `remote-swap.sh` | Wird vom Deploy-Workflow auf dem Server ausgeführt (API, Betriebswerkzeug, Web-App) |
 | `stallfunk-admin.sh` | Wrapper `/usr/local/bin/stallfunk-admin` für das Betriebswerkzeug (siehe [Betrieb](#betrieb-stallfunk-admin)) |
 
 ## 1. Server bestellen
@@ -29,13 +31,16 @@ Internet -> Caddy (80/443, automatisches TLS) -> reiterhof-api (127.0.0.1:8080) 
 
 ## 2. DNS
 
-Bei deinem DNS-Anbieter für die API-Domain (z. B. `api.reiterhof.example`) anlegen:
+Bei deinem DNS-Anbieter für die Web-Domain (z. B. `reiterhof.example`) anlegen:
 
 - `A`-Record auf die IPv4-Adresse,
 - `AAAA`-Record auf die IPv6-Adresse (optional, aber empfohlen).
 
-Prüfen: `dig +short api.reiterhof.example`. Ohne korrekten DNS-Eintrag kann Caddy kein
-Zertifikat bekommen. Ports 80 und 443 müssen erreichbar sein (die Firewall wird von
+Die API-Domain (z. B. `api.reiterhof.example`, für die native App) bekommt entweder dieselben
+Einträge oder einen `CNAME` auf die Web-Domain (so ist es bei `stallfunk.de` eingerichtet).
+
+Prüfen: `dig +short reiterhof.example api.reiterhof.example`. Ohne korrekten DNS-Eintrag kann Caddy
+kein Zertifikat bekommen (je Domain eines). Ports 80 und 443 müssen erreichbar sein (die Firewall wird von
 `provision.sh` gesetzt; in der Netcup-SCP-Firewall darf nichts blockieren).
 
 ## 3. Server einrichten (`provision.sh`)
@@ -55,6 +60,7 @@ scp -r deploy root@<server-ip>:/root/reiterhof-deploy
 ssh root@<server-ip>
 cd /root/reiterhof-deploy
 REITERHOF_DOMAIN=api.reiterhof.example \
+REITERHOF_WEB_DOMAIN=reiterhof.example \
 REITERHOF_DB_PASSWORD="$(openssl rand -hex 24)" \
 REITERHOF_ADMIN_SSH_PUBKEY="$(head -n1 /root/.ssh/authorized_keys)" \
 REITERHOF_DEPLOY_SSH_PUBKEY="ssh-ed25519 AAAA... reiterhof-deploy" \
@@ -68,7 +74,9 @@ Das Skript erledigt:
 - `ufw` (22 mit Rate-Limit, 80, 443), automatische Sicherheitsupdates (Neustart bei Bedarf um 04:30)
 - PostgreSQL 16 (PGDG-Repository) inkl. Tuning, Datenbank und Rolle
 - Caddy (offizielles Repository), systemd-Units, Verzeichnisse `/opt/reiterhof`,
+  `/var/www/stallfunk` (Web-App, gehört dem Benutzer `deploy`, Caddy liest nur),
   `/var/lib/reiterhof/uploads`, `/var/backups/reiterhof`
+- `/etc/reiterhof/caddy.env` mit `REITERHOF_DOMAIN` (API) und `REITERHOF_WEB_DOMAIN` (Web-App)
 - `/etc/reiterhof/api.env` (nur wenn noch nicht vorhanden, mit dem DB-Passwort)
 
 Wichtig: **Vor dem Schließen der Root-Sitzung** in einem neuen Terminal testen, dass
@@ -117,16 +125,19 @@ Environment `production`, dort lassen sich auch Freigaben verlangen):
 | `DEPLOY_KNOWN_HOSTS` | Ausgabe von `ssh-keyscan -t ed25519 <DEPLOY_HOST>` (Fingerprint vorher über das Netcup-SCP-Konsolenfenster prüfen) |
 
 Optionale Variablen: `DEPLOY_PUBLIC_URL` (z. B. `https://api.reiterhof.example`, aktiviert den
-externen Health-Check am Ende) und `DEPLOY_ENABLED=true` (automatisches Deployment, sobald die CI
+externen Health-Check am Ende), `DEPLOY_WEB_URL` (z. B. `https://reiterhof.example`, prüft am Ende,
+dass Web-App und Deep Link ausgeliefert werden) und `DEPLOY_ENABLED=true` (automatisches Deployment, sobald die CI
 für einen Push auf `main` grün ist; ausgerollt wird genau der getestete Commit. Ohne diese
 Variable läuft der Workflow nur manuell).
 
 Dann *Actions > Deploy > Run workflow*. Der Workflow testet, baut zwei statische
-linux/amd64-Binaries (API und das Betriebswerkzeug `stallfunk-admin`), lädt sie per `scp` hoch,
+linux/amd64-Binaries (API und das Betriebswerkzeug `stallfunk-admin`) sowie den Web-Export der App
+(`npx expo export --platform web`, Node 22), lädt alles per `scp` hoch,
 tauscht `/opt/reiterhof/api` atomar aus, startet den Dienst neu und prüft `/healthz`. Fällt der
 Health-Check durch, wird automatisch das vorherige Binary wiederhergestellt
 (`/opt/reiterhof/api.prev`). Das Betriebswerkzeug wird erst nach erfolgreichem Health-Check als
 `/opt/reiterhof/stallfunk-admin` installiert (ebenfalls atomar, ohne zusätzliche sudo-Rechte).
+Ebenfalls erst danach kommt die Web-App: siehe [Web-App (PWA)](#web-app-pwa).
 
 Kontrolle auf dem Server:
 
@@ -137,6 +148,66 @@ curl -fsS https://api.reiterhof.example/healthz
 ```
 
 Datenbank-Migrationen laufen beim Start der API automatisch.
+
+## Web-App (PWA)
+
+Die Web-App (Expo-Web-Export, Single-Page-App) läuft unter der Web-Domain (`https://stallfunk.de`).
+Caddy liefert dort die statischen Dateien aus `/var/www/stallfunk/current` und reicht `/api/*` (inkl.
+Echtzeit-Stream `/api/v1/events`) sowie `/auth/verify` an dieselbe API weiter; die Web-App ruft die API
+unter ihrer eigenen Adresse auf (gleicher Ursprung, kein CORS). Die native App nutzt weiter
+`https://api.stallfunk.de`. Die Web-Domain hat ein eigenes Zertifikat (automatisch).
+
+Ablauf pro Deployment (in `remote-swap.sh`, erst nach gesundem API-Health-Check):
+
+1. Der Workflow lädt `web.tar.gz` nach `/opt/reiterhof/web.new.tar.gz` hoch.
+2. Das Archiv wird nach `/var/www/stallfunk/releases/<commit-sha>` entpackt.
+3. Der Symlink `/var/www/stallfunk/current` wird atomar umgeschaltet (`ln -sfn` + `mv -T`).
+4. Die letzten 3 Releases bleiben liegen, ältere werden gelöscht.
+
+Fällt der Health-Check der API durch, wird die Web-App nicht ausgetauscht.
+
+**Einmalig auf dem bestehenden Server** (bevor der erste Deploy mit Web-App läuft), als `admin`:
+
+1. DNS prüfen: `dig +short stallfunk.de` zeigt die Server-IP, `api.stallfunk.de` ist ein `CNAME` auf
+   `stallfunk.de` (oder zeigt ebenfalls auf den Server).
+2. Repository auf dem Server aktualisieren und `provision.sh` erneut ausführen, jetzt mit der neuen
+   Variable `REITERHOF_WEB_DOMAIN` (Befehl unter [Betrieb](#betrieb-stallfunk-admin), „Einmalig auf
+   dem bestehenden Server nachrüsten“). Das legt `/var/www/stallfunk` an, schreibt die Web-Domain in
+   `/etc/reiterhof/caddy.env`, installiert das neue Caddyfile und startet Caddy neu. Danach steht
+   `https://stallfunk.de` mit 404, bis der erste Deploy die Web-App liefert.
+3. Optional die Repository-Variable `DEPLOY_WEB_URL=https://stallfunk.de` setzen (Deploy prüft dann die Web-App).
+4. *Actions > Deploy > Run workflow* (oder der nächste Merge auf `main` mit `DEPLOY_ENABLED=true`).
+5. Für Web-Push das VAPID-Schlüsselpaar in `api.env` eintragen (siehe [Web-Push](#web-push-pwa-auf-dem-iphone)),
+   sonst bleibt Web-Push aus.
+6. Optional in `api.env` `REITERHOF_PUBLIC_URL` prüfen: Login-Mails enthalten `<url>/auth/verify?token=...`,
+   das eine Seite mit dem Link in die native App zeigt. Beide Domains liefern diese Seite aus.
+
+**Prüfen**
+
+```sh
+curl -I https://stallfunk.de/sw.js                 # 200, Content-Type text/javascript, Cache-Control: no-cache
+curl -I https://stallfunk.de/manifest.webmanifest  # Content-Type application/manifest+json
+curl -I https://stallfunk.de/horses                # 200 (Deep Link liefert index.html)
+curl -I https://stallfunk.de/gibt-es-nicht.js      # 404 (kein index.html für fehlende Dateien)
+curl -I https://stallfunk.de/api/v1/me                # 401 (Antwort kommt von der API, nicht index.html)
+curl -fsS https://api.stallfunk.de/healthz       # API-Host unverändert
+ls -l /var/www/stallfunk/ /var/www/stallfunk/releases/
+```
+
+Danach auf dem iPhone in Safari `https://stallfunk.de` öffnen, „Zum Home-Bildschirm“ hinzufügen, anmelden
+und die Mitteilungen erlauben (Anleitung und Grenzen: [`docs/domains/pwa.md`](../docs/domains/pwa.md)).
+
+**Rollback der Web-App** (ohne neuen Deploy), auf dem Server als `deploy` (oder `admin`):
+
+```sh
+ls -t /var/www/stallfunk/releases/                # neuestes zuerst
+cd /var/www/stallfunk
+ln -sfn /var/www/stallfunk/releases/<alter-sha> current.new && mv -T current.new current
+```
+
+Der nächste Deploy schaltet wieder auf den neuen Stand um. Die Web-App ist eine Single-Page-App mit
+Service Worker ohne Cache-Schicht: Browser holen `index.html` bei jedem Start neu (`no-cache`), die
+Dateien unter `/_expo/static/` tragen einen Hash im Namen und werden ein Jahr gecacht.
 
 ## 6. Backups
 
@@ -259,11 +330,13 @@ ssh admin@<server-ip> 'sudo install -m 0755 -o root -g root /tmp/stallfunk-admin
 Alternativ das Repository auf dem Server aktualisieren und `provision.sh` erneut ausführen. Das
 Datenbankpasswort liest das Skript bei einem erneuten Lauf aus `/etc/reiterhof/api.env`, es muss
 nicht angegeben werden (ein abweichendes `REITERHOF_DB_PASSWORD` bricht ab). Die SSH-Schlüssel
-werden aus den bestehenden Benutzern übernommen:
+werden aus den bestehenden Benutzern übernommen. `REITERHOF_WEB_DOMAIN` (Host der Web-App) ist
+Pflicht; ohne sie bricht das Skript ab:
 
 ```sh
 sudo bash -c 'cd /root/stallfunk && git pull --ff-only && cd deploy &&
   REITERHOF_DOMAIN=api.stallfunk.de \
+  REITERHOF_WEB_DOMAIN=stallfunk.de \
   REITERHOF_ADMIN_SSH_PUBKEY="$(head -n1 /home/admin/.ssh/authorized_keys)" \
   REITERHOF_DEPLOY_SSH_PUBKEY="$(head -n1 /home/deploy/.ssh/authorized_keys)" \
   ./provision.sh'
@@ -274,5 +347,5 @@ sudo bash -c 'cd /root/stallfunk && git pull --ff-only && cd deploy &&
 - **Updates**: Sicherheitsupdates laufen automatisch (`unattended-upgrades`). Größere
   Updates (PostgreSQL-Major, Caddy) manuell und mit vorherigem Backup.
 - **Rollback**: `ssh deploy@host` und `/opt/reiterhof/api.prev` nach `api` kopieren, dann
-  `sudo systemctl restart reiterhof-api`.
+  `sudo systemctl restart reiterhof-api`. Web-App: Symlink umschalten, siehe [Web-App (PWA)](#web-app-pwa).
 - **Logs**: `journalctl -u reiterhof-api`, `journalctl -u caddy`, `journalctl -u reiterhof-backup`.

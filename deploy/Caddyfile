@@ -1,17 +1,35 @@
-# Caddy configuration for the Stallfunk API.
-# The domain comes from the environment (systemd drop-in, /etc/reiterhof/caddy.env).
-# Caddy obtains and renews the Let's Encrypt certificate automatically; ports
-# 80 and 443 must be reachable and the DNS record must point to this server.
+# Caddy configuration for Stallfunk: the API (native app) and the web app (PWA).
+# The domains come from the environment (systemd drop-in, /etc/reiterhof/caddy.env):
+#   REITERHOF_DOMAIN      API host for the native app, e.g. api.stallfunk.de
+#   REITERHOF_WEB_DOMAIN  web app (PWA) host, e.g. stallfunk.de; serves the static export
+#                         and proxies /api/* to the same backend (same origin, no CORS)
+# Caddy obtains and renews the Let's Encrypt certificates automatically; ports
+# 80 and 443 must be reachable and the DNS records must point to this server.
+#
+# Both variables must be set: an empty site address would turn the block into a
+# global options block. provision.sh writes them to caddy.env and validates the file.
 
-{$REITERHOF_DOMAIN} {
-	# Compress text responses (JSON).
-	encode zstd gzip
-
+# Shared by both sites: upload limit and the backend.
+(backend) {
 	# Limit request bodies. 25 MB is enough for a full-resolution phone photo;
 	# larger uploads are rejected with 413 before they reach the API.
 	request_body {
 		max_size 25MB
 	}
+
+	# Caddy flushes text/event-stream responses (SSE, /api/v1/events) immediately;
+	# no buffering settings are needed.
+	reverse_proxy 127.0.0.1:8080 {
+		# Take the backend out of rotation while /healthz fails.
+		health_uri /healthz
+		health_interval 15s
+		health_timeout 3s
+	}
+}
+
+{$REITERHOF_DOMAIN} {
+	# Compress text responses (JSON).
+	encode zstd gzip
 
 	header {
 		# Browsers only: force HTTPS for a year (the API is called by a native app,
@@ -27,13 +45,82 @@
 		-Server
 	}
 
-	reverse_proxy 127.0.0.1:8080 {
-		# Take the backend out of rotation while /healthz fails.
-		health_uri /healthz
-		health_interval 15s
-		health_timeout 3s
-	}
+	import backend
 
 	# No access log on purpose: it would store client IP addresses (personal
 	# data under GDPR). Errors still go to the journal (journalctl -u caddy).
+}
+
+# Web app (PWA): Expo web export ("single" output = SPA) plus the API on the same origin.
+{$REITERHOF_WEB_DOMAIN} {
+	encode zstd gzip
+
+	# Headers for everything on this host. CSP and Permissions-Policy differ between the
+	# static app and the proxied API, so they are set inside the two handle blocks below
+	# (this block is deferred by the "-Server" and would overwrite them otherwise).
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		Cross-Origin-Resource-Policy "same-site"
+		-Server
+	}
+
+	# API and the https fallback page of the login mail (/auth/verify?token=...).
+	@backend path /api/* /auth/verify
+	handle @backend {
+		header {
+			Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
+			Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		}
+		import backend
+	}
+
+	# Static files of the current release (deploy/remote-swap.sh switches the symlink).
+	handle {
+		root * {$REITERHOF_WEB_ROOT:/var/www/stallfunk/current}
+
+		header {
+			# The app is one origin: scripts, worker and manifest are 'self'. style-src
+			# 'unsafe-inline' is needed by react-native-web (inline style attributes and its
+			# injected <style> sheet). Map style and tiles come from OpenFreeMap; MapLibre runs
+			# its worker from /maplibre/ (or a blob: URL). Google sign-in opens accounts.google.com
+			# in a popup, which none of these directives restricts.
+			Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://tiles.openfreemap.org; worker-src 'self' blob:; font-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+			# The web app records rides: location, motion sensors and a screen wake lock.
+			Permissions-Policy "camera=(), microphone=(), geolocation=(self), accelerometer=(self), gyroscope=(self), screen-wake-lock=(self)"
+		}
+
+		# Revalidate by default (ETag): index.html, manifest.webmanifest, sw.js, icons and the
+		# MapLibre worker keep their names between releases. Content-hashed files never change.
+		# (The two headers are mutually exclusive on purpose: Caddy orders header directives
+		# by path specificity, so a later "default" would overwrite the immutable one.)
+		@hashed path /_expo/static/* /assets/*
+		header @hashed Cache-Control "public, max-age=31536000, immutable"
+		@unhashed not path /_expo/static/* /assets/*
+		header @unhashed Cache-Control "no-cache"
+
+		# Caddy would serve the manifest as text/plain.
+		@manifest path /manifest.webmanifest
+		header @manifest Content-Type "application/manifest+json"
+
+		# SPA fallback: unknown paths without a file extension (/horses, /requests/12) get
+		# index.html. Real asset folders and anything with an extension are excluded, so a
+		# missing asset stays a 404 instead of an HTML page that a script would choke on.
+		@spa {
+			not path /_expo/* /maplibre/* /assets/*
+			not path_regexp \.[A-Za-z0-9]+$
+			not file
+		}
+		rewrite @spa /index.html
+		file_server
+	}
+
+	# A 404 (asset of a release that is already gone, mid-deploy) must never be cached as
+	# "immutable".
+	handle_errors {
+		header Cache-Control "no-store"
+		respond "{err.status_code} {err.status_text}"
+	}
 }
