@@ -48,6 +48,9 @@ func setup(t *testing.T) *env {
 	pool := dbtest.NewSeeded(t)
 	ctx := context.Background()
 	for _, q := range []string{
+		// Start from a clean slate; the seed has a few observations (and a reha plan may refer to one).
+		`UPDATE reha_plans SET observation_id = NULL`,
+		`DELETE FROM observations`,
 		`INSERT INTO stables (id, name) VALUES ('` + otherStable + `', 'Anderer Stall')`,
 		`INSERT INTO users (id, stable_id, name, email) VALUES ('` + otherUser + `', '` + otherStable + `', 'Fremd', 'fremd@example.org')`,
 		`INSERT INTO horses (id, stable_id, name, owner_id) VALUES ('` + otherHorse + `', '` + otherStable + `', 'Fremdpferd', '` + otherUser + `')`,
