@@ -14,7 +14,6 @@ export const OUTPUT = join(root, "mobile", "lib", "consent-legal-texts.ts");
 
 const SOURCES = [
   { name: "PRIVACY_MD", file: join(root, "docs", "legal", "datenschutz.md") },
-  { name: "IMPRINT_MD", file: join(root, "docs", "legal", "impressum.md") },
 ];
 
 /** "**Textversion:** 2026-09-30" -> "2026-09-30" */

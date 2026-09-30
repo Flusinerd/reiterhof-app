@@ -63,7 +63,7 @@ function AuthGate() {
   const segments = useSegments() as string[];
   const inAuthGroup = segments[0] === "(auth)";
   const inVerify = segments[0] === "auth";
-  const inLegal = segments[0] === "legal"; // privacy text and imprint: readable before sign-in
+  const inLegal = segments[0] === "legal"; // privacy text and licenses: readable before sign-in
   const inSettings = segments[0] === "settings"; // privacy settings: export and deletion need no stable
 
   const stack = (

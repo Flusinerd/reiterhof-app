@@ -218,7 +218,7 @@ var parentalTmpl = template.Must(template.New("parental").Parse(`<!doctype html>
 <p>{{.Error}}</p>
 {{else if .Done}}<h1>Danke</h1>
 <p>{{.Child}} darf Stallfunk jetzt nutzen. Du kannst dieses Fenster schließen.</p>
-<p>Deine Zustimmung kannst du jederzeit widerrufen: Schreibe an die im Impressum der App genannte Adresse, dann wird das Konto gelöscht.</p>
+<p>Deine Zustimmung kannst du jederzeit widerrufen: Schreibe an die in der Datenschutzerklärung der App genannte Adresse, dann wird das Konto gelöscht.</p>
 {{else}}<h1>Zustimmung für {{.Child}}</h1>
 <p>{{.Child}} ({{.Email}}) möchte die App Stallfunk nutzen und hat angegeben, jünger als 16 Jahre zu sein. Als Elternteil oder erziehungsberechtigte Person kannst du hier zustimmen.</p>
 <p>Stallfunk ist eine private App für die Stallgasse. Sie speichert:</p>

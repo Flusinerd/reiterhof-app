@@ -148,7 +148,7 @@ Standort, Karten, Fotos, Mitteilungen und das Zeigen deiner Anwesenheit beruhen 
 
 Deshalb fragt die App dich beim ersten Start nach deinem Alter. Wir speichern kein Geburtsdatum, nur deine Angabe „16 oder älter“ mit Zeitpunkt. Bist du jünger, nennst du die E-Mail-Adresse eines Elternteils. Diese Person erhält eine Mail (Versand über Resend, Punkt 3.1) mit deinem Namen, deiner E-Mail-Adresse, einer Beschreibung dessen, was die App speichert, und einem Link. Über den Link stimmt sie zu; der Link gilt 7 Tage und funktioniert einmal, gespeichert wird nur ein Hash. Bis zur Zustimmung kannst du keinem Stall beitreten und keine Erlaubnis erteilen; dein Konto kannst du in dieser Zeit ansehen und löschen.
 
-Wir speichern die E-Mail-Adresse des Elternteils und den Zeitpunkt der Zustimmung als Nachweis, solange dein Konto besteht. Ein Elternteil kann die Zustimmung jederzeit widerrufen, indem es sich an die im Impressum genannte Adresse wendet; dann wird das Konto gelöscht.
+Wir speichern die E-Mail-Adresse des Elternteils und den Zeitpunkt der Zustimmung als Nachweis, solange dein Konto besteht. Ein Elternteil kann die Zustimmung jederzeit widerrufen, indem es sich an die in Punkt 1 genannte Adresse wendet; dann wird das Konto gelöscht.
 
 Rechtsgrundlage: Art. 8 DSGVO in Verbindung mit Art. 6 Abs. 1 lit. c DSGVO (Nachweis der Zustimmung).
 

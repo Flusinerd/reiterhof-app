@@ -502,7 +502,7 @@ blanket photos: members; unreferenced: 404). `POST /api/v1/files/download-link {
 - Requests (Anfragen, M4): [docs/domains/requests.md](domains/requests.md). Note for push: `new_request` is an opt-in kind (`push.OptIn`), it is only sent to users with an enabling `reminder_settings` row; all other kinds stay opt-out.
 - [Horses, horse record, health, documents, files](domains/horses.md): `internal/horses`, `internal/health`, `internal/files`.
 - [Observations (Auffälligkeiten)](domains/observations.md): report, urgent alert to everyone present, status, appointment bundling (`internal/observations`, `internal/health/bundle.go`).
-- [Privacy, imprint, consents, export, deletion, retention](domains/privacy.md): `internal/privacy`, texts in `docs/legal/` (JAN-19).
+- [Privacy, consents, export, deletion, retention](domains/privacy.md): `internal/privacy`, texts in `docs/legal/` (JAN-19).
 - [Blankets](domains/blankets.md): blankets, rules, tonight's plan, day states, last-person and weather change reminders (`internal/blankets`, M3).
 - [Training](domains/training.md): profile, "Was heute?", sessions, week view and exercise library (`internal/trainingapi`, M6).
 - [Session tracking](domains/tracking.md): GPS rides, indoor sessions with gait detection, exercise library screens; `internal/trainingapi` stores the track and raw gait windows (M7).

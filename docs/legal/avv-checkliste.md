@@ -25,20 +25,20 @@ Hier gibt es in der Regel keinen individuell ausgehandelten AVV. Es gelten die B
 
 ## 3. Platzhalter im Text ausfüllen
 
-Quelle der Texte: `docs/legal/datenschutz.md` und `docs/legal/impressum.md`. Nach jeder Änderung `node scripts/gen-legal.mjs` ausführen (siehe `docs/domains/privacy.md`).
+Quelle des Texts: `docs/legal/datenschutz.md`. Nach jeder Änderung `node scripts/gen-legal.mjs` ausführen (siehe `docs/domains/privacy.md`).
 
 - [ ] Verantwortlicher: `[Name, Anschrift, E-Mail]` (Datenschutz, Abschnitt 1 und 9)
 - [ ] Name des Stalls: `[Name des Stalls]`
 - [ ] `[zuständige Aufsichtsbehörde, Anschrift, Website]` (Abschnitt 9)
 - [ ] Hinweis `[vor Veröffentlichung prüfen]` (Drittlandübermittlung Expo, Google, Apple) entfernen, sobald erledigt
-- [ ] Impressum: Name, Anschrift, E-Mail, Telefon, Verbraucherstreitbeilegung
-- [ ] Die Marke „Entwurf – vor Veröffentlichung rechtlich prüfen lassen“ aus beiden Texten entfernen, wenn die Prüfung abgeschlossen ist.
-- [ ] Bei jeder inhaltlichen Änderung `TextVersion` in `backend/internal/privacy/consents.go` und die „Textversion“ in den Texten gemeinsam erhöhen (der Test `TestLegalTextsMatchTextVersion` schlägt sonst fehl).
+- [x] Impressum: entfällt. Entscheidung des Betreibers (30.09.2026): Die App ist nur auf Einladung und rein privat nutzbar, kein geschäftsmäßiges Telemedium (§ 5 DDG). Impressum aus Repository und App entfernt; Kontakt für Eltern und Betroffene steht im Datenschutztext (Abschnitt 1 und 9). Wird die App öffentlich angeboten (Stores, Werbung, Entgelt), neu prüfen.
+- [ ] Die Marke „Entwurf – vor Veröffentlichung rechtlich prüfen lassen“ aus dem Datenschutztext entfernen, wenn die Prüfung abgeschlossen ist.
+- [ ] Bei jeder inhaltlichen Änderung `TextVersion` in `backend/internal/privacy/consents.go` und die „Textversion“ im Datenschutztext gemeinsam erhöhen (der Test `TestLegalTextsMatchTextVersion` schlägt sonst fehl).
 
 ## 4. Fragen für die rechtliche Prüfung
 
 - [ ] Gilt die DSGVO hier, oder greift die Haushaltsausnahme (Art. 2 Abs. 2 lit. c)? Bei einer App für mehrere Einstaller, betrieben von einer Person, eher nicht.
-- [ ] Impressumspflicht für ein privates, nicht geschäftsmäßiges Angebot.
+- [x] Impressumspflicht für ein privates, nicht geschäftsmäßiges Angebot: vom Betreiber verneint (nur auf Einladung, privat), siehe Abschnitt 3.
 - [ ] Rechtsgrundlagen je Datenkategorie (Einwilligung vs. Vertrag vs. berechtigtes Interesse), insbesondere Notfallkarte mit Telefonnummern für alle Mitglieder.
 - [ ] Standortdaten (Geofence, GPS-Strecken): reicht die Einwilligung in der App, ist eine Datenschutz-Folgenabschätzung (Art. 35) nötig?
 - [ ] Kartenkacheln von Apple, Google und OpenFreeMap (IP-Adresse und Kartenausschnitt des Betrachters): Die App holt vorher die Einwilligung „Karten anzeigen“ ein. Genügt das, und ist die Beschreibung in Abschnitt 3.4 vollständig?
@@ -60,4 +60,4 @@ Quelle der Texte: `docs/legal/datenschutz.md` und `docs/legal/impressum.md`. Nac
 - [ ] App Store Connect „App-Datenschutz“ und Play Console „Data safety“ müssen zum Privacy Manifest in `mobile/app.json` (`ios.privacyManifests`: Name, E-Mail, Telefon, Nutzer-ID, genauer Standort, Fotos, Inhalte, Sensormerkmale; kein Tracking) und zum Datenschutztext passen. Hintergrundstandort in der Play Console begründen (Geofence, Streckenaufzeichnung).
 - [ ] Export-Compliance: `ITSAppUsesNonExemptEncryption` ist `false` (nur Standard-TLS). Stimmt weiter, solange die App keine eigene Verschlüsselung mitbringt.
 - [ ] Open-Source-Lizenzen: Die Hinweise erzeugt `mobile/scripts/gen-licenses.mjs` bei jedem `npm ci`; die Seite „Lizenzen“ in der App zeigt sie. Nichts mehr zu tun, außer ein Paket mit unzulässiger Lizenz bricht den Build ab.
-- [ ] Anleitung für Eltern: Widerruf der Zustimmung läuft über die Adresse im Impressum (Konto wird dann gelöscht, `stallfunk-admin user delete`). Ablauf festlegen und Postfach im Blick behalten.
+- [ ] Anleitung für Eltern: Widerruf der Zustimmung läuft über die Adresse im Datenschutztext (Abschnitt 1) (Konto wird dann gelöscht, `stallfunk-admin user delete`). Ablauf festlegen und Postfach im Blick behalten.
