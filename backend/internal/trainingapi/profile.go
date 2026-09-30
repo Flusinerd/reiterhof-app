@@ -144,14 +144,8 @@ func (p storedProfile) riderRules(userID string, keys []string) *training.RiderR
 
 // --- HTTP ---------------------------------------------------------------------------------
 
-type rhythmOut struct {
-	SessionsMin   int  `json:"sessions_min"`
-	SessionsMax   int  `json:"sessions_max"`
-	RestDaysMin   int  `json:"rest_days_min"`
-	RestDaysMax   int  `json:"rest_days_max"`
-	MaxMinutes    int  `json:"max_minutes"`
-	RestAfterShow bool `json:"rest_after_show"`
-}
+// rhythmOut is the stored rhythm including the week structure (days, quotas; JAN-93).
+type rhythmOut = training.Rhythm
 
 type riderRuleOut struct {
 	UserID            string              `json:"user_id"`
@@ -249,6 +243,9 @@ type rhythmIn struct {
 	RestDaysMax   *int  `json:"rest_days_max"`
 	MaxMinutes    *int  `json:"max_minutes"`
 	RestAfterShow *bool `json:"rest_after_show"`
+	// Days (7 day rules, Monday first) and Quotas replace the stored ones when sent (JAN-93).
+	Days   *[]training.DayRule `json:"days"`
+	Quotas *training.Quotas    `json:"quotas"`
 }
 
 type riderRuleIn struct {
@@ -434,6 +431,20 @@ func validateProfile(in profileIn, riders []string) (validProfile, error) {
 		if r.RestAfterShow != nil {
 			v.rhythm.RestAfterShow = *r.RestAfterShow
 		}
+		if r.Days != nil {
+			if n := len(*r.Days); n != 0 && n != 7 {
+				return v, errors.New("rhythm.days needs 7 entries (Monday to Sunday) or none")
+			}
+			for i, d := range *r.Days {
+				v.rhythm.Days[i] = d
+			}
+		}
+		if r.Quotas != nil {
+			v.rhythm.Quotas = *r.Quotas
+		}
+	}
+	if err := validateStructure(v.rhythm, v.allowed); err != nil {
+		return v, err
 	}
 	rh := v.rhythm
 	switch {
@@ -485,4 +496,54 @@ func validateProfile(in profileIn, riders []string) (validProfile, error) {
 		}
 	}
 	return v, nil
+}
+
+// validateStructure checks the owner's week structure (JAN-93): known day kinds, a day
+// activity only for "activity" and only one the profile allows, quotas between 0 and 7 for
+// allowed activities, and no more fixed demands than days in a week.
+func validateStructure(r training.Rhythm, allowed []training.AllowedActivity) error {
+	isAllowed := func(a training.Activity) bool {
+		for _, al := range allowed {
+			if al.Activity == a && (al.Mode == training.ModeOn || al.Mode == training.ModeConditional) {
+				return true
+			}
+		}
+		return false
+	}
+	rest := 0
+	for i, d := range r.Days {
+		if !slices.Contains(training.DayKinds, d.Kind) {
+			return fmt.Errorf("rhythm.days[%d].kind must be one of %s", i, strings.Join(training.DayKinds[1:], ", "))
+		}
+		switch {
+		case d.Kind == training.DayActivity && !isAllowed(d.Activity):
+			return fmt.Errorf("rhythm.days[%d]: activity %q is not allowed in the profile", i, d.Activity)
+		case d.Kind != training.DayActivity && d.Activity != "":
+			return fmt.Errorf("rhythm.days[%d]: an activity needs kind \"activity\"", i)
+		}
+		if d.Kind == training.DayRest {
+			rest++
+		}
+	}
+	if rest > r.RestDaysMax {
+		return fmt.Errorf("the week structure has %d rest days, the rhythm allows at most %d", rest, r.RestDaysMax)
+	}
+	q := r.Quotas
+	units := q.Demanding + q.Recovery
+	if q.Demanding < 0 || q.Demanding > 7 || q.Recovery < 0 || q.Recovery > 7 {
+		return errors.New("quotas must be between 0 and 7")
+	}
+	for a, n := range q.Activities {
+		if !isAllowed(a) {
+			return fmt.Errorf("quota for %q: the activity is not allowed in the profile", a)
+		}
+		if n < 0 || n > 7 {
+			return errors.New("quotas must be between 0 and 7")
+		}
+		units += n
+	}
+	if units+r.RestDaysMin > 7 {
+		return errors.New("quotas and rest days do not fit into a week")
+	}
+	return nil
 }

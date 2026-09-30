@@ -9,6 +9,7 @@ import (
 	"unicode"
 
 	"github.com/Flusinerd/reiterhof-app/backend/internal/training"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/training/load"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/training/recommend"
 )
 
@@ -52,8 +53,8 @@ func buildSystemPrompt() string {
 	var acts strings.Builder
 	for _, a := range training.AllActivities {
 		lo, hi := recommend.MinutesRange(a)
-		fmt.Fprintf(&acts, "- %s = %s: %s; %s; %d-%d minutes\n",
-			a, a.GermanName(), activityHints[a], intensityWords[training.DefaultIntensity(a)], lo, hi)
+		fmt.Fprintf(&acts, "- %s = %s: %s; load factor %.1f; %d-%d minutes; %s\n",
+			a, a.GermanName(), activityHints[a], load.Factor(a, 0), lo, hi, levelRanges(a))
 	}
 	return `You are an experienced riding instructor trained in the German FN system. You plan one training week for one horse at a private stable. The horse's welfare comes first: when in doubt, plan less.
 
@@ -70,8 +71,16 @@ INPUT (JSON)
 
 ACTIVITIES (code = German name: meaning; intensity; sensible duration)
 ` + acts.String() + `
+UNIT LEVELS
+The load of a unit is minutes x load factor. Its level follows from the load: active recovery below 20, light below 30, normal below 45, demanding from 45. The activity list shows the minutes for each level. A rest day has no unit.
+
 HOW TO PLAN
-1. Week structure (load and recovery): alternate demanding, medium and light days. Never two demanding days in a row. After a demanding day, a tired or tense horse or a long break, plan something light or a rest day. No more than 3 working days in a row when rest_days_min is 1 or more; spread the rest days. Count done and planned days so that the week ends within sessions_min-sessions_max. The same activity at most twice in a row; use hacks, lunging or groundwork for variety where allowed.
+1. Week structure.
+   a. The owner's structure is binding. days[].rule: rest = rest day, recovery / light / normal / demanding = one unit of that level, an activity code = that activity. quotas: units per week (Monday to Sunday, done and planned days count) - demanding units, active recovery units and units per activity. Reach every quota, never exceed the demanding and activity quotas.
+   b. Where the owner set no rule: never two demanding days in a row; after two days with normal or demanding load a light unit, active recovery or a rest day; alternate the levels over the week.
+   c. Keep at least rest_days_min rest days. Active recovery (walker, a hack at walk, easy lunging or groundwork, short) keeps the horse moving and is often better than a second rest day.
+   d. load.week_limit, when given, caps the total load of the week (done, planned and your units): at most 20 % above the average of the two weeks before, so after a break build up slowly.
+   e. Count done and planned days so that the week ends within sessions_min-sessions_max. The same activity at most twice in a row; use hacks, lunging or groundwork for variety where allowed.
 2. Content (Skala der Ausbildung): Takt, Losgelassenheit, Anlehnung, Schwung, Geraderichtung, Versammlung, with Durchlaessigkeit as the aim. Build from the bottom: every ridden unit starts with Losgelassenheit. Young horses (under 6), beginner or unknown level, after a break, in reha or after a tense session: Takt and Losgelassenheit. Intermediate: add Anlehnung, Schwung and Durchlaessigkeit. Advanced and fit: Geraderichtung and Versammlung, at most twice a week, never on consecutive days.
 3. Discipline: dressage - mostly hall or arena, one hack or lunge for relaxation. jumping - jumping at most twice a week and never on consecutive days, gymnastic flatwork and hacks in between. eventing - flatwork, jumping (at most twice) and hacks for fitness. leisure - hacks and varied, relaxed work, little drill. western - arena work and hacks. young_horse - short units, groundwork, lunging and calm hacks, many breaks.
 4. Age: under 6 short units; over 18 long walk phases and fewer demanding days.
@@ -92,11 +101,25 @@ REASON
 Good reasons: "Nach dem Ausritt gestern lockere Arbeit an der Longe." "Zwei Tage vor dem Turnier noch einmal konzentriert in der Halle." "Die Übergänge waren am Montag schwer, daher noch einmal ruhig üben." "Nach drei Arbeitstagen braucht das Pferd einen Ruhetag."
 
 CHECK BEFORE ANSWERING
-Every open day exactly once and no closed day; only allowed activities or rest; minutes within the sensible range and max_minutes; sessions and rest days of the whole week within the rhythm; no two demanding days in a row; every exercise key exists and fits the activity; reasons follow the rules.
+Every open day exactly once and no closed day; every day rule and every quota met; only allowed activities or rest; minutes within the sensible range and max_minutes and giving the level the day needs; sessions and rest days of the whole week within the rhythm; the week's load within load.week_limit; no two demanding days in a row unless the owner's rules say so; every exercise key exists and fits the activity; reasons follow the rules.
 
 ANSWER
 JSON only, no other text:
 {"days":[{"day":"<day code from the input>","activity":"<activity code or rest>","minutes":<integer, 0 for rest>,"focus":"<focus or empty>","exercise":"<key or null>","reason":"<reason>"}]}`
+}
+
+// levelRanges lists the minutes of each level of an activity for the system prompt.
+func levelRanges(a training.Activity) string {
+	var parts []string
+	for _, lv := range []string{recommend.LevelRecovery, recommend.LevelLight, recommend.LevelNormal, recommend.LevelDemanding} {
+		if lo, hi, ok := recommend.LevelMinutes(a, lv); ok {
+			parts = append(parts, fmt.Sprintf("%s %d-%d", lv, lo, hi))
+		}
+	}
+	if len(parts) == 0 {
+		return "no level within its range"
+	}
+	return "levels: " + strings.Join(parts, ", ") + " minutes"
 }
 
 var ratingWords = map[int]string{1: "hard", 2: "better", 3: "solid"}
@@ -129,6 +152,7 @@ func Prompt(in Input) string {
 	type dayIn struct {
 		Day     string            `json:"day"`
 		InDays  int               `json:"in_days"`
+		Rule    string            `json:"rule,omitempty"`
 		Open    bool              `json:"open"`
 		Done    bool              `json:"done,omitempty"`
 		Planned training.Activity `json:"planned,omitempty"`
@@ -148,6 +172,15 @@ func Prompt(in Input) string {
 		MaxMinutes    int  `json:"max_minutes"`
 		RestAfterShow bool `json:"rest_after_show"`
 	}
+	type quotasIn struct {
+		Demanding  int                       `json:"demanding,omitempty"`
+		Recovery   int                       `json:"recovery,omitempty"`
+		Activities map[training.Activity]int `json:"activities,omitempty"`
+	}
+	type loadIn struct {
+		PreviousWeeksAverage *float64 `json:"previous_weeks_average,omitempty"`
+		WeekLimit            *float64 `json:"week_limit,omitempty"`
+	}
 	type exerciseIn struct {
 		Key      string   `json:"key"`
 		Library  string   `json:"library"`
@@ -163,6 +196,8 @@ func Prompt(in Input) string {
 		AgeYears    int          `json:"horse_age_years,omitempty"`
 		Status      string       `json:"status"`
 		Rhythm      rhythmIn     `json:"rhythm"`
+		Quotas      *quotasIn    `json:"quotas,omitempty"`
+		Load        loadIn       `json:"load"`
 		Activities  []activityIn `json:"activities"`
 		History     []sessionIn  `json:"history"`
 		ShowsInDays []int        `json:"shows_in_days"`
@@ -176,6 +211,25 @@ func Prompt(in Input) string {
 	}
 	r := in.Profile.Rhythm
 	msg.Rhythm = rhythmIn{r.SessionsMin, r.SessionsMax, r.RestDaysMin, r.RestDaysMax, r.MaxMinutes, r.RestAfterShow}
+	if q := r.Quotas; !q.Empty() {
+		qi := &quotasIn{Demanding: q.Demanding, Recovery: q.Recovery}
+		for a, n := range q.Activities {
+			if n > 0 {
+				if qi.Activities == nil {
+					qi.Activities = map[training.Activity]int{}
+				}
+				qi.Activities[a] = n
+			}
+		}
+		msg.Quotas = qi
+	}
+	if len(in.Days) > 0 {
+		monday := training.Day(in.Days[0].Date)
+		if limit, ok := recommend.WeekLoadLimit(in.Recent, monday); ok {
+			avg, lim := round1(previousAverage(in.Recent, monday)), round1(limit)
+			msg.Load = loadIn{PreviousWeeksAverage: &avg, WeekLimit: &lim}
+		}
+	}
 	for _, a := range in.Profile.Allowed {
 		if a.Activity.Valid() && (a.Mode == training.ModeOn || a.Mode == training.ModeConditional) {
 			msg.Activities = append(msg.Activities, activityIn{a.Activity, a.Mode == training.ModeConditional})
@@ -223,7 +277,8 @@ func Prompt(in Input) string {
 	msg.Today.Ground = string(in.Ground)
 	for _, d := range in.Days {
 		day := training.Day(d.Date)
-		di := dayIn{Day: dayCode(day), InDays: training.DaysBetween(today, day), Open: d.Open, Rest: d.Rest}
+		di := dayIn{Day: dayCode(day), InDays: training.DaysBetween(today, day), Open: d.Open, Rest: d.Rest,
+			Rule: dayRuleText(r.Days[training.WeekdayIndex(day)])}
 		if !d.Open {
 			di.Done = done[day.Format(dateLayout)]
 			if d.Planned.Valid() {
@@ -237,6 +292,25 @@ func Prompt(in Input) string {
 	}
 	b, _ := json.Marshal(msg)
 	return string(b)
+}
+
+// dayRuleText is the owner's rule of a day for the prompt: the kind, or the activity code.
+func dayRuleText(d training.DayRule) string {
+	if d.Kind == training.DayActivity {
+		return string(d.Activity)
+	}
+	return d.Kind
+}
+
+// previousAverage is the average load of the two weeks before monday.
+func previousAverage(recent []training.Session, monday time.Time) float64 {
+	var sum float64
+	for _, s := range recent {
+		if d := training.DaysBetween(monday, s.Day); d >= -14 && d < 0 {
+			sum += s.Load
+		}
+	}
+	return sum / 2
 }
 
 // feel passes only the known feel values (they are chosen from a list in the app).

@@ -140,6 +140,8 @@ type Input struct {
 	RiderName        string
 	Rider            *training.RiderRules // only used for RoleRider
 	Reha             *RehaPhase           // active reha phase, if any
+	// Ahead is the rest of the week when a whole week is planned (weekplan), nil otherwise.
+	Ahead *Ahead
 }
 
 // Recommendation is one suggestion. Activity is training.ActivityRest for a
@@ -300,18 +302,45 @@ func Recommend(in Input) Result {
 		return one(rest(filteredReason(in, recentOnly, showNear, showName, horse)))
 	}
 
+	// 3b. Week structure (structure.go).
+	base := map[training.Activity]window{}
+	for _, c := range kept {
+		base[c.activity] = baseWindow(in, c.activity, recentOnly, showNear)
+	}
+	lim := structureFor(in, today, base)
+	if lim.rest != "" {
+		return one(rest(lim.rest))
+	}
+	var inWeek []*candidate
+	for _, c := range kept {
+		if _, out := lim.out[c.activity]; !out {
+			inWeek = append(inWeek, c)
+		}
+	}
+	if len(inWeek) == 0 {
+		return one(rest("Die Wochenstruktur lässt heute nichts zu – Ruhetag."))
+	}
+	kept = inWeek
+
 	// 4. Scoring.
 	ctx := newContext(in, today, horse, showDays, showName, recentOnly, showNear)
 	var ranked []Recommendation
 	for _, c := range kept {
 		ctx.score(c)
+		if w, ok := lim.win[c.activity]; ok {
+			c.minutes = max(min(c.minutes, w.hi), w.lo)
+		}
 		ranked = append(ranked, Recommendation{
 			Activity: c.activity, Minutes: c.minutes, Intensity: training.DefaultIntensity(c.activity),
 			Reason: reasonOf(c, horse), Note: c.note, Score: c.score(),
 		})
 	}
-	if r := in.Profile.Rhythm; r.SessionsMax > 0 && weekSessions(in.Recent, today) >= r.SessionsMax {
-		rr := rest(fmt.Sprintf("Diese Woche gab es schon %d Einheiten – ein Ruhetag tut %s gut.", weekSessions(in.Recent, today), horse))
+	if r := in.Profile.Rhythm; r.SessionsMax > 0 && weekUnits(in, today) >= r.SessionsMax {
+		rr := rest(fmt.Sprintf("Diese Woche gab es schon %d Einheiten – ein Ruhetag tut %s gut.", weekUnits(in, today), horse))
+		rr.Score = WeightWeekFull
+		ranked = append(ranked, rr)
+	} else if lim.restNeed != "" {
+		rr := rest(lim.restNeed)
 		rr.Score = WeightWeekFull
 		ranked = append(ranked, rr)
 	}
@@ -535,9 +564,22 @@ func Check(in Input, act training.Activity, minutes int) Verdict {
 	if why := filterReason(in, act, recentOnly, showNear, showDays, showName, horse); why != "" {
 		return replace(why)
 	}
-	if r := in.Profile.Rhythm; r.SessionsMax > 0 && weekSessions(in.Recent, today) >= r.SessionsMax {
-		why := fmt.Sprintf("Diese Woche gab es schon %d Einheiten – mehr sieht der Rhythmus nicht vor.", weekSessions(in.Recent, today))
+	if r := in.Profile.Rhythm; r.SessionsMax > 0 && weekUnits(in, today) >= r.SessionsMax {
+		why := fmt.Sprintf("Diese Woche gab es schon %d Einheiten – mehr sieht der Rhythmus nicht vor.", weekUnits(in, today))
 		return Verdict{Recommendation: rest(why), Why: why}
+	}
+	base := map[training.Activity]window{}
+	for _, c := range cands {
+		if filterReason(in, c.activity, recentOnly, showNear, showDays, showName, horse) == "" {
+			base[c.activity] = baseWindow(in, c.activity, recentOnly, showNear)
+		}
+	}
+	lim := structureFor(in, today, base)
+	if lim.rest != "" {
+		return Verdict{Recommendation: rest(lim.rest), Why: lim.rest}
+	}
+	if why, out := lim.out[act]; out {
+		return replace(why)
 	}
 
 	// Minutes.
@@ -561,9 +603,40 @@ func Check(in Input, act training.Activity, minutes int) Verdict {
 	if minutes > limit {
 		minutes = limit
 	}
+	if w, ok := lim.win[act]; ok {
+		minutes = max(min(minutes, w.hi), w.lo)
+	}
 	return Verdict{OK: true, Recommendation: Recommendation{
 		Activity: act, Minutes: minutes, Intensity: training.DefaultIntensity(act), Note: cand.note,
 	}}
+}
+
+// baseWindow is the minute window of an activity from its sensible range and the caps of the
+// rhythm, a pause or reha and a near show. When a cap is below the activity's minimum the
+// window is the cap alone (the recommender then penalises the short unit).
+func baseWindow(in Input, act training.Activity, recentOnly, showNear bool) window {
+	dur := durationTable[act]
+	hi := dur.max
+	if m := in.Profile.Rhythm.MaxMinutes; m > 0 && m < hi {
+		hi = m
+	}
+	if recentOnly && PauseMaxMinutes < hi {
+		hi = PauseMaxMinutes
+	}
+	if showNear && ShowLightMaxMinutes < hi {
+		hi = ShowLightMaxMinutes
+	}
+	return window{min(dur.min, hi), hi}
+}
+
+// weekUnits counts the units of the week: sessions from Monday up to today and, when a week
+// is planned, the units fixed on later days.
+func weekUnits(in Input, today time.Time) int {
+	n := weekSessions(in.Recent, today)
+	if in.Ahead != nil {
+		n += len(in.Ahead.Units)
+	}
+	return n
 }
 
 // nextShow returns days until the next show (today counts as 0), or -1.

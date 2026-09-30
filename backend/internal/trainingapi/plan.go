@@ -48,6 +48,9 @@ type planDayOut struct {
 	// exercise for it (null for hack, walker and rest).
 	Focus    string       `json:"focus,omitempty"`
 	Exercise *planExerOut `json:"exercise"`
+	// Level of the unit by its load: recovery, light, normal, demanding ("" for rest; JAN-93).
+	Level      string `json:"level,omitempty"`
+	LevelLabel string `json:"level_label,omitempty"`
 	// User already claimed the day without an activity; applying the plan keeps them.
 	User *personOut `json:"user"`
 }
@@ -157,6 +160,10 @@ func (h *handler) planWeek(w http.ResponseWriter, r *http.Request) {
 			Date: key, Weekday: training.DaysBetween(start, e.Date), Activity: rec.Activity, Label: rec.Activity.GermanName(),
 			Minutes: rec.Minutes, Intensity: intensityKey(rec.Intensity), IntensityLabel: rec.Intensity.Label(),
 			Reason: rec.Reason, Note: rec.Note, Source: e.Source, Replaced: e.Replaced, User: users[key], Focus: e.Focus,
+			Level: e.Level,
+		}
+		if e.Level != "" {
+			pd.LevelLabel = recommend.LevelLabel(e.Level)
 		}
 		if ex := e.Exercise; ex != nil {
 			pd.Exercise = &planExerOut{ID: ex.ID, Title: ex.Title}

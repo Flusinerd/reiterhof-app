@@ -94,6 +94,8 @@ type Entry struct {
 	Source string
 	// Replaced says in German why the model's proposal for this day was replaced.
 	Replaced string
+	// Level is the unit's level by its load (recommend.UnitLevel), "" for a rest day.
+	Level string
 }
 
 // Rules plans every open day with the rule-based recommender.
@@ -107,7 +109,7 @@ func Merge(in Input, proposals map[string]Proposal) []Entry {
 	today := training.Day(in.Today)
 	history := append([]training.Session(nil), in.Recent...)
 	var out []Entry
-	for _, d := range in.Days {
+	for i, d := range in.Days {
 		day := training.Day(d.Date)
 		if !d.Open {
 			if d.Planned.Valid() && !d.Rest {
@@ -115,7 +117,8 @@ func Merge(in Input, proposals map[string]Proposal) []Entry {
 			}
 			continue
 		}
-		rin := recommend.Input{Today: day, Profile: in.Profile, Recent: history, Role: recommend.RoleOwner, Reha: d.Reha}
+		rin := recommend.Input{Today: day, Profile: in.Profile, Recent: history, Role: recommend.RoleOwner, Reha: d.Reha,
+			Ahead: ahead(in.Days[i:])}
 		switch training.DaysBetween(today, day) {
 		case 0:
 			rin.Weather, rin.Ground = in.Weather, in.Ground
@@ -156,10 +159,29 @@ func Merge(in Input, proposals map[string]Proposal) []Entry {
 		e.Recommendation.Score = 0
 		if a := e.Recommendation.Activity; a != training.ActivityRest {
 			history = append(history, simulated(day, a, e.Recommendation.Minutes))
+			e.Level = recommend.UnitLevel(recommend.UnitLoad(a, e.Recommendation.Minutes))
 		}
 		out = append(out, e)
 	}
 	return out
+}
+
+// ahead describes the week from days[0] (the day being planned) on: the open days including
+// it, the units and rest days fixed on the later days.
+func ahead(days []Day) *recommend.Ahead {
+	a := &recommend.Ahead{}
+	for i, d := range days {
+		switch {
+		case d.Open:
+			a.OpenDays++
+		case i == 0:
+		case d.Rest:
+			a.RestDays++
+		case d.Planned.Valid():
+			a.Units = append(a.Units, simulated(training.Day(d.Date), d.Planned, 0))
+		}
+	}
+	return a
 }
 
 // firstOpenExercise is the first exercise of a library the horse has not mastered yet (the

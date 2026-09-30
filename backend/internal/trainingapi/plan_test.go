@@ -109,7 +109,10 @@ func TestPlanWeekWithModel(t *testing.T) {
 		t.Fatalf("plan = %v, calls %d", got, chat.calls)
 	}
 	days := planDays(got)
-	if wed := days["2026-03-25"]; wed["source"] != "ai" || wed["activity"] != "hall" || wed["minutes"] != float64(45) ||
+	// After two working days (Monday 36, Tuesday 60) Wednesday may only be light: 45 minutes
+	// in the hall are cut to 37 (JAN-93).
+	if wed := days["2026-03-25"]; wed["source"] != "ai" || wed["activity"] != "hall" || wed["minutes"] != float64(37) ||
+		wed["level"] != "light" || wed["level_label"] != "leicht" ||
 		wed["reason"] != "Nach dem Ausritt gestern passt die Halle." || wed["note"] != nil {
 		t.Errorf("wednesday = %v", wed)
 	}

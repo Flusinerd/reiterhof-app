@@ -332,3 +332,72 @@ func TestTomorrowWeatherReachesTheRules(t *testing.T) {
 		t.Errorf("rain tomorrow: thursday = %s (dry: %s)", wet[1].Recommendation.Activity, dry[1].Recommendation.Activity)
 	}
 }
+
+func TestPromptCarriesStructureQuotasAndLoad(t *testing.T) {
+	in := week()
+	in.Profile.Rhythm.Days[0] = training.DayRule{Kind: training.DayRest}
+	in.Profile.Rhythm.Days[5] = training.DayRule{Kind: training.DayActivity, Activity: training.ActivityHack}
+	in.Profile.Rhythm.Days[3] = training.DayRule{Kind: training.DayDemanding}
+	in.Profile.Rhythm.Quotas = training.Quotas{Demanding: 2, Activities: map[training.Activity]int{training.ActivityLunge: 1}}
+	for _, off := range []int{-9, -10, -12, -15} {
+		in.Recent = append(in.Recent, training.Session{Day: day(off), Activity: training.ActivityHall, Minutes: 45, Load: 40})
+	}
+	var msg struct {
+		Quotas struct {
+			Demanding  int
+			Activities map[string]int
+		}
+		Load struct {
+			Avg   float64 `json:"previous_weeks_average"`
+			Limit float64 `json:"week_limit"`
+		}
+		Days []map[string]any
+	}
+	if err := json.Unmarshal([]byte(Prompt(in)), &msg); err != nil {
+		t.Fatal(err)
+	}
+	if msg.Quotas.Demanding != 2 || msg.Quotas.Activities["lunge"] != 1 {
+		t.Errorf("quotas = %+v", msg.Quotas)
+	}
+	if msg.Load.Avg != 80 || msg.Load.Limit != 96 {
+		t.Errorf("load = %+v", msg.Load)
+	}
+	if msg.Days[0]["rule"] != "rest" || msg.Days[3]["rule"] != "demanding" || msg.Days[5]["rule"] != "hack" || msg.Days[1]["rule"] != nil {
+		t.Errorf("days = %v", msg.Days)
+	}
+	for _, want := range []string{"hall = Halle", "load factor 0.8", "demanding 57-60", "recovery 30-33", "walker = Führanlage", "UNIT LEVELS", "binding"} {
+		if !strings.Contains(SystemPrompt, want) {
+			t.Errorf("system prompt lacks %q", want)
+		}
+	}
+}
+
+func TestRulesFollowTheOwnersStructure(t *testing.T) {
+	in := week() // Mon/Tue done (hall 36, hack 60), Wed..Sun open
+	in.Profile.Rhythm.Days[2] = training.DayRule{Kind: training.DayActivity, Activity: training.ActivityLunge}
+	in.Profile.Rhythm.Days[4] = training.DayRule{Kind: training.DayRest}
+	in.Profile.Rhythm.Quotas = training.Quotas{Recovery: 1, Activities: map[training.Activity]int{training.ActivityHack: 2}}
+	es := Rules(in)
+	byDay := map[int]Entry{}
+	for _, e := range es {
+		byDay[training.WeekdayIndex(e.Date)] = e
+	}
+	if byDay[2].Recommendation.Activity != training.ActivityLunge {
+		t.Errorf("wednesday = %+v", byDay[2])
+	}
+	if byDay[4].Recommendation.Activity != training.ActivityRest {
+		t.Errorf("friday = %+v", byDay[4])
+	}
+	hacks, recovery := 1, 0 // Tuesday's hack counts
+	for _, e := range es {
+		if e.Recommendation.Activity == training.ActivityHack {
+			hacks++
+		}
+		if e.Level == recommend.LevelRecovery {
+			recovery++
+		}
+	}
+	if hacks != 2 || recovery < 1 {
+		t.Errorf("hacks = %d, recovery = %d: %v", hacks, recovery, acts(es))
+	}
+}

@@ -101,9 +101,10 @@ func (h *handler) today(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, r, err)
 		return
 	}
-	// Last 14 days including today; the recommender ignores older ones.
+	// From the Monday two weeks before this week's up to today: the recommender scores the last
+	// 14 days, the load limit of the week structure needs the two weeks before (JAN-93).
 	rows, err := h.querySessions(ctx, stableID, a.horseID,
-		localMidnight(today.AddDate(0, 0, -13), loc), localMidnight(today.AddDate(0, 0, 1), loc), "", 0)
+		localMidnight(mondayOf(today).AddDate(0, 0, -14), loc), localMidnight(today.AddDate(0, 0, 1), loc), "", 0)
 	if err != nil {
 		h.fail(w, r, err)
 		return

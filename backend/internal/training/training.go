@@ -126,7 +126,62 @@ type Rhythm struct {
 	// DefaultRhythm sets it to true; the zero value disables the rule, so
 	// decoders must start from DefaultRhythm.
 	RestAfterShow bool `json:"rest_after_show"`
+	// Days is the owner's week structure, Monday first (JAN-93); the zero value of a day
+	// leaves it to the planner.
+	Days [7]DayRule `json:"days"`
+	// Quotas are the owner's targets per week (JAN-93).
+	Quotas Quotas `json:"quotas"`
 }
+
+// Kinds of a day in the owner's week structure (DayRule.Kind).
+const (
+	DayFree      = ""          // the planner decides
+	DayRest      = "rest"      // no unit
+	DayRecovery  = "recovery"  // active recovery: a short, easy unit
+	DayLight     = "light"     // a light unit
+	DayNormal    = "normal"    // a normal unit
+	DayDemanding = "demanding" // a demanding unit
+	DayActivity  = "activity"  // a given activity (DayRule.Activity)
+)
+
+// DayKinds lists the valid DayRule.Kind values.
+var DayKinds = []string{DayFree, DayRest, DayRecovery, DayLight, DayNormal, DayDemanding, DayActivity}
+
+// DayRule is the owner's rule for one weekday.
+type DayRule struct {
+	Kind     string   `json:"kind"`
+	Activity Activity `json:"activity,omitempty"` // only for DayActivity
+}
+
+// Quotas are targets per week (Monday to Sunday): the planner fills them and never plans
+// more demanding units or more units of an activity than set. Zero means no target. Active
+// recovery is a minimum only.
+type Quotas struct {
+	Demanding  int              `json:"demanding"`
+	Recovery   int              `json:"recovery"`
+	Activities map[Activity]int `json:"activities,omitempty"`
+}
+
+// Empty reports whether no quota is set.
+func (q Quotas) Empty() bool {
+	if q.Demanding > 0 || q.Recovery > 0 {
+		return false
+	}
+	for _, n := range q.Activities {
+		if n > 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// GermanWeekday returns the German name of a weekday index (0 = Monday).
+func GermanWeekday(i int) string {
+	return [...]string{"Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"}[((i%7)+7)%7]
+}
+
+// WeekdayIndex returns 0 for Monday up to 6 for Sunday.
+func WeekdayIndex(t time.Time) int { return (int(t.Weekday()) + 6) % 7 }
 
 // DefaultRhythm is the rhythm from the spec: 4-5 sessions, 1-2 rest days,
 // max 60 minutes, mandatory rest day after a show.

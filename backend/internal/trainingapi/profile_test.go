@@ -170,3 +170,43 @@ func TestTrainingHorses(t *testing.T) {
 		t.Errorf("Lea = %q", got)
 	}
 }
+
+// profileWithRhythm is validProfile (hall, hack conditional, jumping off) with another rhythm.
+func profileWithRhythm(rhythm string) string {
+	return strings.Replace(validProfile,
+		`"rhythm": {"sessions_min": 4, "sessions_max": 5, "rest_days_min": 1, "rest_days_max": 2, "max_minutes": 60}`,
+		`"rhythm": `+rhythm, 1)
+}
+
+func TestProfileWeekStructure(t *testing.T) {
+	e := newEnv(t)
+	path := "/api/v1/horses/" + luna + "/training-profile"
+	days := `[{"kind":"rest"},{"kind":"demanding"},{"kind":"recovery"},{"kind":""},{"kind":"normal"},{"kind":"activity","activity":"hack"},{"kind":"light"}]`
+	got := e.call(seed.UserJan, http.MethodPut, path, profileWithRhythm(
+		`{"sessions_min": 4, "sessions_max": 5, "rest_days_min": 1, "rest_days_max": 2, "max_minutes": 60, "days": `+days+`, "quotas": {"demanding": 2, "recovery": 1, "activities": {"hack": 1}}}`), http.StatusOK)
+	rh := obj(got["rhythm"])
+	d := list(rh["days"])
+	if len(d) != 7 || obj(d[0])["kind"] != "rest" || obj(d[5])["activity"] != "hack" || obj(d[3])["kind"] != "" {
+		t.Fatalf("days = %v", rh["days"])
+	}
+	if q := obj(rh["quotas"]); q["demanding"] != float64(2) || obj(q["activities"])["hack"] != float64(1) {
+		t.Fatalf("quotas = %v", rh["quotas"])
+	}
+	if again := e.call(seed.UserJan, http.MethodGet, path, "", http.StatusOK); len(list(obj(again["rhythm"])["days"])) != 7 {
+		t.Fatalf("stored rhythm = %v", again["rhythm"])
+	}
+
+	for name, rhythm := range map[string]string{
+		"unknown kind":          `{"days": [{"kind":"sleepy"},{},{},{},{},{},{}]}`,
+		"six days":              `{"days": [{},{},{},{},{},{}]}`,
+		"activity not allowed":  `{"days": [{"kind":"activity","activity":"jumping"},{},{},{},{},{},{}]}`,
+		"activity without kind": `{"days": [{"kind":"rest","activity":"hall"},{},{},{},{},{},{}]}`,
+		"too many rest days":    `{"rest_days_max": 1, "days": [{"kind":"rest"},{"kind":"rest"},{},{},{},{},{}]}`,
+		"quota not allowed":     `{"quotas": {"activities": {"jumping": 1}}}`,
+		"quotas overfull":       `{"rest_days_min": 2, "quotas": {"demanding": 3, "recovery": 2, "activities": {"hall": 1}}}`,
+	} {
+		if code := e.errCode(seed.UserJan, http.MethodPut, path, profileWithRhythm(rhythm), http.StatusBadRequest); code != "validation_failed" {
+			t.Errorf("%s: code = %q", name, code)
+		}
+	}
+}
