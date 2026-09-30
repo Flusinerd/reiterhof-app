@@ -102,6 +102,15 @@ aus (`GET /api/v1/push/web/public-key` antwortet `503 not_configured`), die nati
 
 1. Paar einmalig erzeugen, auf einem Rechner mit Go im Repository:
    `cd backend && go run ./cmd/vapidkeys -subject mailto:du@example.org`
+
+   Oder ohne Go direkt auf dem Server mit `openssl` (gibt die drei Zeilen aus):
+
+   ```sh
+   k=$(mktemp) && openssl ecparam -name prime256v1 -genkey -noout -out "$k" &&
+   echo "REITERHOF_VAPID_PUBLIC_KEY=$(openssl ec -in "$k" -pubout -outform DER 2>/dev/null | tail -c 65 | base64 -w0 | tr '/+' '_-' | tr -d '=')" &&
+   echo "REITERHOF_VAPID_PRIVATE_KEY=$(openssl ec -in "$k" -outform DER 2>/dev/null | tail -c +8 | head -c 32 | base64 -w0 | tr '/+' '_-' | tr -d '=')" &&
+   echo "REITERHOF_VAPID_SUBJECT=mailto:du@example.org"; rm -f "$k"
+   ```
 2. Die drei ausgegebenen Zeilen in `/etc/reiterhof/api.env` eintragen (`REITERHOF_VAPID_PUBLIC_KEY`,
    `REITERHOF_VAPID_PRIVATE_KEY`, `REITERHOF_VAPID_SUBJECT`; Vorlage in `deploy/api.env.example`).
    Der Betreff ist die Kontaktadresse (`mailto:` oder `https://`), an die sich Apple und Google bei
