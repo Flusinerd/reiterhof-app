@@ -345,3 +345,7 @@ stableID, horseID)` reads a horse's rules.
 
 **Ground condition:** `stables.SetGroundCondition` / `GetGroundCondition` (`dry`, `wet`,
 `frozen`, `muddy`); no endpoint yet.
+
+## Domains
+
+- Requests (Anfragen, M4): [docs/domains/requests.md](domains/requests.md). Note for push: `new_request` is an opt-in kind (`push.OptIn`), it is only sent to users with an enabling `reminder_settings` row; all other kinds stay opt-out.
