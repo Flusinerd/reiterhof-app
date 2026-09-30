@@ -15,7 +15,9 @@ import (
 	"github.com/Flusinerd/reiterhof-app/backend/internal/config"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/db"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/httpapi"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/presence"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/push"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/realtime"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/scheduler"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/weather"
 	"github.com/Flusinerd/reiterhof-app/backend/migrations"
@@ -40,6 +42,13 @@ func main() {
 	}
 
 	var jobs sync.WaitGroup
+	hub := realtime.NewHub(pool, log)
+	jobs.Add(1)
+	go func() {
+		defer jobs.Done()
+		hub.Run(ctx)
+	}()
+	(&scheduler.Scheduler{Log: log}).Go(ctx, &jobs, presence.StaleJob(pool, log, time.Now))
 	if cfg.WeatherEnabled {
 		weatherSvc := &weather.Service{
 			Pool:      pool,
@@ -62,6 +71,7 @@ func main() {
 		Handler: httpapi.NewHandler(httpapi.Deps{
 			Pool: pool, Config: cfg, Log: log, Now: time.Now,
 			Notify: push.NewNotifier(pool, push.NewClientFromEnv(), log),
+			Events: hub,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}

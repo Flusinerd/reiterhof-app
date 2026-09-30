@@ -10,6 +10,7 @@ import (
 	"github.com/Flusinerd/reiterhof-app/backend/internal/auth"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/devices"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/httpx"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/presence"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/realtime"
 )
 
@@ -21,6 +22,7 @@ type Deps = httpx.Deps
 var registrations = []func(mux *http.ServeMux, deps Deps){
 	auth.Register,
 	devices.Register,
+	presence.Register,
 	realtime.Register,
 }
 

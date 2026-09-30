@@ -384,6 +384,10 @@ type stableView struct {
 	FarmName *string `json:"farm_name"`
 	City     *string `json:"city"`
 	Timezone string  `json:"timezone"`
+	// Location and geofence radius for the presence auto check-in (nil until the stable has coordinates).
+	Lat             *float64 `json:"lat"`
+	Lng             *float64 `json:"lng"`
+	GeofenceRadiusM int      `json:"geofence_radius_m"`
 }
 
 type rolesView struct {
@@ -411,8 +415,9 @@ func (s *Service) loadMe(ctx context.Context, userID string) (meView, error) {
 		return v, nil
 	}
 	v.Stable = &stableView{}
-	if err := s.deps.Pool.QueryRow(ctx, `SELECT id, name, farm_name, city, timezone FROM stables WHERE id = $1`, *v.User.StableID).
-		Scan(&v.Stable.ID, &v.Stable.Name, &v.Stable.FarmName, &v.Stable.City, &v.Stable.Timezone); err != nil {
+	if err := s.deps.Pool.QueryRow(ctx, `SELECT id, name, farm_name, city, timezone, lat, lng, geofence_radius_m FROM stables WHERE id = $1`, *v.User.StableID).
+		Scan(&v.Stable.ID, &v.Stable.Name, &v.Stable.FarmName, &v.Stable.City, &v.Stable.Timezone,
+			&v.Stable.Lat, &v.Stable.Lng, &v.Stable.GeofenceRadiusM); err != nil {
 		return v, err
 	}
 	if v.Roles.OwnedHorseIDs, err = s.idList(ctx, `SELECT id FROM horses WHERE owner_id = $1 AND stable_id = $2 ORDER BY name`, userID, *v.User.StableID); err != nil {
