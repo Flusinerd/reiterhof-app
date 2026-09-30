@@ -231,7 +231,7 @@ func (s *Service) Create(ctx context.Context, u auth.User, in Input) (Request, e
 		if r.Location != "" {
 			body += " · " + r.Location
 		}
-		s.notify(ctx, u.StableID, ids, push.KindNewRequest, "Neue Anfrage: "+r.title(), body, pushData(id))
+		s.notify(ctx, u.StableID, ids, push.KindNewRequest, r.title(), body, pushData(id))
 	}
 	s.publish(ctx, u.StableID, id, "created")
 	return r, nil
@@ -333,8 +333,8 @@ func (s *Service) Update(ctx context.Context, u auth.User, id string, p Patch) (
 		return Request{}, wrap(err)
 	}
 	if changedWhen {
-		s.notify(ctx, u.StableID, notifyUsers, push.KindHelper, "Anfrage geändert: "+after.title(),
-			"Neu: "+whenText(after.Date, after.TimeFrom)+orEmpty(" · ", after.Location), pushData(id))
+		s.notify(ctx, u.StableID, notifyUsers, push.KindHelper, after.title(),
+			"Geändert: "+whenText(after.Date, after.TimeFrom)+orEmpty(" · ", after.Location), pushData(id))
 	}
 	s.publish(ctx, u.StableID, id, "updated")
 	return after, nil
@@ -451,7 +451,7 @@ func (s *Service) Accept(ctx context.Context, u auth.User, id string) (Request, 
 	}
 	if joined {
 		body := fmt.Sprintf("%s · %d/%d Helfer", whenText(after.Date, after.TimeFrom), after.HelpersCount, after.HelpersNeeded)
-		s.notify(ctx, u.StableID, []string{after.CreatedBy}, push.KindHelper, u.Name+" hilft mit: "+after.title(), body, pushData(id))
+		s.notify(ctx, u.StableID, []string{after.CreatedBy}, push.KindHelper, u.Name+" hilft mit", after.title()+" · "+body, pushData(id))
 		s.publish(ctx, u.StableID, id, "accepted")
 	}
 	return after, nil
@@ -494,8 +494,8 @@ func (s *Service) Withdraw(ctx context.Context, u auth.User, id string) (Request
 		return Request{}, wrap(err)
 	}
 	if left {
-		s.notify(ctx, u.StableID, []string{after.CreatedBy}, push.KindHelper, u.Name+" hat sich abgemeldet: "+after.title(),
-			whenText(after.Date, after.TimeFrom)+" · wieder offen", pushData(id))
+		s.notify(ctx, u.StableID, []string{after.CreatedBy}, push.KindHelper, u.Name+" hilft nicht mehr",
+			after.title()+" · "+whenText(after.Date, after.TimeFrom)+" · wieder offen", pushData(id))
 		s.publish(ctx, u.StableID, id, "withdrawn")
 	}
 	return after, nil
@@ -625,8 +625,8 @@ func (s *Service) Cancel(ctx context.Context, u auth.User, id, scope string) (Re
 	for _, c := range done {
 		r, err := s.get(ctx, s.Pool, u.StableID, u.ID, c.id, td)
 		if err == nil {
-			s.notify(ctx, u.StableID, c.helpers, push.KindHelper, "Anfrage abgesagt: "+r.title(),
-				whenText(r.Date, r.TimeFrom)+" · du musst nicht mehr helfen", pushData(c.id))
+			s.notify(ctx, u.StableID, c.helpers, push.KindHelper, "Anfrage abgesagt",
+				r.title()+" · "+whenText(r.Date, r.TimeFrom), pushData(c.id))
 		}
 		s.publish(ctx, u.StableID, c.id, "cancelled")
 	}

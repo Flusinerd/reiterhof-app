@@ -147,7 +147,7 @@ func (s *Reminders) dueDate(ctx context.Context, stableID string, loc *time.Loca
 		when = fmt.Sprintf("in %d Tagen", days)
 	}
 	title := "Fällig: " + it.horseName
-	body := fmt.Sprintf("%s ist %s fällig (%s).", it.label, when, it.dueDate.Format("02.01.2006"))
+	body := fmt.Sprintf("%s: %s (%s).", it.label, when, it.dueDate.Format("02.01.2006"))
 	return s.send(ctx, stableID, it, push.KindHealthDue, scheduled, title, body)
 }
 

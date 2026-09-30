@@ -71,11 +71,11 @@ func (h *handler) notify(ctx context.Context, reporter auth.User, o Observation)
 	if o.Category != nil {
 		what = categoryText[*o.Category]
 	}
-	kind, title, body := push.KindObservation, "Auffälligkeit: "+o.HorseName, reporter.Name+" meldet: "+what+"."
+	kind, title, body := push.KindObservation, o.HorseName, reporter.Name+" meldet: "+what+"."
 	switch {
 	case urgent:
 		kind, title = push.KindUrgentObservation, "Dringend: "+o.HorseName
-		body = reporter.Name + " meldet: " + what + ". Bitte sofort nach dem Pferd sehen."
+		body = reporter.Name + " meldet: " + what + ". Bitte sofort nachsehen."
 	case o.Urgency == UrgencyCheck:
 		body = reporter.Name + " meldet: " + what + ". Bitte ansehen."
 	}

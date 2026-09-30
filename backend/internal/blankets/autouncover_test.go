@@ -175,7 +175,7 @@ func TestAutoUncoverClosesRequests(t *testing.T) {
 	if err := e.pool.QueryRow(context.Background(), `SELECT status, COALESCE(payload->>'feedback', '') FROM requests WHERE id = $1`, out.ID).Scan(&st, &fb); err != nil {
 		t.Fatal(err)
 	}
-	if st != "done" || fb != "Automatisch abgedeckt (Hof)" {
+	if st != "done" || fb != "Automatisch abgedeckt" {
 		t.Errorf("request: %s %q", st, fb)
 	}
 }

@@ -113,7 +113,7 @@ func reminderText(r Request) (title, body string) {
 	}
 	body = strings.Join(parts, " · ")
 	if list := r.checklist(); len(list) > 0 {
-		body += ". Checkliste: " + strings.Join(list, ", ")
+		body += " · Checkliste: " + strings.Join(list, ", ")
 	}
 	return title, body
 }

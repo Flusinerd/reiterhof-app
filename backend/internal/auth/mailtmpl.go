@@ -57,7 +57,7 @@ func (c MailContent) text() string {
 	if c.ButtonURL != "" {
 		label := c.Button
 		if c.AppLink != "" {
-			label = "Falls sich die App nicht öffnet, nutze diesen Link auf dem Gerät mit der App"
+			label = "Öffnet sich die App nicht, nutze diesen Link auf dem Gerät mit der App"
 		}
 		b.WriteString(label + ":\n" + c.ButtonURL + "\n\n")
 	}
@@ -67,7 +67,7 @@ func (c MailContent) text() string {
 	if c.Note != "" {
 		b.WriteString(c.Note + "\n\n")
 	}
-	b.WriteString("-- \nStallfunk, die App für die Stallgasse\n")
+	b.WriteString("-- \nStallfunk\n")
 	return b.String()
 }
 
@@ -115,7 +115,7 @@ var mailTmpl = template.Must(template.New("mail").Funcs(template.FuncMap{
 {{end}}{{if .Note}}<p style="margin:8px 0 0 0;padding-top:16px;border-top:1px solid #f0ebe1;font-size:13px;line-height:20px;color:#6b6560;">{{.Note}}</p>
 {{end}}</td></tr>
 <tr><td align="center" style="padding:20px 8px 0 8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#6b6560;">
-Stallfunk, die App für die Stallgasse
+Stallfunk
 </td></tr>
 </table>
 </td></tr>

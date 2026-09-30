@@ -161,7 +161,7 @@ func (s *Service) magicLink(w http.ResponseWriter, r *http.Request) {
 		s.internal(w, "store login token", err)
 		return
 	}
-	msg, err := loginMail(email, code, token, s.deps.Config.Auth.PublicURL).Message(email, "Dein Anmeldecode für Stallfunk: "+code)
+	msg, err := loginMail(email, code, token, s.deps.Config.Auth.PublicURL).Message(email, "Dein Stallfunk-Code: "+code)
 	if err != nil {
 		s.internal(w, "render login mail", err)
 		return
@@ -230,16 +230,16 @@ func loginMail(email, code, token, publicURL string) MailContent {
 	c := MailContent{
 		Preheader: "Dein Code: " + formatLoginCode(code),
 		Heading:   "Dein Anmeldecode",
-		Intro:     []string{"Hallo! Gib diesen Code in der Stallfunk-App ein, um dich als " + email + " anzumelden:"},
+		Intro:     []string{"Gib diesen Code in der App ein, um dich als " + email + " anzumelden:"},
 		Code:      formatLoginCode(code),
 		Button:    "In der App anmelden",
 		AppLink:   appScheme + "://auth/verify?token=" + url.QueryEscape(token),
-		Note: "Code und Link sind 15 Minuten gültig und nur einmal verwendbar. " +
-			"Wenn du dich nicht anmelden wolltest, ignoriere diese E-Mail.",
+		Note: "Code und Link gelten 15 Minuten und nur einmal. " +
+			"Nicht angefordert? Dann ignoriere diese Mail.",
 	}
 	if publicURL != "" {
 		c.ButtonURL = publicURL + "/auth/verify?token=" + url.QueryEscape(token)
-		c.Lead = "Oder tippe auf dem Gerät mit der App auf den Button, um dich direkt anzumelden."
+		c.Lead = "Oder tippe auf dem Gerät mit der App auf den Button."
 	}
 	return c
 }
@@ -251,7 +251,7 @@ var verifyTmpl = template.Must(template.New("verify").Parse(`<!doctype html>
 <title>Stallfunk</title></head><body>
 <h1>Stallfunk</h1>
 <p><a href="{{.}}">In der App anmelden</a></p>
-<p>Öffne diesen Link auf dem Gerät, auf dem die Stallfunk-App installiert ist.</p>
+<p>Öffne diesen Link auf dem Gerät mit der Stallfunk-App.</p>
 </body></html>`))
 
 func (s *Service) verifyPage(w http.ResponseWriter, r *http.Request) {

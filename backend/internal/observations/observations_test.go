@@ -287,7 +287,7 @@ func TestNotificationRecipients(t *testing.T) {
 		if m.Data["kind"] != push.KindObservation || m.Data["horse_id"] != seed.HorseLuna || m.Data["urgency"] != "check" || m.Data["screen"] != "/observations/"+first.Observation.ID {
 			t.Errorf("data = %v", m.Data)
 		}
-		if !strings.Contains(m.Body, "Kai meldet: Husten. Bitte ansehen.") || m.Title != "Auffälligkeit: Luna" {
+		if !strings.Contains(m.Body, "Kai meldet: Husten. Bitte ansehen.") || m.Title != "Luna" {
 			t.Errorf("text = %q / %q", m.Title, m.Body)
 		}
 	}
