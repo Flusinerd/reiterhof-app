@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import {
   ACTIVITIES,
+  MINUTE_CHOICES,
   QUICK_DURATIONS,
   activityIconKey,
   activityLabel,
@@ -10,10 +11,12 @@ import {
   dayStatusLabel,
   dotTone,
   dotViewModels,
+  exerciseLibrary,
   formatClock,
   formatDayLong,
   gaitShareRows,
   isValidDate,
+  minuteChoices,
   parseFinishParams,
   reinSummary,
   secondsToMinutes,
@@ -21,8 +24,10 @@ import {
   trainedCount,
   trainingErrorText,
   weekRangeLabel,
+  weekStripItems,
   weekdayIndex,
   weekdayShort,
+  type WeekDayLike,
 } from "./training.ts";
 
 test("activity labels and icons match the backend", () => {
@@ -180,4 +185,95 @@ test("training error texts are German", () => {
   assert.match(trainingErrorText("forbidden") ?? "", /Berechtigung/);
   assert.match(trainingErrorText("conflict") ?? "", /vergeben/);
   assert.equal(trainingErrorText("internal"), null);
+});
+
+// --- day editing and the week strip ----------------------------------------------------
+
+test("minute choices per activity", () => {
+  assert.deepEqual(MINUTE_CHOICES.hall, [30, 45, 60]);
+  assert.deepEqual(MINUTE_CHOICES.arena, [30, 45, 60]);
+  assert.deepEqual(MINUTE_CHOICES.hack, [30, 45, 60, 90, 120]);
+  assert.deepEqual(MINUTE_CHOICES.lunge, [15, 20, 25, 30]);
+  assert.deepEqual(MINUTE_CHOICES.jumping, [30, 40, 45]);
+  assert.deepEqual(MINUTE_CHOICES.groundwork, [15, 20, 30, 45]);
+  assert.deepEqual(MINUTE_CHOICES.walker, [20, 30, 45, 60]);
+  for (const a of ACTIVITIES) assert.ok(MINUTE_CHOICES[a].length > 0);
+});
+
+test("minuteChoices adds the current value, sorted and unique", () => {
+  assert.deepEqual(minuteChoices("hall"), [30, 45, 60]);
+  assert.deepEqual(minuteChoices("hall", 45), [30, 45, 60]);
+  assert.deepEqual(minuteChoices("hall", 50), [30, 45, 50, 60]);
+  assert.deepEqual(minuteChoices("hall", 10), [10, 30, 45, 60]);
+  assert.deepEqual(minuteChoices("hack", 150), [30, 45, 60, 90, 120, 150]);
+  assert.deepEqual(minuteChoices("lunge", 0), [15, 20, 25, 30]);
+  assert.deepEqual(minuteChoices("lunge", -5), [15, 20, 25, 30]);
+  // The constant is not modified.
+  minuteChoices("hall", 5).push(1);
+  assert.deepEqual(MINUTE_CHOICES.hall, [30, 45, 60]);
+});
+
+test("exerciseLibrary mirrors the backend", () => {
+  assert.equal(exerciseLibrary("jumping", "dressage"), "jumping");
+  assert.equal(exerciseLibrary("groundwork", "dressage"), "groundwork");
+  assert.equal(exerciseLibrary("lunge", "jumping"), "lunge");
+  assert.equal(exerciseLibrary("hall", "dressage"), "dressage");
+  assert.equal(exerciseLibrary("hall", "jumping"), "jumping");
+  assert.equal(exerciseLibrary("arena", "jumping"), "jumping");
+  assert.equal(exerciseLibrary("arena", "western"), "dressage");
+  assert.equal(exerciseLibrary("hall", ""), "dressage");
+  assert.equal(exerciseLibrary("hack", "dressage"), "");
+  assert.equal(exerciseLibrary("walker", "jumping"), "");
+  assert.equal(exerciseLibrary("rest", "jumping"), "");
+});
+
+test("week strip items", () => {
+  // 2026-09-28 is a Monday; Wednesday is today.
+  const days: WeekDayLike[] = [
+    { date: "2026-09-28", status: "done", is_today: false, activity: "hack" },
+    { date: "2026-09-29", status: "empty", is_today: false, activity: null },
+    { date: "2026-09-30", status: "today", is_today: true, activity: null },
+    { date: "2026-10-01", status: "planned", is_today: false, activity: "hall" },
+    { date: "2026-10-02", status: "rest", is_today: false, activity: null },
+    { date: "2026-10-03", status: "open", is_today: false },
+    { date: "2026-10-04", status: "planned", is_today: false, activity: "" },
+  ];
+  const items = weekStripItems(days);
+  assert.deepEqual(
+    items.map((i) => i.label),
+    ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"],
+  );
+  assert.deepEqual(
+    items.map((i) => i.tone),
+    ["done", "empty", "open", "planned", "rest", "open", "open"],
+  );
+  assert.deepEqual(
+    items.map((i) => i.iconKey),
+    ["check", null, null, "hall", null, null, null],
+  );
+  assert.deepEqual(
+    items.map((i) => i.isToday),
+    [false, false, true, false, false, false, false],
+  );
+  assert.equal(items[0]?.key, "2026-09-28");
+  assert.equal(items[0]?.accessibilityLabel, "Montag: erledigt, Ausritt");
+  assert.equal(items[1]?.accessibilityLabel, "Dienstag: kein Training");
+  assert.equal(items[2]?.accessibilityLabel, "Heute: offen");
+  assert.equal(items[3]?.accessibilityLabel, "Donnerstag: geplant, Halle");
+  assert.equal(items[4]?.accessibilityLabel, "Freitag: Ruhetag");
+  assert.equal(items[5]?.accessibilityLabel, "Samstag: offen");
+});
+
+test("week strip: today with an activity is planned, a done day without one still shows the check", () => {
+  const [today, done] = weekStripItems([
+    { date: "2026-09-30", status: "today", is_today: true, activity: "lunge" },
+    { date: "2026-09-29", status: "done", is_today: false },
+  ]);
+  assert.equal(today?.tone, "planned");
+  assert.equal(today?.iconKey, "lunge");
+  assert.equal(today?.accessibilityLabel, "Heute: geplant, Longe");
+  assert.equal(done?.tone, "done");
+  assert.equal(done?.iconKey, "check");
+  assert.equal(done?.accessibilityLabel, "Dienstag: erledigt");
+  assert.deepEqual(weekStripItems([]), []);
 });

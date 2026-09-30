@@ -437,3 +437,102 @@ export function isValidDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   return parseDate(value).toISOString().slice(0, 10) === value;
 }
+
+// --- day editing and the week strip ----------------------------------------------------
+
+/** Duration choices per activity in the day editor (within the recommender's duration table). */
+export const MINUTE_CHOICES: Record<Activity, readonly number[]> = {
+  hall: [30, 45, 60],
+  arena: [30, 45, 60],
+  hack: [30, 45, 60, 90, 120],
+  lunge: [15, 20, 25, 30],
+  jumping: [30, 40, 45],
+  groundwork: [15, 20, 30, 45],
+  walker: [20, 30, 45, 60],
+};
+
+/** The choices of an activity plus the current value (when positive), ascending and unique. */
+export function minuteChoices(activity: Activity, current?: number): number[] {
+  const all = new Set<number>(MINUTE_CHOICES[activity]);
+  if (current !== undefined && current > 0) all.add(current);
+  return [...all].sort((a, b) => a - b);
+}
+
+/**
+ * Library of the exercise list that fits an activity; mirrors training.ExerciseLibrary in the
+ * backend: hall and arena use the dressage library (jumping for jumping horses).
+ */
+export function exerciseLibrary(activity: string, discipline: string): "" | "dressage" | "jumping" | "groundwork" | "lunge" {
+  switch (activity) {
+    case "jumping":
+      return "jumping";
+    case "groundwork":
+      return "groundwork";
+    case "lunge":
+      return "lunge";
+    case "hall":
+    case "arena":
+      return discipline === "jumping" ? "jumping" : "dressage";
+    default:
+      return "";
+  }
+}
+
+/** The part of a week day that the week strip and the plan helpers need. */
+export type WeekDayLike = { date: string; status: string; is_today: boolean; activity?: Activity | "" | null };
+
+export type WeekStripItem = {
+  key: string;
+  label: string;
+  tone: "done" | "planned" | "rest" | "open" | "empty";
+  iconKey: Activity | "check" | null;
+  isToday: boolean;
+  accessibilityLabel: string;
+};
+
+/** One item per day of the week strip: the weekday, what the circle shows and a spoken label. */
+export function weekStripItems(days: readonly WeekDayLike[]): WeekStripItem[] {
+  return days.map((d) => {
+    const activity = isActivity(d.activity) ? d.activity : null;
+    let tone: WeekStripItem["tone"];
+    let iconKey: WeekStripItem["iconKey"] = null;
+    let what: string;
+    switch (d.status) {
+      case "done":
+        tone = "done";
+        iconKey = "check";
+        what = activity ? `erledigt, ${activityLabel(activity)}` : "erledigt";
+        break;
+      case "rest":
+        tone = "rest";
+        what = "Ruhetag";
+        break;
+      case "planned":
+      case "today":
+        if (activity) {
+          tone = "planned";
+          iconKey = activity;
+          what = `geplant, ${activityLabel(activity)}`;
+        } else {
+          tone = "open";
+          what = "offen";
+        }
+        break;
+      case "empty":
+        tone = "empty";
+        what = "kein Training";
+        break;
+      default:
+        tone = "open";
+        what = "offen";
+    }
+    return {
+      key: d.date,
+      label: weekdayShort(d.date),
+      tone,
+      iconKey,
+      isToday: d.is_today,
+      accessibilityLabel: `${d.is_today ? "Heute" : (WEEKDAYS_LONG[weekdayIndex(d.date)] ?? d.date)}: ${what}`,
+    };
+  });
+}

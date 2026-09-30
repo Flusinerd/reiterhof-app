@@ -217,6 +217,9 @@ export const horseRoutes = {
   health: (id: string) => `/horses/${id}/health`,
   documents: (id: string) => `/horses/${id}/documents`,
   trainingProfile: (id: string) => `/horses/${id}/training-profile`,
+  trainingSetup: (id: string) => `/horses/${id}/training-setup`,
+  trainingProfileSection: (id: string, section: "activities" | "rhythm" | "structure" | "shows" | "riders") =>
+    `/horses/${id}/training-profile/${section}`,
   blanketPlan: (id: string) => `/horses/${id}/blanket-plan`,
   reha: (id: string) => `/horses/${id}/reha`,
 } as const;

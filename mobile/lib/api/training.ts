@@ -13,8 +13,10 @@ import {
   type Intensity,
   type ReinSegment,
 } from "../training";
-import { planApplyBody, type PlanDay, type PlanResponse } from "../training-plan";
+import { planApplyBody, type PlanDay, type PlanResponse, type ReproposeOptions, type TakeDayBody } from "../training-plan";
 import type { DayRuleApi, QuotasApi } from "../training-profile";
+
+export type { ReproposeOptions, TakeDayBody };
 
 // --- types (mirror backend/internal/trainingapi) -----------------------------------------
 
@@ -194,21 +196,17 @@ export const trainingApi = {
     authed.get<TodayResponse>(`${base(horse)}/today${minutes ? `?minutes=${minutes}` : ""}`),
   week: (horse: string, start?: string) =>
     authed.get<WeekResponse>(`${base(horse)}/week${start ? `?start=${start}` : ""}`),
-  takeDay: (
-    horse: string,
-    day: string,
-    body: {
-      status?: "planned" | "rest" | "open";
-      activity?: Activity;
-      user_id?: string;
-      note?: string;
-      focus?: string;
-      exercise_id?: string;
-    },
-  ) => authed.put<WeekResponse>(`${base(horse)}/week/${day}`, body),
-  /** Proposal for the open days of the week (JAN-89); nothing is stored. */
-  planWeek: (horse: string, start?: string) =>
-    authed.post<PlanResponse>(`${base(horse)}/week/plan${start ? `?start=${start}` : ""}`, {}),
+  takeDay: (horse: string, day: string, body: TakeDayBody) =>
+    authed.put<WeekResponse>(`${base(horse)}/week/${day}`, body),
+  /**
+   * Proposal for the open days of the week (JAN-89); nothing is stored. With `repropose` only that
+   * day is proposed again, the other draft days are context and `exclude` lists rejected activities.
+   */
+  planWeek: (horse: string, start?: string, repropose?: ReproposeOptions) => {
+    const query = [start ? `start=${start}` : "", repropose ? `day=${repropose.day}` : ""].filter(Boolean).join("&");
+    const body = repropose ? { draft: repropose.draft, exclude: repropose.exclude } : {};
+    return authed.post<PlanResponse>(`${base(horse)}/week/plan${query ? `?${query}` : ""}`, body);
+  },
   profile: (horse: string) => authed.get<TrainingProfile>(`${base(horse)}/training-profile`),
   saveProfile: (horse: string, body: ProfileInput) => authed.put<TrainingProfile>(`${base(horse)}/training-profile`, body),
   createSession: (horse: string, body: SessionInput) => authed.post<CreatedSession>(`${base(horse)}/sessions`, body),
@@ -269,15 +267,24 @@ export function useCreateSession(horse: string) {
 export function useTakeDay(horse: string) {
   const invalidate = useInvalidateTraining();
   return useMutation({
-    mutationFn: (v: { day: string; status?: "planned" | "rest" | "open"; activity?: Activity }) =>
-      trainingApi.takeDay(horse, v.day, { status: v.status, activity: v.activity }),
+    mutationFn: ({ day, ...body }: { day: string } & TakeDayBody) => trainingApi.takeDay(horse, day, body),
     onSuccess: () => invalidate(horse),
   });
 }
 
-/** Asks the server for a week plan (model and/or rules). */
+/** Asks the server for a week plan (model and/or rules); a plain string is the start of the week. */
 export function usePlanWeek(horse: string) {
-  return useMutation({ mutationFn: (start?: string) => trainingApi.planWeek(horse, start) });
+  return useMutation({
+    mutationFn: (v?: string | { start?: string; repropose?: ReproposeOptions }) =>
+      typeof v === "object" ? trainingApi.planWeek(horse, v.start, v.repropose) : trainingApi.planWeek(horse, v),
+  });
+}
+
+/** Proposes one day of the week again (own mutation, so that its pending state is separate). */
+export function useReproposeDay(horse: string) {
+  return useMutation({
+    mutationFn: (v: { start?: string; repropose: ReproposeOptions }) => trainingApi.planWeek(horse, v.start, v.repropose),
+  });
 }
 
 /** Stores the plan days one after another, then refreshes the week. */

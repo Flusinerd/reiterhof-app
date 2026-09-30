@@ -135,6 +135,9 @@ test("routes", () => {
   assert.equal(horseRoutes.detail("abc"), "/horses/abc");
   assert.equal(horseRoutes.emergency("abc"), "/horses/abc/emergency");
   assert.equal(horseRoutes.trainingProfile("abc"), "/horses/abc/training-profile");
+  assert.equal(horseRoutes.trainingSetup("abc"), "/horses/abc/training-setup");
+  assert.equal(horseRoutes.trainingProfileSection("abc", "rhythm"), "/horses/abc/training-profile/rhythm");
+  assert.equal(horseRoutes.trainingProfileSection("abc", "shows"), "/horses/abc/training-profile/shows");
   assert.equal(appointmentCompanionRoute("abc"), "/requests/new?type=appointment_companion&horse=abc");
 });
 
