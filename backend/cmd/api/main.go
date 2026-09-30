@@ -17,6 +17,7 @@ import (
 	"github.com/Flusinerd/reiterhof-app/backend/internal/db"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/health"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/httpapi"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/mistral"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/presence"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/privacy"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/push"
@@ -91,6 +92,15 @@ func main() {
 		Pool: pool, Config: cfg, Log: log, Now: time.Now,
 		Notify: notifier,
 		Events: hub,
+	}
+	switch chat, err := mistral.FromEnv(); {
+	case err == nil:
+		deps.Chat = chat
+		log.Info("AI week plan enabled", "model", chat.Model)
+	case errors.Is(err, mistral.ErrNotConfigured):
+		log.Info("AI week plan disabled: no Mistral API key (REITERHOF_MISTRAL_API_KEY), the rules plan the week")
+	default:
+		log.Error("AI week plan disabled: invalid Mistral configuration", "err", err)
 	}
 	blanketSvc := blankets.NewService(deps)
 	if cfg.WeatherEnabled {

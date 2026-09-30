@@ -110,16 +110,7 @@ func (h *handler) today(w http.ResponseWriter, r *http.Request) {
 	}
 	sessions := domainSessions(rows, loc)
 
-	var wx *recommend.Weather
-	snap, err := (&weather.Store{Pool: h.deps.Pool}).Latest(ctx, stableID, today)
-	switch {
-	case err == nil:
-		wx = &recommend.Weather{Rain: snap.WillRain, TempC: snap.NightMinC}
-	case !errors.Is(err, weather.ErrNotFound):
-		h.fail(w, r, err)
-		return
-	}
-	ground, err := stables.GetGroundCondition(ctx, h.deps.Pool, stableID)
+	wx, ground, err := h.conditions(ctx, stableID, today)
 	if err != nil {
 		h.fail(w, r, err)
 		return
@@ -132,7 +123,7 @@ func (h *handler) today(w http.ResponseWriter, r *http.Request) {
 
 	in := recommend.Input{
 		Today: today, Profile: prof.domain(a.horseName), Recent: sessions,
-		Weather: wx, Ground: recommend.Ground(ground.Condition), AvailableMinutes: minutes,
+		Weather: wx, Ground: recommend.Ground(ground), AvailableMinutes: minutes,
 		Role: recommend.RoleOwner, RiderName: a.user.Name,
 	}
 	if !a.manage {
@@ -174,9 +165,27 @@ func (h *handler) today(w http.ResponseWriter, r *http.Request) {
 	}
 	out.Week = weekDots(today, sessions, prof, slots)
 	out.Context = contextLine(contextInput{
-		Weather: wx, Ground: ground.Condition, Today: today, Shows: in.Profile.Shows, Reha: out.Reha,
+		Weather: wx, Ground: ground, Today: today, Shows: in.Profile.Shows, Reha: out.Reha,
 	})
 	httpx.WriteJSON(w, http.StatusOK, out)
+}
+
+// conditions returns today's weather (the latest snapshot, nil when there is none) and the
+// ground condition of the stable ("" when unknown).
+func (h *handler) conditions(ctx context.Context, stableID string, today time.Time) (*recommend.Weather, string, error) {
+	var wx *recommend.Weather
+	snap, err := (&weather.Store{Pool: h.deps.Pool}).Latest(ctx, stableID, today)
+	switch {
+	case err == nil:
+		wx = &recommend.Weather{Rain: snap.WillRain, TempC: snap.NightMinC}
+	case !errors.Is(err, weather.ErrNotFound):
+		return nil, "", err
+	}
+	ground, err := stables.GetGroundCondition(ctx, h.deps.Pool, stableID)
+	if err != nil {
+		return nil, "", err
+	}
+	return wx, ground.Condition, nil
 }
 
 // weekDots builds the last seven days (today last): trained when a session exists, rest

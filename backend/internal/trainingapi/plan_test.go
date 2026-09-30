@@ -1,0 +1,165 @@
+package trainingapi_test
+
+import (
+	"context"
+	"errors"
+	"net/http"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/Flusinerd/reiterhof-app/backend/internal/httpapi"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/mistral"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/seed"
+)
+
+// fakeChat stands in for the language model.
+type fakeChat struct {
+	answer string
+	err    error
+	calls  int
+	system string
+	user   string
+}
+
+func (f *fakeChat) CompleteJSON(_ context.Context, system, user string) (string, error) {
+	f.calls++
+	f.system, f.user = system, user
+	return f.answer, f.err
+}
+
+func (e *env) withChat(c *fakeChat) {
+	e.h = httpapi.NewHandler(httpapi.Deps{Pool: e.pool, Now: func() time.Time { return e.now }, Chat: c})
+}
+
+func (e *env) grantAI(user string) {
+	e.exec(`INSERT INTO consents (user_id, stable_id, kind, version, granted_at) VALUES ($1, $2, 'ai_training', 'test', now())`, user, seed.StableB)
+}
+
+func planDays(out map[string]any) map[string]map[string]any {
+	days := map[string]map[string]any{}
+	for _, x := range list(out["days"]) {
+		days[str(obj(x)["date"])] = obj(x)
+	}
+	return days
+}
+
+// planWeekFixture: Luna's profile allows hall and hack (conditional), a show on Saturday 28th;
+// Monday and Tuesday are done, Mia planned a hack on Thursday. Today is Wednesday 25th.
+func planWeekFixture(t *testing.T) *env {
+	e := newEnv(t)
+	e.call(seed.UserJan, http.MethodPut, "/api/v1/horses/"+luna+"/training-profile", validProfile, http.StatusOK)
+	e.insertSession(luna, seed.UserMia, "hall", time.Date(2026, 3, 23, 17, 0, 0, 0, berlin), 45, 36, true)
+	e.insertSession(luna, seed.UserMia, "hack", time.Date(2026, 3, 24, 17, 0, 0, 0, berlin), 60, 60, true)
+	e.exec(`INSERT INTO week_slots (stable_id, horse_id, day, user_id, activity, status) VALUES ($1, $2, '2026-03-26', $3, 'hack', 'planned')`, seed.StableB, luna, seed.UserMia)
+	return e
+}
+
+const planPath = "/api/v1/horses/" + luna + "/week/plan"
+
+func TestPlanWeekWithRules(t *testing.T) {
+	e := planWeekFixture(t)
+	got := e.call(seed.UserJan, http.MethodPost, planPath, "", http.StatusOK)
+	if got["ai_status"] != "not_configured" || got["source"] != "rules" || got["owner_is_me"] != true || got["start"] != "2026-03-23" {
+		t.Fatalf("plan = %v", got)
+	}
+	days := planDays(got)
+	// Wednesday (today), Friday and Saturday are open; Thursday is Mia's, Sunday the rest day after the show.
+	if len(days) != 3 || days["2026-03-25"] == nil || days["2026-03-27"] == nil || days["2026-03-28"] == nil {
+		t.Fatalf("days = %v", got["days"])
+	}
+	for date, d := range days {
+		if d["source"] != "rules" || str(d["reason"]) == "" || str(d["label"]) == "" {
+			t.Errorf("%s = %v", date, d)
+		}
+	}
+	// The day before the show only allows light work, and only hall and hack are allowed: rest.
+	if fri := days["2026-03-27"]; fri["activity"] != "rest" || fri["weekday"] != float64(4) {
+		t.Errorf("friday = %v", fri)
+	}
+
+	// Only owners and admins plan; riders and other members may not.
+	e.errCode(seed.UserMia, http.MethodPost, planPath, "", http.StatusForbidden)
+	e.errCode(seed.UserSarah, http.MethodPost, planPath, "", http.StatusForbidden)
+	e.errCode(seed.UserJan, http.MethodPost, planPath+"?start=morgen", "", http.StatusBadRequest)
+
+	// A past week has nothing to plan.
+	if got := e.call(seed.UserJan, http.MethodPost, planPath+"?start=2026-03-10", "", http.StatusOK); got["ai_status"] != "nothing_to_plan" || len(list(got["days"])) != 0 {
+		t.Errorf("past week = %v", got)
+	}
+}
+
+func TestPlanWeekWithModel(t *testing.T) {
+	e := planWeekFixture(t)
+	chat := &fakeChat{answer: `{"days":[
+		{"day":"mi","activity":"hall","minutes":45,"reason":"Nach dem Ausritt gestern passt die Halle."},
+		{"day":"fr","activity":"hack","minutes":60,"reason":"Ausritt vor dem Turnier."},
+		{"day":"do","activity":"hall","minutes":30,"reason":"closed day"}]}`}
+	e.withChat(chat)
+
+	// Without the owner's consent nothing goes to the model.
+	if got := e.call(seed.UserJan, http.MethodPost, planPath, "", http.StatusOK); got["ai_status"] != "no_consent" || chat.calls != 0 {
+		t.Fatalf("no consent: %v, calls %d", got, chat.calls)
+	}
+
+	e.grantAI(seed.UserJan)
+	got := e.call(seed.UserJan, http.MethodPost, planPath, "", http.StatusOK)
+	if got["ai_status"] != "used" || got["source"] != "ai" || chat.calls != 1 {
+		t.Fatalf("plan = %v, calls %d", got, chat.calls)
+	}
+	days := planDays(got)
+	if wed := days["2026-03-25"]; wed["source"] != "ai" || wed["activity"] != "hall" || wed["minutes"] != float64(45) ||
+		wed["reason"] != "Nach dem Ausritt gestern passt die Halle." || wed["note"] != nil {
+		t.Errorf("wednesday = %v", wed)
+	}
+	if fri := days["2026-03-27"]; fri["source"] != "rules" || fri["activity"] != "rest" || !strings.Contains(str(fri["replaced"]), "Turnier ist morgen") {
+		t.Errorf("friday = %v", fri)
+	}
+	if sat := days["2026-03-28"]; sat["source"] != "rules" || sat["replaced"] != nil {
+		t.Errorf("saturday = %v", sat)
+	}
+	if days["2026-03-26"] != nil {
+		t.Error("the model planned Mia's Thursday")
+	}
+	// The prompt carries no names, notes or dates.
+	for _, leak := range []string{"Luna", "Jan", "Mia", "Anna", "Turnier", "Begleitung", "2026", seed.UserJan, luna} {
+		if strings.Contains(chat.user, leak) {
+			t.Errorf("prompt contains %q: %s", leak, chat.user)
+		}
+	}
+	if !strings.Contains(chat.user, `"planned":"hack"`) || !strings.Contains(chat.user, `"conditional":true`) {
+		t.Errorf("prompt = %s", chat.user)
+	}
+
+	// The model runs on the owner's consent only: Jan (admin) planning Anna's Fanta does not use it.
+	e.call(seed.UserJan, http.MethodPut, "/api/v1/horses/"+fanta+"/training-profile", validProfile, http.StatusOK)
+	got = e.call(seed.UserJan, http.MethodPost, "/api/v1/horses/"+fanta+"/week/plan", "", http.StatusOK)
+	if got["ai_status"] != "no_consent" || got["owner_is_me"] != false || chat.calls != 1 {
+		t.Errorf("fanta = %v, calls %d", got, chat.calls)
+	}
+
+	// A revoked consent stops it again.
+	e.exec(`UPDATE consents SET revoked_at = now() WHERE user_id = $1 AND kind = 'ai_training'`, seed.UserJan)
+	if got := e.call(seed.UserJan, http.MethodPost, planPath, "", http.StatusOK); got["ai_status"] != "no_consent" || chat.calls != 1 {
+		t.Errorf("revoked: %v", got)
+	}
+}
+
+func TestPlanWeekModelFailureFallsBackToRules(t *testing.T) {
+	e := planWeekFixture(t)
+	e.grantAI(seed.UserJan)
+	for _, tc := range []struct {
+		chat *fakeChat
+		want string
+	}{
+		{&fakeChat{err: mistral.ErrLimit}, "limit"},
+		{&fakeChat{err: errors.New("mistral: HTTP 500")}, "failed"},
+		{&fakeChat{answer: "Gern, hier ist dein Plan!"}, "failed"},
+	} {
+		e.withChat(tc.chat)
+		got := e.call(seed.UserJan, http.MethodPost, planPath, "", http.StatusOK)
+		if got["ai_status"] != tc.want || got["source"] != "rules" || len(list(got["days"])) != 3 {
+			t.Errorf("%s: plan = %v", tc.want, got)
+		}
+	}
+}

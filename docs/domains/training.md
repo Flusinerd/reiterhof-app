@@ -1,7 +1,7 @@
 # Training (M6)
 
 Tickets: JAN-55 profile, JAN-56/62 logic (pure packages), JAN-57 "Was heute?", JAN-58 exercise
-library, JAN-59 week view, JAN-60 "Nur eintragen", JAN-61 finish screen.
+library, JAN-59 week view, JAN-60 "Nur eintragen", JAN-61 finish screen, JAN-89 week plan (rules and AI).
 
 - Backend: `backend/internal/trainingapi` (HTTP + SQL). The rules live in the pure packages
   `internal/training`, `training/load` (load score, week segments, assessment) and
@@ -51,6 +51,7 @@ Errors use the standard envelope (`validation_failed`, `forbidden`, `not_found`,
 | `GET /horses/{id}/sessions?limit=&before=` | Newest first; riders see `visible_to_rider` sessions and their own |
 | `GET /horses/{id}/week?start=YYYY-MM-DD` | Monday to Sunday (any day of the week works as `start`), load segments, assessment |
 | `PUT /horses/{id}/week/{day}` | Claim a day (`{}` = "Ich"), plan, rest day or release (`status: open`); returns the week |
+| `POST /horses/{id}/week/plan?start=` | Owner/admin only. Proposal for the open days of the week (rules, with the owner's consent a language model); stores nothing, see [Week plan](#week-plan) |
 | `GET /exercises?discipline=&level=&tag=` | Global (`stable_id NULL`) and own-stable exercises, easiest first along the progression |
 | `GET /exercises/{id}` | With `steps` and the follow-up exercise (`next_exercise_id`, `next`) |
 
@@ -119,6 +120,41 @@ activity, activity_label, rest, minutes, done}`. `segments` are the 7
 load levels and `assessment` is the German sentence from `load.Assess`. Hidden sessions (riders) still
 count for status and load but reveal neither user nor activity. Days are calendar days in the
 stable's timezone, so DST weeks still have seven days.
+
+## Week plan
+
+`POST /horses/{id}/week/plan?start=YYYY-MM-DD` (JAN-89, owner and admins; riders and members `403`). The handler is
+`trainingapi/plan.go`, the logic the pure package `training/weekplan`; the Mistral client is `internal/mistral`.
+
+- **Open days:** today or later and no activity planned: status `open`, `today`, or `planned` by someone without an
+  activity (the proposal keeps that person, `user`). Done days, rest days (planned or after a show) and days with a
+  planned activity are context; a planned activity counts as a session for the following days.
+- **Rules:** `weekplan.Rules` asks `recommend.Recommend` day by day with the sessions of the 14 days before plus the
+  units planned so far, so variety, recent load and the weekly maximum apply across the week. Weather and ground are
+  only known for today. The active reha plan gives each day its unit.
+- **Language model:** used when `REITERHOF_MISTRAL_API_KEY` is set and the horse's **owner** has the `ai_training`
+  consent (whoever plans; an admin planning someone else's horse needs that owner's consent). `weekplan.Prompt` sends
+  discipline, status, rhythm, allowed activities (without notes), the sessions of the last 14 days as days ago,
+  activity, minutes, load, canter share and feel, shows as days from today, the reha unit per day and today's weather
+  and ground. No names, ids, free text (level, notes, conditions, show and phase names) or dates; a test checks this.
+  The model answers JSON (`{"days":[{"day":"mo".."so","activity","minutes","reason"}]}`), `weekplan.Parse` drops
+  unknown or closed days and unknown activities.
+- **Checking:** `recommend.Check` tests each proposal against the hard rules (visibility, reha phase, rest after a
+  show, pause/reha/show/frozen-ground filters, `rhythm.sessions_max`) and fits the minutes (reha range, rhythm
+  maximum or 120, pause 20, before a show 30). A failing proposal is replaced by the rules (`replaced` says why);
+  days the model left out come from the rules.
+- **Response:** `{horse_id, start, end, source: ai|rules, ai_status, owner_is_me, days: [{date, weekday, activity
+  (or rest), label, minutes, intensity, intensity_label, reason, note, source, replaced, user}]}`. `ai_status`:
+  `used`, `not_configured`, `no_consent`, `limit` (HTTP 429: free credits or rate limit), `failed` (error, timeout
+  40 s, unusable answer), `nothing_to_plan`. Failures are logged without content and fall back to the rules.
+- **App:** "Woche planen" in `app/training/week.tsx` (only with `can_edit`), `components/training-plan-sheet.tsx`
+  shows the days with the badge "KI-Vorschlag" or "Regel"; "Übernehmen" stores each day with
+  `PUT /week/{day}` (`planned` with activity and the claimed user, or `rest`; a rest day proposed for a claimed day
+  is not stored, the claim stays) and a note such as
+  "KI-Vorschlag: 45 Min. · …" (`lib/training-plan.ts`). The week rows show slot notes. With `no_consent` the owner gets
+  "KI-Vorschläge erlauben" (consent sheet, then the plan is asked again).
+- **Operator:** Mistral account settings and open contract questions in
+  [avv-checkliste.md](../legal/avv-checkliste.md), Teil 1; privacy text section 3.12.
 
 ## Seed
 

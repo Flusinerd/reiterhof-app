@@ -119,7 +119,7 @@ func TestConsentsGrantAndRevoke(t *testing.T) {
 		return decode[list](t, rec)
 	}
 	l := get(seed.UserAnna)
-	if l.CurrentVersion != privacy.TextVersion || len(l.Items) != 6 {
+	if l.CurrentVersion != privacy.TextVersion || len(l.Items) != 7 {
 		t.Fatalf("list = %+v", l)
 	}
 	for i, k := range privacy.Kinds() {
