@@ -182,6 +182,8 @@ type sessionIn struct {
 	Note           string             `json:"note"`
 	VisibleToRider *bool              `json:"visible_to_rider"`
 	DistanceM      *int               `json:"distance_m"`
+	Track          []trackPoint       `json:"track"`
+	GaitWindows    []gaitWindow       `json:"gait_windows"`
 }
 
 type progressionOut struct {
@@ -233,6 +235,10 @@ func (h *handler) createSession(w http.ResponseWriter, r *http.Request) {
 
 	score := load.Score(in.Minutes, training.Activity(in.Activity), v.canter)
 	gait, _ := json.Marshal(v.gait)
+	var track []byte // nil = SQL NULL: the session has no track
+	if len(in.Track) > 0 {
+		track, _ = json.Marshal(in.Track)
+	}
 	rein, _ := json.Marshal(nonNil(in.ReinChanges))
 	day := training.Day(v.startedAt.In(loc))
 
@@ -246,14 +252,23 @@ func (h *handler) createSession(w http.ResponseWriter, r *http.Request) {
 	err = tx.QueryRow(ctx, `
 		INSERT INTO sessions (stable_id, horse_id, user_id, activity, started_at, duration_min, gait_shares,
 		                      rein_changes, feel, focus_rating, note, visible_to_rider, load_score, source,
-		                      exercise_id, distance_m)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULLIF($9, ''), $10, NULLIF($11, ''), $12, $13, $14, NULLIF($15, '')::uuid, $16)
+		                      exercise_id, distance_m, track)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULLIF($9, ''), $10, NULLIF($11, ''), $12, $13, $14, NULLIF($15, '')::uuid, $16, $17)
 		RETURNING id::text`,
 		a.user.StableID, a.horseID, a.user.ID, in.Activity, v.startedAt, in.Minutes, gait, rein, in.Feel,
-		in.FocusRating, in.Note, v.visible, score, v.source, v.exerciseID, in.DistanceM).Scan(&id)
+		in.FocusRating, in.Note, v.visible, score, v.source, v.exerciseID, in.DistanceM, track).Scan(&id)
 	if err != nil {
 		h.fail(w, r, err)
 		return
+	}
+	if len(in.GaitWindows) > 0 {
+		windows, _ := json.Marshal(in.GaitWindows)
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO gait_windows (session_id, stable_id, window_count, windows)
+			VALUES ($1, $2, $3, $4)`, id, a.user.StableID, len(in.GaitWindows), windows); err != nil {
+			h.fail(w, r, err)
+			return
+		}
 	}
 	// The matching week slot is done now (created if nobody had planned the day).
 	if _, err := tx.Exec(ctx, `
@@ -359,8 +374,14 @@ func validateSession(in sessionIn, now time.Time) (validSession, error) {
 	if len(in.ReinChanges) > 200 {
 		return v, errors.New("too many rein segments")
 	}
-	if in.ReinChanges != nil || in.DistanceM != nil {
+	if in.ReinChanges != nil || in.DistanceM != nil || len(in.Track) > 0 || len(in.GaitWindows) > 0 {
 		v.source = "tracked"
+	}
+	if err := validateTrack(in.Track); err != nil {
+		return v, err
+	}
+	if err := validateGaitWindows(in.GaitWindows); err != nil {
+		return v, err
 	}
 	if in.DistanceM != nil && (*in.DistanceM < 0 || *in.DistanceM > 500_000) {
 		return v, errors.New("distance_m is out of range")
