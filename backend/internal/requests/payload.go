@@ -190,8 +190,9 @@ func validatePayload(typ string, raw json.RawMessage) (canonical json.RawMessage
 			return nil, nil, errors.New("payload.mode must be lunge or ride")
 		}
 		p.RulesNote = strings.TrimSpace(p.RulesNote)
-		if len([]rune(p.RulesNote)) > 500 {
-			return nil, nil, errors.New("payload.rules_note: max 500 characters")
+		// Leaves room for the rule line the server adds (reha plan, see fillRules).
+		if len([]rune(p.RulesNote)) > 800 {
+			return nil, nil, errors.New("payload.rules_note: max 800 characters")
 		}
 		out = p
 	case TypeFeedOrTurnout:
