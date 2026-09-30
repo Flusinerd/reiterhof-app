@@ -17,6 +17,10 @@ backend/
     db/               pgx pool (db.Open) and migrator (db.Migrate)
     dbtest/           throwaway databases for tests
     seed/             example data + exported fixed IDs (seed.HorseLuna, ...)
+    scheduler/        reusable periodic / daily jobs (see "Scheduler")
+    weather/          DWD MOSMIX client, night summary, weather_snapshots, hourly job
+    blanketplan/      pure rule evaluation (Recommend, Changed) + LoadRules
+    stables/          stable data access: ground condition, stables with coordinates
     httpx/            Deps, WriteJSON, ReadJSON, WriteError (shared by all handlers)
     httpapi/          router assembly: NewHandler, /healthz, /readyz, registration list
     <domain>/         one package per domain, e.g. horses, requests, blankets
@@ -32,6 +36,8 @@ Configuration (environment):
 | `REITERHOF_ADDR` | `:8080` | listen address |
 | `REITERHOF_DATABASE_URL` | `postgres://postgres:postgres@localhost:5432/reiterhof?sslmode=disable` | app database |
 | `REITERHOF_TEST_DATABASE_URL` | unset | admin URL for DB tests; unset means they skip |
+| `REITERHOF_WEATHER_ENABLED` | `true` | run the hourly DWD weather job |
+| `REITERHOF_WEATHER_STATION` | unset | force one MOSMIX station id for all stables; unset = nearest per stable |
 
 ## Adding a domain package
 
@@ -133,3 +139,56 @@ is obtained in one place at the top of each handler, and take `stable_id` from i
 - Blanket rules semantics (seed and evaluation): rules are evaluated by `position`,
   the first match wins; `temp_min <= temp < temp_max`, `NULL` bound = open, `NULL` rain
   = any; `blanket_id NULL` = no blanket.
+
+## Scheduler
+
+`internal/scheduler` runs background jobs; reuse it for reminders and other timed work
+instead of starting your own tickers.
+
+```go
+sched := &scheduler.Scheduler{Log: log}            // Clock defaults to the wall clock
+sched.Go(ctx, &wg, scheduler.Job{
+    Name:       "weather-snapshot",
+    Schedule:   scheduler.Every(time.Hour),        // or scheduler.DailyAt(20, 30, loc)
+    RunOnStart: true,
+    Run:        func(ctx context.Context) error { ... },
+})
+```
+
+- `Run` blocks until `ctx` is cancelled, `Go` starts it on a `WaitGroup`.
+- The next run time is computed after the previous run finished (no catch-up bursts, no
+  overlapping runs of one job). No jitter.
+- Errors are logged (`job failed`), panics are recovered and logged (`job panicked`); a job
+  never takes the process down.
+- `DailyAt` uses wall-clock time in the given location (per-stable reminders: pass the
+  stable's `time.LoadLocation(stables.timezone)`; one job per stable).
+- Tests inject a fake `Clock` (`Now`, `After`); see `scheduler_test.go`.
+
+## Weather and blankets
+
+**Source: DWD open data, MOSMIX_L single station**
+(`https://opendata.dwd.de/weather/local_forecasts/mos/MOSMIX_L/single_stations/<ID>/kml/MOSMIX_L_LATEST_<ID>.kmz`),
+no third-party weather API. The KMZ (zip with one KML) has hourly steps for ~10 days;
+`weather.ParseMOSMIX` reads `TTT` (K to °C), `R101` (rain probability %, fallback `wwP`),
+`RR1c` (mm/h) and `FF` (m/s to km/h). `-` means missing.
+
+**Station:** the nearest entry of the small embedded `weather.Stations` list (Haversine); for
+the Dorsten stable (51.66, 6.96) that is Essen-Bredeney, id `10410`. Override with
+`REITERHOF_WEATHER_STATION` (any MOSMIX id) or extend the list.
+
+**Night summary** (`weather.Summarize`): window 18:00 stable-local on the day until 08:00
+the next day (wall-clock, so DST nights are 15 h / 13 h). Result: `night_min_c`, max rain
+probability, rain sum, max wind. `will_rain = maxProb >= 50 % || sum >= 0.5 mm`
+(`weather.RainProbabilityThreshold`, `weather.RainSumThresholdMM`).
+
+**Job:** `weather.Service.Refresh` runs hourly (wired in `cmd/api`): per stable with lat/lng
+it stores snapshots for today and tomorrow in `weather_snapshots` (append-only, `raw` holds
+station and summary). `weather.Store.Latest(ctx, stableID, day)` returns the newest one.
+
+**Recommendation** (`blanketplan`): `Recommend(rules, Forecast{NightMinC, WillRain})` returns
+the first matching rule by position (semantics in "Testing" below); `Changed(prev, next)`
+tells whether the blanket differs (for change notifications). `LoadRules(ctx, pool,
+stableID, horseID)` reads a horse's rules.
+
+**Ground condition:** `stables.SetGroundCondition` / `GetGroundCondition` (`dry`, `wet`,
+`frozen`, `muddy`); no endpoint yet.
