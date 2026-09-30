@@ -1,7 +1,5 @@
 # Datenschutzerklärung
 
-> **Entwurf – vor Veröffentlichung rechtlich prüfen lassen.** Diese Erklärung beschreibt, wie die App „Stallfunk“ heute technisch arbeitet. Die Platzhalter in eckigen Klammern müssen vor dem Einsatz ausgefüllt werden.
-
 **Textversion:** 2026-09-30
 
 ## 1. Wer ist verantwortlich?
@@ -155,7 +153,7 @@ Rechtsgrundlage: Art. 8 DSGVO in Verbindung mit Art. 6 Abs. 1 lit. c DSGVO (Nach
 ## 5. Wo laufen die Daten? Hosting und Backups
 
 - **Hosting:** Server der Netcup GmbH, Karlsruhe, Rechenzentrum in Deutschland. Mit Netcup besteht ein Vertrag zur Auftragsverarbeitung nach Art. 28 DSGVO; Netcup setzt dafür Gesellschaften der Anexia-Gruppe in Deutschland und Österreich ein.
-- **Server-Protokolle:** Der Webserver schreibt kein Zugriffsprotokoll mit IP-Adressen. Die API protokolliert Fehler ohne Inhalte deiner Einträge. Für den Schutz vor zu vielen Anmeldeversuchen wird deine IP-Adresse bis zu 24 Stunden im Arbeitsspeicher gehalten und nicht dauerhaft gespeichert.
+- **Server-Protokolle:** Der Webserver schreibt kein Zugriffsprotokoll mit IP-Adressen. Die API protokolliert Fehler ohne Inhalte deiner Einträge; die Datenbank protokolliert langsame Abfragen ohne die abgefragten Werte. Fehlerprotokolle werden nach vier Wochen gelöscht. Für den Schutz vor zu vielen Anmeldeversuchen wird deine IP-Adresse bis zu 24 Stunden im Arbeitsspeicher gehalten und nicht dauerhaft gespeichert.
 - **Backups:** Täglich werden die Datenbank und die hochgeladenen Dateien auf demselben Server gesichert; die Sicherungen verlassen den Server nicht. Aufbewahrt werden 14 tägliche und 8 wöchentliche Stände. Gelöschte Daten verschwinden aus den Backups daher spätestens nach 8 Wochen. Wird ein Backup zurückgespielt, werden Löschungen erneut ausgeführt.
 
 ## 6. Wer bekommt deine Daten?
@@ -181,6 +179,7 @@ Wir verkaufen keine Daten und geben sie nicht zu Werbezwecken weiter.
 - **Links an Eltern:** 7 Tage; die Adresse des Elternteils und die Zustimmung, solange das Konto besteht.
 - **Einwilligungen und Altersangabe:** solange das Konto besteht (als Nachweis).
 - **Pferdeakte, Dokumente, Anfragen, Trainingseinheiten:** solange sie gebraucht werden; sie können vom Besitzer oder Admin gelöscht werden. Beim Löschen deines Kontos bleiben Einträge, die andere betreffen, ohne deinen Namen erhalten (siehe 8).
+- **Fehlerprotokolle des Servers:** 4 Wochen.
 - **Backups:** bis zu 8 Wochen (siehe 5).
 
 ## 8. Was passiert, wenn ich mein Konto lösche?

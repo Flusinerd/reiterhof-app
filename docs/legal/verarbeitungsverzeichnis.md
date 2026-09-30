@@ -76,9 +76,9 @@ Rechtsgrundlagen und Einzelheiten stehen im Datenschutztext (Abschnittsnummern i
 
 - **Zweck:** sicherer Betrieb, Wiederherstellung.
 - **Betroffene:** alle.
-- **Daten:** keine Zugriffsprotokolle; Fehlerprotokolle von API und Caddy im Systemjournal (können bei Verbindungsfehlern IP-Adressen enthalten); langsame Datenbankabfragen im PostgreSQL-Log (können Parameter enthalten); IP-Adressen im Arbeitsspeicher für Rate-Limits (höchstens 24 Stunden); vollständige Backups.
+- **Daten:** keine Zugriffsprotokolle; Fehlerprotokolle von API und Caddy im Systemjournal (können bei Verbindungsfehlern IP-Adressen enthalten); langsame Datenbankabfragen im PostgreSQL-Log (ohne Parameterwerte); IP-Adressen im Arbeitsspeicher für Rate-Limits (höchstens 24 Stunden); vollständige Backups.
 - **Empfänger:** keine.
-- **Löschung:** Backups 14 tägliche und 8 wöchentliche Stände (höchstens 8 Wochen); Systemjournal nach Standard der Distribution (größenbegrenzt); PostgreSQL-Logs nach logrotate der Distribution.
+- **Löschung:** Backups 14 tägliche und 8 wöchentliche Stände (höchstens 8 Wochen); Systemjournal nach vier Wochen (`MaxRetentionSec=4week`); PostgreSQL-Logs nach logrotate der Distribution (enthalten keine Werte aus den Abfragen).
 
 ## C. Technische und organisatorische Maßnahmen (Art. 32)
 
@@ -90,7 +90,7 @@ Quelle: `deploy/` (Runbook `deploy/README.md`), Anwendungscode.
 - **In der App:** Rollen (Mitglied, Reitbeteiligung, Besitzer, Admin) werden auf dem Server geprüft; jede Abfrage ist auf den Stall beschränkt; Dateien werden nur mit der Sichtbarkeit des zugehörigen Eintrags ausgeliefert; Einwilligungen werden auf dem Server durchgesetzt.
 - **Weitergabe und Transport:** TLS über Caddy (Let's Encrypt, HSTS), strenge Sicherheits-Header und CSP; API und Datenbank lauschen nur auf `localhost`; Mails per STARTTLS; Web-Push Ende-zu-Ende verschlüsselt.
 - **Speicherung:** Sitzungs-Schlüssel, Anmelde-Links und Links an Eltern nur als SHA-256-Hash, Anmelde-Codes als HMAC; Datenbank-Passwort mit SCRAM-SHA-256. Keine eigene Festplattenverschlüsselung auf dem VPS, lokale Backups unverschlüsselt (nur Dateirechte 0700/0750).
-- **Datenminimierung:** keine Zugriffsprotokolle mit IP-Adressen; Metadaten aus Fotos entfernt; Geofence ohne Standortübertragung; Löschfristen automatisch (Job `privacy-retention`, täglich 03:30).
+- **Datenminimierung:** keine Zugriffsprotokolle mit IP-Adressen; Systemjournal höchstens vier Wochen, Datenbank-Protokolle ohne Parameterwerte; Metadaten aus Fotos entfernt; Geofence ohne Standortübertragung; Löschfristen automatisch (Job `privacy-retention`, täglich 03:30).
 - **Missbrauchsschutz:** Rate-Limits für Anmeldung, Code-Prüfung, Beitritt und Mails an Eltern; die Anmeldung verrät nicht, ob eine Adresse registriert ist.
 - **Verfügbarkeit:** tägliches Backup 03:00 (Datenbank und Dateien), 14 tägliche und 8 wöchentliche Stände, geprüft mit `pg_restore --list`; Restore-Anleitung `deploy/restore.md` (RPO 24 h), Restore-Test vierteljährlich (`deploy/restore-test.sh`). **Kein Offsite-Backup:** fällt der Server aus, sind Daten und Backups weg.
 - **Aktualität:** unattended-upgrades mit automatischem Neustart 04:30; größere Updates (PostgreSQL, Caddy) von Hand nach einem Backup.

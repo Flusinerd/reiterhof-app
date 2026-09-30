@@ -7,16 +7,15 @@ import { CONSENT_COPY, CONSENT_KINDS } from "./consent-core.ts";
 import { LEGAL_TEXT_VERSION, PRIVACY_MD } from "./consent-legal-texts.ts";
 import { parseMarkdown } from "./consent-markdown.ts";
 
-const DRAFT = "Entwurf – vor Veröffentlichung rechtlich prüfen lassen";
-
 test("consent-legal-texts.ts is generated from docs/legal (run node scripts/gen-legal.mjs)", () => {
   const current = readFileSync(new URL("./consent-legal-texts.ts", import.meta.url), "utf8");
   assert.equal(current, render());
 });
 
-test("the privacy text carries the draft marker and the version", () => {
-  assert.ok(PRIVACY_MD.includes(DRAFT));
+test("the privacy text carries the version and no placeholders", () => {
   assert.equal(versionOf(PRIVACY_MD), LEGAL_TEXT_VERSION);
+  // the text uses no links, so a square bracket is a placeholder left unfilled
+  assert.doesNotMatch(PRIVACY_MD, /\[/);
 });
 
 test("the privacy text covers every data category and consent", () => {

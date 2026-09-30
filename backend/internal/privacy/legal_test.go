@@ -20,7 +20,8 @@ func TestLegalTextsMatchTextVersion(t *testing.T) {
 	if !strings.Contains(text, "**Textversion:** "+privacy.TextVersion+"\n") {
 		t.Errorf("datenschutz.md does not carry TextVersion %s", privacy.TextVersion)
 	}
-	if !strings.Contains(text, "Entwurf – vor Veröffentlichung rechtlich prüfen lassen") {
-		t.Error("datenschutz.md lacks the draft marker")
+	// The text uses no links, so a square bracket is a placeholder left unfilled.
+	if strings.Contains(text, "[") {
+		t.Error("datenschutz.md contains a placeholder in square brackets")
 	}
 }

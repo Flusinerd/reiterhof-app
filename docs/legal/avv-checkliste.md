@@ -9,9 +9,8 @@ Diese Liste ist für den Betreiber (nicht für die App). Sie sagt, was vor dem S
 1. Netcup: Standort des VPS im Kundenkontrollpanel ablesen (Teil 1).
 2. Resend: Tracking aus, Domain in der EU-Region (Teil 1).
 3. Apple und Google: Konten, Schlüssel, „App-Datenschutz“ bzw. „Data safety“, Status „kein Unternehmer“ nach dem DSA, Datenschutz-Link (Teil 2 und 5).
-4. Entscheiden, ob die Entwurf-Marke vor dem Start raus soll (Teil 3).
-5. Laufend: Restore-Test vierteljährlich, Postfach für Anfragen lesen (Teil 5).
-6. Optional: Protokoll-Aufbewahrung auf dem Server begrenzen (Teil 5).
+4. Laufend: Restore-Test vierteljährlich, Postfach für Anfragen lesen (Teil 5).
+5. Auf bestehenden Servern `provision.sh` einmal erneut ausführen, damit die Protokoll-Einstellungen greifen (Teil 5).
 
 ## 1. Auftragsverarbeitungsverträge (AVV, Art. 28 DSGVO)
 
@@ -43,7 +42,7 @@ Quelle des Texts: `docs/legal/datenschutz.md`. Nach jeder Änderung `node script
 - [x] Aufsichtsbehörde: Abschnitt 9 nennt das Beschwerderecht (Art. 77) und verweist auf die Behörde des eigenen Bundeslandes und die Liste bei der BfDI. Eine bestimmte Behörde muss Art. 13 Abs. 2 lit. d nicht nennen.
 - [x] Hinweis `[vor Veröffentlichung prüfen]` entfernt: Google LLC ist nach dem EU-US Data Privacy Framework zertifiziert, Apple stützt Übermittlungen aus der EU auf Standardvertragsklauseln (laut Apple-Datenschutzrichtlinie, nicht auf das DPF). Resend: DPF und Standardvertragsklauseln. Expo ist nicht mehr beteiligt (JAN-88).
 - [x] Impressum: entfällt. Entscheidung des Betreibers (30.09.2026): Die App ist nur auf Einladung und rein privat nutzbar, kein geschäftsmäßiges Telemedium (§ 5 DDG). Impressum aus Repository und App entfernt; Kontakt für Eltern und Betroffene steht im Datenschutztext (Abschnitt 1 und 9). Wird die App öffentlich angeboten (Stores, Werbung, Entgelt), neu prüfen.
-- [ ] Die Marke „Entwurf – vor Veröffentlichung rechtlich prüfen lassen“ steht noch im Datenschutztext und damit in der App. Entscheiden: Reicht dir die Einschätzung in Teil 4, dann vor dem Einladen der ersten Nutzer entfernen (Marke im Text und in beiden Tests, siehe `docs/domains/privacy.md`); sonst erst nach einer anwaltlichen Prüfung.
+- [x] Die Marke „Entwurf – vor Veröffentlichung rechtlich prüfen lassen“ entfernt (Entscheidung des Betreibers, 30.09.2026: die Einschätzung in Teil 4 reicht, keine anwaltliche Prüfung). Die Tests lehnen jetzt Platzhalter in eckigen Klammern ab.
 Regel: Bei jeder inhaltlichen Änderung `TextVersion` in `backend/internal/privacy/consents.go` und die „Textversion“ im Datenschutztext gemeinsam erhöhen (der Test `TestLegalTextsMatchTextVersion` schlägt sonst fehl). Vor dem Start genügt das Datum; nach dem Start fragt die App erteilte Einwilligungen dann neu ab.
 
 ## 4. Rechtliche Fragen (Einschätzung vom 30.09.2026)
@@ -73,4 +72,4 @@ Regel: Bei jeder inhaltlichen Änderung `TextVersion` in `backend/internal/priva
 - [x] Open-Source-Lizenzen: Die Hinweise erzeugt `mobile/scripts/gen-licenses.mjs` bei jedem `npm ci`; die Seite „Lizenzen“ in der App zeigt sie. Ein Paket mit unzulässiger Lizenz bricht den Build ab.
 - [x] Widerruf durch Eltern: Ablauf in `verarbeitungsverzeichnis.md`, Abschnitt E2. Laufend: Postfach im Blick behalten.
 - [ ] **Stores, Status nach dem Digital Services Act:** In App Store Connect und Play Console angeben, dass du **kein Unternehmer** („non-trader“) bist; dann zeigen die Stores keine Anschrift. Nur möglich, solange die App unentgeltlich, ohne Werbung und nicht gewerblich ist. Alternative ohne öffentlichen Eintrag: Verteilung über TestFlight bzw. einen geschlossenen Test in der Play Console.
-- [ ] Optional, Datenminimierung auf dem Server: PostgreSQL protokolliert langsame Abfragen (`log_min_duration_statement = 500ms`) samt Parametern, die personenbezogene Daten enthalten können; `log_parameter_max_length = 0` und `log_parameter_max_length_on_error = 0` in `deploy/postgresql.conf.d/reiterhof.conf` verhindern das. Das Systemjournal hat keine eigene Aufbewahrungsgrenze; z. B. `MaxRetentionSec=1month` in einer journald-Konfiguration setzen.
+- [x] Datenminimierung bei Protokollen (30.09.2026): PostgreSQL protokolliert langsame Abfragen ohne Parameterwerte (`log_parameter_max_length = 0`, auch bei Fehlern), das Systemjournal wird nach vier Wochen gelöscht (`/etc/systemd/journald.conf.d/reiterhof.conf`, `MaxRetentionSec=4week`, von `provision.sh` gesetzt). Auf einem bestehenden Server greift das erst, wenn `provision.sh` erneut läuft (idempotent; PostgreSQL startet dabei neu).
