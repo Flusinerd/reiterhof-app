@@ -55,7 +55,7 @@ esac
 [[ "$REITERHOF_DOMAIN" =~ ^[A-Za-z0-9.-]+$ ]] || die "REITERHOF_DOMAIN looks invalid"
 [[ "$DB_NAME" =~ ^[a-z_][a-z0-9_]*$ && "$DB_USER" =~ ^[a-z_][a-z0-9_]*$ ]] ||
   die "database and role names must match [a-z_][a-z0-9_]*"
-for f in Caddyfile postgresql.conf.d/reiterhof.conf api.env.example backup.sh restore-test.sh \
+for f in Caddyfile postgresql.conf.d/reiterhof.conf api.env.example backup.sh restore-test.sh stallfunk-admin.sh \
   systemd/reiterhof-api.service systemd/reiterhof-backup.service systemd/reiterhof-backup.timer; do
   [[ -f "$SCRIPT_DIR/$f" ]] || die "missing $SCRIPT_DIR/$f (copy the whole deploy/ directory)"
 done
@@ -243,6 +243,8 @@ chmod 0640 /etc/reiterhof/backup.env
 install -m 0644 -o root -g root "$SCRIPT_DIR/Caddyfile" /etc/caddy/Caddyfile
 install -m 0755 -o root -g root "$SCRIPT_DIR/backup.sh" /usr/local/sbin/reiterhof-backup
 install -m 0755 -o root -g root "$SCRIPT_DIR/restore-test.sh" /usr/local/sbin/reiterhof-restore-test
+# Operator tool wrapper: runs /opt/reiterhof/stallfunk-admin (installed by the deploy) as user reiterhof.
+install -m 0755 -o root -g root "$SCRIPT_DIR/stallfunk-admin.sh" /usr/local/bin/stallfunk-admin
 for unit in reiterhof-api.service reiterhof-backup.service reiterhof-backup.timer; do
   install -m 0644 -o root -g root "$SCRIPT_DIR/systemd/$unit" "/etc/systemd/system/$unit"
 done
@@ -264,5 +266,6 @@ cat <<EOF
   2. Review /etc/reiterhof/api.env.
   3. Configure the offsite backup remote (see /etc/reiterhof/backup.env).
   4. Trigger the first deploy from GitHub Actions (workflow "Deploy").
+  5. Create the first stable and admin: stallfunk-admin help (see deploy/README.md, "Betrieb").
   See deploy/README.md for the full runbook.
 EOF

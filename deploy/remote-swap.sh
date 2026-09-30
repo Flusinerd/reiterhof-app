@@ -5,6 +5,10 @@
 # Expects the new binary at /opt/reiterhof/api.new (uploaded via scp). Swaps it in
 # atomically, restarts the service and checks /healthz. If the new version does
 # not become healthy, the previous binary is restored and the script fails.
+#
+# The operator tool /opt/reiterhof/stallfunk-admin.new (optional) is installed the same
+# way (atomic rename, no sudo needed: /opt/reiterhof belongs to the deploy user), but only
+# after the API is healthy, so that the tool always matches the running API version.
 set -euo pipefail
 
 APP_DIR=/opt/reiterhof
@@ -29,13 +33,27 @@ healthy() {
     "$HEALTH_URL" >/dev/null
 }
 
+# install_admin: swap in stallfunk-admin.new (uploaded by the workflow) if present.
+# It is executed by user reiterhof via the wrapper /usr/local/bin/stallfunk-admin, hence
+# group reiterhof and no write access for the group. mv within one directory is atomic,
+# so a running invocation keeps its old inode.
+install_admin() {
+  [[ -f stallfunk-admin.new ]] || return 0
+  chgrp reiterhof stallfunk-admin.new
+  chmod 0750 stallfunk-admin.new
+  mv -f stallfunk-admin.new stallfunk-admin
+  echo "Installed $APP_DIR/stallfunk-admin."
+}
+
 sudo systemctl restart reiterhof-api.service
 if healthy; then
   echo "Deployment healthy."
+  install_admin
   exit 0
 fi
 
 echo "ERROR: new version is not healthy." >&2
+rm -f stallfunk-admin.new # keep the operator tool matching the API that runs again
 journalctl -u reiterhof-api.service -n 30 --no-pager >&2 || true
 if [[ -f api.prev ]]; then
   echo "Rolling back to the previous binary." >&2
