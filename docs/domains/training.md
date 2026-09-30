@@ -9,7 +9,7 @@ library, JAN-59 week view, JAN-60 "Nur eintragen", JAN-61 finish screen.
 - Migration `0060_training_sessions.up.sql`: `sessions.exercise_id` and CHECK constraints for
   activity, feel and focus rating. Tables `training_profiles`, `exercises`, `sessions`, `week_slots`
   and `reha_plans` come from `0003`.
-- Mobile: `app/(tabs)/training.tsx` (Was heute?), `app/training/session.tsx` (timer placeholder),
+- Mobile: `app/(tabs)/training.tsx` (Was heute?), `app/training/session.tsx` (chooser GPS/indoor, see [tracking.md](tracking.md)),
   `app/training/session/finish.tsx`, `app/training/week.tsx`, `app/horses/[id]/training-profile.tsx`;
   pure helpers `lib/training*.ts`, API client and React Query hooks `lib/api/training.ts`.
 
@@ -102,6 +102,9 @@ is the segment count minus one), `distance_m`, and `feel` (`fresh|loose|tired|te
 `focus_rating` (1 Schwer, 2 Besser, 3 Sitzt), `exercise_id`, `note`, `visible_to_rider` (default
 true). `source` is `tracked` when gait shares, rein changes or a distance are sent, else `quick`.
 
+A non-empty `track` (GPS) needs the `location_tracking` consent, else `403 consent_required`
+(`privacy.Has`, JAN-19); see [privacy.md](privacy.md).
+
 `load_score` is `load.Score(minutes, activity, canterShare)`, stored in `sessions.load_score`; the
 canter share is `gait_shares.canter`. Saving marks the week slot of that day (stable-local) as
 `done` (created if nobody planned the day; an existing planner stays). With `focus_rating: 3` and an
@@ -128,9 +131,12 @@ three planned week slots for Luna.
 
 ## Open points
 
-- The tracking screen (`app/training/session.tsx`) is a timer placeholder; the later tracker hands
-  `gait` and `rein` (JSON) plus `started_at` to `session/finish` in the same way.
-- `/horses/{id}/reha` (link "Reha-Plan", see [reha.md](reha.md)) is built; `/observations/new?horse=`
-  ("Etwas aufgefallen?") comes from other work. The reha link only shows for horses in reha.
+- The tracker screens (`app/training/track/gps.tsx`, `indoor.tsx`, see [tracking.md](tracking.md)) hand `gait`,
+  `rein` (JSON) plus `started_at` to `session/finish`. GPS tracks need the `location_tracking` consent:
+  `POST /horses/{id}/sessions` with a non-empty `track` answers `403 consent_required` without it; indoor
+  data and quick logs never do.
+- `/horses/{id}/reha` (link "Reha-Plan", see [reha.md](reha.md)) and `/observations/new?horse=`
+  ("Auffälligkeit melden") are built. The reha link only shows for horses in reha. The Training tab links
+  the exercise library ("Übungsbibliothek").
 - The weather temperature is the night minimum of the snapshot; a daytime value would need an
   extension of `weather_snapshots`.

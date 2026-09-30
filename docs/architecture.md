@@ -244,12 +244,18 @@ real `*push.Notifier`). In tests pass `Notify: push.NewNotifier(pool, fake, nil)
   by token (a device handed to another user is re-assigned; the user must belong to
   the stable, else `ErrUnknownUser`); `push.DeleteToken(ctx, pool, stableID, userID,
   token)`.
-- Not wired yet: `POST /api/v1/me/push-tokens` (and `DELETE`) follow once
-  `auth.UserFrom` exists; the handler is a thin wrapper around `RegisterToken`.
-  Wiring `NewNotifier` into the API is also left to the features that send reminders.
+- `POST /api/v1/me/push-tokens` (and `DELETE`, package `internal/devices`) wrap
+  `RegisterToken` / `DeleteToken`; `cmd/api` builds one `push.NewNotifier` and passes it to
+  `httpapi.Deps.Notify` and to the reminder jobs.
+- **Tap target: every push carries `data.screen`**, an Expo Router path that exists in
+  `mobile/app` (`/requests/<id>`, `/observations/<id>`, `/horses/<id>/health`,
+  `/horses/<id>/reha`, `/horses/<id>/blanket-plan`, `/blankets`). Add the ids the screen needs
+  (`horse_id`, ...) next to it. `push.Notifier` adds `data.kind`. Health and reha pushes also
+  keep the older key `route` with the same value.
 - Mobile: `mobile/lib/push.ts` `registerForPush()` asks for permission and returns
   `{ token, platform }` (needs `expo.extra.eas.projectId` in `app.json` and a real
-  device; it does not throw). Sending the token to the backend comes with auth.
+  device; it does not throw). `useDeviceSetup` (`lib/use-push-registration.ts`) sends the token
+  to the backend once per app start, only with the `push` consent.
 
 ## Time handling
 

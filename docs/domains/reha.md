@@ -1,7 +1,7 @@
 # Reha plan (Reha-Plan, M7)
 
 Tickets: JAN-66 data model and screen, JAN-67 integration into training and requests, JAN-42 rules in
-`exercise` requests. JAN-68 (create a plan from an observation) builds on `observation_id`.
+`exercise` requests. JAN-68 creates a plan from an observation (`observation_id`).
 
 - Backend: `backend/internal/reha` (pure phase logic in `phase.go`, HTTP in `handler.go`/`view.go`,
   reminder job in `job.go`, queries in `store.go`). Migration `0100_reha.up.sql`.
@@ -108,7 +108,7 @@ Scheduler job `reha-checkup-reminders` (every 15 minutes, `reha.Reminders`): for
 'reha_plans'`, unique per user, kind, plan and scheduled time), so any number of runs sends it once; a failing
 push releases the claim and the next run retries. Moving `checkup_date` creates a new scheduled time and
 reminds again. Users can switch the kind off in `reminder_settings`. The push data carries
-`route: /horses/{id}/reha`.
+`route` and `screen`: `/horses/{id}/reha`.
 
 ## Mobile
 
@@ -116,7 +116,10 @@ reminds again. Users can switch the kind off in `reminder_settings`. The push da
 plan card with progress, phase timeline (current phase highlighted), abort criteria, vet checkup with
 date, link "Auffälligkeit melden" (`/observations/new?horse=<id>`), history. Owner and admins get
 "Reha-Plan anlegen" / "Plan bearbeiten" / "Plan beenden". `/reha/edit?horse=<id>[&plan=<id>][&observation=<id>]`
-is the form with the phase editor sheet (add, edit, remove, reorder). The training week screen shows the reha
+is the form with the phase editor sheet (add, edit, remove, reorder). With `observation` (JAN-68, from "In Reha-Plan
+umwandeln" in the horse record) a new plan starts with the diagnosis taken from the observation
+(`diagnosisFromObservation`: category, body part and description, at most 200 characters) and posts `observation_id`.
+The plan screen shows the source observation ("Ausgelöst durch", opens its detail); the observation detail links back. The training week screen shows the reha
 line of each day.
 
 ## Open points

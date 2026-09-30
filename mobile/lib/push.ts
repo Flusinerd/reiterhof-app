@@ -24,8 +24,7 @@ async function ensureAndroidChannel(): Promise<void> {
 
 /**
  * Asks for notification permission (if not yet decided) and returns the Expo
- * push token. Sending it to the backend (`POST /me/push-tokens`) is added once
- * auth exists. Never throws; failures are reported through `reason`.
+ * push token. `useDeviceSetup` sends it to `POST /me/push-tokens`. Never throws; failures are reported through `reason`.
  */
 export async function registerForPush(): Promise<PushResult> {
   if (!Device.isDevice) return { ok: false, reason: "not_a_device" };
