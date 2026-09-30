@@ -345,3 +345,49 @@ stableID, horseID)` reads a horse's rules.
 
 **Ground condition:** `stables.SetGroundCondition` / `GetGroundCondition` (`dry`, `wet`,
 `frozen`, `muddy`); no endpoint yet.
+
+## Realtime
+
+Package `internal/realtime`: small "something changed" events for all members of a stable,
+delivered as Server-Sent Events. Events are hints; the app reacts by refetching over the
+normal API, so an event must never carry data some members may not see.
+
+**Publish (any package, usually inside your transaction):**
+
+```go
+tx, _ := deps.Pool.Begin(ctx)
+// ... change rows ...
+err := realtime.Publish(ctx, tx, user.StableID, "request.changed", map[string]any{"id": id})
+tx.Commit(ctx) // the event is sent on commit; a rollback sends nothing
+```
+
+`Publish(ctx, q, stableID, type, data)` runs `pg_notify('reiterhof_events', {stable_id, type, data})`;
+`q` is a `*pgxpool.Pool`, `pgx.Tx` or `*pgx.Conn`. The whole payload must stay below 8 kB;
+keep `data` to ids. Naming: `<domain>.changed` (`presence.changed`, `blanket_state.changed`,
+`request.changed`, ...). The type `resync` is reserved (see below).
+
+**Subscribe:** every process runs one `realtime.Hub` (started in `cmd/api`, exposed as
+`deps.Events`, a no-op in tests unless you pass a hub: `hub := realtime.NewHub(pool, nil);
+go hub.Run(ctx); <-hub.Ready()`). It holds one dedicated `LISTEN` connection and reconnects
+with backoff (1 s to 30 s); after a reconnect it sends `resync` to all clients because events
+may have been missed. Because Postgres fans out NOTIFY, several API processes work.
+
+**Endpoint:** `GET /api/v1/events` (`auth.RequireStable`, filtered by the user's stable).
+`text/event-stream`, per event `event: <type>` and `data: {"stable_id","type","data"}`, a
+`: keep-alive` comment every 25 s, optional `?types=a,b` filter. Each client has a buffer of
+32 events; a client that falls behind is dropped (the stream ends, the app reconnects and
+refetches). No replay: clients refetch after (re)connecting.
+
+**Authentication:** `Authorization: Bearer <token>`; additionally `?access_token=<token>` for
+EventSource libraries in React Native that cannot set headers. Tradeoff: a token in the URL
+ends up in access logs and proxies, and it is the same long-lived session token. The query
+form is accepted for this path only (`auth.BearerToken`); configure the reverse proxy not to
+log the query string of `/api/v1/events`. The mobile app uses `expo/fetch` streaming with the
+header and does not need it.
+
+**Mobile:** `useStableEvents(types, handler)` and `useInvalidateOnEvents({ "request.changed":
+[["requests"]] })` in `mobile/lib/realtime.ts`; one shared connection, closed in the background.
+
+## Domains
+
+- [Presence](domains/presence.md): check-in/out, visibility, geofence.
