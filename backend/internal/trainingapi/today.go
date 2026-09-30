@@ -2,7 +2,6 @@ package trainingapi
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -11,9 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-
 	"github.com/Flusinerd/reiterhof-app/backend/internal/httpx"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/reha"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/stables"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/training"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/training/load"
@@ -56,6 +54,11 @@ type rehaOut struct {
 	MinMinutes int    `json:"min_minutes"`
 	MaxMinutes int    `json:"max_minutes"`
 	Conditions string `json:"conditions,omitempty"`
+	// Minutes is today's allowed duration (ramp between min and max), 0 for a rest phase.
+	Minutes int    `json:"minutes"`
+	Rest    bool   `json:"rest"`
+	Done    bool   `json:"done"` // "Heute erledigt" was tapped
+	Text    string `json:"text"`
 }
 
 type todayOut struct {
@@ -259,89 +262,36 @@ func contextLine(in contextInput) string {
 
 // --- reha ---------------------------------------------------------------------------------
 
-// rehaPhaseIn is one entry of reha_plans.phases. Duration is days, or weeks x 7.
-type rehaPhaseIn struct {
-	Name         string `json:"name"`
-	Days         int    `json:"days"`
-	DurationDays int    `json:"duration_days"`
-	Weeks        int    `json:"weeks"`
-	Activity     string `json:"activity"`
-	MinMinutes   int    `json:"min_minutes"`
-	MaxMinutes   int    `json:"max_minutes"`
-	Conditions   string `json:"conditions"`
-}
-
-func (p rehaPhaseIn) length() int {
-	switch {
-	case p.Days > 0:
-		return p.Days
-	case p.DurationDays > 0:
-		return p.DurationDays
-	}
-	return p.Weeks * 7
-}
-
 type activeReha struct {
 	phase *recommend.RehaPhase
 	out   rehaOut
 }
 
-// activeRehaPhase returns the phase of the horse's active reha plan that covers today: the
-// phases run one after the other starting at start_date. It returns nil without an active
-// plan, before the start, after the last phase, or when the phase has no valid activity.
+// activeRehaPhase returns the unit that the horse's active reha plan allows today (phase
+// parsing and the minute ramp live in internal/reha). It returns nil without an active plan,
+// before the start, after the last phase, or when the phase has no valid activity.
+//
+// The recommender gets the phase minimum as lower and today's ramp value as upper bound, so a
+// short available time can shorten the unit but never below the phase minimum.
 func (h *handler) activeRehaPhase(ctx context.Context, stableID, horseID string, today time.Time) (*activeReha, error) {
-	var (
-		id     string
-		start  time.Time
-		phases []byte
-	)
-	err := h.deps.Pool.QueryRow(ctx, `
-		SELECT id::text, start_date, phases FROM reha_plans
-		WHERE stable_id = $1 AND horse_id = $2 AND active`, stableID, horseID).Scan(&id, &start, &phases)
-	if errors.Is(err, pgx.ErrNoRows) {
+	p, err := reha.ActivePlan(ctx, h.deps.Pool, stableID, horseID)
+	if err != nil || p == nil {
+		return nil, err
+	}
+	al := p.AllowedOn(today)
+	if al == nil {
 		return nil, nil
 	}
+	done, err := reha.DoneDays(ctx, h.deps.Pool, stableID, p.ID, today, today)
 	if err != nil {
 		return nil, err
 	}
-	var list []rehaPhaseIn
-	if err := json.Unmarshal(phases, &list); err != nil {
-		return nil, nil
-	}
-	p, idx := currentPhase(list, training.DaysBetween(start, today))
-	if p == nil || !training.Activity(p.Activity).Valid() {
-		return nil, nil
-	}
-	name := p.Name
-	if name == "" {
-		name = fmt.Sprintf("Phase %d", idx+1)
-	}
-	minM, maxM := p.MinMinutes, p.MaxMinutes
-	if maxM <= 0 {
-		maxM = 20
-	}
-	if minM <= 0 || minM > maxM {
-		minM = maxM
-	}
-	act := training.Activity(p.Activity)
+	_, isDone := done[today.Format(dateLayout)]
+	ph := al.Phase
 	return &activeReha{
-		phase: &recommend.RehaPhase{Name: name, Activity: act, MinMinutes: minM, MaxMinutes: maxM, Conditions: p.Conditions},
-		out: rehaOut{PlanID: id, Phase: name, PhaseIndex: idx + 1, Phases: len(list), Activity: p.Activity,
-			MinMinutes: minM, MaxMinutes: maxM, Conditions: p.Conditions},
+		phase: &recommend.RehaPhase{Name: ph.Name, Activity: training.Activity(ph.Activity), MinMinutes: ph.MinMinutes, MaxMinutes: al.Minutes, Conditions: ph.Conditions},
+		out: rehaOut{PlanID: p.ID, Phase: ph.Name, PhaseIndex: al.PhaseNumber, Phases: al.Phases, Activity: ph.Activity,
+			MinMinutes: ph.MinMinutes, MaxMinutes: ph.MaxMinutes, Minutes: al.Minutes, Rest: ph.Rest(), Done: isDone,
+			Text: al.RuleText(), Conditions: ph.Conditions},
 	}, nil
-}
-
-// currentPhase finds the phase that covers the given number of days since the plan start.
-func currentPhase(phases []rehaPhaseIn, elapsedDays int) (*rehaPhaseIn, int) {
-	if elapsedDays < 0 {
-		return nil, 0
-	}
-	end := 0
-	for i := range phases {
-		end += phases[i].length()
-		if elapsedDays < end {
-			return &phases[i], i
-		}
-	}
-	return nil, 0
 }

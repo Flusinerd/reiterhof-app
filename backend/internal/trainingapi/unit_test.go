@@ -40,24 +40,6 @@ func TestContextLine(t *testing.T) {
 	}
 }
 
-func TestCurrentPhase(t *testing.T) {
-	phases := []rehaPhaseIn{{Name: "A", Days: 7}, {Name: "B", Weeks: 2}, {Name: "C", DurationDays: 3}}
-	cases := []struct {
-		elapsed int
-		want    string
-	}{{-1, ""}, {0, "A"}, {6, "A"}, {7, "B"}, {20, "B"}, {21, "C"}, {23, "C"}, {24, ""}, {100, ""}}
-	for _, c := range cases {
-		got, _ := currentPhase(phases, c.elapsed)
-		name := ""
-		if got != nil {
-			name = got.Name
-		}
-		if name != c.want {
-			t.Errorf("elapsed %d: %q, want %q", c.elapsed, name, c.want)
-		}
-	}
-}
-
 func TestRiderRulesMapping(t *testing.T) {
 	p := emptyProfile()
 	if p.riderRules("u1", []string{"ride"}) != nil {

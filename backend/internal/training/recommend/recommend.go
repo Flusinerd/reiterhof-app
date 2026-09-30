@@ -237,6 +237,12 @@ func Recommend(in Input) Result {
 	// 2a. Active reha phase.
 	if in.Reha != nil && in.Profile.Status != training.StatusPause {
 		p := in.Reha
+		if p.Activity == training.ActivityRest {
+			// Box rest: nothing to do with the horse today.
+			r := rest(fmt.Sprintf("Reha-Phase „%s“: heute keine Bewegung.", p.Name))
+			r.Note = p.Conditions
+			return one(r)
+		}
 		if reason := riderBlock(in, p.Activity, rider); reason != "" {
 			return one(rest(fmt.Sprintf("Reha-Phase „%s“: %s ist für %s nicht freigegeben – heute lieber Ruhe.", p.Name, p.Activity.GermanName(), rider)))
 		}
