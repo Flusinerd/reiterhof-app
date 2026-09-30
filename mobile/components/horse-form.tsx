@@ -69,12 +69,12 @@ export function HorseForm({ horse, card, isAdmin, members, submitLabel, saving, 
     const year = birthYear.trim() === "" ? 0 : parseWholeNumber(birthYear);
     const kg = weight.trim() === "" ? 0 : parseWholeNumber(weight);
     const thisYear = new Date().getFullYear();
-    if (name.trim() === "") return setProblem("Bitte gib einen Namen ein.");
+    if (name.trim() === "") return setProblem("Name fehlt.");
     if (year === null || (year !== 0 && (year < MIN_BIRTH_YEAR || year > thisYear))) {
-      return setProblem(`Das Geburtsjahr muss zwischen ${MIN_BIRTH_YEAR} und ${thisYear} liegen.`);
+      return setProblem(`Geburtsjahr zwischen ${MIN_BIRTH_YEAR} und ${thisYear}.`);
     }
     if (kg === null || (kg !== 0 && (kg < 20 || kg > 1500))) {
-      return setProblem("Das Gewicht muss zwischen 20 und 1500 kg liegen.");
+      return setProblem("Gewicht zwischen 20 und 1500 kg.");
     }
     setProblem(null);
     const input: HorseInput = {
@@ -181,7 +181,7 @@ export function HorseForm({ horse, card, isAdmin, members, submitLabel, saving, 
         <>
           <SectionLabel>Besitzer</SectionLabel>
           <Card className="gap-3">
-            <Text variant="secondary">Als Admin kannst du festlegen, wem das Pferd gehört.</Text>
+            <Text variant="secondary">Als Admin wählst du den Besitzer.</Text>
             <View className="flex-row flex-wrap gap-2">
               {members.map((m) => (
                 <Pill key={m.id} label={m.name} selected={ownerId === m.id} onPress={() => setOwnerId(m.id)} />
@@ -193,7 +193,7 @@ export function HorseForm({ horse, card, isAdmin, members, submitLabel, saving, 
 
       <SectionLabel>Notfallkarte</SectionLabel>
       <Card className="gap-4">
-        <Text variant="secondary">Diese Angaben sieht jeder im Stall, auch ohne Reitbeteiligung.</Text>
+        <Text variant="secondary">Sichtbar für alle im Stall.</Text>
         <Field label="Tierarzt">
           <Input value={vetName} onChangeText={setVetName} accessibilityLabel="Name des Tierarztes" />
         </Field>

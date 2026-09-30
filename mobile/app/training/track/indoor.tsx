@@ -37,7 +37,7 @@ export default function IndoorTrack() {
   if (!horse || !isActivity(activity)) {
     return (
       <Screen back>
-        <Text variant="body">Für diese Einheit fehlen Angaben. Bitte starte sie im Tab „Training“.</Text>
+        <Text variant="body">Angaben fehlen. Starte die Einheit im Tab „Training“.</Text>
       </Screen>
     );
   }
@@ -108,14 +108,12 @@ function IndoorRun({
         <Card className="gap-2">
           <Text variant="bodyStrong">Gangart und Hand</Text>
           <Text variant="secondary">
-            Das Telefon erkennt Schritt, Trab und Galopp an der Bewegung, ohne GPS. Trage es fest am Körper, zum
-            Beispiel in der Jackentasche. Liegt die Erkennung falsch, tippst du die richtige Gangart an. Mit
-            „Handwechsel“ zählt die Zeit auf der anderen Hand.
+            Das Telefon erkennt Schritt, Trab und Galopp an der Bewegung, ohne GPS. Trag es am Körper. Liegt die
+            Erkennung falsch, tipp die richtige Gangart an. „Handwechsel“ zählt die Zeit auf der anderen Hand.
           </Text>
           {isWeb ? (
             <Text variant="secondary" tone="accent">
-              Bildschirm während der Aufzeichnung anlassen. Bei gesperrtem Bildschirm liefert der Browser keine
-              Bewegungsdaten.
+              Bildschirm anlassen, sonst liefert der Browser keine Bewegungsdaten.
             </Text>
           ) : null}
         </Card>
@@ -133,7 +131,7 @@ function IndoorRun({
       <Hero tone="deep" eyebrow={`${label}${t.paused ? " · pausiert" : ""}`} value={formatClock(seconds)} valueSize="lg">
         {t.paused ? (
           <Text variant="secondary" className="text-white/70">
-            Die Zeit steht.
+            Pausiert.
           </Text>
         ) : (
           <GaitChip gait={t.gait} />
@@ -172,8 +170,8 @@ function IndoorRun({
       </View>
       <Text variant="secondary">
         {t.sensorAvailable === false
-          ? "Kein Bewegungssensor gefunden: Die Gangart kann hier nicht erkannt werden."
-          : "Nur tippen, wenn die Erkennung danebenliegt. Deine Korrektur hilft, sie zu verbessern."}
+          ? "Kein Bewegungssensor, keine Gangart-Erkennung."
+          : "Nur tippen, wenn die Erkennung falsch liegt."}
       </Text>
 
       <SectionLabel>Hand</SectionLabel>

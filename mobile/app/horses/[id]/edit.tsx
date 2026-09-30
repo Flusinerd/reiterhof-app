@@ -24,7 +24,7 @@ export default function EditHorse() {
     <Screen back keyboardShouldPersistTaps="handled">
       {horse.data && card.data && canEdit ? (
         <>
-          <Hero eyebrow="Pferdeakte" title={`${horse.data.name} bearbeiten`} description="Änderungen sehen alle im Stall." />
+          <Hero title={`${horse.data.name} bearbeiten`} description="Änderungen sehen alle im Stall." />
           <HorseForm
             key={horse.data.id}
             horse={horse.data}
@@ -50,7 +50,7 @@ export default function EditHorse() {
       ) : horse.data && !canEdit ? (
         <HorseError
           error={new ApiError(403, "forbidden", "forbidden")}
-          forbiddenText="Nur die Besitzerin, der Besitzer oder ein Admin darf dieses Pferd bearbeiten."
+          forbiddenText="Nur Besitzer und Admins dürfen bearbeiten."
         />
       ) : (
         <HorseLoading />

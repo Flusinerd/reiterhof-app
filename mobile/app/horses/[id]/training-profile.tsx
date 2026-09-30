@@ -107,8 +107,8 @@ export default function TrainingProfile() {
         title="Trainingsprofil"
         description={
           editable
-            ? "Bestimmt, was in „Was heute?“ vorgeschlagen wird und wie oft trainiert werden soll."
-            : "Nur der Besitzer kann das Profil ändern. Du siehst hier, was für dich gilt."
+            ? "Bestimmt die Empfehlungen."
+            : "Nur der Besitzer kann es ändern. Du siehst, was für dich gilt."
         }
       >
         {!profile.data.exists ? <Badge variant="accent" label="Noch nicht angelegt" /> : null}
@@ -200,7 +200,7 @@ export default function TrainingProfile() {
 
       <SectionLabel>Turniere</SectionLabel>
       <View className="gap-3">
-        {draft.shows.length === 0 ? <Text variant="secondary">Keine Turniere eingetragen.</Text> : null}
+        {draft.shows.length === 0 ? <Text variant="secondary">Keine Turniere.</Text> : null}
         {draft.shows.map((s, i) =>
           editable ? (
             <Card key={i} className="gap-3">
@@ -273,7 +273,7 @@ export default function TrainingProfile() {
           onMax={(restDaysMax) => patch({ restDaysMax })}
         />
         <View className="gap-1.5">
-          <Text variant="secondary">Höchstdauer pro Einheit in Minuten (0 = keine Grenze)</Text>
+          <Text variant="secondary">Höchstdauer pro Einheit (Min., 0 = unbegrenzt)</Text>
           {editable ? (
             <Input
               accessibilityLabel="Höchstdauer in Minuten"

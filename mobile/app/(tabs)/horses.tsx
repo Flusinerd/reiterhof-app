@@ -37,7 +37,7 @@ export default function Horses() {
   const sections: { title: string; horses: Horse[] }[] = [
     { title: "Meine Pferde", horses: groups.mine },
     { title: "Ich reite", horses: groups.riding },
-    { title: groups.mine.length + groups.riding.length > 0 ? "Weitere Pferde im Stall" : "Pferde im Stall", horses: groups.others },
+    { title: groups.mine.length + groups.riding.length > 0 ? "Weitere Pferde" : "Pferde", horses: groups.others },
   ];
 
   return (
@@ -47,15 +47,12 @@ export default function Horses() {
       }
     >
       <Hero
-        eyebrow="Stall"
         value={query.data ? String(count) : "–"}
         unit={count === 1 ? "Pferd" : "Pferde"}
         description={
-          query.data
-            ? groups.mine.length > 0
-              ? `Davon ${groups.mine.length === 1 ? "eins" : groups.mine.length} von dir.`
-              : "Tippe auf ein Pferd für die Pferdeakte."
-            : "Pferde werden geladen."
+          query.data && groups.mine.length > 0
+            ? `${groups.mine.length === 1 ? "Eins" : groups.mine.length} davon von dir.`
+            : undefined
         }
       >
         <Button
@@ -70,7 +67,7 @@ export default function Horses() {
       {query.isError ? <HorseError error={query.error} onRetry={() => query.refetch()} /> : null}
       {query.data && count === 0 ? (
         <Card>
-          <Text variant="secondary">Noch keine Pferde im Stall. Lege das erste Pferd an.</Text>
+          <Text variant="secondary">Noch keine Pferde.</Text>
         </Card>
       ) : null}
 

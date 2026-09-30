@@ -78,7 +78,7 @@ export default function TrainingSession() {
   if (!params.horse || !activity) {
     return (
       <Screen back>
-        <Text variant="body">Für diese Einheit fehlen Angaben. Bitte starte sie im Tab „Training“.</Text>
+        <Text variant="body">Angaben fehlen. Starte die Einheit im Tab „Training“.</Text>
         {resumeCard}
       </Screen>
     );
@@ -90,13 +90,13 @@ export default function TrainingSession() {
       mode: "gps" as const,
       icon: MapPin,
       title: "Mit GPS",
-      text: "Strecke, Tempo, Höhenmeter und eine Karte nach Gangarten. Für Ausritte.",
+      text: "Strecke, Tempo, Höhe und Karte. Für Ausritte.",
     },
     {
       mode: "indoor" as const,
       icon: Warehouse,
       title: "Drinnen, ohne GPS",
-      text: "Gangart per Bewegungssensor, Handwechsel und Ablauf der Übung. Für Halle, Platz und Longe.",
+      text: "Gangart per Sensor, Handwechsel, Übungsablauf. Für Halle, Platz, Longe.",
     },
   ].sort((a, b) => (a.mode === preferred ? -1 : b.mode === preferred ? 1 : 0));
 
@@ -106,7 +106,7 @@ export default function TrainingSession() {
         tone="deep"
         eyebrow="Einheit starten"
         title={activityLabel(activity)}
-        description={params.minutes ? `Empfohlen: ${params.minutes} Minuten.` : "Wie soll die Einheit aufgezeichnet werden?"}
+        description={params.minutes ? `Empfohlen: ${params.minutes} Minuten.` : undefined}
       />
 
       {resumeCard}
@@ -136,12 +136,12 @@ export default function TrainingSession() {
       <PressableCard
         shape="tile"
         className="flex-row items-center gap-3"
-        accessibilityLabel="Übungsbibliothek öffnen"
+        accessibilityLabel="Übungen öffnen"
         onPress={() => router.push("/training/exercises" as Href)}
       >
         <Icon as={BookOpen} size={20} className="text-primary-deep" />
         <Text variant="bodyStrong" className="flex-1">
-          Übungsbibliothek
+          Übungen
         </Text>
         <Icon as={ChevronRight} size={20} className="text-muted" />
       </PressableCard>

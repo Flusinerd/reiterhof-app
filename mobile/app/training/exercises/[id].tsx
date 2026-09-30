@@ -17,7 +17,7 @@ export default function ExerciseDetail() {
   if (exercise.isPending) {
     return (
       <Screen back>
-        <ActivityIndicator accessibilityLabel="Übung wird geladen" />
+        <ActivityIndicator accessibilityLabel="Lädt" />
       </Screen>
     );
   }
@@ -25,7 +25,7 @@ export default function ExerciseDetail() {
     return (
       <Screen back>
         <Text variant="body" tone="danger" accessibilityRole="alert">
-          {exercise.error ? errorMessage(exercise.error) : "Diese Übung wurde nicht gefunden."}
+          {exercise.error ? errorMessage(exercise.error) : "Übung nicht gefunden."}
         </Text>
         <Button label="Erneut versuchen" variant="outline" onPress={() => void exercise.refetch()} />
       </Screen>
@@ -53,7 +53,7 @@ export default function ExerciseDetail() {
       <SectionLabel>Ablauf</SectionLabel>
       {steps.length === 0 ? (
         <Text variant="body" tone="muted">
-          Für diese Übung ist noch kein Ablauf hinterlegt.
+          Noch kein Ablauf.
         </Text>
       ) : (
         <Card padded={false}>
@@ -92,10 +92,10 @@ export default function ExerciseDetail() {
             </View>
             <Icon as={ArrowRight} size={20} className="text-muted" />
           </PressableCard>
-          <Text variant="secondary">Wenn „Sitzt“ bei dieser Übung, ist das die nächste Stufe in der Reihe.</Text>
+          <Text variant="secondary">Nach „Sitzt“ kommt die nächste Stufe.</Text>
         </>
       ) : (
-        <Text variant="secondary">Das ist die letzte Stufe dieser Übungsreihe.</Text>
+        <Text variant="secondary">Letzte Stufe der Reihe.</Text>
       )}
     </Screen>
   );

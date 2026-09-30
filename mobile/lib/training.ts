@@ -383,11 +383,11 @@ export function feelPrompt(horseName: string): string {
 export function trainingErrorText(code: string): string | null {
   switch (code) {
     case "forbidden":
-      return "Dafür hast du bei diesem Pferd keine Berechtigung.";
+      return "Keine Berechtigung.";
     case "conflict":
       return "Dieser Tag ist schon vergeben.";
     case "not_found":
-      return "Das Pferd oder der Eintrag wurde nicht gefunden.";
+      return "Nicht gefunden.";
     default:
       return null;
   }

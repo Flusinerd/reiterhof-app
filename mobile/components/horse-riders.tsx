@@ -56,7 +56,7 @@ export function HorseRiders({ horse }: { horse: Horse }) {
     <View className="gap-3">
       {horse.riders.length === 0 ? (
         <Card>
-          <Text variant="secondary">Keine Reitbeteiligungen eingetragen.</Text>
+          <Text variant="secondary">Keine Reitbeteiligungen.</Text>
         </Card>
       ) : (
         horse.riders.map((r) => {
@@ -104,10 +104,10 @@ export function HorseRiders({ horse }: { horse: Horse }) {
         open={picking}
         onOpenChange={setPicking}
         title="Reitbeteiligung hinzufügen"
-        description="Wer aus dem Stall darf dieses Pferd reiten?"
+        description="Wer darf reiten?"
       >
         {candidates.length === 0 ? (
-          <Text variant="secondary">Alle anderen Personen im Stall sind schon eingetragen.</Text>
+          <Text variant="secondary">Alle sind schon eingetragen.</Text>
         ) : (
           <View>
             {candidates.map((m, i) => (

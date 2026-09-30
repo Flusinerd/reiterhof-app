@@ -75,7 +75,7 @@ export default function Training() {
     return (
       <Screen>
         <Card className="gap-3">
-          <Text variant="bodyStrong">Training konnte nicht geladen werden</Text>
+          <Text variant="bodyStrong">Laden fehlgeschlagen</Text>
           <Text variant="secondary">{trainingError(horses.error)}</Text>
           <Button label="Erneut versuchen" variant="outline" onPress={() => void horses.refetch()} />
         </Card>
@@ -87,9 +87,8 @@ export default function Training() {
       <Screen>
         <Hero
           tone="soft"
-          eyebrow="Training"
           title="Noch kein Pferd"
-          description="Sobald du Besitzer oder Reitbeteiligung eines Pferdes bist, erscheint hier die Empfehlung für heute."
+          description="Die Empfehlung erscheint, sobald du Besitzer oder Reitbeteiligung bist."
         />
       </Screen>
     );
@@ -107,7 +106,7 @@ export default function Training() {
         minutes: DEFAULT_MINUTES[picked],
         intensity: "none",
         intensity_label: "",
-        reason: "Von dir gewählt.",
+        reason: "Deine Wahl.",
       }
     : undefined;
   const hero: Recommendation | undefined = chosenRec ?? own;
@@ -146,7 +145,7 @@ export default function Training() {
           {data ? (
             <Badge
               variant={data.status === "fit" ? "primary" : "accent"}
-              label={`${statusLabel(data.status)} · ${trainedCount(data.week)} von 7 Tagen trainiert`}
+              label={`${statusLabel(data.status)} · ${trainedCount(data.week)}/7 Tage trainiert`}
             />
           ) : null}
         </View>
@@ -168,8 +167,8 @@ export default function Training() {
           <Text variant="bodyStrong">Noch kein Trainingsprofil</Text>
           <Text variant="secondary">
             {data.can_edit
-              ? `Lege fest, was für ${data.horse_name} in Frage kommt, dann passen die Empfehlungen.`
-              : `Der Besitzer von ${data.horse_name} hat noch kein Profil angelegt, deshalb gibt es keine Empfehlung.`}
+              ? `Lege fest, was für ${data.horse_name} in Frage kommt.`
+              : `Ohne Profil keine Empfehlung. Der Besitzer muss es anlegen.`}
           </Text>
           {data.can_edit ? (
             <Button label="Profil anlegen" onPress={() => goto(`/horses/${activeId}/training-profile`)} />
@@ -180,7 +179,7 @@ export default function Training() {
       {hero ? (
         <Hero
           tone="soft"
-          eyebrow={isRest ? "Empfehlung für heute" : `Empfehlung · ${formatMinutes(hero.minutes)}`}
+          eyebrow={isRest ? "Empfehlung" : `Empfehlung · ${formatMinutes(hero.minutes)}`}
           title={hero.label}
           description={hero.reason}
         >
@@ -272,7 +271,7 @@ export default function Training() {
           icon={CalendarDays}
           onPress={() => goto(`/training/week?horse=${activeId}`)}
         />
-        <Button label="Übungsbibliothek" variant="ghost" size="sm" icon={BookOpen} onPress={() => goto("/training/exercises")} />
+        <Button label="Übungen" variant="ghost" size="sm" icon={BookOpen} onPress={() => goto("/training/exercises")} />
         <Button label="Profil" variant="ghost" size="sm" onPress={() => goto(`/horses/${activeId}/training-profile`)} />
         {data?.reha || data?.status === "reha" ? (
           <Button label="Reha-Plan" variant="ghost" size="sm" onPress={() => goto(`/horses/${activeId}/reha`)} />

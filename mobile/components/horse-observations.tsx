@@ -50,7 +50,7 @@ export function HorseObservations({
         <HorseLoading />
       ) : list.length === 0 ? (
         <Card>
-          <Text variant="secondary">Keine Auffälligkeiten gemeldet.</Text>
+          <Text variant="secondary">Keine Auffälligkeiten.</Text>
         </Card>
       ) : (
         <>

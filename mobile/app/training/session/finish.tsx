@@ -77,7 +77,7 @@ export default function FinishSession() {
   if (!params) {
     return (
       <Screen back>
-        <Text variant="body">Diese Einheit kann nicht abgeschlossen werden, es fehlen Angaben.</Text>
+        <Text variant="body">Angaben fehlen.</Text>
       </Screen>
     );
   }
@@ -95,7 +95,7 @@ export default function FinishSession() {
           tone="soft"
           eyebrow="Gespeichert"
           title={`${activityLabel(saved.session.activity)}, ${formatMinutes(saved.session.minutes)}`}
-          description="Die Einheit ist in der Woche eingetragen."
+          description="In der Woche eingetragen."
         />
         {saved.next_progression ? (
           <>
@@ -103,7 +103,7 @@ export default function FinishSession() {
             <Card className="gap-1">
               <Text variant="bodyStrong">{saved.next_progression.title}</Text>
               <Text variant="secondary">
-                „Sitzt“ – das ist der nächste Schritt in dieser Übungsreihe.
+                Nächste Stufe, wenn es sitzt.
               </Text>
             </Card>
           </>
@@ -192,8 +192,8 @@ export default function FinishSession() {
       {horse?.role === "owner" ? (
         <Card>
           <Switch
-            label="RB sieht das"
-            description="Reitbeteiligungen sehen diese Einheit in der Woche und im Verlauf."
+            label="Reitbeteiligung sieht das"
+            description="In Woche und Verlauf sichtbar."
             value={visible}
             onValueChange={setVisible}
           />

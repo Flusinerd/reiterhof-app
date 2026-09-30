@@ -37,7 +37,7 @@ export default function Documents() {
           <HorseError
             error={docs.error}
             onRetry={() => docs.refetch()}
-            forbiddenText="Dokumente sehen nur die Besitzerin oder der Besitzer, Reitbeteiligungen und Admins."
+            forbiddenText="Nur für Besitzer, Reitbeteiligungen und Admins."
           />
         ) : (
           <HorseLoading />
@@ -75,7 +75,7 @@ export default function Documents() {
   async function takePhoto() {
     if (!(await photoConsent())) return;
     const perm = await ImagePicker.requestCameraPermissionsAsync();
-    if (!perm.granted) return setError("Ohne Kamerazugriff kann kein Foto aufgenommen werden.");
+    if (!perm.granted) return setError("Kamerazugriff fehlt.");
     const res = await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 0.8 });
     const a = res.assets?.[0];
     if (!res.canceled && a) {
@@ -104,7 +104,7 @@ export default function Documents() {
   }
 
   function confirmRemove(doc: HorseDocument) {
-    Alert.alert("Dokument löschen?", `„${doc.title}“ wird endgültig gelöscht.`, [
+    Alert.alert("Dokument löschen?", `„${doc.title}“ wird gelöscht.`, [
       { text: "Abbrechen", style: "cancel" },
       {
         text: "Löschen",
@@ -140,7 +140,7 @@ export default function Documents() {
       <SectionLabel>Ablage</SectionLabel>
       {list.length === 0 ? (
         <Card>
-          <Text variant="secondary">Noch keine Dokumente hochgeladen.</Text>
+          <Text variant="secondary">Noch keine Dokumente.</Text>
         </Card>
       ) : (
         <View className="gap-3">
