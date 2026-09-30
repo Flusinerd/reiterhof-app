@@ -180,18 +180,21 @@ stable's timezone, so DST weeks still have seven days.
 ## Seed
 
 `internal/seed/training.go`: profiles for all seven demo horses (the three minimal rows are filled
-only while `discipline` is still empty, so local edits survive), the global exercise library
-(`internal/seed/exercises.go`, 41 exercises: 17 dressage, 8 jumping, 10 groundwork, 6 lunging), a reha plan for Fanta (with abort criteria), 20 sessions in the two weeks before the day of seeding and
-three planned week slots for Luna.
+only while `discipline` is still empty, so local edits survive), a reha plan for Fanta (with abort
+criteria), 20 sessions in the two weeks before the day of seeding and three planned week slots for Luna.
 
-**Exercise library.** Every exercise lists the pages it is based on (`sources`, not stored); nothing is
+## Exercise library
+
+Reference data, not demo data: migration `0250_exercise_catalog.up.sql` inserts the global library
+(stable_id NULL, IDs `…0008YY`) on every installation, production included: 41 exercises, 17 dressage,
+8 jumping, 10 groundwork, 6 lunging. Every row names the pages it is based on (SQL comments); nothing is
 made up, a step without a figure in the sources leaves it out. Main sources: the FN member magazine
 "Pferd und Mensch" (series "Lektion im Fokus", "10 Tipps", Springausbildung with figures from Richtlinien
 Band 1/2), the FN Merkblätter for the badges Bodenarbeit, Vormustern and Longieren, de.wikipedia and
 established riding magazines. Levels: beginner = basic training and Klasse E/A, intermediate = A* to L*,
 advanced = L** and M (groundwork and lunging: the FN badge stages). Distances are for horses
-(Großpferde). The global rows are upserted on every seed (the app has no editor for them), so corrections
-reach existing databases.
+(Großpferde). The app has no editor for global rows; corrections or new exercises go into a new
+migration (`UPDATE`/`INSERT … ON CONFLICT` on the fixed IDs), never into 0250.
 
 ## Open points
 

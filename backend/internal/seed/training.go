@@ -12,11 +12,11 @@ import (
 	"github.com/Flusinerd/reiterhof-app/backend/internal/training/load"
 )
 
-// Training seed (M6): profiles for all demo horses, the exercise library
-// (global rows, stable_id NULL, see exercises.go), a reha plan for Fanta, about two weeks of sessions
-// relative to the day of seeding and a few planned week slots.
+// Training seed (M6): profiles for all demo horses, a reha plan for Fanta, about two weeks of
+// sessions relative to the day of seeding and a few planned week slots. The exercise library is
+// not demo data: migration 0250 inserts it for every installation (IDs 8YY).
 //
-// ID scheme continues the one in ids.go: 8YY exercises, 9YY sessions, a01.. week slots,
+// ID scheme continues the one in ids.go: 8YY exercises (migration 0250), 9YY sessions, a01.. week slots,
 // b01 reha plans; training profiles are 701-707.
 
 func seedID(table string, n int) string {
@@ -53,25 +53,6 @@ func insertTraining(ctx context.Context, tx pgx.Tx, now time.Time) error {
 
 	var b pgx.Batch
 	q := func(sql string, args ...any) { b.Queue(sql+" ON CONFLICT DO NOTHING", args...) }
-
-	// --- exercise library -------------------------------------------------------------
-	for _, e := range exerciseLibrary {
-		steps, _ := json.Marshal(e.steps)
-		var next *string
-		if e.next != 0 {
-			id := seedID("8", e.next)
-			next = &id
-		}
-		// Global rows have no editor in the app, so a re-seed brings corrections of the
-		// library to existing databases.
-		b.Queue(`INSERT INTO exercises (id, stable_id, discipline, level, goal_tags, title, steps, next_exercise_id)
-			VALUES ($1, NULL, $2, $3, $4, $5, $6, $7)
-			ON CONFLICT (id) DO UPDATE SET
-				discipline = EXCLUDED.discipline, level = EXCLUDED.level, goal_tags = EXCLUDED.goal_tags,
-				title = EXCLUDED.title, steps = EXCLUDED.steps, next_exercise_id = EXCLUDED.next_exercise_id
-			WHERE exercises.stable_id IS NULL`,
-			seedID("8", e.n), e.discipline, e.level, e.tags, e.title, steps, next)
-	}
 
 	// --- profiles (fill rows that are still empty, keep local edits) ------------------
 	rhythm, _ := json.Marshal(training.DefaultRhythm())

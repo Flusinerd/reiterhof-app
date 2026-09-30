@@ -12,6 +12,12 @@ func TestRunIsIdempotent(t *testing.T) {
 	ctx := context.Background()
 	pool := dbtest.New(t)
 
+	// The exercise library comes from the migrations, not from the demo data.
+	var library int
+	if err := pool.QueryRow(ctx, "SELECT count(*) FROM exercises WHERE stable_id IS NULL").Scan(&library); err != nil || library != 41 {
+		t.Fatalf("exercise library after migrations = %d (%v), want 41", library, err)
+	}
+
 	for range 2 {
 		if err := seed.Run(ctx, pool); err != nil {
 			t.Fatalf("Run: %v", err)
