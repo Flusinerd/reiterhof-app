@@ -345,3 +345,7 @@ stableID, horseID)` reads a horse's rules.
 
 **Ground condition:** `stables.SetGroundCondition` / `GetGroundCondition` (`dry`, `wet`,
 `frozen`, `muddy`); no endpoint yet.
+
+## Domains
+
+- [Training](domains/training.md): profile, "Was heute?", sessions, week view and exercise library (`internal/trainingapi`, M6).
