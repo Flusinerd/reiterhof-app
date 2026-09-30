@@ -1,7 +1,7 @@
 # Deployment auf einen Netcup-VPS
 
 Runbook für den Betrieb der Reiterhof-API auf **einem** Debian-/Ubuntu-Server
-(Netcup VPS nano: 2 vCore, 2 GB RAM, 60 GB SSD). Alles läuft auf dem Server:
+(Netcup-VPS mit 4 GB RAM). Alles läuft auf dem Server:
 
 ```
 Internet -> Caddy (80/443, automatisches TLS) -> reiterhof-api (127.0.0.1:8080) -> PostgreSQL 16 (localhost)
@@ -11,7 +11,7 @@ Internet -> Caddy (80/443, automatisches TLS) -> reiterhof-api (127.0.0.1:8080) 
 | --- | --- |
 | `provision.sh` | Einmalige, wiederholbare Server-Einrichtung (als root) |
 | `Caddyfile` | Reverse Proxy, TLS, Security-Header, Upload-Limit 25 MB |
-| `postgresql.conf.d/reiterhof.conf` | PostgreSQL-Tuning für 2 GB RAM |
+| `postgresql.conf.d/reiterhof.conf` | PostgreSQL-Tuning für 4 GB RAM |
 | `systemd/reiterhof-api.service` | API als gehärteter systemd-Dienst |
 | `api.env.example` | Vorlage für `/etc/reiterhof/api.env` |
 | `backup.sh`, `systemd/reiterhof-backup.*` | Tägliches Backup + Offsite-Kopie |
@@ -20,9 +20,9 @@ Internet -> Caddy (80/443, automatisches TLS) -> reiterhof-api (127.0.0.1:8080) 
 
 ## 1. Server bestellen
 
-1. Bei Netcup den Tarif **VPS nano** (2 vCore, 2 GB RAM, 60 GB SSD) bestellen (Rechenzentrum in Deutschland,
+1. Bei Netcup einen VPS mit 4 GB RAM bestellen (z. B. VPS Lite 1: 2 vCore, 4 GB RAM, 80 GB SSD) (Rechenzentrum in Deutschland,
    damit die Daten in der EU bleiben).
-2. Image: **Debian 12/13** oder **Ubuntu 24.04**. Beim Anlegen deinen SSH-Public-Key
+2. Image: **Debian 13 (Minimal)** empfohlen; Debian 12 und Ubuntu 24.04 funktionieren ebenfalls. Beim Anlegen deinen SSH-Public-Key
    hinterlegen (Server Control Panel, SCP). Beide Distributionen werden unterstützt.
 3. Die IPv4-/IPv6-Adresse des Servers notieren.
 
@@ -98,8 +98,9 @@ Environment `production`, dort lassen sich auch Freigaben verlangen):
 | `DEPLOY_KNOWN_HOSTS` | Ausgabe von `ssh-keyscan -t ed25519 <DEPLOY_HOST>` (Fingerprint vorher über das Netcup-SCP-Konsolenfenster prüfen) |
 
 Optionale Variablen: `DEPLOY_PUBLIC_URL` (z. B. `https://api.reiterhof.example`, aktiviert den
-externen Health-Check am Ende) und `DEPLOY_ENABLED=true` (automatisches Deployment bei Push
-auf `main`; ohne diese Variable läuft der Workflow nur manuell).
+externen Health-Check am Ende) und `DEPLOY_ENABLED=true` (automatisches Deployment, sobald die CI
+für einen Push auf `main` grün ist; ausgerollt wird genau der getestete Commit. Ohne diese
+Variable läuft der Workflow nur manuell).
 
 Dann *Actions > Deploy > Run workflow*. Der Workflow testet, baut ein statisches
 linux/amd64-Binary, lädt es per `scp` hoch, tauscht `/opt/reiterhof/api` atomar aus,

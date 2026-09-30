@@ -19,8 +19,8 @@ ExecStart=/opt/reiterhof/api
 Restart=on-failure
 RestartSec=2
 TimeoutStopSec=15
-# The Go runtime and the API share 2 GB with PostgreSQL and Caddy.
-MemoryMax=768M
+# The Go runtime and the API share 4 GB with PostgreSQL (about 1.5 GB) and Caddy.
+MemoryMax=1G
 
 # --- Sandboxing ---
 NoNewPrivileges=true

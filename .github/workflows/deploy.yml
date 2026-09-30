@@ -1,10 +1,13 @@
 name: Deploy
 
-# Manual deployment. Automatic deployment on push to main only runs if the
-# repository variable DEPLOY_ENABLED is set to 'true' (Settings > Variables).
+# Deploys main. Runs automatically after the CI workflow succeeded for a push to
+# main, but only if the repository variable DEPLOY_ENABLED is 'true'
+# (Settings > Variables). Can always be started manually.
 on:
   workflow_dispatch:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
 
 permissions:
@@ -16,7 +19,13 @@ concurrency:
 
 jobs:
   deploy:
-    if: github.event_name == 'workflow_dispatch' || vars.DEPLOY_ENABLED == 'true'
+    # Only a green CI run of a push to main deploys; red or PR runs never do.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (vars.DEPLOY_ENABLED == 'true' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     environment: production
@@ -30,6 +39,8 @@ jobs:
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
+          # Deploy exactly the commit CI tested, not whatever main points to now.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           persist-credentials: false
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
