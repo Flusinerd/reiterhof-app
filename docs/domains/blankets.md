@@ -53,7 +53,7 @@ in), so taking the blankets off does not mark the horse done for the coming one.
 ### Cover window (Deckenzeitraum)
 
 Every horse has its own window in which it is covered: `horses.cover_start` and `horses.cover_end` (`time`,
-defaults 18:00 and 12:30, migration `0160`). The weather of a horse (its plan, the recommendation, the weather
+defaults 18:00 and 12:30, migration `0170`). The weather of a horse (its plan, the recommendation, the weather
 change push) is the forecast summarised over that window (`blankets.weatherOf`, from the hourly forecast kept in
 the snapshot). The weather of `GET /blankets/today` (hero) stays the default window. Owners and admins change it
 with `PUT /horses/{id}/cover-window` `{cover_start, cover_end}` ("HH:MM"): start 15:00 to 23:00, end 04:00 to 15:00
