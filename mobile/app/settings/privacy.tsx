@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Alert, View } from "react-native";
 
 import { useConsentPrompt } from "@/components/consent-prompt";
-import { Button, Card, Divider, Hero, Icon, PressableCard, Screen, SectionLabel, Switch, Text } from "@/components/ui";
+import { Button, Card, Divider, Icon, PageHeader, PressableCard, Screen, Section, Switch, Text } from "@/components/ui";
 import { ApiError, errorMessage } from "@/lib/api";
 import { privacyApi } from "@/lib/api/privacy";
 import { useAuth } from "@/lib/auth";
@@ -87,7 +87,7 @@ export default function PrivacySettings() {
 
   return (
     <Screen back>
-      <Hero title="Datenschutz" description="Jede Erlaubnis kannst du jederzeit zurücknehmen." />
+      <PageHeader title="Datenschutz" description="Jede Erlaubnis kannst du jederzeit zurücknehmen." />
 
       {error ? (
         <Text variant="bodySm" tone="danger" accessibilityRole="alert">
@@ -95,8 +95,8 @@ export default function PrivacySettings() {
         </Text>
       ) : null}
 
-      <SectionLabel>Erlaubnisse</SectionLabel>
-      <Card className="gap-4">
+      <Section title="Erlaubnisse">
+        <Card className="gap-4">
         {consents.isPending ? (
           <Text variant="body" tone="muted">
             Wird geladen ...
@@ -125,16 +125,15 @@ export default function PrivacySettings() {
             </View>
           ))
         )}
-      </Card>
+        </Card>
+      </Section>
 
-      <SectionLabel>Deine Daten</SectionLabel>
-      <Card className="gap-3">
-        <Text variant="body">Alle über dich gespeicherten Daten als JSON-Datei.</Text>
+      <Section title="Deine Daten" description="Alle über dich gespeicherten Daten als JSON-Datei.">
         <Button label="Daten exportieren" icon={Download} variant="outline" fullWidth loading={exporting} onPress={() => void exportData()} />
-      </Card>
+      </Section>
 
-      <SectionLabel>Rechtliches</SectionLabel>
-      <Card padded={false}>
+      <Section title="Rechtliches">
+        <Card padded={false}>
         <PressableCard shape="tile" padded={false} className="min-h-touch flex-row items-center gap-3 border-0 px-5 py-3" onPress={() => router.push("/legal/privacy")}>
           <Icon as={FileText} size={20} className="text-muted" />
           <Text variant="body">Datenschutzerklärung</Text>
@@ -144,15 +143,15 @@ export default function PrivacySettings() {
           <Icon as={Scale} size={20} className="text-muted" />
           <Text variant="body">Impressum</Text>
         </PressableCard>
-      </Card>
+        </Card>
+      </Section>
 
-      <SectionLabel>Konto</SectionLabel>
-      <Card className="gap-3">
-        <Text variant="body">
-          Löscht Name, E-Mail-Adresse und Anwesenheiten. Übergib deine Pferde vorher an ein anderes Mitglied.
-        </Text>
+      <Section
+        title="Konto"
+        description="Löscht Name, E-Mail-Adresse und Anwesenheiten. Übergib deine Pferde vorher an ein anderes Mitglied."
+      >
         <Button label="Konto löschen" icon={Trash2} variant="danger" fullWidth loading={deleting} onPress={confirmDelete} />
-      </Card>
+      </Section>
       {prompt.sheet}
     </Screen>
   );

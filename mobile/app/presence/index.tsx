@@ -5,7 +5,8 @@ import { useState } from "react";
 import { RefreshControl, View } from "react-native";
 
 import { useConsentPrompt } from "@/components/consent-prompt";
-import { Avatar, Button, Card, Divider, Hero, Screen, SectionLabel, Switch, Text, ToggleGroup, ToggleGroupItem } from "@/components/ui";
+import { Avatar, Button, Card, Divider, PageHeader, Screen, Section, Switch, Text, ToggleGroup, ToggleGroupItem } from "@/components/ui";
+import { colors } from "@/lib/theme";
 import { errorMessage, api, type PresenceVisibility } from "@/lib/api";
 import { PRESENCE_EVENT, PRESENCE_KEY, presenceApi } from "@/lib/api/presence";
 import { ME_KEY, useAuth } from "@/lib/auth";
@@ -89,9 +90,11 @@ export default function PresenceScreen() {
   return (
     <Screen
       back
-      refreshControl={<RefreshControl refreshing={overview.isRefetching} onRefresh={() => void overview.refetch()} />}
+      refreshControl={
+        <RefreshControl refreshing={overview.isRefetching} onRefresh={() => void overview.refetch()} tintColor={colors.primary.DEFAULT} />
+      }
     >
-      <Hero
+      <PageHeader
         title={open ? "Im Stall" : "Nicht im Stall"}
         value={open ? formatClock(open.arrived_at, timeZone) : undefined}
         valueSize="sm"
@@ -101,7 +104,7 @@ export default function PresenceScreen() {
         <Button
           label={open ? "Ich gehe" : "Bin da"}
           icon={open ? LogOut : LogIn}
-          variant="secondary"
+          variant={open ? "secondary" : "primary"}
           size="lg"
           fullWidth
           loading={toggleVisit.isPending}
@@ -109,14 +112,67 @@ export default function PresenceScreen() {
           onPress={() => void arriveOrLeave(!open)}
         />
         {actionError ? (
-          <Text variant="bodySm" tone="inverse">
+          <Text variant="bodySm" tone="danger" accessibilityRole="alert">
             {actionError}
           </Text>
         ) : null}
-      </Hero>
+      </PageHeader>
 
-      <SectionLabel>Einstellungen</SectionLabel>
-      <Card className="gap-4">
+      <Section title="Jetzt da">
+        {overview.isError ? (
+          <Text variant="body" tone="danger">
+            {errorMessage(overview.error)}
+          </Text>
+        ) : data && data.here.length > 0 ? (
+          <View className="flex-row flex-wrap gap-3">
+            {data.here.map((p) => (
+              <Card key={p.user_id} shape="tile" className="w-[47%] items-center gap-2 px-3 py-4">
+                <Avatar name={p.name} colorKey={p.avatar_color} size="lg" />
+                <Text variant="bodyStrong" numberOfLines={1}>
+                  {p.name}
+                </Text>
+                <Text variant="secondary">{sinceLabel(p.since, timeZone)}</Text>
+              </Card>
+            ))}
+          </View>
+        ) : (
+          <Text variant="body" tone="muted">
+            {data ? "Sonst niemand da." : "Wird geladen ..."}
+          </Text>
+        )}
+      </Section>
+
+      <Section title="Zuletzt gesehen">
+        {data && data.recent.length > 0 ? (
+          <Card padded={false}>
+            {data.recent.map((p, i) => {
+              const hint = usualArrivalLabel(p.usual_arrival_hour);
+              return (
+                <View key={p.user_id}>
+                  {i > 0 ? <Divider /> : null}
+                  <View className="min-h-touch flex-row items-center gap-3 px-5 py-3">
+                    <Avatar name={p.name} colorKey={p.avatar_color} size="md" />
+                    <View className="flex-1">
+                      <Text variant="bodyStrong" numberOfLines={1}>
+                        {p.name}
+                      </Text>
+                      <Text variant="secondary">{lastSeenLabel(p, today, timeZone)}</Text>
+                      {hint ? <Text variant="caption">{hint}</Text> : null}
+                    </View>
+                  </View>
+                </View>
+              );
+            })}
+          </Card>
+        ) : (
+          <Text variant="body" tone="muted">
+            {data ? "Noch keine Besuche." : "Wird geladen ..."}
+          </Text>
+        )}
+      </Section>
+
+      <Section title="Einstellungen">
+        <Card className="gap-4">
         {geofence.supported ? (
           <>
             <Switch
@@ -155,80 +211,13 @@ export default function PresenceScreen() {
           </ToggleGroup>
           <Text variant="secondary">{visibilityDescription(visibility)}</Text>
         </View>
-        <Divider />
-        <Button
-          label="Alle Einstellungen"
-          icon={Settings}
-          variant="outline"
-          fullWidth
-          onPress={() => router.push("/settings")}
-        />
-        <Button
-          label="Datenschutz"
-          icon={ShieldCheck}
-          variant="outline"
-          fullWidth
-          onPress={() => router.push("/settings/privacy")}
-        />
-      </Card>
-      {consent.sheet}
-
-      <SectionLabel>Jetzt da</SectionLabel>
-      {overview.isError ? (
-        <Card>
-          <Text variant="body" tone="danger">
-            {errorMessage(overview.error)}
-          </Text>
         </Card>
-      ) : data && data.here.length > 0 ? (
-        <View className="flex-row flex-wrap gap-3">
-          {data.here.map((p) => (
-            <Card key={p.user_id} shape="tile" className="w-[47%] items-center gap-2 px-3 py-4">
-              <Avatar name={p.name} colorKey={p.avatar_color} size="lg" />
-              <Text variant="bodyStrong" numberOfLines={1}>
-                {p.name}
-              </Text>
-              <Text variant="secondary">{sinceLabel(p.since, timeZone)}</Text>
-            </Card>
-          ))}
+        <View className="flex-row flex-wrap gap-2">
+          <Button label="Alle Einstellungen" icon={Settings} variant="ghost" size="sm" onPress={() => router.push("/settings")} />
+          <Button label="Datenschutz" icon={ShieldCheck} variant="ghost" size="sm" onPress={() => router.push("/settings/privacy")} />
         </View>
-      ) : (
-        <Card>
-          <Text variant="body" tone="muted">
-            {data ? "Sonst niemand da." : "Wird geladen ..."}
-          </Text>
-        </Card>
-      )}
-
-      <SectionLabel>Zuletzt gesehen</SectionLabel>
-      <Card padded={false}>
-        {data && data.recent.length > 0 ? (
-          data.recent.map((p, i) => {
-            const hint = usualArrivalLabel(p.usual_arrival_hour);
-            return (
-              <View key={p.user_id}>
-                {i > 0 ? <Divider /> : null}
-                <View className="min-h-touch flex-row items-center gap-3 px-5 py-3">
-                  <Avatar name={p.name} colorKey={p.avatar_color} size="md" />
-                  <View className="flex-1">
-                    <Text variant="bodyStrong" numberOfLines={1}>
-                      {p.name}
-                    </Text>
-                    <Text variant="secondary">{lastSeenLabel(p, today, timeZone)}</Text>
-                    {hint ? <Text variant="caption">{hint}</Text> : null}
-                  </View>
-                </View>
-              </View>
-            );
-          })
-        ) : (
-          <View className="p-5">
-            <Text variant="body" tone="muted">
-              {data ? "Noch keine Besuche." : "Wird geladen ..."}
-            </Text>
-          </View>
-        )}
-      </Card>
+      </Section>
+      {consent.sheet}
     </Screen>
   );
 }

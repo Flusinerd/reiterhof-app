@@ -3,7 +3,7 @@ import { BookOpen, ChevronRight, MapPin, Warehouse } from "lucide-react-native";
 import { useState } from "react";
 import { View } from "react-native";
 
-import { Button, Card, Hero, Icon, PressableCard, Screen, SectionLabel, Text } from "@/components/ui";
+import { Button, Card, Icon, PageHeader, PressableCard, Screen, Section, Text } from "@/components/ui";
 import { activityLabel, isActivity, type Activity } from "@/lib/training";
 import { snapshotSummary } from "@/lib/tracking-persist";
 import { useStoredSession } from "@/lib/tracking-session";
@@ -62,8 +62,7 @@ export default function TrainingSession() {
   };
 
   const resumeCard = running ? (
-    <>
-      <SectionLabel>Noch offen</SectionLabel>
+    <Section title="Noch offen">
       <Card className="gap-3">
         <Text variant="bodyStrong">Es läuft noch eine Einheit</Text>
         <Text variant="secondary">{snapshotSummary(running, activityLabel(running.activity))}</Text>
@@ -72,7 +71,7 @@ export default function TrainingSession() {
           <Button label="Verwerfen" variant="outline" className="flex-1" onPress={() => void discard()} />
         </View>
       </Card>
-    </>
+    </Section>
   ) : null;
 
   if (!params.horse || !activity) {
@@ -102,8 +101,7 @@ export default function TrainingSession() {
 
   return (
     <Screen back>
-      <Hero
-        tone="deep"
+      <PageHeader
         eyebrow="Einheit starten"
         title={activityLabel(activity)}
         description={params.minutes ? `Empfohlen: ${params.minutes} Minuten.` : undefined}
@@ -111,8 +109,7 @@ export default function TrainingSession() {
 
       {resumeCard}
 
-      <SectionLabel>Aufzeichnung</SectionLabel>
-      <View className="gap-3">
+      <Section title="Aufzeichnung">
         {modes.map((m, i) => (
           <PressableCard
             key={m.mode}
@@ -131,7 +128,7 @@ export default function TrainingSession() {
             <Icon as={ChevronRight} size={20} className="text-muted" />
           </PressableCard>
         ))}
-      </View>
+      </Section>
 
       <PressableCard
         shape="tile"

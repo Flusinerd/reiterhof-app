@@ -1,7 +1,7 @@
 import { useLocalSearchParams } from "expo-router";
 
 import { BlanketHistory } from "@/components/blanket-history";
-import { Hero, Screen, SectionLabel } from "@/components/ui";
+import { PageHeader, Screen } from "@/components/ui";
 import { useHorse } from "@/lib/api/horses";
 import { useAuth } from "@/lib/auth";
 
@@ -12,8 +12,7 @@ export default function BlanketHistoryScreen() {
   const { me } = useAuth();
   return (
     <Screen back>
-      <Hero eyebrow={horse.data?.name ?? "Pferd"} title="Deckenverlauf" />
-      <SectionLabel>Letzte 60 Tage</SectionLabel>
+      <PageHeader eyebrow={horse.data?.name ?? "Pferd"} title="Deckenverlauf" description="Letzte 60 Tage." />
       <BlanketHistory horseId={horseId} days={60} timeZone={me?.stable?.timezone ?? "Europe/Berlin"} />
     </Screen>
   );

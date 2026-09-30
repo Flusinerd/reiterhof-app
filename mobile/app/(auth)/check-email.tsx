@@ -1,7 +1,8 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
+import { View } from "react-native";
 
-import { Button, Card, Hero, Input, Screen, SectionLabel, Text } from "@/components/ui";
+import { Button, Divider, Input, PageHeader, Screen, Text } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import {
@@ -84,47 +85,47 @@ export default function CheckEmail() {
 
   return (
     <Screen back keyboardShouldPersistTaps="handled">
-      <Hero title="Postfach prüfen" description="Code eintippen oder Link in der Mail antippen." />
+      <PageHeader title="Postfach prüfen" description="Code eintippen oder Link in der Mail antippen." />
 
       {email ? (
-        <>
-          <SectionLabel>Code</SectionLabel>
-          <Card className="gap-3">
-            <Input
-              value={formatLoginCode(code)}
-              onChangeText={onChangeCode}
-              placeholder="123 456"
-              accessibilityLabel="6-stelliger Code"
-              keyboardType="number-pad"
-              inputMode="numeric"
-              textContentType="oneTimeCode"
-              autoComplete="one-time-code"
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoFocus
-              className="h-14 text-center text-title"
-              style={{ letterSpacing: 4 }}
-            />
-            <Button
-              label="Anmelden"
-              fullWidth
-              loading={signingIn}
-              disabled={!isCompleteLoginCode(code)}
-              onPress={() => submit(code)}
-            />
-            {codeError ? (
-              <Text variant="bodySm" tone="danger" accessibilityRole="alert">
-                {codeError}
-              </Text>
-            ) : null}
-            <Text variant="bodySm" tone="muted">
-              Gesendet an {email}. 15 Minuten gültig.
+        <View className="gap-3">
+          <Input
+            value={formatLoginCode(code)}
+            onChangeText={onChangeCode}
+            placeholder="123 456"
+            accessibilityLabel="6-stelliger Code"
+            keyboardType="number-pad"
+            inputMode="numeric"
+            textContentType="oneTimeCode"
+            autoComplete="one-time-code"
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoFocus
+            className="h-20 text-center font-display text-title-xl"
+            style={{ letterSpacing: 6 }}
+          />
+          <Button
+            label="Anmelden"
+            size="lg"
+            fullWidth
+            loading={signingIn}
+            disabled={!isCompleteLoginCode(code)}
+            onPress={() => submit(code)}
+          />
+          {codeError ? (
+            <Text variant="bodySm" tone="danger" accessibilityRole="alert">
+              {codeError}
             </Text>
-          </Card>
-        </>
+          ) : null}
+          <Text variant="bodySm" tone="muted">
+            Gesendet an {email}. 15 Minuten gültig.
+          </Text>
+        </View>
       ) : null}
 
-      <Card className="gap-3">
+      <Divider />
+
+      <View className="gap-3">
         <Text variant="bodySm" tone="muted">
           Nichts angekommen? Schau im Spam-Ordner.
         </Text>
@@ -142,7 +143,7 @@ export default function CheckEmail() {
             {message.text}
           </Text>
         ) : null}
-      </Card>
+      </View>
     </Screen>
   );
 }

@@ -7,7 +7,11 @@ import { cn } from "@/lib/cn";
 export const textVariants = cva("text-foreground", {
   variants: {
     variant: {
-      /** Page/screen title, Fraunces 26 px. */
+      /** Page title at the top of a screen, Fraunces 32 px. Use through `PageHeader`. */
+      display: "font-display text-title-xl",
+      /** Section heading, Fraunces 20 px. Use through `SectionTitle`. */
+      heading: "font-display text-heading",
+      /** Title of a sheet or a prominent card, Fraunces 26 px. */
       title: "font-display text-title",
       /** Larger title, Fraunces 28 px. */
       titleLg: "font-display text-title-lg",
@@ -27,7 +31,7 @@ export const textVariants = cva("text-foreground", {
       secondary: "font-sans text-secondary text-muted",
       /** Small caption, Geist 12 px muted. */
       caption: "font-sans text-caption text-muted",
-      /** Section label, Geist 13 px / 600 muted. Prefer `SectionLabel`. */
+      /** Form field label, Geist 13 px / 600 muted. */
       label: "font-sans-semibold text-secondary text-muted",
     },
     tone: {

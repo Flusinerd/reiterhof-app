@@ -7,7 +7,7 @@ import { RefreshControl, View } from "react-native";
 import { PresenceTile } from "@/components/presence-tile";
 import { StartBlanketsTile } from "@/components/start-blankets-tile";
 import { StartRequests } from "@/components/start-requests";
-import { Button, Hero, Screen, SectionLabel } from "@/components/ui";
+import { Button, PageHeader, Screen, Section } from "@/components/ui";
 import { BLANKET_PLAN_EVENT, BLANKET_STATE_EVENT, blanketKeys, useToday } from "@/lib/api/blankets";
 import { PRESENCE_KEY } from "@/lib/api/presence";
 import { requestKeys } from "@/lib/api/requests";
@@ -48,52 +48,46 @@ export default function Home() {
         />
       }
     >
-      <View className="-mb-3 flex-row justify-end gap-2">
-        <Button
-          size="icon"
-          variant="ghost"
-          icon={Bell}
-          accessibilityLabel="Erinnerungen"
-          onPress={() => router.push("/reminders" as Href)}
-        />
-        <Button
-          size="icon"
-          variant="ghost"
-          icon={Settings}
-          accessibilityLabel="Einstellungen"
-          onPress={() => router.push("/settings" as Href)}
-        />
-      </View>
-
-      <Hero
-        eyebrow="Heute Nacht"
+      <PageHeader
         title={greeting(new Date().getHours(), user?.name ?? "")}
+        action={
+          <View className="-mt-1 flex-row gap-1">
+            <Button
+              size="icon"
+              variant="ghost"
+              icon={Bell}
+              accessibilityLabel="Erinnerungen"
+              onPress={() => router.push("/reminders" as Href)}
+            />
+            <Button
+              size="icon"
+              variant="ghost"
+              icon={Settings}
+              accessibilityLabel="Einstellungen"
+              onPress={() => router.push("/settings" as Href)}
+            />
+          </View>
+        }
         value={data ? nightTempShort(weather) : "–"}
         valueSize="lg"
-        unit={weather ? (weather.will_rain ? "mit Regen" : "trocken") : undefined}
+        unit={weather ? (weather.will_rain ? "heute Nacht, mit Regen" : "heute Nacht, trocken") : "heute Nacht"}
         description={data ? startWeatherText(lines, weather !== null, mineIds.size > 0) : "Wird geladen ..."}
       />
 
-      <View className="gap-3">
-        <SectionLabel>Anwesenheit</SectionLabel>
+      <Section title="Anwesenheit">
         <PresenceTile />
-      </View>
+      </Section>
 
-      <View className="gap-3">
-        <SectionLabel>Decken</SectionLabel>
+      <Section title="Decken">
         <StartBlanketsTile today={data} mineIds={mineIds} />
-      </View>
+      </Section>
 
-      <View className="gap-3">
-        <SectionLabel
-          action={
-            <Button label="Alle" variant="ghost" size="sm" onPress={() => router.push("/requests" as Href)} />
-          }
-        >
-          Offene Anfragen
-        </SectionLabel>
+      <Section
+        title="Offene Anfragen"
+        action={<Button label="Alle" variant="ghost" size="sm" onPress={() => router.push("/requests" as Href)} />}
+      >
         <StartRequests />
-      </View>
+      </Section>
     </Screen>
   );
 }

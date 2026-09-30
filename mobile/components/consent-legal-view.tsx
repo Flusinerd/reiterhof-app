@@ -1,6 +1,6 @@
 import { View } from "react-native";
 
-import { Card, Hero, Screen, Text } from "@/components/ui";
+import { PageHeader, Screen, Text } from "@/components/ui";
 import { parseMarkdown, type Block, type Span } from "@/lib/consent-markdown";
 
 function Spans({ spans, variant = "body" }: { spans: Span[]; variant?: "body" | "bodySm" }) {
@@ -19,7 +19,7 @@ function BlockView({ block }: { block: Block }) {
   switch (block.type) {
     case "heading":
       return (
-        <Text variant={block.level === 3 ? "bodyStrong" : "title"} accessibilityRole="header" className={block.level === 2 ? "mt-4" : undefined}>
+        <Text variant={block.level === 3 ? "bodyStrong" : "heading"} accessibilityRole="header" className={block.level === 2 ? "mt-4" : undefined}>
           {block.text}
         </Text>
       );
@@ -55,7 +55,7 @@ function BlockView({ block }: { block: Block }) {
 
 /**
  * A legal text (docs/legal/*.md, bundled in consent-legal-texts.ts) as a sub page: the first
- * heading becomes the hero title, the rest is rendered in one card.
+ * heading becomes the page title, the rest runs as plain text on the page.
  */
 export function LegalScreen({ markdown, eyebrow, version }: { markdown: string; eyebrow: string; version: string }) {
   const blocks = parseMarkdown(markdown);
@@ -64,12 +64,12 @@ export function LegalScreen({ markdown, eyebrow, version }: { markdown: string; 
   const rest = first?.type === "heading" ? blocks.slice(1) : blocks;
   return (
     <Screen back>
-      <Hero title={title} description={`Version ${version}`} />
-      <Card className="gap-3">
+      <PageHeader title={title} description={`Version ${version}`} />
+      <View className="gap-3">
         {rest.map((block, i) => (
           <BlockView key={i} block={block} />
         ))}
-      </Card>
+      </View>
     </Screen>
   );
 }

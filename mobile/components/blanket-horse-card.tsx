@@ -44,11 +44,11 @@ export function BlanketHorseCard({ item, pending, onAction, onOpenPlan }: Props)
         <Icon as={ChevronRight} size={20} className="text-muted" />
       </Pressable>
 
-      <View className="flex-row items-center gap-3 rounded-tile bg-background p-3">
+      <View className="flex-row items-center gap-3">
         <BlanketPhoto url={rec.blanket?.photo_url ?? null} size={64} />
         <View className="flex-1 gap-0.5">
           <Text variant="label">Heute Nacht</Text>
-          <Text variant="titleLg">
+          <Text variant="title">
             {recommendationTitle(rec)}
           </Text>
           <Text variant="secondary">{recommendationDetail(rec)}</Text>

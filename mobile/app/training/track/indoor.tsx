@@ -5,7 +5,7 @@ import { ActivityIndicator, Pressable, View } from "react-native";
 
 import { ExerciseChecklist } from "@/components/exercise-checklist";
 import { GaitChip, ProgressBar, TrackingControls, useLeaveGuard } from "@/components/tracking-parts";
-import { Button, Card, Hero, Screen, SectionLabel, Text } from "@/components/ui";
+import { Button, LivePanel, PageHeader, Screen, Section, Text } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import type { Gait } from "@/lib/gait";
 import { isWeb } from "@/lib/platform";
@@ -99,13 +99,12 @@ function IndoorRun({
   if (!started) {
     return (
       <Screen back>
-        <Hero
-          tone="deep"
+        <PageHeader
           eyebrow={label}
           title="Bereit"
           description={targetMinutes ? `Ziel: ${targetMinutes} Minuten.` : "Die Zeit läuft, sobald du startest."}
         />
-        <Card className="gap-2">
+        <View className="gap-2">
           <Text variant="bodyStrong">Gangart und Hand</Text>
           <Text variant="secondary">
             Das Telefon erkennt Schritt, Trab und Galopp an der Bewegung, ohne GPS. Trag es am Körper. Liegt die
@@ -116,7 +115,7 @@ function IndoorRun({
               Bildschirm anlassen, sonst liefert der Browser keine Bewegungsdaten.
             </Text>
           ) : null}
-        </Card>
+        </View>
         {exerciseId && exercise.data ? (
           <Text variant="secondary">Übung: {exercise.data.title}</Text>
         ) : null}
@@ -128,7 +127,7 @@ function IndoorRun({
   return (
     <Screen>
       <Stack.Screen options={{ gestureEnabled: false }} />
-      <Hero tone="deep" eyebrow={`${label}${t.paused ? " · pausiert" : ""}`} value={formatClock(seconds)} valueSize="lg">
+      <LivePanel eyebrow={`${label}${t.paused ? " · pausiert" : ""}`} value={formatClock(seconds)}>
         {t.paused ? (
           <Text variant="secondary" className="text-white/70">
             Pausiert.
@@ -144,10 +143,10 @@ function IndoorRun({
             </Text>
           </View>
         ) : null}
-      </Hero>
+      </LivePanel>
 
-      <SectionLabel>Gangart korrigieren</SectionLabel>
-      <View className="flex-row gap-3">
+      <Section title="Gangart korrigieren">
+        <View className="flex-row gap-3">
         {CORRECTION_GAITS.map((g) => (
           <Pressable
             key={g}
@@ -167,15 +166,15 @@ function IndoorRun({
             </Text>
           </Pressable>
         ))}
-      </View>
-      <Text variant="secondary">
-        {t.sensorAvailable === false
-          ? "Kein Bewegungssensor, keine Gangart-Erkennung."
-          : "Nur tippen, wenn die Erkennung falsch liegt."}
-      </Text>
+        </View>
+        <Text variant="secondary">
+          {t.sensorAvailable === false
+            ? "Kein Bewegungssensor, keine Gangart-Erkennung."
+            : "Nur tippen, wenn die Erkennung falsch liegt."}
+        </Text>
+      </Section>
 
-      <SectionLabel>Hand</SectionLabel>
-      <Card className="gap-4">
+      <Section title="Hand">
         <View className="flex-row items-center justify-between">
           <Text variant="bodyStrong">{t.rein ? reinLabel(t.rein) : "–"}</Text>
           <Text variant="secondary">{formatReinMinutes(t.reinMinutes)} auf dieser Hand</Text>
@@ -189,16 +188,14 @@ function IndoorRun({
           disabled={t.paused}
           onPress={t.changeRein}
         />
-      </Card>
+      </Section>
 
       {exercise.data && steps.length > 0 ? (
-        <>
-          <SectionLabel>Ablauf</SectionLabel>
+        <Section title="Ablauf">
           <ExerciseChecklist title={exercise.data.title} steps={steps} checked={t.checked} onToggle={t.toggleStep} />
-        </>
+        </Section>
       ) : null}
 
-      <SectionLabel>Einheit</SectionLabel>
       <TrackingControls paused={t.paused} busy={busy} onPause={t.pause} onResume={resume} onFinish={finish} />
     </Screen>
   );

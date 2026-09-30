@@ -10,7 +10,7 @@ import { HorseHealthTiles } from "@/components/horse-health-tiles";
 import { HorseObservations } from "@/components/horse-observations";
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
 import { HorseRiders } from "@/components/horse-riders";
-import { Avatar, Badge, Button, Card, Hero, Icon, PressableCard, Screen, SectionLabel, Text } from "@/components/ui";
+import { Avatar, Badge, Button, Icon, PageHeader, PressableCard, Screen, Section, Text } from "@/components/ui";
 import { horseKeys, useDocuments, useEmergency, useHealth, useHorse } from "@/lib/api/horses";
 import { ageText, horseRoutes, joinParts, sexLabel } from "@/lib/horse-format";
 import { rehaFromObservationRoute } from "@/lib/observations";
@@ -70,32 +70,32 @@ export default function HorseRecord() {
         <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary.DEFAULT} />
       }
     >
-      <Hero
+      <PageHeader
         eyebrow={joinParts([sexLabel(h.sex), ageText(h.birth_year, new Date()), h.breed])}
         title={h.name}
         description={joinParts([h.box ? `Box ${h.box}` : null, h.owner ? `Besitzer: ${h.owner.name}` : null])}
+        action={<Avatar name={h.name} colorKey={h.color_key} size="lg" />}
       >
-        <View className="flex-row items-center gap-3">
-          <Avatar name={h.name} colorKey={h.color_key} size="lg" />
-          <View className="flex-1 flex-row flex-wrap gap-2">
+        {h.is_mine || h.i_ride || overdue > 0 || h.can_manage ? (
+          <View className="flex-row flex-wrap items-center gap-2">
             {h.is_mine ? <Badge variant="primary" label="Dein Pferd" /> : null}
             {h.i_ride ? <Badge variant="info" label="Du reitest" /> : null}
             {overdue > 0 ? <Badge variant="danger" label={`${overdue} überfällig`} /> : null}
+            {h.can_manage ? (
+              <Button
+                label="Bearbeiten"
+                size="sm"
+                variant="ghost"
+                icon={Pencil}
+                accessibilityLabel="Pferd bearbeiten"
+                onPress={() => go(horseRoutes.edit(h.id))}
+              />
+            ) : null}
           </View>
-          {h.can_manage ? (
-            <Button
-              size="icon"
-              variant="secondary"
-              icon={Pencil}
-              accessibilityLabel="Pferd bearbeiten"
-              onPress={() => go(horseRoutes.edit(h.id))}
-            />
-          ) : null}
-        </View>
-      </Hero>
+        ) : null}
+      </PageHeader>
 
-      <View className="gap-3">
-        <SectionLabel>Notfallkarte</SectionLabel>
+      <Section title="Notfallkarte">
         {emergency.data ? (
           <HorseEmergencyPreview card={emergency.data} onPress={() => go(horseRoutes.emergency(h.id))} />
         ) : emergency.isError ? (
@@ -103,25 +103,20 @@ export default function HorseRecord() {
         ) : (
           <HorseLoading />
         )}
-      </View>
+      </Section>
 
-      <View className="gap-3">
-        <SectionLabel
-          action={
-            <Button label="Alle" variant="ghost" size="sm" onPress={() => go(horseRoutes.health(h.id))} />
-          }
-        >
-          Gesundheit
-        </SectionLabel>
+      <Section
+        title="Gesundheit"
+        action={<Button label="Alle" variant="ghost" size="sm" onPress={() => go(horseRoutes.health(h.id))} />}
+      >
         {health.isError ? (
           <HorseError error={health.error} onRetry={() => health.refetch()} />
         ) : (
           <HorseHealthTiles summary={health.data?.summary} onPress={() => go(horseRoutes.health(h.id))} />
         )}
-      </View>
+      </Section>
 
-      <View className="gap-3">
-        <SectionLabel>Auffälligkeiten</SectionLabel>
+      <Section title="Auffälligkeiten">
         <HorseObservations
           horseId={h.id}
           renderActions={(o) =>
@@ -137,16 +132,14 @@ export default function HorseRecord() {
             ) : null
           }
         />
-      </View>
+      </Section>
 
-      <View className="gap-3">
-        <SectionLabel>Reitbeteiligungen</SectionLabel>
+      <Section title="Reitbeteiligungen">
         <HorseRiders horse={h} />
-      </View>
+      </Section>
 
       {canSeeDocuments ? (
-        <View className="gap-3">
-          <SectionLabel>Dokumente</SectionLabel>
+        <Section title="Dokumente">
           <LinkRow
             icon={FileText}
             label="Alle Dokumente"
@@ -159,23 +152,19 @@ export default function HorseRecord() {
             }
             onPress={() => go(horseRoutes.documents(h.id))}
           />
-        </View>
+        </Section>
       ) : null}
 
-      <View className="gap-3">
-        <SectionLabel>Training und Pflege</SectionLabel>
+      <Section title="Training und Pflege">
         <LinkRow icon={Activity} label="Trainingsprofil" onPress={() => go(horseRoutes.trainingProfile(h.id))} />
         <LinkRow icon={Shirt} label="Deckenplan" onPress={() => go(horseRoutes.blanketPlan(h.id))} />
         <LinkRow icon={HeartPulse} label="Reha" onPress={() => go(horseRoutes.reha(h.id))} />
-      </View>
+      </Section>
 
       {h.helper_note ? (
-        <View className="gap-3">
-          <SectionLabel>Hinweise für Helfer</SectionLabel>
-          <Card>
-            <Text variant="body">{h.helper_note}</Text>
-          </Card>
-        </View>
+        <Section title="Hinweise für Helfer">
+          <Text variant="body">{h.helper_note}</Text>
+        </Section>
       ) : null}
     </Screen>
   );

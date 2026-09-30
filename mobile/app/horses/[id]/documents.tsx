@@ -7,7 +7,7 @@ import { Alert, Image, Linking, View } from "react-native";
 
 import { useConsentPrompt } from "@/components/consent-prompt";
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
-import { Badge, Button, Card, Hero, Icon, Input, Pill, PressableCard, Screen, SectionLabel, Sheet, Text } from "@/components/ui";
+import { Badge, Button, Icon, Input, PageHeader, Pill, PressableCard, Screen, Sheet, Text } from "@/components/ui";
 import { errorMessage } from "@/lib/api";
 import { horsesApi, useDocuments, useHorse, useHorseMutation, type HorseDocument } from "@/lib/api/horses";
 import { DOCUMENT_KINDS, documentKindLabel, formatDate } from "@/lib/horse-format";
@@ -119,7 +119,7 @@ export default function Documents() {
 
   return (
     <Screen back keyboardShouldPersistTaps="handled">
-      <Hero
+      <PageHeader
         eyebrow={horse.data?.name ?? "Pferdeakte"}
         title="Dokumente"
         description="Sichtbar für Besitzer, Reitbeteiligungen und Admins."
@@ -129,19 +129,19 @@ export default function Documents() {
             label="Dokument hinzufügen"
             icon={Plus}
             variant="secondary"
+            size="sm"
             onPress={() => {
               setError(null);
               setOpen(true);
             }}
           />
         ) : null}
-      </Hero>
+      </PageHeader>
 
-      <SectionLabel>Ablage</SectionLabel>
       {list.length === 0 ? (
-        <Card>
-          <Text variant="secondary">Noch keine Dokumente.</Text>
-        </Card>
+        <Text variant="body" tone="muted">
+          Noch keine Dokumente.
+        </Text>
       ) : (
         <View className="gap-3">
           {list.map((doc) => (

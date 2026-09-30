@@ -30,9 +30,8 @@ export function PresenceTile() {
     <PressableCard accessibilityLabel={`Anwesenheit: ${summary}`} onPress={() => router.push("/presence")}>
       <View className="flex-row items-center gap-4">
         <View className="flex-1 gap-1">
-          <Text variant="label">Anwesenheit</Text>
           <Text variant="bodyStrong">{summary}</Text>
-          <View className="mt-2 flex-row">
+          <View className="mt-1 flex-row">
             {others.slice(0, 5).map((p, i) => (
               <View key={p.user_id} className={i === 0 ? "" : "-ml-2"}>
                 <Avatar name={p.name} colorKey={p.avatar_color} size="sm" />

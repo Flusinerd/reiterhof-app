@@ -8,13 +8,13 @@ import { ActivityIcon } from "@/components/training-activity-icon";
 import {
   Button,
   Card,
-  Hero,
   Icon,
   Input,
+  PageHeader,
   Pill,
   PressableCard,
   Screen,
-  SectionLabel,
+  Section,
   Switch,
   Text,
 } from "@/components/ui";
@@ -91,22 +91,20 @@ export default function FinishSession() {
   if (saved) {
     return (
       <Screen back>
-        <Hero
-          tone="soft"
+        <PageHeader
           eyebrow="Gespeichert"
           title={`${activityLabel(saved.session.activity)}, ${formatMinutes(saved.session.minutes)}`}
           description="In der Woche eingetragen."
         />
         {saved.next_progression ? (
-          <>
-            <SectionLabel>Als Nächstes</SectionLabel>
+          <Section title="Als Nächstes">
             <Card className="gap-1">
               <Text variant="bodyStrong">{saved.next_progression.title}</Text>
               <Text variant="secondary">
                 Nächste Stufe, wenn es sitzt.
               </Text>
             </Card>
-          </>
+          </Section>
         ) : null}
         <Button label="Fertig" size="lg" fullWidth icon={Check} onPress={leave} />
       </Screen>
@@ -139,8 +137,7 @@ export default function FinishSession() {
 
   return (
     <Screen back keyboardShouldPersistTaps="handled">
-      <Hero
-        tone="soft"
+      <PageHeader
         eyebrow="Einheit abschließen"
         title={activityLabel(params.activity)}
         value={String(params.minutes)}
@@ -161,43 +158,44 @@ export default function FinishSession() {
           ) : null}
           {exercise.data ? <Text variant="secondary">Übung: {exercise.data.title}</Text> : null}
         </View>
-      </Hero>
+      </PageHeader>
 
-      <SectionLabel>{feelPrompt(horseName)}</SectionLabel>
-      <View className="flex-row flex-wrap gap-2">
-        {FEEL_OPTIONS.map((f) => (
-          <Pill key={f.value} label={f.label} selected={feel === f.value} onPress={() => setFeel(feel === f.value ? null : f.value)} />
-        ))}
-      </View>
+      <Section title={feelPrompt(horseName)}>
+        <View className="flex-row flex-wrap gap-2">
+          {FEEL_OPTIONS.map((f) => (
+            <Pill key={f.value} label={f.label} selected={feel === f.value} onPress={() => setFeel(feel === f.value ? null : f.value)} />
+          ))}
+        </View>
+      </Section>
 
-      <SectionLabel>Wie lief der Fokus?</SectionLabel>
-      <View className="flex-row flex-wrap gap-2">
-        {FOCUS_OPTIONS.map((f) => (
-          <Pill key={f.value} label={f.label} selected={focus === f.value} onPress={() => setFocus(focus === f.value ? null : f.value)} />
-        ))}
-      </View>
+      <Section title="Wie lief der Fokus?">
+        <View className="flex-row flex-wrap gap-2">
+          {FOCUS_OPTIONS.map((f) => (
+            <Pill key={f.value} label={f.label} selected={focus === f.value} onPress={() => setFocus(focus === f.value ? null : f.value)} />
+          ))}
+        </View>
+      </Section>
 
-      <SectionLabel>Notiz</SectionLabel>
-      <Input
-        accessibilityLabel="Notiz"
-        placeholder="Was war dir wichtig?"
-        value={note}
-        onChangeText={setNote}
-        multiline
-        maxLength={2000}
-        className="h-28 py-3"
-        textAlignVertical="top"
-      />
+      <Section title="Notiz">
+        <Input
+          accessibilityLabel="Notiz"
+          placeholder="Was war dir wichtig?"
+          value={note}
+          onChangeText={setNote}
+          multiline
+          maxLength={2000}
+          className="h-28 py-3"
+          textAlignVertical="top"
+        />
+      </Section>
 
       {horse?.role === "owner" ? (
-        <Card>
-          <Switch
-            label="Reitbeteiligung sieht das"
-            description="In Woche und Verlauf sichtbar."
-            value={visible}
-            onValueChange={setVisible}
-          />
-        </Card>
+        <Switch
+          label="Reitbeteiligung sieht das"
+          description="In Woche und Verlauf sichtbar."
+          value={visible}
+          onValueChange={setVisible}
+        />
       ) : null}
 
       <PressableCard

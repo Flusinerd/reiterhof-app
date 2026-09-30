@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 
 import { ExerciseListItem } from "@/components/exercise-list-item";
-import { Button, Hero, Pill, Screen, SectionLabel, Text } from "@/components/ui";
+import { Button, PageHeader, Pill, Screen, Section, Text } from "@/components/ui";
 import {
   NO_FILTER,
   applyFilter,
@@ -17,6 +17,7 @@ import {
 } from "@/lib/tracking-exercises";
 import { useExerciseList } from "@/lib/tracking-queries";
 import { errorMessage } from "@/lib/api";
+import { colors } from "@/lib/theme";
 
 /** Exercise library (JAN-58): browse and filter by discipline, level and goal. */
 export default function ExerciseLibrary() {
@@ -30,10 +31,10 @@ export default function ExerciseLibrary() {
 
   return (
     <Screen back>
-      <Hero tone="soft" title="Übungen" description="Für Halle und Platz." />
+      <PageHeader title="Übungen" description="Für Halle und Platz." />
 
       {list.isPending ? (
-        <ActivityIndicator accessibilityLabel="Lädt" />
+        <ActivityIndicator accessibilityLabel="Lädt" color={colors.primary.DEFAULT} />
       ) : list.isError ? (
         <View className="gap-3">
           <Text variant="body" tone="danger" accessibilityRole="alert">
@@ -80,32 +81,31 @@ export default function ExerciseLibrary() {
             </FilterGroup>
           ) : null}
 
-          <SectionLabel
+          <Section
+            title={`${shown.length} ${shown.length === 1 ? "Übung" : "Übungen"}`}
             action={hasFilter(filter) ? <Button label="Zurücksetzen" size="sm" variant="ghost" onPress={() => setFilter(NO_FILTER)} /> : undefined}
           >
-            {`${shown.length} ${shown.length === 1 ? "Übung" : "Übungen"}`}
-          </SectionLabel>
-          {shown.length === 0 ? (
-            <Text variant="body" tone="muted">
-              {all.length === 0 ? "Noch keine Übungen." : "Keine Treffer."}
-            </Text>
-          ) : (
-            <View className="gap-3">
-              {shown.map((e) => (
+            {shown.length === 0 ? (
+              <Text variant="body" tone="muted">
+                {all.length === 0 ? "Noch keine Übungen." : "Keine Treffer."}
+              </Text>
+            ) : (
+              shown.map((e) => (
                 <ExerciseListItem key={e.id} exercise={e} onPress={() => router.push(`/training/exercises/${e.id}` as Href)} />
-              ))}
-            </View>
-          )}
+              ))
+            )}
+          </Section>
         </>
       )}
     </Screen>
   );
 }
 
+/** A filter row: small label (not a section heading, three of them sit close together) and pills. */
 function FilterGroup({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <View className="gap-2">
-      <SectionLabel>{title}</SectionLabel>
+    <View className="-mb-2 gap-2">
+      <Text variant="label">{title}</Text>
       <View className="flex-row flex-wrap gap-2">{children}</View>
     </View>
   );

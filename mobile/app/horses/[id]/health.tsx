@@ -5,7 +5,7 @@ import { Alert, View } from "react-native";
 
 import { HorseHealthSheet } from "@/components/horse-health-sheet";
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
-import { Badge, Button, Card, Hero, Icon, PressableCard, Screen, SectionLabel, Text } from "@/components/ui";
+import { Badge, Button, Card, Icon, PageHeader, PressableCard, Screen, Text } from "@/components/ui";
 import { errorMessage } from "@/lib/api";
 import { horsesApi, useHealth, useHorse, useHorseMutation, type HealthInput, type HealthItem } from "@/lib/api/horses";
 import {
@@ -76,7 +76,7 @@ export default function Health() {
 
   return (
     <Screen back keyboardShouldPersistTaps="handled">
-      <Hero
+      <PageHeader
         eyebrow={horse.data?.name ?? "Pferdeakte"}
         title="Gesundheit"
         description={
@@ -92,19 +92,19 @@ export default function Health() {
             label="Termin hinzufügen"
             icon={Plus}
             variant="secondary"
+            size="sm"
             onPress={() => {
               setError(null);
               setSheet({ item: null });
             }}
           />
         ) : null}
-      </Hero>
+      </PageHeader>
 
-      <SectionLabel>Termine</SectionLabel>
       {items.length === 0 ? (
-        <Card>
-          <Text variant="secondary">Noch keine Termine.</Text>
-        </Card>
+        <Text variant="body" tone="muted">
+          Noch keine Termine.
+        </Text>
       ) : (
         <View className="gap-3">
           {items.map((item) => {

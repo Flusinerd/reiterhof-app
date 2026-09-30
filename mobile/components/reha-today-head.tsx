@@ -1,7 +1,7 @@
 import { Check, Undo2 } from "lucide-react-native";
 import { View } from "react-native";
 
-import { Badge, Button, Hero, Text } from "@/components/ui";
+import { Badge, Button, PageHeader, Text } from "@/components/ui";
 import type { RehaView } from "@/lib/api/reha";
 import { formatDate } from "@/lib/training";
 
@@ -14,17 +14,16 @@ type Props = {
 };
 
 /**
- * The one hero of the reha screen: "Heute erlaubt" with activity, minutes and conditions, and the
+ * The head of the reha screen: "Heute erlaubt" with activity, minutes and conditions, and the
  * "Heute erledigt" button for those who may mark the day. Everybody in the stable sees the rule
  * (members may be asked to exercise the horse); the rest of the plan is for owner and riders.
  */
-export function RehaTodayHero({ view, busy, onDone, onUndo }: Props) {
+export function RehaTodayHead({ view, busy, onDone, onUndo }: Props) {
   const { today, plan } = view;
 
   if (!view.has_active_plan) {
     return (
-      <Hero
-        tone="soft"
+      <PageHeader
         eyebrow={view.horse_name}
         title="Kein Reha-Plan"
         description={"Es gelten die normalen Trainingsregeln."}
@@ -36,8 +35,7 @@ export function RehaTodayHero({ view, busy, onDone, onUndo }: Props) {
     const upcoming = plan?.state === "upcoming";
     const finished = plan?.state === "finished";
     return (
-      <Hero
-        tone="soft"
+      <PageHeader
         eyebrow={`${view.horse_name} · Heute erlaubt`}
         title="Heute keine Einheit"
         description={
@@ -59,7 +57,7 @@ export function RehaTodayHero({ view, busy, onDone, onUndo }: Props) {
 
   if (today.rest) {
     return (
-      <Hero
+      <PageHeader
         eyebrow={eyebrow}
         title={today.phase}
         description={
@@ -72,27 +70,27 @@ export function RehaTodayHero({ view, busy, onDone, onUndo }: Props) {
   }
 
   return (
-    <Hero
+    <PageHeader
       eyebrow={eyebrow}
       title={`${today.activity_label}: ${today.phase}`}
       value={String(today.minutes)}
-      valueSize="lg"
+      valueSize="sm"
       unit="Minuten"
       description={today.conditions ? `Bedingung: ${today.conditions}` : ramp}
     >
-      {today.conditions ? <Text variant="secondary" className="text-white/70">{ramp}</Text> : null}
+      {today.conditions ? <Text variant="secondary">{ramp}</Text> : null}
       {view.can_mark_done ? (
         today.done ? (
-          <View className="gap-3">
-            <Badge variant="primary" label={today.done_by ? `Erledigt von ${today.done_by}` : "Heute erledigt"} className="self-start" />
-            <Button label="Rückgängig" variant="secondary" size="sm" icon={Undo2} loading={busy} onPress={onUndo} />
+          <View className="flex-row flex-wrap items-center gap-3">
+            <Badge variant="primary" label={today.done_by ? `Erledigt von ${today.done_by}` : "Heute erledigt"} />
+            <Button label="Rückgängig" variant="ghost" size="sm" icon={Undo2} loading={busy} onPress={onUndo} />
           </View>
         ) : (
-          <Button label="Heute erledigt" variant="secondary" size="lg" icon={Check} fullWidth loading={busy} onPress={onDone} />
+          <Button label="Heute erledigt" size="lg" icon={Check} fullWidth loading={busy} onPress={onDone} />
         )
       ) : today.done ? (
         <Badge variant="primary" label="Heute erledigt" className="self-start" />
       ) : null}
-    </Hero>
+    </PageHeader>
   );
 }

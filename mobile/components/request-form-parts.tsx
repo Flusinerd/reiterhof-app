@@ -5,7 +5,7 @@ import { ScrollView, View } from "react-native";
 import { Button, Pill, Text } from "@/components/ui";
 import { addDays, relativeDay } from "@/lib/requests";
 
-/** Label above a form control, inside a card. */
+/** Label above a form control. */
 export function FieldRow({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <View className="gap-2">
@@ -71,7 +71,7 @@ export type DayPickerProps = {
 export function DayPicker({ from, value, onChange, today, days = 21, noneLabel }: DayPickerProps) {
   const list = Array.from({ length: days }, (_, i) => addDays(from, i));
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-2" className="-mx-5" contentContainerStyle={{ paddingHorizontal: 20 }}>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-2" className="-mx-6" contentContainerStyle={{ paddingHorizontal: 24 }}>
       {noneLabel ? <Pill label={noneLabel} selected={value === ""} onPress={() => onChange("")} /> : null}
       {list.map((d) => (
         <Pill key={d} label={relativeDay(d, today)} selected={value === d} onPress={() => onChange(d)} />

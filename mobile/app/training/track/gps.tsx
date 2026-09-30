@@ -6,7 +6,7 @@ import { ActivityIndicator, View } from "react-native";
 import { useConsentPrompt } from "@/components/consent-prompt";
 import { TrackingMap } from "@/components/tracking-map";
 import { GaitChip, GaitLegend, StatTile, TrackingControls, useLeaveGuard } from "@/components/tracking-parts";
-import { Button, Card, Hero, Screen, SectionLabel, Text } from "@/components/ui";
+import { Button, LivePanel, PageHeader, Screen, Text } from "@/components/ui";
 import { isWeb } from "@/lib/platform";
 import { formatClock, isActivity, activityLabel } from "@/lib/training";
 import { formatDistance, formatElevation, formatSpeed } from "@/lib/tracking-format";
@@ -104,8 +104,8 @@ function GpsRun({
   if (!started) {
     return (
       <Screen back>
-        <Hero tone="deep" eyebrow={label} title="Bereit" description="Route, Tempo und Höhe werden aufgezeichnet." />
-        <Card className="gap-2">
+        <PageHeader eyebrow={label} title="Bereit" description="Route, Tempo und Höhe werden aufgezeichnet." />
+        <View className="gap-2">
           <Text variant="bodyStrong">Ortung und Gangarten</Text>
           <Text variant="secondary">
             {isWeb
@@ -118,7 +118,7 @@ function GpsRun({
               Bildschirm anlassen, sonst hält die Aufzeichnung an. Die App zeichnet auch bei gesperrtem Bildschirm auf.
             </Text>
           ) : null}
-        </Card>
+        </View>
         {declined ? (
           <Text variant="secondary" tone="danger" accessibilityRole="alert">
             Ohne Einwilligung keine Standortaufzeichnung. Du kannst die Einheit auch nur eintragen.
@@ -138,7 +138,7 @@ function GpsRun({
   return (
     <Screen>
       <Stack.Screen options={{ gestureEnabled: false }} />
-      <Hero tone="deep" eyebrow={`${label}${t.paused ? " · pausiert" : ""}`} value={formatClock(seconds)} valueSize="lg">
+      <LivePanel eyebrow={`${label}${t.paused ? " · pausiert" : ""}`} value={formatClock(seconds)}>
         {t.paused ? (
           <Text variant="secondary" className="text-white/70">
             Pausiert.
@@ -146,7 +146,7 @@ function GpsRun({
         ) : (
           <GaitChip gait={t.gait ?? (t.points.length > 0 ? t.points[t.points.length - 1]!.gait : null)} />
         )}
-      </Hero>
+      </LivePanel>
 
       <TrackingMap points={t.points} follow={!t.paused} />
       <GaitLegend />
@@ -178,7 +178,6 @@ function GpsRun({
         <Text variant="secondary">Kein Bewegungssensor: Gangart wird aus dem GPS-Tempo geschätzt.</Text>
       ) : null}
 
-      <SectionLabel>Aufzeichnung</SectionLabel>
       <TrackingControls paused={t.paused} busy={busy} onPause={t.pause} onResume={resume} onFinish={finish} />
     </Screen>
   );

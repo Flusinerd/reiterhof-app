@@ -2,17 +2,20 @@ import { Check, Plus } from "lucide-react-native";
 import { useState } from "react";
 import { View } from "react-native";
 
+import { Brand } from "@/components/brand";
 import {
   Avatar,
   Badge,
   Button,
   Card,
   Divider,
-  Hero,
   Icon,
+  Input,
+  LivePanel,
+  PageHeader,
   Pill,
   Screen,
-  SectionLabel,
+  Section,
   Sheet,
   Switch,
   Tabs,
@@ -34,43 +37,61 @@ export default function Kit() {
   const [filter, setFilter] = useState("all");
   const [on, setOn] = useState(true);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [code, setCode] = useState("");
 
   return (
     <Screen back>
-      <Hero
+      <PageHeader
         eyebrow="Entwicklung"
         title="Komponenten"
+        value="24"
+        valueSize="sm"
+        unit="Bausteine"
         description="Alle Bausteine des Design-Systems auf einen Blick."
+        action={<Button size="icon" variant="outline" icon={Plus} accessibilityLabel="Hinzufügen" />}
       >
-        <View className="flex-row gap-4">
-          {(
-            [
-              ["Schritt", colors.gait.walk],
-              ["Trab", colors.gait.trot],
-              ["Galopp", colors.gait.canter],
-            ] as const
-          ).map(([label, color]) => (
-            <View key={label} className="flex-row items-center gap-2">
-              <View className="h-3 w-3 rounded-pill" style={{ backgroundColor: color }} />
-              <Text variant="secondary">{label}</Text>
-            </View>
-          ))}
+        <View className="flex-row flex-wrap gap-2">
+          <Badge variant="primary" label="Seitenkopf" />
+          <Badge label="ohne Fläche" />
         </View>
-      </Hero>
+      </PageHeader>
 
-      <SectionLabel>Text</SectionLabel>
-      <Card className="gap-2">
-        <Text variant="titleLg">Titel 28</Text>
+      <Section title="Marke">
+        <Brand />
+      </Section>
+
+      <Section title="Text">
+        <Text variant="display">Seitentitel 32</Text>
         <Text variant="title">Titel 26</Text>
+        <Text variant="heading">Überschrift 20</Text>
         <Text variant="heroNumberSm">44</Text>
         <Text variant="body">Fließtext 15 px</Text>
         <Text variant="bodySm">Fließtext 14 px</Text>
         <Text variant="secondary">Sekundärtext 13 px</Text>
+        <Text variant="label">Feldbeschriftung 13 px</Text>
         <Text variant="caption">Beschriftung 12 px</Text>
-      </Card>
+      </Section>
 
-      <SectionLabel>Buttons</SectionLabel>
-      <Card className="gap-3">
+      <Section title="Live-Anzeige" description="Nur für die laufende Aufzeichnung.">
+        <LivePanel eyebrow="Ausritt" value="12:34">
+          <View className="flex-row gap-4">
+            {(
+              [
+                ["Schritt", colors.gait.walk],
+                ["Trab", colors.gait.trot],
+                ["Galopp", colors.gait.canter],
+              ] as const
+            ).map(([label, color]) => (
+              <View key={label} className="flex-row items-center gap-2">
+                <View className="h-3 w-3 rounded-pill" style={{ backgroundColor: color }} />
+                <Text variant="secondary">{label}</Text>
+              </View>
+            ))}
+          </View>
+        </LivePanel>
+      </Section>
+
+      <Section title="Buttons">
         <Button label="Primär" icon={Check} />
         <Button label="Sekundär" variant="secondary" />
         <Button label="Umrandet" variant="outline" />
@@ -83,10 +104,24 @@ export default function Kit() {
           <Button label="Groß" size="lg" />
           <Button size="icon" icon={Plus} variant="outline" accessibilityLabel="Hinzufügen" />
         </View>
-      </Card>
+      </Section>
 
-      <SectionLabel>Badges und Pills</SectionLabel>
-      <Card className="gap-3">
+      <Section title="Eingaben" description="Felder stehen direkt auf der Seite, ohne Karte.">
+        <Input placeholder="E-Mail-Adresse" accessibilityLabel="E-Mail-Adresse" />
+        <Input
+          value={code}
+          onChangeText={setCode}
+          placeholder="123 456"
+          accessibilityLabel="Code"
+          keyboardType="number-pad"
+          className="h-20 text-center font-display text-title-xl"
+          style={{ letterSpacing: 6 }}
+        />
+        <Divider label="oder" />
+        <Button label="Mit Google anmelden" variant="outline" fullWidth />
+      </Section>
+
+      <Section title="Badges und Pills">
         <View className="flex-row flex-wrap gap-2">
           <Badge label="Neutral" />
           <Badge variant="primary" label="Erledigt" />
@@ -103,10 +138,9 @@ export default function Kit() {
             <Pill key={value} label={label} selected={filter === value} onPress={() => setFilter(value)} />
           ))}
         </View>
-      </Card>
+      </Section>
 
-      <SectionLabel>Avatare</SectionLabel>
-      <Card className="gap-4">
+      <Section title="Avatare">
         <View className="flex-row flex-wrap gap-3">
           {COLOR_KEYS.map((key) => (
             <Avatar key={key} name={key} colorKey={key} />
@@ -118,10 +152,9 @@ export default function Kit() {
           <Avatar name="Balu" colorKey="blue" size="lg" />
           <Avatar name="Cookie" colorKey="rose" size="xl" />
         </View>
-      </Card>
+      </Section>
 
-      <SectionLabel>Tabs, Schalter, Gruppen</SectionLabel>
-      <Card className="gap-4">
+      <Section title="Tabs, Schalter, Gruppen">
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList>
             <TabsTrigger value="today" label="Heute" />
@@ -134,9 +167,7 @@ export default function Kit() {
             <Text variant="secondary">Inhalt für „Woche“.</Text>
           </TabsContent>
         </Tabs>
-        <Divider />
         <Switch label="Erinnerungen" description="Push am Morgen" value={on} onValueChange={setOn} />
-        <Divider />
         <ToggleGroup type="single" value={gait} onValueChange={setGait}>
           <ToggleGroupItem value="walk" label="Schritt" />
           <ToggleGroupItem value="trot" label="Trab" />
@@ -147,17 +178,29 @@ export default function Kit() {
           <ToggleGroupItem value="tue" label="Di" />
           <ToggleGroupItem value="wed" label="Mi" />
         </ToggleGroup>
-      </Card>
+      </Section>
 
-      <SectionLabel>Karten und Sheet</SectionLabel>
-      <Card shape="tile" className="flex-row items-center gap-3">
-        <Icon as={Check} className="text-primary" />
-        <Text variant="body">Kachel mit Radius 16</Text>
-      </Card>
-      <Button label="Sheet öffnen" variant="outline" onPress={() => setSheetOpen(true)} />
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen} title="Neue Anfrage" description="Beispiel für ein Bottom-Sheet.">
-        <Button label="Senden" fullWidth onPress={() => setSheetOpen(false)} />
-      </Sheet>
+      <Section title="Karten und Sheet" description="Karten nur für Objekte: ein Pferd, eine Anfrage, eine Liste.">
+        <Card padded={false}>
+          <View className="flex-row items-center gap-3 px-5 py-4">
+            <Avatar name="Luna" colorKey="green" size="sm" />
+            <Text variant="bodyStrong">Luna</Text>
+          </View>
+          <Divider />
+          <View className="flex-row items-center gap-3 px-5 py-4">
+            <Avatar name="Balu" colorKey="blue" size="sm" />
+            <Text variant="bodyStrong">Balu</Text>
+          </View>
+        </Card>
+        <Card shape="tile" className="flex-row items-center gap-3">
+          <Icon as={Check} className="text-primary" />
+          <Text variant="body">Kachel mit Radius 16</Text>
+        </Card>
+        <Button label="Sheet öffnen" variant="outline" onPress={() => setSheetOpen(true)} />
+        <Sheet open={sheetOpen} onOpenChange={setSheetOpen} title="Neue Anfrage" description="Beispiel für ein Bottom-Sheet.">
+          <Button label="Senden" fullWidth onPress={() => setSheetOpen(false)} />
+        </Sheet>
+      </Section>
     </Screen>
   );
 }

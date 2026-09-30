@@ -6,7 +6,7 @@ import { View } from "react-native";
 
 import { DayPicker, FieldRow, Stepper } from "@/components/request-form-parts";
 import { RequestTypeIcon } from "@/components/request-type-icon";
-import { Button, Card, Hero, Input, PressableCard, Pill, Screen, SectionLabel, Switch, Text } from "@/components/ui";
+import { Button, Input, PageHeader, Pill, PressableCard, Screen, Section, Switch, Text } from "@/components/ui";
 import { requestKeys, requestsApi, type RequestInput } from "@/lib/api/requests";
 import {
   CREATABLE_TYPES,
@@ -147,10 +147,9 @@ export default function NewRequest() {
 
   return (
     <Screen back keyboardShouldPersistTaps="handled">
-      <Hero title="Neue Anfrage" description="Geht an alle im Stall." />
+      <PageHeader title="Neue Anfrage" description="Geht an alle im Stall." />
 
-      <View className="gap-3">
-        <SectionLabel>Art der Anfrage</SectionLabel>
+      <Section title="Art der Anfrage">
         <View className="flex-row flex-wrap gap-3">
           {CREATABLE_TYPES.map((t) => (
             <PressableCard
@@ -175,11 +174,9 @@ export default function NewRequest() {
             </PressableCard>
           ))}
         </View>
-      </View>
+      </Section>
 
-      <View className="gap-3">
-        <SectionLabel>{typeMeta(type).label}</SectionLabel>
-        <Card className="gap-5">
+      <Section title={typeMeta(type).label} className="gap-4">
           <FieldRow label="Pferd" hint={NEEDS_HORSE.includes(type) ? undefined : "Optional"}>
             <View className="flex-row flex-wrap gap-2">
               {NEEDS_HORSE.includes(type) ? null : (
@@ -224,13 +221,10 @@ export default function NewRequest() {
               <Stepper value={helpers} onChange={setHelpers} label="Anzahl Helfer" />
             )}
           </FieldRow>
-        </Card>
-      </View>
+      </Section>
 
       {type === "show_helper" ? (
-        <View className="gap-3">
-          <SectionLabel>Turnier</SectionLabel>
-          <Card className="gap-5">
+        <Section title="Turnier" className="gap-4">
             <FieldRow label="Name des Turniers">
               <Input value={showName} onChangeText={setShowName} placeholder="z. B. Herbstturnier Haltern" accessibilityLabel="Name des Turniers" />
             </FieldRow>
@@ -257,25 +251,19 @@ export default function NewRequest() {
               </View>
             </FieldRow>
             <Switch label="Mitfahrgelegenheit" description="Helfer können im Hänger mitfahren." value={rideAlong} onValueChange={setRideAlong} />
-          </Card>
-        </View>
+        </Section>
       ) : null}
 
       {isRide ? (
-        <View className="gap-3">
-          <SectionLabel>Fahrt</SectionLabel>
-          <Card className="gap-5">
+        <Section title="Fahrt" className="gap-4">
             <FieldRow label="Ziel">
               <Input value={destination} onChangeText={setDestination} placeholder="z. B. Turnierplatz Haltern" accessibilityLabel="Ziel" />
             </FieldRow>
-          </Card>
-        </View>
+        </Section>
       ) : null}
 
       {type === "exercise" ? (
-        <View className="gap-3">
-          <SectionLabel>Bewegen</SectionLabel>
-          <Card className="gap-5">
+        <Section title="Bewegen" className="gap-4">
             <FieldRow label="Wie">
               <View className="flex-row gap-2">
                 <Pill label="Longieren" selected={mode === "lunge"} onPress={() => setMode("lunge")} />
@@ -285,27 +273,21 @@ export default function NewRequest() {
             <FieldRow label="Regeln für dieses Pferd" hint="Optional, z. B. nur Schritt und Trab">
               <Input value={rulesNote} onChangeText={setRulesNote} accessibilityLabel="Regeln" />
             </FieldRow>
-          </Card>
-        </View>
+        </Section>
       ) : null}
 
       {type === "feed_or_turnout" ? (
-        <View className="gap-3">
-          <SectionLabel>Aufgabe</SectionLabel>
-          <Card>
+        <Section title="Aufgabe" className="gap-4">
             <View className="flex-row flex-wrap gap-2">
               <Pill label="Füttern" selected={what === "feed"} onPress={() => setWhat("feed")} />
               <Pill label="Rausstellen" selected={what === "turnout"} onPress={() => setWhat("turnout")} />
               <Pill label="Reinholen" selected={what === "bring_in"} onPress={() => setWhat("bring_in")} />
             </View>
-          </Card>
-        </View>
+        </Section>
       ) : null}
 
       {type === "appointment_companion" ? (
-        <View className="gap-3">
-          <SectionLabel>Termin</SectionLabel>
-          <Card className="gap-5">
+        <Section title="Termin" className="gap-4">
             <FieldRow label="Mit wem">
               <View className="flex-row flex-wrap gap-2">
                 <Pill label="Hufschmied" selected={withWhom === "farrier"} onPress={() => setWithWhom("farrier")} />
@@ -316,13 +298,10 @@ export default function NewRequest() {
             <FieldRow label="Hinweis" hint="Optional">
               <Input value={note} onChangeText={setNote} accessibilityLabel="Hinweis zum Termin" />
             </FieldRow>
-          </Card>
-        </View>
+        </Section>
       ) : null}
 
-      <View className="gap-3">
-        <SectionLabel>Weitere Angaben</SectionLabel>
-        <Card className="gap-5">
+      <Section title="Weitere Angaben" className="gap-4">
           {type !== "show_helper" ? (
             <FieldRow label="Checkliste" hint="Optional">
               <View className="flex-row items-center gap-2">
@@ -367,8 +346,7 @@ export default function NewRequest() {
               </View>
             </FieldRow>
           )}
-        </Card>
-      </View>
+      </Section>
 
       {error ? (
         <Text variant="bodySm" tone="danger" accessibilityRole="alert">

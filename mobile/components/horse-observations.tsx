@@ -6,7 +6,7 @@ import { View } from "react-native";
 
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
 import { ObservationCard } from "@/components/observation-card";
-import { Button, Card, Text } from "@/components/ui";
+import { Button, Text } from "@/components/ui";
 import { useObservationEvents, useObservations, type Observation } from "@/lib/api/observations";
 import { newObservationRoute, openCount } from "@/lib/observations";
 
@@ -49,9 +49,9 @@ export function HorseObservations({
       ) : !list ? (
         <HorseLoading />
       ) : list.length === 0 ? (
-        <Card>
-          <Text variant="secondary">Keine Auffälligkeiten.</Text>
-        </Card>
+        <Text variant="body" tone="muted">
+          Keine Auffälligkeiten.
+        </Text>
       ) : (
         <>
           <Text variant="secondary">

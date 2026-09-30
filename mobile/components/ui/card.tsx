@@ -3,6 +3,8 @@ import { Pressable, View, type PressableProps, type ViewProps } from "react-nati
 
 import { cn } from "@/lib/cn";
 
+import { Text } from "./text";
+
 const cardVariants = cva("border border-border bg-card", {
   variants: {
     /** `card`: radius 20 (default). `tile`: radius 16, for small items inside a card or grids. */
@@ -39,7 +41,20 @@ export function PressableCard({ className, shape, padded, ...props }: PressableC
   );
 }
 
-/** 1 px hairline used between rows inside a card. */
-export function Divider({ className, ...props }: ViewProps & { className?: string }) {
-  return <View className={cn("h-px bg-divider", className)} {...props} />;
+export type DividerProps = ViewProps & {
+  /** Short word set into the line, e.g. "oder". Uses the stronger `border` color. */
+  label?: string;
+  className?: string;
+};
+
+/** 1 px hairline used between rows inside a card, or with a `label` between two groups on the page. */
+export function Divider({ label, className, ...props }: DividerProps) {
+  if (!label) return <View className={cn("h-px bg-divider", className)} {...props} />;
+  return (
+    <View className={cn("flex-row items-center gap-4", className)} {...props}>
+      <View className="h-px flex-1 bg-border" />
+      <Text variant="secondary">{label}</Text>
+      <View className="h-px flex-1 bg-border" />
+    </View>
+  );
 }
