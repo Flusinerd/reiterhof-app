@@ -1,7 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams, type Href } from "expo-router";
-import { Activity, ChevronRight, ClipboardPlus, FileText, HeartPulse, Pencil, Shirt } from "lucide-react-native";
-import type { LucideIcon } from "lucide-react-native";
+import { Activity, ClipboardPlus, FileText, HeartPulse, Pencil, Shirt } from "lucide-react-native";
 import { useState } from "react";
 import { RefreshControl, View } from "react-native";
 
@@ -10,29 +9,11 @@ import { HorseHealthTiles } from "@/components/horse-health-tiles";
 import { HorseObservations } from "@/components/horse-observations";
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
 import { HorseRiders } from "@/components/horse-riders";
-import { Avatar, Badge, Button, Icon, PageHeader, PressableCard, Screen, Section, Text } from "@/components/ui";
+import { Avatar, Badge, Button, LinkRow, PageHeader, Screen, Section, Text } from "@/components/ui";
 import { horseKeys, useDocuments, useEmergency, useHealth, useHorse } from "@/lib/api/horses";
 import { ageText, horseRoutes, joinParts, sexLabel } from "@/lib/horse-format";
 import { rehaFromObservationRoute } from "@/lib/observations";
 import { colors } from "@/lib/theme";
-
-function LinkRow({ icon, label, description, onPress }: { icon: LucideIcon; label: string; description?: string; onPress: () => void }) {
-  return (
-    <PressableCard
-      padded={false}
-      onPress={onPress}
-      accessibilityLabel={label}
-      className="min-h-touch flex-row items-center gap-3 px-4 py-3"
-    >
-      <Icon as={icon} size={20} className="text-primary" />
-      <View className="flex-1">
-        <Text variant="bodyStrong">{label}</Text>
-        {description ? <Text variant="secondary">{description}</Text> : null}
-      </View>
-      <Icon as={ChevronRight} size={20} className="text-muted" />
-    </PressableCard>
-  );
-}
 
 /** Horse record ("Pferdeakte", JAN-48). */
 export default function HorseRecord() {

@@ -1,5 +1,14 @@
-import { useRouter, type Href } from "expo-router";
-import { BookOpen, CalendarDays, ChevronRight, ListChecks, Pencil, Play } from "lucide-react-native";
+import { useLocalSearchParams, useRouter, type Href } from "expo-router";
+import {
+  BookOpen,
+  CalendarDays,
+  ChevronRight,
+  HeartPulse,
+  ListChecks,
+  Pencil,
+  Play,
+  SlidersHorizontal,
+} from "lucide-react-native";
 import { useState } from "react";
 import { ActivityIndicator, RefreshControl, View } from "react-native";
 
@@ -7,13 +16,17 @@ import { ActivityPicker } from "@/components/training-activity-picker";
 import { ActivityIcon } from "@/components/training-activity-icon";
 import { WeekDots } from "@/components/training-dots";
 import { HorseSwitcher } from "@/components/training-horse-switcher";
+import { NextStepCard } from "@/components/training-next-step";
 import { QuickLogSheet } from "@/components/training-quick-log";
 import { StepsSheet } from "@/components/training-steps-sheet";
+import { WeekStrip } from "@/components/training-week-strip";
 import {
   Badge,
   Button,
   Card,
+  Divider,
   Icon,
+  LinkRow,
   PageHeader,
   Pill,
   PressableCard,
@@ -25,8 +38,10 @@ import {
   trainingError,
   useToday,
   useTrainingHorses,
+  useWeek,
   type Recommendation,
 } from "@/lib/api/training";
+import { horseRoutes } from "@/lib/horse-format";
 import { colors } from "@/lib/theme";
 import {
   DEFAULT_MINUTES,
@@ -39,12 +54,14 @@ import {
   trainedCount,
   type Activity,
 } from "@/lib/training";
+import { nextStep } from "@/lib/training-plan";
 
 /** "Was heute?" (JAN-57): the recommendation for today, 7-day status, alternatives, quick log. */
 export default function Training() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ horse?: string }>();
   const horses = useTrainingHorses();
-  const [horseId, setHorseId] = useState<string>();
+  const [horseId, setHorseId] = useState<string | undefined>(params.horse);
   const [minutes, setMinutes] = useState(45);
   const [choice, setChoice] = useState(0);
   const [picked, setPicked] = useState<Activity | null>(null);
@@ -56,6 +73,8 @@ export default function Training() {
   const activeId = list.some((h) => h.id === horseId) ? horseId : list[0]?.id;
   const today = useToday(activeId, minutes);
   const data = today.data;
+  const week = useWeek(activeId);
+  const step = nextStep(data, week.data);
 
   const selectHorse = (id: string) => {
     setHorseId(id);
@@ -161,19 +180,11 @@ export default function Training() {
         </Card>
       ) : null}
 
-      {data && !data.has_profile ? (
-        <Card className="gap-3">
-          <Text variant="bodyStrong">Noch kein Trainingsprofil</Text>
-          <Text variant="secondary">
-            {data.can_edit
-              ? `Lege fest, was für ${data.horse_name} in Frage kommt.`
-              : `Ohne Profil keine Empfehlung. Der Besitzer muss es anlegen.`}
-          </Text>
-          {data.can_edit ? (
-            <Button label="Profil anlegen" onPress={() => goto(`/horses/${activeId}/training-profile`)} />
-          ) : null}
-        </Card>
+      {data && !data.has_profile && !data.can_edit ? (
+        <Text variant="secondary">Ohne Profil keine Empfehlung. Der Besitzer muss es anlegen.</Text>
       ) : null}
+
+      <NextStepCard step={step} horseId={activeId} horseName={horse.name} />
 
       {hero ? (
         <Card className="gap-3">
@@ -247,6 +258,25 @@ export default function Training() {
         </View>
       ) : null}
 
+      <Section
+        title="Diese Woche"
+        action={
+          <Button
+            label="Woche"
+            variant="ghost"
+            size="sm"
+            icon={CalendarDays}
+            onPress={() => goto(`/training/week?horse=${activeId}`)}
+          />
+        }
+      >
+        {week.isPending ? (
+          <ActivityIndicator color={colors.primary.DEFAULT} className="self-start" />
+        ) : week.data ? (
+          <WeekStrip days={week.data.days} onPress={() => goto(`/training/week?horse=${activeId}`)} />
+        ) : null}
+      </Section>
+
       <Section title="Zeit heute">
         <View className="flex-row flex-wrap gap-2">
           {TIME_OPTIONS.map((m) => (
@@ -261,20 +291,23 @@ export default function Training() {
         </View>
       </Section>
 
-      <View className="flex-row flex-wrap gap-2">
-        <Button
-          label="Woche"
-          variant="ghost"
-          size="sm"
-          icon={CalendarDays}
-          onPress={() => goto(`/training/week?horse=${activeId}`)}
-        />
-        <Button label="Übungen" variant="ghost" size="sm" icon={BookOpen} onPress={() => goto("/training/exercises")} />
-        <Button label="Profil" variant="ghost" size="sm" onPress={() => goto(`/horses/${activeId}/training-profile`)} />
-        {data?.reha || data?.status === "reha" ? (
-          <Button label="Reha-Plan" variant="ghost" size="sm" onPress={() => goto(`/horses/${activeId}/reha`)} />
-        ) : null}
-      </View>
+      <Section title="Mehr">
+        <Card padded={false}>
+          <LinkRow icon={BookOpen} label="Übungen" onPress={() => goto("/training/exercises")} />
+          <Divider />
+          <LinkRow
+            icon={SlidersHorizontal}
+            label="Trainingsprofil"
+            onPress={() => goto(horseRoutes.trainingProfile(activeId))}
+          />
+          {data?.reha || data?.status === "reha" ? (
+            <>
+              <Divider />
+              <LinkRow icon={HeartPulse} label="Reha-Plan" onPress={() => goto(horseRoutes.reha(activeId))} />
+            </>
+          ) : null}
+        </Card>
+      </Section>
 
       <StepsSheet exercise={hero?.exercise} open={stepsOpen} onOpenChange={setStepsOpen} />
       <ActivityPicker

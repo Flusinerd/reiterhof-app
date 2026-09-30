@@ -10,9 +10,17 @@ library, JAN-59 week view, JAN-60 "Nur eintragen", JAN-61 finish screen, JAN-89 
 - Migration `0060_training_sessions.up.sql`: `sessions.exercise_id` and CHECK constraints for
   activity, feel and focus rating. Tables `training_profiles`, `exercises`, `sessions`, `week_slots`
   and `reha_plans` come from `0003`.
-- Mobile: `app/(tabs)/training.tsx` (Was heute?), `app/training/session.tsx` (chooser GPS/indoor, see [tracking.md](tracking.md)),
-  `app/training/session/finish.tsx`, `app/training/week.tsx`, `app/horses/[id]/training-profile.tsx`;
-  pure helpers `lib/training*.ts`, API client and React Query hooks `lib/api/training.ts`.
+- Mobile screens: `app/(tabs)/training.tsx` (Was heute?), `app/training/session.tsx` (chooser GPS/indoor, see [tracking.md](tracking.md)),
+  `app/training/session/finish.tsx`, `app/training/week.tsx` (week with draft), `app/horses/[id]/training-setup.tsx`
+  (profile wizard), `app/horses/[id]/training-profile.tsx` (overview) and the section editors
+  `app/horses/[id]/training-profile/{activities,rhythm,structure,shows,riders}.tsx`.
+- Mobile components: `components/training-next-step.tsx` (next-step card), `training-week-strip.tsx` (week strip),
+  `training-day-edit-sheet.tsx` (edit one day), `training-activity-modes.tsx` (activity list, wizard and editor),
+  `training-week-structure.tsx` (seven weekday rules), `training-rider-rules.tsx` (rider rules); UI kit parts
+  `Stepper`, `NumberStepper`/`RangeStepper`, `DateField`, `LinkRow` (see [design-system.md](../design-system.md)).
+- Mobile logic: pure helpers `lib/training*.ts` (`training-profile.ts`: drafts, per-section validation, discipline
+  defaults, summaries; `training-plan.ts`: plan days, day edits, `nextStep`), API client and React Query hooks
+  `lib/api/training.ts`.
 
 ## Access
 
@@ -72,8 +80,8 @@ decoding a stored profile the API always starts from that default. `status` is `
 `rest`. `quotas` are units per week (Monday to Sunday): `{demanding, recovery, activities: {hall: 2, ...}}`, each
 0-7, activities must be allowed, and all quota units plus `rest_days_min` must fit into seven days. `demanding`
 and the activity quotas are also maximums, `recovery` is a minimum only. Like the other rhythm keys, missing
-`days` or `quotas` (or `days: []`) mean the default: free days, no quotas. The app edits both in "Wochenstruktur"
-and "Wochenziele" of the training profile.
+`days` or `quotas` (or `days: []`) mean the default: free days, no quotas. The app edits both in the section
+"Feste Tage und Ziele" of the training profile (see "App" below).
 
 **Unit levels** (`recommend.UnitLevel`) come from the load of a unit (`load.Score` without canter, i.e.
 minutes × factor): active recovery below 20, light below 30, normal below 45, demanding from 45.
@@ -91,6 +99,24 @@ it, except the load limit:
 4. Quota maximums: no more demanding units and no more units of an activity than set.
 5. Load limit: when the 14 days before the week have at least 3 sessions, the week's load may be at most
    1.2 × their weekly average (at least 90); when no unit fits, the day becomes a rest day.
+
+**App** (JAN-94). A horse without a profile (`exists: false`) gets the **wizard** `training-setup` (owner and admin
+only; everybody else and horses with a profile are sent to the overview). Five steps with a progress `Stepper`,
+nothing is saved before the last one: discipline (with level and status), activities, rhythm, fixed weekdays
+(skippable) and a summary. Choosing the discipline fills the activities, the rhythm numbers and the limit per unit
+with that discipline's defaults (`disciplineDefaults` in `lib/training-profile.ts`; a new profile no longer starts
+with every activity off); the later steps adjust them. "Profil anlegen" sends one `PUT` and opens the Training tab
+for that horse. A step only continues when it is valid (a discipline, at least one activity, every conditional
+activity with a condition, rest days within the maximum).
+
+An existing profile opens the **overview** `training-profile`: the status (Fit, Reha, Pause) is changed with one
+tap and saved immediately, below it one row per section with a one-line summary (discipline and level, activities,
+rhythm, fixed days and goals, shows, rider rules when there are any). Each row opens an **editor**
+(`training-profile/activities`, `rhythm`, `structure`, `shows`, `riders`; discipline and level in a sheet). An editor
+works on a copy of the profile, checks only its own section (`validateSection`) and saves the whole profile with
+"Speichern"; there is no auto-save because the `PUT` replaces the profile and half-typed values must not land.
+Dates of shows and the end of the season are picked with `DateField` (no typing of `YYYY-MM-DD`). A rider sees a
+read-only text and the own rider rules ("Meine Regeln").
 
 ### Today
 
@@ -120,6 +146,23 @@ today is passed to the recommender with today's ramp value as upper and the phas
 `rest` phase (Boxenruhe) recommends a rest day. Before the start, after the last phase or without active
 plan there is no phase (status `reha` then means light activities only). The `reha` block of the response
 also has `minutes`, `rest`, `done` (the "Heute erledigt" mark) and `text`.
+
+### Training tab
+
+`app/(tabs)/training.tsx` (JAN-101), in this order: horse switcher (the start horse may come from `?horse=`, else
+the first), page header with the last seven days, error card, **next-step card**, recommendation and alternatives,
+**"Diese Woche"** strip, time available today, **"Mehr"** list.
+
+- **Next step** (`nextStep` in `lib/training-plan.ts`, no backend field): only for owners and admins (`can_edit`).
+  Without profile the card says "Profil einrichten" and opens the wizard; with a profile and at least one open day
+  after today ("open" means the same days as the planner: no activity yet, today or later) it says "Woche planen"
+  with the number of open days and opens `/training/week?horse=&plan=1`, which plans right away. Otherwise there is
+  no card. A rider without profile sees only "Ohne Profil keine Empfehlung. Der Besitzer muss es anlegen."
+- **Week strip:** seven circles for the current week (`GET /week`, cached for the week view): done (check), planned
+  (activity icon), rest (moon), open (empty), past without training (grey); today has an accent outline. The strip
+  and the "Woche" button open the week view.
+- **Mehr:** rows "Übungen", "Trainingsprofil" and, only for horses with a reha plan or in status `reha`,
+  "Reha-Plan".
 
 ### Sessions
 
@@ -206,12 +249,18 @@ stable's timezone, so DST weeks still have seven days.
   `planned_minutes` and `avoid`, a rejected model proposal is replaced by the rules (`replaced`: "Vom Besitzer
   abgelehnt."), the rules take the first recommendation that is not excluded, else a rest day ("Keine andere Aktivität
   passt heute."). Without `day`, body fields are ignored.
-- **App:** "Woche planen" in `app/training/week.tsx` (only with `can_edit`), `components/training-plan-sheet.tsx`
-  shows the days with the badge "KI-Vorschlag" or "Regel", level, focus and exercise; "Übernehmen" stores each day with
-  `PUT /week/{day}` (`planned` with activity, focus, `exercise_id` and the claimed user, or `rest`; a rest day
-  proposed for a claimed day is not stored, the claim stays) and a note such as
-  "KI-Vorschlag: 45 Min. · …" (`lib/training-plan.ts`). The week rows show slot notes, the focus and the exercise
-  (opens the exercise). With `no_consent` the owner gets
+- **App:** the plan is a draft in the week view (`app/training/week.tsx`, only with `can_edit`; JAN-94), not a
+  separate sheet. "Woche planen" (or `?plan=1` from the Training tab, once on opening) asks for the proposal and shows
+  it in the day rows with the badges "Entwurf" and "KI" or "Regel", level, focus and exercise; nothing is stored
+  yet. Week arrows and the horse switcher are locked until the draft is applied or discarded. Each row opens the
+  per-day edit sheet (`components/training-day-edit-sheet.tsx`): activity or rest day, minutes, focus, exercise and
+  (for saved days) the person. In a draft it changes only the draft ("Fertig"); on a saved, not yet done day it
+  changes the week at once ("Speichern") or releases the day ("Freigeben"). "Neu vorschlagen" asks for that one day
+  again (`?day=`) with the other draft days as context and the current activity excluded. "Übernehmen (n Tage)"
+  stores each day with `PUT /week/{day}` (`planned` with activity, focus, `exercise_id` and the claimed user, or
+  `rest`; a rest day proposed for a claimed day is not stored, the claim stays); "Verwerfen" drops the draft. Days
+  from the draft or from the edit sheet get a note such as "Plan: 45 Min." or "Plan: Ruhetag" (`lib/training-plan.ts`).
+  The week rows show slot notes, the focus and the exercise (opens the exercise). With `no_consent` the owner gets
   "KI-Vorschläge erlauben" (consent sheet, then the plan is asked again).
 - **Operator:** Mistral account settings and open contract questions in
   [avv-checkliste.md](../legal/avv-checkliste.md), Teil 1; privacy text section 3.12.
@@ -242,7 +291,7 @@ migration (`UPDATE`/`INSERT … ON CONFLICT` on the fixed IDs), never into 0250.
   `POST /horses/{id}/sessions` with a non-empty `track` answers `403 consent_required` without it; indoor
   data and quick logs never do.
 - `/horses/{id}/reha` (link "Reha-Plan", see [reha.md](reha.md)) and `/observations/new?horse=`
-  ("Auffälligkeit melden") are built. The reha link only shows for horses in reha. The Training tab links
-  the exercise library ("Übungsbibliothek").
+  ("Auffälligkeit melden") are built. The Training tab shows the reha link only for horses in reha and links
+  the exercise library ("Übungen") and the profile under "Mehr".
 - The weather temperature is the night minimum of the snapshot; a daytime value would need an
   extension of `weather_snapshots`.
