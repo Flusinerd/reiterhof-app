@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/Flusinerd/reiterhof-app/backend/internal/dbtest"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/push/pushtest"
 )
 
 type fixture struct {
@@ -36,6 +37,9 @@ func setup(t *testing.T) fixture {
 		return id
 	}
 	f.anna, f.ben, f.cleo = user(f.stableA, "anna"), user(f.stableA, "ben"), user(f.stableB, "cleo")
+	for _, id := range []string{f.anna, f.ben, f.cleo} {
+		pushtest.GrantConsent(t, pool, id)
+	}
 	return f
 }
 

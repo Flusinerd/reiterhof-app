@@ -58,7 +58,7 @@ All under `/api/v1`, JSON, errors as in `docs/architecture.md`.
 | `GET /requests/calendar?from=&to=` | My accepted, upcoming requests (open/assigned), by date |
 | `GET /requests/calendar.ics`, `GET /requests/{id}.ics` | RFC 5545, see below |
 | `GET /requests/options` | `{horses:[{id,name,color_key}], members:[{id,name,avatar_color}]}` for the form (until a horses endpoint exists) |
-| `GET/PATCH /requests/notify-settings` | `{new_request: bool}`, the push opt-in |
+| `GET/PATCH /requests/notify-settings` | `{new_request: bool}`, the push opt-in (same row as `PUT /settings/notifications/new_request`, see [reminders](reminders.md); the app uses the central settings) |
 
 Accept rules: the creator cannot accept; at most `helpers_needed` helpers; two people racing for
 the last seat are serialised by the row lock, the loser gets `409 request_full`.

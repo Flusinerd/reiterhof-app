@@ -9,7 +9,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// Notifier sends notifications to users of a stable, honoring reminder_settings.
+// Notifier sends notifications to users of a stable, honoring reminder_settings and
+// the push consent.
 type Notifier struct {
 	pool   *pgxpool.Pool
 	sender Sender
@@ -25,10 +26,12 @@ func NewNotifier(pool *pgxpool.Pool, sender Sender, log *slog.Logger) *Notifier 
 }
 
 // NotifyUsers pushes a notification of the given kind to all devices of userIDs
-// within stableID. Users who disabled the kind in reminder_settings are skipped
-// (no row means enabled), except for opt-in kinds (see OptIn): those are only
-// sent to users with a reminder_settings row that enables them. Tokens Expo reports as invalid are deleted. Delivery
-// problems other than invalid tokens are returned.
+// within stableID. Only users with a current `push` consent (consents row, not
+// revoked; a user who never consented gets nothing) are notified. Users who disabled
+// the kind in reminder_settings are skipped (no row means enabled), except for opt-in
+// kinds (see OptIn): those are only sent to users with a reminder_settings row that
+// enables them. Tokens Expo reports as invalid are deleted. Delivery problems other
+// than invalid tokens are returned.
 func (n *Notifier) NotifyUsers(ctx context.Context, stableID string, userIDs []string, kind, title, body string, data map[string]any) error {
 	if !ValidKind(kind) {
 		return fmt.Errorf("push: unknown kind %q", kind)
@@ -41,6 +44,9 @@ func (n *Notifier) NotifyUsers(ctx context.Context, stableID string, userIDs []s
 		FROM push_tokens t
 		WHERE t.stable_id = $1
 		  AND t.user_id = ANY($2::uuid[])
+		  AND EXISTS (
+		      SELECT 1 FROM consents c
+		      WHERE c.user_id = t.user_id AND c.kind = 'push' AND c.revoked_at IS NULL)
 		  AND CASE WHEN $4::boolean
 		      THEN EXISTS (
 		          SELECT 1 FROM reminder_settings s

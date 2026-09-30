@@ -22,6 +22,7 @@ import (
 	"github.com/Flusinerd/reiterhof-app/backend/internal/push"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/realtime"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/reha"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/reminders"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/requests"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/scheduler"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/weather"
@@ -118,6 +119,11 @@ func main() {
 	requestJobs := &scheduler.Scheduler{Log: log}
 	for _, job := range requests.NewService(deps).Jobs() {
 		requestJobs.Go(ctx, &jobs, job)
+	}
+
+	reminderJobs := &scheduler.Scheduler{Log: log}
+	for _, job := range reminders.NewService(deps).Jobs() {
+		reminderJobs.Go(ctx, &jobs, job)
 	}
 
 	srv := &http.Server{

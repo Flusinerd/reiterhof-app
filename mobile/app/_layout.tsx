@@ -15,6 +15,7 @@ import { AuthProvider, useAuth } from "@/lib/auth";
 import { fontAssets } from "@/lib/fonts";
 import "@/lib/geofence"; // registers the background geofence task at app start
 import "@/lib/tracking-location"; // registers the ride tracking task at app start
+import { useNotificationNavigation } from "@/lib/notifications"; // also sets the foreground presentation
 import { useDeviceSetup } from "@/lib/use-push-registration";
 import { colors } from "@/lib/theme";
 
@@ -53,6 +54,7 @@ export default function RootLayout() {
 function AuthGate() {
   const { status, hasStable, refresh } = useAuth();
   useDeviceSetup(); // push token registration + geofence re-arm after sign-in
+  useNotificationNavigation(); // tapping a push opens its screen
   const segments = useSegments() as string[];
   const inAuthGroup = segments[0] === "(auth)";
   const inVerify = segments[0] === "auth";
