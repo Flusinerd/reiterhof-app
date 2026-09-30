@@ -88,3 +88,11 @@ test("client maps network failures to code network", async () => {
   });
   await assert.rejects(client.get("/healthz"), (e: unknown) => e instanceof ApiError && e.code === "network");
 });
+
+test("client put sends the method and a JSON body", async () => {
+  const seen: Seen = {};
+  const client = createClient({ baseUrl: "http://api.test", getToken: () => "tok", fetchImpl: fakeFetch(200, '{"ok":true}', seen) });
+  assert.deepEqual(await client.put("/api/v1/horses/h/week/2026-03-25", { status: "planned" }), { ok: true });
+  assert.equal(seen.init?.method, "PUT");
+  assert.equal(seen.init?.body, '{"status":"planned"}');
+});
