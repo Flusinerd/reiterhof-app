@@ -8,7 +8,7 @@ Ein AVV ist nötig, wenn ein Dienstleister in deinem Auftrag personenbezogene Da
 
 - [ ] **Netcup GmbH (Hosting, VPS).** Im Netcup-Kundenkontrollpanel (CCP) den AVV abschließen, Bestätigung als PDF ablegen. Stelle im CCP nach „Auftragsverarbeitung“ / „AVV“ suchen; sie kann sich ändern. Siehe auch `deploy/README.md`, Abschnitt 9.
 - [ ] **Offsite-Backup-Speicher** (Ziel des `rclone`-Kopierens, siehe `deploy/README.md`, Abschnitt 6). Eigener AVV mit diesem Anbieter, Standort EU, Remote als `crypt`-Remote verschlüsseln. Anbieter im Datenschutztext (`[Anbieter des Backup-Speichers]`) eintragen.
-- [ ] **E-Mail-/SMTP-Anbieter** für die Anmelde-Links (`REITERHOF_SMTP_*`, siehe `docs/auth-setup.md`). AVV abschließen bzw. prüfen, ob er in den Nutzungsbedingungen enthalten ist. Anbieter im Datenschutztext eintragen.
+- [ ] **Resend** (E-Mail-Versand der Anmelde-Links, `REITERHOF_SMTP_*`, siehe `docs/auth-setup.md`). Das DPA von Resend prüfen/akzeptieren und ablegen; Grundlage der US-Übermittlung (Data Privacy Framework oder Standardvertragsklauseln) prüfen. Im Datenschutztext bereits eingetragen.
 - [ ] **Domain-/DNS-Anbieter:** nur nötig, wenn dort personenbezogene Daten anfallen (in der Regel nicht).
 
 ## 2. Expo, Google und Apple
@@ -26,7 +26,6 @@ Quelle der Texte: `docs/legal/datenschutz.md` und `docs/legal/impressum.md`. Nac
 
 - [ ] Verantwortlicher: `[Name, Anschrift, E-Mail]` (Datenschutz, Abschnitt 1 und 8)
 - [ ] Name des Stalls: `[Name des Stalls]`
-- [ ] `[E-Mail-Anbieter für den Versand]` (Abschnitte 3.1, 5)
 - [ ] `[Anbieter des Backup-Speichers, Standort EU]` (Abschnitte 4, 5)
 - [ ] `[zuständige Aufsichtsbehörde, Anschrift, Website]` (Abschnitt 8)
 - [ ] Hinweise `[Abschluss bestätigen]` und `[vor Veröffentlichung prüfen]` entfernen, sobald erledigt

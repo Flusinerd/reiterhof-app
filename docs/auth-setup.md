@@ -17,18 +17,21 @@ To sign in on a device with a real link, open `stallfunk://auth/verify?token=...
 
 ## Email (SMTP)
 
-Any SMTP provider works (Netcup mail, Mailgun, Brevo, ...). Set in `/etc/reiterhof/api.env`:
+Production uses **Resend** (any SMTP provider works). Set in `/etc/reiterhof/api.env`:
 
 ```
-REITERHOF_SMTP_HOST=smtp.example.org
+REITERHOF_SMTP_HOST=smtp.resend.com
 REITERHOF_SMTP_PORT=587            # 587 = STARTTLS, 465 = implicit TLS
-REITERHOF_SMTP_USER=login@example.org
-REITERHOF_SMTP_PASSWORD=...
-REITERHOF_SMTP_FROM=Stallfunk <login@example.org>
-REITERHOF_PUBLIC_URL=https://api.example.org
+REITERHOF_SMTP_USER=resend         # literally "resend"
+REITERHOF_SMTP_PASSWORD=re_...     # Resend API key with "Sending access" only
+REITERHOF_SMTP_FROM=Stallfunk <login@stallfunk.de>
+REITERHOF_PUBLIC_URL=https://api.stallfunk.de
 ```
 
-Set SPF, DKIM and DMARC for the sender domain, otherwise login mails land in spam.
+Resend setup: add the domain `stallfunk.de` in the Resend dashboard (choose the EU region), create the DNS records
+it shows (DKIM `TXT` on `resend._domainkey`, SPF `TXT` and `MX` on the `send` subdomain), wait for "Verified", then
+create an API key restricted to "Sending access" for that domain. Add a DMARC record
+(`_dmarc.stallfunk.de TXT "v=DMARC1; p=none;"` to start), otherwise login mails may land in spam.
 `REITERHOF_PUBLIC_URL` adds an https fallback link (`/auth/verify?token=...`) to the mail; it opens a page that
 links to the app. It does not need Universal Links / App Links (not configured yet, see open points in the JAN-6 report).
 

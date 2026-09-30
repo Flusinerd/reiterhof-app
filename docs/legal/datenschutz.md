@@ -30,7 +30,7 @@ Zweck: Du brauchst ein Konto, damit die App weiß, wer du bist und was du sehen 
 
 Rechtsgrundlage: Durchführung des Nutzungsverhältnisses, Art. 6 Abs. 1 lit. b DSGVO.
 
-Anmeldung per E-Mail-Link: Wir senden dir einen Link an deine Adresse. Der Link ist 15 Minuten gültig und funktioniert einmal. Gespeichert wird nur ein Hash des Links. Den Versand übernimmt der E-Mail-Dienst [E-Mail-Anbieter für den Versand].
+Anmeldung per E-Mail-Link: Wir senden dir einen Link an deine Adresse. Der Link ist 15 Minuten gültig und funktioniert einmal. Gespeichert wird nur ein Hash des Links. Den Versand übernimmt der E-Mail-Dienst Resend (Resend, Inc., USA; Versand über die EU-Region). Resend verarbeitet dafür deine E-Mail-Adresse und den Inhalt der Mail.
 
 Anmeldung mit Google oder Apple: Wenn du das wählst, sendet dein Handy ein Anmeldezeichen von Google bzw. Apple an unseren Server. Wir prüfen es und speichern die Kennung deines Kontos beim Anbieter („sub“), deine E-Mail-Adresse und ggf. deinen Namen. Wir erhalten kein Passwort. Für die Anmeldung gelten zusätzlich die Datenschutzhinweise von Google (Google Ireland Limited) bzw. Apple (Apple Distribution International Ltd.).
 
@@ -118,7 +118,7 @@ Damit wir dich erinnern können (Termine, Anfragen, Decken), sendet dein Handy e
 
 Rechtsgrundlage: Einwilligung, Art. 6 Abs. 1 lit. a DSGVO. Widerrufst du sie, löschen wir deine Push-Tokens. Einzelne Erinnerungsarten kannst du zusätzlich abschalten.
 
-Drittlandübermittlung: Expo und ggf. Google und Apple verarbeiten Daten auch in den USA. Grundlage sind Angemessenheitsbeschluss (EU-US Data Privacy Framework) bzw. Standardvertragsklauseln des jeweiligen Anbieters [vor Veröffentlichung prüfen].
+Drittlandübermittlung: Expo, Resend und ggf. Google und Apple verarbeiten Daten auch in den USA. Grundlage sind Angemessenheitsbeschluss (EU-US Data Privacy Framework) bzw. Standardvertragsklauseln des jeweiligen Anbieters [vor Veröffentlichung prüfen].
 
 ### 3.10 Wetter
 
@@ -135,7 +135,7 @@ Die Wetterdaten stammen vom Deutschen Wetterdienst (Open Data). Der Abruf erfolg
 - Mitglieder deines Stalls, soweit oben beschrieben und nach deinen Sichtbarkeits-Einstellungen.
 - Netcup GmbH als Hosting-Anbieter (Auftragsverarbeiter).
 - Anbieter des externen Backup-Speichers (Auftragsverarbeiter).
-- E-Mail-Dienst für den Versand der Anmelde-Links [E-Mail-Anbieter] (Auftragsverarbeiter).
+- Resend, Inc. (USA) als E-Mail-Dienst für den Versand der Anmelde-Links (Auftragsverarbeiter).
 - Expo, Apple und Google für Push-Benachrichtigungen, und Google bzw. Apple, wenn du dich damit anmeldest.
 - Deutscher Wetterdienst (nur Abruf öffentlicher Daten, keine Übermittlung von Personendaten).
 
