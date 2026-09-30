@@ -4,9 +4,9 @@ import { Settings } from "lucide-react-native";
 import { useState } from "react";
 import { ActivityIndicator, RefreshControl, View } from "react-native";
 
-import { ReminderHero } from "@/components/reminder-hero";
+import { ReminderHead } from "@/components/reminder-head";
 import { ReminderRow } from "@/components/reminder-row";
-import { Button, Card, Divider, SectionLabel, Screen, Text } from "@/components/ui";
+import { Button, Card, Divider, Screen, Section, Text } from "@/components/ui";
 import { BLANKET_STATE_EVENT } from "@/lib/api/blankets";
 import { reminderKeys, remindersApi, useReminders } from "@/lib/api/reminders";
 import { useInvalidateOnEvents } from "@/lib/realtime";
@@ -76,7 +76,7 @@ export default function Reminders() {
         />
       }
     >
-      <ReminderHero check={data?.blanket_check} />
+      <ReminderHead check={data?.blanket_check} />
 
       {error ? (
         <Text variant="bodySm" tone="danger" accessibilityRole="alert">
@@ -85,7 +85,7 @@ export default function Reminders() {
       ) : null}
 
       {reminders.isPending ? (
-        <ActivityIndicator />
+        <ActivityIndicator color={colors.primary.DEFAULT} />
       ) : reminders.isError ? (
         <Card className="gap-3">
           <Text variant="body">{reminderErrorMessage(reminders.error)}</Text>
@@ -93,12 +93,11 @@ export default function Reminders() {
         </Card>
       ) : (
         (data?.groups ?? []).map((group) => (
-          <View key={group.key} className="gap-3">
-            <SectionLabel>{group.label}</SectionLabel>
+          <Section key={group.key} title={group.label}>
             {group.items.length === 0 ? (
-              <Card>
-                <Text variant="secondary">{EMPTY_TEXT[group.key]}</Text>
-              </Card>
+              <Text variant="body" tone="muted">
+                {EMPTY_TEXT[group.key]}
+              </Text>
             ) : group.key === "today" ? (
               <Card padded={false}>{rows(group.items)}</Card>
             ) : (
@@ -112,14 +111,14 @@ export default function Reminders() {
                 </View>
               ))
             )}
-          </View>
+          </Section>
         ))
       )}
 
       <Button
         label="Benachrichtigungen einstellen"
         icon={Settings}
-        variant="outline"
+        variant="ghost"
         fullWidth
         onPress={() => router.push("/settings" as Href)}
       />

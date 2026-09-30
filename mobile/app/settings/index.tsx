@@ -12,11 +12,11 @@ import {
   Button,
   Card,
   Divider,
-  Hero,
   Icon,
+  PageHeader,
   PressableCard,
   Screen,
-  SectionLabel,
+  Section,
   Switch,
   Text,
   ToggleGroup,
@@ -28,6 +28,7 @@ import { ME_KEY, useAuth } from "@/lib/auth";
 import { useHasConsent } from "@/lib/consent";
 import { VISIBILITY_OPTIONS, visibilityDescription } from "@/lib/presence-format";
 import type { NotificationSettings } from "@/lib/reminders";
+import { colors } from "@/lib/theme";
 
 /** Settings (JAN-70): notifications, inviting (admins), the stable's reminder time, presence, privacy, account. */
 export default function Settings() {
@@ -83,7 +84,7 @@ export default function Settings() {
 
   return (
     <Screen back>
-      <Hero title="Einstellungen" />
+      <PageHeader title="Einstellungen" description={user ? `${user.name}, ${user.email}` : undefined} />
 
       {error ? (
         <Text variant="bodySm" tone="danger" accessibilityRole="alert">
@@ -91,93 +92,87 @@ export default function Settings() {
         </Text>
       ) : null}
 
-      <SectionLabel>Benachrichtigungen</SectionLabel>
-      {pushConsent === false ? (
-        <Card className="gap-3">
-          <View className="flex-row items-center gap-3">
-            <Icon as={BellOff} size={20} className="text-accent-text" />
-            <Text variant="bodyStrong" className="flex-1">
-              Mitteilungen sind aus
-            </Text>
-          </View>
-          <Text variant="secondary">
-            Ohne deine Erlaubnis kommen keine Mitteilungen, egal was du unten einstellst. Erinnerungen siehst du trotzdem in der Übersicht.
-          </Text>
-          <Button label="Erlauben" variant="outline" onPress={() => void allowPush()} />
-        </Card>
-      ) : null}
-      <WebPushCard />
-      <Card className="gap-4">
-        {settings.isPending ? (
-          <ActivityIndicator />
-        ) : settings.isError ? (
-          <View className="gap-3">
-            <Text variant="body" tone="danger">
-              {errorMessage(settings.error)}
-            </Text>
-            <Button label="Erneut versuchen" variant="outline" onPress={() => void settings.refetch()} />
-          </View>
-        ) : (
-          settings.data.items.map((item, i) => (
-            <View key={item.kind}>
-              {i > 0 ? <Divider className="mb-4" /> : null}
-              <Switch
-                label={item.label}
-                description={item.description}
-                value={item.enabled}
-                onValueChange={(enabled) => toggleKind.mutate({ kind: item.kind, enabled })}
-              />
+      <Section title="Benachrichtigungen">
+        {pushConsent === false ? (
+          <Card className="gap-3 border-accent-soft bg-accent-soft">
+            <View className="flex-row items-center gap-3">
+              <Icon as={BellOff} size={20} className="text-accent-text" />
+              <Text variant="bodyStrong" className="flex-1">
+                Mitteilungen sind aus
+              </Text>
             </View>
-          ))
-        )}
-      </Card>
+            <Text variant="secondary">
+              Ohne deine Erlaubnis kommen keine Mitteilungen, egal was du unten einstellst. Erinnerungen siehst du trotzdem in der Übersicht.
+            </Text>
+            <Button label="Erlauben" variant="outline" onPress={() => void allowPush()} />
+          </Card>
+        ) : null}
+        <WebPushCard />
+        <Card className="gap-4">
+          {settings.isPending ? (
+            <ActivityIndicator color={colors.primary.DEFAULT} />
+          ) : settings.isError ? (
+            <View className="gap-3">
+              <Text variant="body" tone="danger">
+                {errorMessage(settings.error)}
+              </Text>
+              <Button label="Erneut versuchen" variant="outline" onPress={() => void settings.refetch()} />
+            </View>
+          ) : (
+            settings.data.items.map((item, i) => (
+              <View key={item.kind}>
+                {i > 0 ? <Divider className="mb-4" /> : null}
+                <Switch
+                  label={item.label}
+                  description={item.description}
+                  value={item.enabled}
+                  onValueChange={(enabled) => toggleKind.mutate({ kind: item.kind, enabled })}
+                />
+              </View>
+            ))
+          )}
+        </Card>
+      </Section>
 
-      <SectionLabel>Stallgasse</SectionLabel>
-      {user?.is_admin ? <InviteCard /> : null}
-      <ReminderTimeCard />
+      <Section title="Stallgasse">
+        {user?.is_admin ? <InviteCard /> : null}
+        <ReminderTimeCard />
+      </Section>
 
-      <SectionLabel>Anwesenheit</SectionLabel>
-      <Card className="gap-2">
-        <Text variant="bodyStrong">Wer sieht mich?</Text>
+      <Section title="Anwesenheit" description="Wer sieht mich?">
         <ToggleGroup type="single" value={visibility} onValueChange={(v) => changeVisibility.mutate(v as PresenceVisibility)}>
           {VISIBILITY_OPTIONS.map((o) => (
             <ToggleGroupItem key={o.value} value={o.value} label={o.label} disabled={changeVisibility.isPending} />
           ))}
         </ToggleGroup>
         <Text variant="secondary">{visibilityDescription(visibility)}</Text>
-      </Card>
+      </Section>
 
-      <SectionLabel>Datenschutz</SectionLabel>
-      <PressableCard
-        padded={false}
-        className="min-h-touch flex-row items-center gap-3 px-5 py-4"
-        onPress={() => router.push("/settings/privacy" as Href)}
-      >
-        <Icon as={ShieldCheck} size={20} className="text-muted" />
-        <View className="flex-1">
-          <Text variant="bodyStrong">Datenschutz</Text>
-          <Text variant="secondary">Erlaubnisse, Datenexport, Konto löschen</Text>
-        </View>
-        <Icon as={ChevronRight} size={20} className="text-muted" />
-      </PressableCard>
-
-      <SectionLabel>Konto</SectionLabel>
-      <Card className="gap-3">
-        <View className="flex-row items-center gap-3">
+      <Section title="Datenschutz">
+        <PressableCard
+          padded={false}
+          className="min-h-touch flex-row items-center gap-3 px-5 py-4"
+          onPress={() => router.push("/settings/privacy" as Href)}
+        >
+          <Icon as={ShieldCheck} size={20} className="text-muted" />
           <View className="flex-1">
-            <Text variant="bodyStrong">{user?.name ?? ""}</Text>
-            <Text variant="secondary">{user?.email ?? ""}</Text>
+            <Text variant="bodyStrong">Datenschutz</Text>
+            <Text variant="secondary">Erlaubnisse, Datenexport, Konto löschen</Text>
           </View>
-          <Button
-            variant="ghost"
-            size="icon"
-            icon={Pencil}
-            accessibilityLabel="Name ändern"
-            onPress={() => router.push("/(auth)/name" as Href)}
-          />
-        </View>
+          <Icon as={ChevronRight} size={20} className="text-muted" />
+        </PressableCard>
+      </Section>
+
+      <Section title="Konto">
+        <Button
+          label="Name ändern"
+          icon={Pencil}
+          variant="outline"
+          fullWidth
+          onPress={() => router.push("/(auth)/name" as Href)}
+        />
         <Button label="Abmelden" icon={LogOut} variant="outline" fullWidth loading={signingOut} onPress={() => void leave()} />
-      </Card>
+      </Section>
       {prompt.sheet}
     </Screen>
   );

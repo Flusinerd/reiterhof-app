@@ -13,12 +13,12 @@ import {
   Badge,
   Button,
   Card,
-  Hero,
   Icon,
+  PageHeader,
   Pill,
   PressableCard,
   Screen,
-  SectionLabel,
+  Section,
   Text,
 } from "@/components/ui";
 import {
@@ -27,6 +27,7 @@ import {
   useTrainingHorses,
   type Recommendation,
 } from "@/lib/api/training";
+import { colors } from "@/lib/theme";
 import {
   DEFAULT_MINUTES,
   TIME_OPTIONS,
@@ -65,15 +66,15 @@ export default function Training() {
   if (horses.isPending) {
     return (
       <Screen>
-        <View className="items-center py-16">
-          <ActivityIndicator />
-        </View>
+        <PageHeader title="Training" />
+        <ActivityIndicator color={colors.primary.DEFAULT} className="self-start" />
       </Screen>
     );
   }
   if (horses.isError) {
     return (
       <Screen>
+        <PageHeader title="Training" />
         <Card className="gap-3">
           <Text variant="bodyStrong">Laden fehlgeschlagen</Text>
           <Text variant="secondary">{trainingError(horses.error)}</Text>
@@ -85,8 +86,8 @@ export default function Training() {
   if (list.length === 0 || !activeId) {
     return (
       <Screen>
-        <Hero
-          tone="soft"
+        <PageHeader
+          eyebrow="Training"
           title="Noch kein Pferd"
           description="Die Empfehlung erscheint, sobald du Besitzer oder Reitbeteiligung bist."
         />
@@ -131,27 +132,25 @@ export default function Training() {
   return (
     <Screen
       refreshControl={
-        <RefreshControl refreshing={today.isRefetching} onRefresh={() => void today.refetch()} />
+        <RefreshControl refreshing={today.isRefetching} onRefresh={() => void today.refetch()} tintColor={colors.primary.DEFAULT} />
       }
     >
       <HorseSwitcher horses={list} selected={activeId} onSelect={selectHorse} />
 
-      {/* Status: horse, profile status, 7 days, context */}
-      <Card className="gap-4">
-        <View className="flex-row items-center justify-between gap-3">
-          <Text variant="titleLg" numberOfLines={1} className="flex-1">
-            {horse.name}
-          </Text>
-          {data ? (
+      {/* Head: horse, profile status, the last 7 days, context */}
+      <PageHeader eyebrow="Training" title={horse.name} description={data?.context}>
+        {data ? (
+          <View className="gap-3">
+            <WeekDots dots={data.week} />
             <Badge
               variant={data.status === "fit" ? "primary" : "accent"}
               label={`${statusLabel(data.status)} · ${trainedCount(data.week)}/7 Tage trainiert`}
             />
-          ) : null}
-        </View>
-        {data ? <WeekDots dots={data.week} /> : <ActivityIndicator />}
-        {data?.context ? <Text variant="secondary">{data.context}</Text> : null}
-      </Card>
+          </View>
+        ) : (
+          <ActivityIndicator color={colors.primary.DEFAULT} className="self-start" />
+        )}
+      </PageHeader>
 
       {today.isError ? (
         <Card className="gap-3">
@@ -177,66 +176,65 @@ export default function Training() {
       ) : null}
 
       {hero ? (
-        <Hero
-          tone="soft"
-          eyebrow={isRest ? "Empfehlung" : `Empfehlung · ${formatMinutes(hero.minutes)}`}
-          title={hero.label}
-          description={hero.reason}
-        >
+        <Card className="gap-3">
+          <Text variant="label">{isRest ? "Empfehlung" : `Empfehlung · ${formatMinutes(hero.minutes)}`}</Text>
+          <View className="flex-row items-center gap-3">
+            {!isRest ? <ActivityIcon activity={hero.activity} size={28} /> : null}
+            <Text variant="title" accessibilityRole="header" className="flex-1">
+              {hero.label}
+            </Text>
+          </View>
+          <Text variant="body" tone="muted">
+            {hero.reason}
+          </Text>
           {hero.note ? (
-            <Text variant="secondary" className="text-accent-text">
+            <Text variant="secondary" tone="accent">
               Bedingung: {hero.note}
             </Text>
           ) : null}
           {!isRest ? (
-            <View className="gap-2">
-              <View className="flex-row items-center gap-2">
-                <ActivityIcon activity={hero.activity} size={20} />
-                <Text variant="secondary">
-                  {hero.intensity_label ? `Belastung ${hero.intensity_label}` : intensityLabel("none")}
-                </Text>
-              </View>
-              <View className="flex-row flex-wrap gap-2">
+            <>
+              <Text variant="secondary">
+                {hero.intensity_label ? `Belastung ${hero.intensity_label}` : intensityLabel("none")}
+              </Text>
+              <View className="mt-1 flex-row flex-wrap gap-2">
                 <Button label="Starten" icon={Play} onPress={start} disabled={!data?.can_log} />
                 {hero.exercise ? (
                   <Button label="Ablauf" variant="outline" onPress={() => setStepsOpen(true)} />
                 ) : null}
               </View>
-            </View>
+            </>
           ) : null}
-        </Hero>
+        </Card>
       ) : null}
 
       {alternatives.length > 0 ? (
-        <>
-          <SectionLabel>Alternativen</SectionLabel>
-          <View className="gap-3">
-            {alternatives.map((r) => (
-              <PressableCard
-                key={r.activity}
-                shape="tile"
-                className="flex-row items-center gap-3"
-                accessibilityLabel={`${r.label}, ${r.activity === "rest" ? "" : formatMinutes(r.minutes) + ", "}${r.reason}`}
-                onPress={() => {
-                  setPicked(null);
-                  setChoice(recs.findIndex((x) => x.activity === r.activity));
-                }}
-              >
-                <ActivityIcon activity={r.activity} />
-                <View className="flex-1 gap-0.5">
-                  <Text variant="bodyStrong">
-                    {r.label}
-                    {r.activity === "rest" ? "" : ` · ${formatMinutes(r.minutes)}`}
-                  </Text>
-                  <Text variant="secondary" numberOfLines={2}>
-                    {r.reason}
-                  </Text>
-                </View>
-                <Icon as={ChevronRight} size={20} className="text-muted" />
-              </PressableCard>
-            ))}
-          </View>
-        </>
+        <Section title="Alternativen">
+          {alternatives.map((r) => (
+            <PressableCard
+              key={r.activity}
+              shape="tile"
+              className="flex-row items-center gap-3"
+              accessibilityLabel={`${r.label}, ${r.activity === "rest" ? "" : formatMinutes(r.minutes) + ", "}${r.reason}`}
+              onPress={() => {
+                setPicked(null);
+                setChoice(recs.findIndex((x) => x.activity === r.activity));
+              }}
+            >
+              <ActivityIcon activity={r.activity} />
+              <View className="flex-1 gap-0.5">
+                <Text variant="bodyStrong">
+                  {r.label}
+                  {r.activity === "rest" ? "" : ` · ${formatMinutes(r.minutes)}`}
+                </Text>
+                <Text variant="secondary" numberOfLines={2}>
+                  {r.reason}
+                </Text>
+              </View>
+              <Icon as={ChevronRight} size={20} className="text-muted" />
+            </PressableCard>
+          ))}
+        </Section>
       ) : null}
 
       {data && data.hidden.length > 0 ? (
@@ -249,19 +247,19 @@ export default function Training() {
         </View>
       ) : null}
 
-      <SectionLabel>Zeit heute</SectionLabel>
-      <View className="flex-row flex-wrap gap-2">
-        {TIME_OPTIONS.map((m) => (
-          <Pill key={m} label={`${m} Min.`} selected={minutes === m} onPress={() => { setMinutes(m); setChoice(0); setPicked(null); }} />
-        ))}
-      </View>
-
-      <View className="flex-row flex-wrap gap-2">
-        <Button label="Wählen" variant="outline" icon={ListChecks} onPress={() => setPickerOpen(true)} />
-        {data?.can_log ? (
-          <Button label="Nur eintragen" variant="outline" icon={Pencil} onPress={() => setLogOpen(true)} />
-        ) : null}
-      </View>
+      <Section title="Zeit heute">
+        <View className="flex-row flex-wrap gap-2">
+          {TIME_OPTIONS.map((m) => (
+            <Pill key={m} label={`${m} Min.`} selected={minutes === m} onPress={() => { setMinutes(m); setChoice(0); setPicked(null); }} />
+          ))}
+        </View>
+        <View className="flex-row flex-wrap gap-2">
+          <Button label="Wählen" variant="outline" icon={ListChecks} onPress={() => setPickerOpen(true)} />
+          {data?.can_log ? (
+            <Button label="Nur eintragen" variant="outline" icon={Pencil} onPress={() => setLogOpen(true)} />
+          ) : null}
+        </View>
+      </Section>
 
       <View className="flex-row flex-wrap gap-2">
         <Button

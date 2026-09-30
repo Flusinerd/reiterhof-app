@@ -9,7 +9,7 @@ import type { Gait } from "@/lib/gait";
 import { colors } from "@/lib/theme";
 import { gaitLabel } from "@/lib/tracking-format";
 
-/** Current gait as a colored dot and a word, for the dark hero (canter is white there). */
+/** Current gait as a colored dot and a word, for the dark `LivePanel` (canter is white there). */
 export function GaitChip({ gait }: { gait: Gait | null }) {
   const color = gait === null ? colors.muted : gait === "halt" ? "#d6d3d1" : colors.gait[gait];
   return (
@@ -46,7 +46,7 @@ export function StatTile({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** Thin progress bar (0..1) in the hero. */
+/** Thin progress bar (0..1) in the `LivePanel`. */
 export function ProgressBar({ value }: { value: number }) {
   return (
     <View className="h-2 overflow-hidden rounded-pill bg-white/20" accessibilityRole="progressbar">

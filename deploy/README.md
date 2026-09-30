@@ -12,7 +12,7 @@ Internet -> Caddy (80/443, automatisches TLS) -> reiterhof-api (127.0.0.1:8080) 
 | Datei | Zweck |
 | --- | --- |
 | `provision.sh` | Einmalige, wiederholbare Server-Einrichtung (als root) |
-| `Caddyfile` | Reverse Proxy und Web-App-Hosting, TLS, Security-Header (inkl. CSP der Web-App), Upload-Limit 25 MB |
+| `Caddyfile` | Reverse Proxy und Web-App-Hosting, TLS, Security-Header (inkl. CSP der Web-App; für die API nur ein Default, `/auth/verify` setzt seine eigene), Upload-Limit 25 MB |
 | `postgresql.conf.d/reiterhof.conf` | PostgreSQL-Tuning für 4 GB RAM |
 | `systemd/reiterhof-api.service` | API als gehärteter systemd-Dienst |
 | `api.env.example` | Vorlage für `/etc/reiterhof/api.env` |
@@ -356,6 +356,33 @@ sudo bash -c 'cd /root/stallfunk && git pull --ff-only && cd deploy &&
   REITERHOF_DEPLOY_SSH_PUBKEY="$(head -n1 /home/deploy/.ssh/authorized_keys)" \
   ./provision.sh'
 ```
+
+## Caddyfile aktualisieren
+
+Die Caddyfile kommt nur über `provision.sh` auf den Server; der Deploy-Workflow fasst sie nicht an.
+Ändert sich nur die Caddyfile (z. B. die Security-Header), reicht es, sie einzeln einzuspielen.
+Das Repository liegt auf dem Server unter `/root/stallfunk`; als `admin`:
+
+```sh
+sudo bash -c 'cd /root/stallfunk && git pull --ff-only &&
+  set -a && . /etc/reiterhof/caddy.env && set +a &&
+  caddy validate --config deploy/Caddyfile --adapter caddyfile &&
+  install -m 0644 -o root -g root deploy/Caddyfile /etc/caddy/Caddyfile &&
+  systemctl reload caddy'
+```
+
+`caddy validate` prüft die Datei mit den Domains aus `/etc/reiterhof/caddy.env`, bevor sie
+installiert wird; `systemctl reload caddy` übernimmt sie ohne Unterbrechung. Kontrolle:
+
+```sh
+curl -sI https://stallfunk.de/auth/verify?token=aaaaaaaaaaaaaaaaaaaaaaaa | grep -i content-security-policy
+# style-src 'sha256-…' und img-src data: kommen von der API, nicht das Caddy-Default "default-src 'none'"
+curl -sI https://stallfunk.de/api/v1/me | grep -i content-security-policy   # Caddy-Default: default-src 'none'
+```
+
+Alternativ `provision.sh` erneut ausführen (Befehl unter [Betrieb](#betrieb-stallfunk-admin)); das
+installiert die Caddyfile ebenfalls. Ohne Repository auf dem Server tut es auch `scp deploy/Caddyfile`
+nach `/tmp` und dieselben Schritte ab `caddy validate` mit `/tmp/Caddyfile`.
 
 ## Wartung
 

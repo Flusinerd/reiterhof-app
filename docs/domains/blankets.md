@@ -33,7 +33,7 @@ because the past night is settled by then. One exception (`blankets.StateDay`):
 "uncovered" recorded before **15:00** (`blankets.UncoverUntilHour`) still belongs to the past
 night (the horses are out from 08:30 to 12:30 and the blankets come off when they are brought
 in), so taking the blankets off does not mark the horse done for the coming one. Covering or checking in the morning already counts for the coming night. The forecast of a day is the newest snapshot with
-`valid_for = day` (the 18:00 to 08:00 summary, see `docs/architecture.md`).
+`valid_for = day` (the summary of the time the horse is covered, 18:00 to 12:30 the next day, see `docs/architecture.md`).
 
 ### Recommendation
 
@@ -80,7 +80,9 @@ evening, `uncovered` in the morning). "Done" means: at least one state exists fo
 ```json
 {
   "day": "2026-09-30",
-  "weather": {"night_min_c": 3, "will_rain": true, "rain_probability": 60, "rain_mm": 1.5, "wind_kmh": 12, "fetched_at": "..."},
+  "weather": {"night_min_c": 3, "temp_max_c": 9, "will_rain": true, "rain_probability": 60, "rain_mm": 1.5,
+    "rain_peak_mm": 0.8, "rain_hours": 3, "rain_from": "...", "rain_until": "...", "wind_kmh": 12,
+    "window_start": "...", "window_end": "...", "timeline": [{"time": "...", "temp_c": 8, "rain_mm": 0.4, "rain_prob": 60, "wind_kmh": 9}], "fetched_at": "..."},
   "reminder_time": "20:30",
   "progress": {"done": 4, "total": 7},
   "horses": [{"horse": {"id","name","box","color_key"}, "recommendation": {...}, "state": {...}|null, "done": false, "is_mine": true}]
@@ -180,7 +182,10 @@ set before any forecast existed and snapshots of other days are ignored.
 
 ## Mobile
 
-- Tab "Decken": hero with date, night line ("Heute Nacht 3 °C, Regen"), progress "4/7" and
+- Weather card (`components/weather-card.tsx`, on the tab and the plan): temperature range, rain
+  amount with intensity word, rain timing, peak per hour, probability, wind and an hourly strip
+  for the window (18:00 to 12:30). Snapshots without details show the facts only.
+- Tab "Decken": hero with date, night line ("Heute Nacht 3 bis 9 °C, 4,8 mm Regen"), progress "4/7" and
   "Erinnerung um 20:30"; open horses as large cards (avatar, recommendation with blanket photo
   and location, owner wish, buttons "Eingedeckt"/"Abgedeckt" or "Geprüft"), done horses as
   compact rows (tap to correct). Realtime refresh.

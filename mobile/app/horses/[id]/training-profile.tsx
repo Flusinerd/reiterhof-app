@@ -9,11 +9,11 @@ import {
   Button,
   Card,
   Divider,
-  Hero,
   Input,
+  PageHeader,
   Pill,
   Screen,
-  SectionLabel,
+  Section,
   Switch,
   Text,
 } from "@/components/ui";
@@ -101,8 +101,7 @@ export default function TrainingProfile() {
 
   return (
     <Screen back keyboardShouldPersistTaps="handled">
-      <Hero
-        tone="soft"
+      <PageHeader
         eyebrow={name}
         title="Trainingsprofil"
         description={
@@ -112,49 +111,51 @@ export default function TrainingProfile() {
         }
       >
         {!profile.data.exists ? <Badge variant="accent" label="Noch nicht angelegt" /> : null}
-      </Hero>
+      </PageHeader>
 
-      <SectionLabel>Status</SectionLabel>
-      <View className="flex-row flex-wrap gap-2">
-        {PROFILE_STATUSES.map((s) => (
-          <Pill
-            key={s.value}
-            label={s.label}
-            selected={draft.status === s.value}
-            disabled={!editable}
-            onPress={() => patch({ status: s.value })}
+      <Section title="Status">
+        <View className="flex-row flex-wrap gap-2">
+          {PROFILE_STATUSES.map((s) => (
+            <Pill
+              key={s.value}
+              label={s.label}
+              selected={draft.status === s.value}
+              disabled={!editable}
+              onPress={() => patch({ status: s.value })}
+            />
+          ))}
+        </View>
+      </Section>
+
+      <Section title="Disziplin und Niveau">
+        <View className="flex-row flex-wrap gap-2">
+          {DISCIPLINES.map((d) => (
+            <Pill
+              key={d.value}
+              label={d.label}
+              selected={draft.discipline === d.value}
+              disabled={!editable}
+              onPress={() => patch({ discipline: d.value })}
+            />
+          ))}
+        </View>
+        {editable ? (
+          <Input
+            accessibilityLabel="Niveau"
+            placeholder="Niveau, z. B. L"
+            value={draft.level}
+            maxLength={40}
+            onChangeText={(level) => patch({ level })}
           />
-        ))}
-      </View>
+        ) : (
+          <Text variant="secondary">
+            {disciplineLabel(draft.discipline)}
+            {draft.level ? `, Niveau ${draft.level}` : ""}
+          </Text>
+        )}
+      </Section>
 
-      <SectionLabel>Disziplin und Niveau</SectionLabel>
-      <View className="flex-row flex-wrap gap-2">
-        {DISCIPLINES.map((d) => (
-          <Pill
-            key={d.value}
-            label={d.label}
-            selected={draft.discipline === d.value}
-            disabled={!editable}
-            onPress={() => patch({ discipline: d.value })}
-          />
-        ))}
-      </View>
-      {editable ? (
-        <Input
-          accessibilityLabel="Niveau"
-          placeholder="Niveau, z. B. L"
-          value={draft.level}
-          maxLength={40}
-          onChangeText={(level) => patch({ level })}
-        />
-      ) : (
-        <Text variant="secondary">
-          {disciplineLabel(draft.discipline)}
-          {draft.level ? `, Niveau ${draft.level}` : ""}
-        </Text>
-      )}
-
-      <SectionLabel>Aktivitäten</SectionLabel>
+      <Section title="Aktivitäten">
       <Card padded={false}>
         {ACTIVITIES.map((a, i) => {
           const m = draft.modes[a];
@@ -197,9 +198,9 @@ export default function TrainingProfile() {
           );
         })}
       </Card>
+      </Section>
 
-      <SectionLabel>Turniere</SectionLabel>
-      <View className="gap-3">
+      <Section title="Turniere">
         {draft.shows.length === 0 ? <Text variant="secondary">Keine Turniere.</Text> : null}
         {draft.shows.map((s, i) =>
           editable ? (
@@ -239,23 +240,23 @@ export default function TrainingProfile() {
             onPress={() => patch({ shows: [...draft.shows, { date: "", name: "", classes: "", helper: "" }] })}
           />
         ) : null}
-      </View>
+      </Section>
 
-      <SectionLabel>Saisonende</SectionLabel>
-      {editable ? (
-        <Input
-          accessibilityLabel="Saisonende"
-          placeholder="Datum, z. B. 2026-10-31 (optional)"
-          value={draft.seasonEnd}
-          autoCapitalize="none"
-          onChangeText={(seasonEnd) => patch({ seasonEnd })}
-        />
-      ) : (
-        <Text variant="secondary">{draft.seasonEnd ? formatDate(draft.seasonEnd) : "Nicht festgelegt"}</Text>
-      )}
+      <Section title="Saisonende">
+        {editable ? (
+          <Input
+            accessibilityLabel="Saisonende"
+            placeholder="Datum, z. B. 2026-10-31 (optional)"
+            value={draft.seasonEnd}
+            autoCapitalize="none"
+            onChangeText={(seasonEnd) => patch({ seasonEnd })}
+          />
+        ) : (
+          <Text variant="secondary">{draft.seasonEnd ? formatDate(draft.seasonEnd) : "Nicht festgelegt"}</Text>
+        )}
+      </Section>
 
-      <SectionLabel>Rhythmus</SectionLabel>
-      <Card className="gap-4">
+      <Section title="Rhythmus">
         <NumberRow
           label="Einheiten pro Woche"
           min={draft.sessionsMin}
@@ -291,12 +292,10 @@ export default function TrainingProfile() {
           disabled={!editable}
           onValueChange={(restAfterShow) => patch({ restAfterShow })}
         />
-      </Card>
+      </Section>
 
       {draft.riders.length > 0 ? (
-        <>
-          <SectionLabel>{editable ? "Reitbeteiligungen" : "Meine Regeln"}</SectionLabel>
-          <View className="gap-3">
+        <Section title={editable ? "Reitbeteiligungen" : "Meine Regeln"}>
             {draft.riders.map((r) => (
               <Card key={r.userId} className="gap-3">
                 <Text variant="bodyStrong">{r.name || "Reitbeteiligung"}</Text>
@@ -338,8 +337,7 @@ export default function TrainingProfile() {
                 />
               </Card>
             ))}
-          </View>
-        </>
+        </Section>
       ) : null}
 
       {editable ? (

@@ -9,7 +9,8 @@ import { BlanketHistory } from "@/components/blanket-history";
 import { BlanketPhoto } from "@/components/blanket-photo";
 import { BlanketRulesSheet } from "@/components/blanket-rules-sheet";
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
-import { Badge, Button, Card, Hero, Icon, Input, Screen, SectionLabel, Sheet, Text } from "@/components/ui";
+import { Badge, Button, Card, Icon, Input, PageHeader, Screen, Section, Sheet, Text } from "@/components/ui";
+import { WeatherCard } from "@/components/weather-card";
 import { errorMessage } from "@/lib/api";
 import { BLANKET_PLAN_EVENT, BLANKET_STATE_EVENT, blanketKeys, usePlan } from "@/lib/api/blankets";
 import { horsesApi, useHorseMutation } from "@/lib/api/horses";
@@ -81,44 +82,38 @@ export default function BlanketPlan() {
         />
       }
     >
-      <Hero eyebrow={`${p.horse.name} · ${nightLine(p.weather)}`} title="Heute Nacht" description={recommendationDetail(rec)}>
-        <View className="flex-row items-center gap-4">
+      <PageHeader eyebrow={`${p.horse.name} · ${nightLine(p.weather)}`} title="Heute Nacht" description={recommendationDetail(rec)}>
+        <Card className="flex-row items-center gap-4">
           <BlanketPhoto url={rec.blanket?.photo_url ?? null} size={88} />
           <View className="flex-1 gap-1">
-            <Text variant="titleLg">{recommendationTitle(rec)}</Text>
+            <Text variant="title">{recommendationTitle(rec)}</Text>
             {rec.blanket ? <Text variant="body">{fillLabel(rec.blanket.fill_g)}</Text> : null}
             {p.state ? (
-              <Text variant="secondary" className="text-white/80">
+              <Text variant="secondary">
                 {stateLabel(p.state)} · {stateByline(p.state, timeZone)}
               </Text>
             ) : null}
+            {rec.note ? <Text variant="bodySm">Wunsch: {rec.note}</Text> : null}
           </View>
-        </View>
-        {rec.note ? (
-          <Text variant="bodySm" className="text-white/90">
-            Wunsch: {rec.note}
-          </Text>
-        ) : null}
-      </Hero>
+        </Card>
+      </PageHeader>
 
-      <View className="gap-3">
-        <SectionLabel
-          action={
-            canManage ? (
-              <Button label="Bearbeiten" icon={Pencil} variant="ghost" size="sm" onPress={() => setRulesOpen(true)} />
-            ) : undefined
-          }
-        >
-          Regeln
-        </SectionLabel>
+      {p.weather ? <WeatherCard weather={p.weather} timeZone={timeZone} /> : null}
+
+      <Section
+        title="Regeln"
+        action={
+          canManage ? (
+            <Button label="Bearbeiten" icon={Pencil} variant="ghost" size="sm" onPress={() => setRulesOpen(true)} />
+          ) : undefined
+        }
+      >
         {p.rules.length === 0 ? (
-          <Card>
-            <Text variant="secondary">
-              {canManage
-                ? "Noch keine Regeln. Lege fest, welche Decke wann gilt."
-                : "Noch keine Regeln."}
-            </Text>
-          </Card>
+          <Text variant="body" tone="muted">
+            {canManage
+              ? "Noch keine Regeln. Lege fest, welche Decke wann gilt."
+              : "Noch keine Regeln."}
+          </Text>
         ) : (
           p.rules.map((r, i) => {
             const active = rec.rule_index === i;
@@ -138,22 +133,20 @@ export default function BlanketPlan() {
             );
           })
         )}
-      </View>
+      </Section>
 
-      <View className="gap-3">
-        <SectionLabel
-          action={
-            canManage ? (
-              <Button label="Hinzufügen" icon={Plus} variant="ghost" size="sm" onPress={() => setEditing({ blanket: null })} />
-            ) : undefined
-          }
-        >
-          Decken
-        </SectionLabel>
+      <Section
+        title="Decken"
+        action={
+          canManage ? (
+            <Button label="Hinzufügen" icon={Plus} variant="ghost" size="sm" onPress={() => setEditing({ blanket: null })} />
+          ) : undefined
+        }
+      >
         {p.blankets.length === 0 ? (
-          <Card>
-            <Text variant="secondary">Noch keine Decken.</Text>
-          </Card>
+          <Text variant="body" tone="muted">
+            Noch keine Decken.
+          </Text>
         ) : (
           <View className="flex-row flex-wrap gap-3">
             {p.blankets.map((b) => (
@@ -186,49 +179,45 @@ export default function BlanketPlan() {
             ))}
           </View>
         )}
-      </View>
+      </Section>
 
-      <View className="gap-3">
-        <SectionLabel
-          action={
-            canManage ? (
-              <Button
-                label="Bearbeiten"
-                icon={Pencil}
-                variant="ghost"
-                size="sm"
-                onPress={() => {
-                  setNote(p.helper_note ?? "");
-                  setNoteError(null);
-                  setNoteOpen(true);
-                }}
-              />
-            ) : undefined
-          }
-        >
-          Hinweise für Helfer
-        </SectionLabel>
-        <Card>
-          <Text variant={p.helper_note ? "body" : "secondary"}>{p.helper_note || "Noch kein Hinweis."}</Text>
-        </Card>
-      </View>
-
-      <View className="gap-3">
-        <SectionLabel
-          action={
+      <Section
+        title="Hinweise für Helfer"
+        action={
+          canManage ? (
             <Button
-              label="Alle"
-              icon={History}
+              label="Bearbeiten"
+              icon={Pencil}
               variant="ghost"
               size="sm"
-              onPress={() => router.push(`/blankets/history/${id}` as Href)}
+              onPress={() => {
+                setNote(p.helper_note ?? "");
+                setNoteError(null);
+                setNoteOpen(true);
+              }}
             />
-          }
-        >
-          Verlauf
-        </SectionLabel>
+          ) : undefined
+        }
+      >
+        <Text variant="body" tone={p.helper_note ? "default" : "muted"}>
+          {p.helper_note || "Noch kein Hinweis."}
+        </Text>
+      </Section>
+
+      <Section
+        title="Verlauf"
+        action={
+          <Button
+            label="Alle"
+            icon={History}
+            variant="ghost"
+            size="sm"
+            onPress={() => router.push(`/blankets/history/${id}` as Href)}
+          />
+        }
+      >
         <BlanketHistory horseId={id} days={14} limit={5} timeZone={timeZone} />
-      </View>
+      </Section>
 
       {canManage ? (
         <>

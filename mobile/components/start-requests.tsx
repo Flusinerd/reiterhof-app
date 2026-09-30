@@ -9,6 +9,7 @@ import { requestKeys, requestsApi } from "@/lib/api/requests";
 import type { ListParams } from "@/lib/requests";
 import { requestErrorMessage } from "@/lib/requests-errors";
 import { useInvalidateOnEvents } from "@/lib/realtime";
+import { colors } from "@/lib/theme";
 
 /** The two newest open help requests on the start screen (JAN-35). */
 const PARAMS: ListParams = { status: "open", limit: 2 };
@@ -32,7 +33,7 @@ export function StartRequests() {
     },
   });
 
-  if (list.isPending) return <ActivityIndicator />;
+  if (list.isPending) return <ActivityIndicator color={colors.primary.DEFAULT} className="self-start" />;
   if (list.isError) {
     return (
       <Card className="gap-3">
@@ -43,9 +44,9 @@ export function StartRequests() {
   }
   if (list.data.requests.length === 0) {
     return (
-      <Card>
-        <Text variant="secondary">Keine offenen Anfragen.</Text>
-      </Card>
+      <Text variant="body" tone="muted">
+        Keine offenen Anfragen.
+      </Text>
     );
   }
   return (

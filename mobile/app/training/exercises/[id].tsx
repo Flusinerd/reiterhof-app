@@ -2,9 +2,10 @@ import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 import { ArrowRight } from "lucide-react-native";
 import { ActivityIndicator, View } from "react-native";
 
-import { Badge, Button, Card, Divider, Hero, Icon, PressableCard, Screen, SectionLabel, Text } from "@/components/ui";
+import { Badge, Button, Card, Divider, Icon, PageHeader, PressableCard, Screen, Section, Text } from "@/components/ui";
 import { errorMessage } from "@/lib/api";
 import { disciplineLabel, levelLabel, stepCountLabel, tagLabel } from "@/lib/tracking-exercises";
+import { colors } from "@/lib/theme";
 import { useExercise } from "@/lib/tracking-queries";
 
 /** One exercise of the library: the steps ("Ablauf") and the next progression. */
@@ -17,7 +18,7 @@ export default function ExerciseDetail() {
   if (exercise.isPending) {
     return (
       <Screen back>
-        <ActivityIndicator accessibilityLabel="Lädt" />
+        <ActivityIndicator accessibilityLabel="Lädt" color={colors.primary.DEFAULT} />
       </Screen>
     );
   }
@@ -35,8 +36,7 @@ export default function ExerciseDetail() {
   const steps = e.steps ?? [];
   return (
     <Screen back>
-      <Hero
-        tone="soft"
+      <PageHeader
         eyebrow={[disciplineLabel(e.discipline), levelLabel(e.level)].filter(Boolean).join(" · ")}
         title={e.title}
         description={stepCountLabel(steps.length || e.step_count)}
@@ -48,9 +48,9 @@ export default function ExerciseDetail() {
             ))}
           </View>
         ) : null}
-      </Hero>
+      </PageHeader>
 
-      <SectionLabel>Ablauf</SectionLabel>
+      <Section title="Ablauf">
       {steps.length === 0 ? (
         <Text variant="body" tone="muted">
           Noch kein Ablauf.
@@ -74,10 +74,10 @@ export default function ExerciseDetail() {
           ))}
         </Card>
       )}
+      </Section>
 
       {e.next ? (
-        <>
-          <SectionLabel>Als Nächstes</SectionLabel>
+        <Section title="Als Nächstes">
           <PressableCard
             shape="tile"
             className="flex-row items-center gap-3"
@@ -93,7 +93,7 @@ export default function ExerciseDetail() {
             <Icon as={ArrowRight} size={20} className="text-muted" />
           </PressableCard>
           <Text variant="secondary">Nach „Sitzt“ kommt die nächste Stufe.</Text>
-        </>
+        </Section>
       ) : (
         <Text variant="secondary">Letzte Stufe der Reihe.</Text>
       )}

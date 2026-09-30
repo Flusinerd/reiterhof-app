@@ -5,8 +5,8 @@ import { Alert, View } from "react-native";
 
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
 import { RehaTimeline } from "@/components/reha-timeline";
-import { RehaTodayHero } from "@/components/reha-today-hero";
-import { Badge, Button, Card, Divider, Icon, PressableCard, Screen, SectionLabel, Text } from "@/components/ui";
+import { RehaTodayHead } from "@/components/reha-today-head";
+import { Badge, Button, Card, Divider, Icon, PressableCard, Screen, Section, Text } from "@/components/ui";
 import {
   rehaError,
   rehaKeys,
@@ -108,8 +108,7 @@ function CheckupCard({ plan }: { plan: RehaPlan }) {
 function History({ plans }: { plans: RehaPlan[] }) {
   if (plans.length === 0) return null;
   return (
-    <>
-      <SectionLabel>Frühere Pläne</SectionLabel>
+    <Section title="Frühere Pläne">
       <Card padded={false}>
         {plans.map((p, i) => (
           <View key={p.id}>
@@ -125,7 +124,7 @@ function History({ plans }: { plans: RehaPlan[] }) {
           </View>
         ))}
       </Card>
-    </>
+    </Section>
   );
 }
 
@@ -174,7 +173,7 @@ export default function Reha() {
 
   return (
     <Screen back>
-      <RehaTodayHero
+      <RehaTodayHead
         view={view}
         busy={markDone.isPending || unmark.isPending}
         onDone={() => {
@@ -200,23 +199,23 @@ export default function Reha() {
 
       {view.view === "full" && plan ? (
         <>
-          <SectionLabel>Plan</SectionLabel>
-          <PlanCard plan={plan} />
+          <Section title="Plan">
+            <PlanCard plan={plan} />
+          </Section>
 
           {plan.observation_id ? (
-            <>
-              <SectionLabel>Ausgelöst durch</SectionLabel>
+            <Section title="Ausgelöst durch">
               <SourceObservation observationId={plan.observation_id} />
-            </>
+            </Section>
           ) : null}
 
-          <SectionLabel>Phasen</SectionLabel>
-          <RehaTimeline phases={plan.phases} />
+          <Section title="Phasen">
+            <RehaTimeline phases={plan.phases} />
+          </Section>
 
           {plan.abort_criteria ? (
-            <>
-              <SectionLabel>Abbruchkriterien</SectionLabel>
-              <Card className="gap-2 border-accent bg-accent-soft">
+            <Section title="Abbruchkriterien">
+              <Card className="gap-2 border-accent-soft bg-accent-soft">
                 <View className="flex-row items-center gap-2">
                   <Icon as={TriangleAlert} size={20} className="text-accent-text" />
                   <Text variant="bodyStrong" tone="accent">
@@ -225,14 +224,13 @@ export default function Reha() {
                 </View>
                 <Text variant="body">{plan.abort_criteria}</Text>
               </Card>
-            </>
+            </Section>
           ) : null}
 
           {plan.checkup_date ? (
-            <>
-              <SectionLabel>Tierarzt-Kontrolle</SectionLabel>
+            <Section title="Tierarzt-Kontrolle">
               <CheckupCard plan={plan} />
-            </>
+            </Section>
           ) : null}
         </>
       ) : null}

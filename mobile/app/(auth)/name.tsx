@@ -1,8 +1,9 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useState } from "react";
+import { View } from "react-native";
 
-import { Button, Card, Hero, Input, Screen, Text } from "@/components/ui";
+import { Button, Input, PageHeader, Screen, Text } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
 import { ME_KEY, useAuth } from "@/lib/auth";
 
@@ -39,9 +40,10 @@ export default function Name() {
   }
 
   return (
-    <Screen back={editing} keyboardShouldPersistTaps="handled">
-      <Hero title="Wie heißt du?" description="So sehen dich die anderen im Stall." />
-      <Card className="gap-3">
+    <Screen back={editing} keyboardShouldPersistTaps="handled" contentClassName="flex-grow pt-8">
+      <PageHeader title="Wie heißt du?" description="So sehen dich die anderen im Stall." />
+
+      <View className="gap-3">
         <Input
           value={name}
           onChangeText={setName}
@@ -55,13 +57,13 @@ export default function Name() {
           returnKeyType="done"
           onSubmitEditing={save}
         />
-        <Button label={editing ? "Speichern" : "Weiter"} fullWidth loading={busy} onPress={save} />
+        <Button label={editing ? "Speichern" : "Weiter"} size="lg" fullWidth loading={busy} onPress={save} />
         {error ? (
           <Text variant="bodySm" tone="danger" accessibilityRole="alert">
             {error}
           </Text>
         ) : null}
-      </Card>
+      </View>
     </Screen>
   );
 }

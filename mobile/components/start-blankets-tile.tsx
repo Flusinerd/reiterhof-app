@@ -23,7 +23,6 @@ export function StartBlanketsTile({ today, mineIds }: { today: Today | undefined
       <View className="gap-3">
         <View className="flex-row items-center gap-4">
           <View className="flex-1 gap-1">
-            <Text variant="label">Decken heute</Text>
             <View className="flex-row items-baseline gap-2">
               <Text variant="heroNumberSm">{today ? progressLabel(today.progress) : "–"}</Text>
               <Text variant="secondary">versorgt</Text>

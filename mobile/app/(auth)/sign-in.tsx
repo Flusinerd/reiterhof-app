@@ -1,10 +1,11 @@
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { Image, Platform } from "react-native";
+import { Platform, View } from "react-native";
 
+import { Brand } from "@/components/brand";
 import { LegalLinks } from "@/components/consent-legal-links";
 import { AppleSignInButton, GoogleSignInButton } from "@/components/social-sign-in";
-import { Button, Card, Hero, Input, Screen, SectionLabel, Text } from "@/components/ui";
+import { Button, Divider, Input, PageHeader, Screen, Text } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
 import { normalizeEmail } from "@/lib/validation";
 
@@ -33,16 +34,12 @@ export default function SignIn() {
   }
 
   return (
-    <Screen keyboardShouldPersistTaps="handled">
-      <Image
-        source={require("../../assets/logo-256.png")}
-        accessibilityLabel="Stallfunk"
-        style={{ width: 64, height: 64, borderRadius: 16 }}
-      />
-      <Hero title="Anmelden" description="Ohne Passwort, per Code aus der E-Mail." />
+    <Screen keyboardShouldPersistTaps="handled" contentClassName="flex-grow pt-8">
+      <Brand />
 
-      <SectionLabel>E-Mail</SectionLabel>
-      <Card className="gap-3">
+      <PageHeader title="Anmelden" description="Ohne Passwort, per Code aus der E-Mail." className="mt-4" />
+
+      <View className="gap-3">
         <Input
           value={email}
           onChangeText={setEmail}
@@ -55,23 +52,24 @@ export default function SignIn() {
           textContentType="emailAddress"
           returnKeyType="send"
           onSubmitEditing={sendLink}
+          className="h-14"
         />
-        <Button label="Code senden" fullWidth loading={busy} onPress={sendLink} />
-      </Card>
+        <Button label="Code senden" size="lg" fullWidth loading={busy} onPress={sendLink} />
+        {error ? (
+          <Text variant="bodySm" tone="danger" accessibilityRole="alert">
+            {error}
+          </Text>
+        ) : null}
+      </View>
 
-      <SectionLabel>Oder</SectionLabel>
-      <Card className="gap-3">
+      <Divider label="oder" />
+
+      <View className="gap-3">
         <GoogleSignInButton onError={setError} />
         {Platform.OS === "ios" ? <AppleSignInButton onError={setError} /> : null}
-      </Card>
+      </View>
 
-      {error ? (
-        <Text variant="bodySm" tone="danger" accessibilityRole="alert">
-          {error}
-        </Text>
-      ) : null}
-
-      <LegalLinks />
+      <LegalLinks className="mt-auto" />
     </Screen>
   );
 }

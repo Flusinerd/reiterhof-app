@@ -55,9 +55,9 @@ export function HorseRiders({ horse }: { horse: Horse }) {
   return (
     <View className="gap-3">
       {horse.riders.length === 0 ? (
-        <Card>
-          <Text variant="secondary">Keine Reitbeteiligungen.</Text>
-        </Card>
+        <Text variant="body" tone="muted">
+          Keine Reitbeteiligungen.
+        </Text>
       ) : (
         horse.riders.map((r) => {
           const row = (

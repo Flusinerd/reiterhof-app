@@ -5,7 +5,7 @@ import { useState } from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
 
 import { RequestCard } from "@/components/request-card";
-import { Button, Card, Hero, Pill, Screen, SectionLabel, Text } from "@/components/ui";
+import { Button, Card, PageHeader, Pill, Screen, Section, Text } from "@/components/ui";
 import { requestKeys, requestsApi } from "@/lib/api/requests";
 import { colors } from "@/lib/theme";
 import { REQUEST_FILTERS, filterParams, toIsoDate, type RequestFilter } from "@/lib/requests";
@@ -55,20 +55,21 @@ export default function Requests() {
         />
       }
     >
-      <Hero
-        value={String(open)}
-        unit={open === 1 ? "offene Anfrage" : "offene Anfragen"}
-      >
-        <View className="flex-row flex-wrap gap-3">
+      <PageHeader
+        title="Anfragen"
+        action={
           <Button
             label="Neu"
             icon={Plus}
-            variant="secondary"
+            size="sm"
             onPress={() => router.push("/requests/new")}
             accessibilityLabel="Neue Anfrage"
           />
-        </View>
-      </Hero>
+        }
+        value={list.data ? String(open) : "–"}
+        valueSize="sm"
+        unit={open === 1 ? "offene Anfrage" : "offene Anfragen"}
+      />
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-2" className="-mx-6" contentContainerStyle={{ paddingHorizontal: 24 }}>
         {REQUEST_FILTERS.map((f) => (
@@ -82,31 +83,29 @@ export default function Requests() {
         </Text>
       ) : null}
 
-      <View className="gap-3">
-        <SectionLabel
-          action={
-            <Button
-              label="Mein Kalender"
-              icon={CalendarDays}
-              variant="ghost"
-              size="sm"
-              onPress={() => router.push("/requests/calendar")}
-            />
-          }
-        >
-          {REQUEST_FILTERS.find((f) => f.value === filter)?.label ?? ""}
-        </SectionLabel>
+      <Section
+        title={REQUEST_FILTERS.find((f) => f.value === filter)?.label ?? ""}
+        action={
+          <Button
+            label="Mein Kalender"
+            icon={CalendarDays}
+            variant="ghost"
+            size="sm"
+            onPress={() => router.push("/requests/calendar")}
+          />
+        }
+      >
         {list.isPending ? (
-          <ActivityIndicator />
+          <ActivityIndicator color={colors.primary.DEFAULT} />
         ) : list.isError ? (
           <Card className="gap-3">
             <Text variant="body">{requestErrorMessage(list.error)}</Text>
             <Button label="Erneut versuchen" variant="outline" onPress={() => void list.refetch()} />
           </Card>
         ) : requests.length === 0 ? (
-          <Card>
-            <Text variant="secondary">{EMPTY_TEXT[filter]}</Text>
-          </Card>
+          <Text variant="body" tone="muted">
+            {EMPTY_TEXT[filter]}
+          </Text>
         ) : (
           requests.map((r) => (
             <RequestCard
@@ -118,23 +117,22 @@ export default function Requests() {
             />
           ))
         )}
-      </View>
+      </Section>
 
-      <SectionLabel>Benachrichtigungen</SectionLabel>
-      <Card className="gap-2">
+      <View className="gap-3">
         <Button
-          label="Einstellungen"
+          label="Benachrichtigungen"
           icon={Bell}
           variant="outline"
           fullWidth
           onPress={() => router.push("/settings")}
         />
         {thanks.data && thanks.data.count > 0 ? (
-          <Text variant="secondary">
+          <Text variant="secondary" className="text-center">
             {`${thanks.data.count}-mal bedankt.`}
           </Text>
         ) : null}
-      </Card>
+      </View>
     </Screen>
   );
 }

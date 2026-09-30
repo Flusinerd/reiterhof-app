@@ -5,7 +5,7 @@ import { useMemo } from "react";
 import { ActivityIndicator, RefreshControl, View } from "react-native";
 
 import { RequestCard } from "@/components/request-card";
-import { Button, Card, Hero, Screen, SectionLabel, Text } from "@/components/ui";
+import { Button, Card, PageHeader, Screen, Section, Text } from "@/components/ui";
 import { requestKeys, requestsApi } from "@/lib/api/requests";
 import { colors } from "@/lib/theme";
 import { relativeDay, toIsoDate, type HelpRequest } from "@/lib/requests";
@@ -41,28 +41,30 @@ export default function HelperCalendar() {
         />
       }
     >
-      <Hero
-        eyebrow="Mein Kalender"
-        value={String(requests.length)}
+      <PageHeader
+        title="Mein Kalender"
+        value={query.data ? String(requests.length) : "–"}
+        valueSize="sm"
         unit={requests.length === 1 ? "Termin" : "Termine"}
       />
 
       {query.isPending ? (
-        <ActivityIndicator />
+        <ActivityIndicator color={colors.primary.DEFAULT} />
       ) : query.isError ? (
         <Card className="gap-3">
           <Text variant="body">{requestErrorMessage(query.error)}</Text>
           <Button label="Erneut versuchen" variant="outline" onPress={() => void query.refetch()} />
         </Card>
       ) : requests.length === 0 ? (
-        <Card className="gap-3">
-          <Text variant="secondary">Hier stehen Anfragen, bei denen du hilfst.</Text>
+        <View className="gap-3">
+          <Text variant="body" tone="muted">
+            Hier stehen Anfragen, bei denen du hilfst.
+          </Text>
           <Button label="Zu den Anfragen" variant="outline" onPress={() => router.replace("/(tabs)/requests")} />
-        </Card>
+        </View>
       ) : (
         groupByDay(requests).map((g) => (
-          <View key={g.date} className="gap-3">
-            <SectionLabel>{relativeDay(g.date, today)}</SectionLabel>
+          <Section key={g.date} title={relativeDay(g.date, today)}>
             {g.items.map((r) => (
               <RequestCard
                 key={r.id}
@@ -70,7 +72,7 @@ export default function HelperCalendar() {
                 onOpen={() => router.push({ pathname: "/requests/[id]", params: { id: r.id } })}
               />
             ))}
-          </View>
+          </Section>
         ))
       )}
 

@@ -2,7 +2,7 @@ import { router, type Href } from "expo-router";
 import { useState } from "react";
 
 import { HorseForm } from "@/components/horse-form";
-import { Hero, Screen } from "@/components/ui";
+import { PageHeader, Screen } from "@/components/ui";
 import { errorMessage } from "@/lib/api";
 import { horsesApi, useHorseMutation, useMembers } from "@/lib/api/horses";
 import { useAuth } from "@/lib/auth";
@@ -16,7 +16,7 @@ export default function NewHorse() {
 
   return (
     <Screen back keyboardShouldPersistTaps="handled">
-      <Hero
+      <PageHeader
         title="Pferd anlegen"
         description="Du wirst als Besitzer eingetragen."
       />

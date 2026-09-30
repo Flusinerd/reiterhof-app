@@ -38,8 +38,10 @@
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "DENY"
 		Referrer-Policy "no-referrer"
-		# The API serves JSON only, so no content is allowed to load or embed.
-		Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
+		# Default for the JSON API: nothing may load or embed. "?" keeps a CSP the backend
+		# sets itself, e.g. the styled page of the login mail (/auth/verify allows its own
+		# stylesheet by hash and the inline logo).
+		?Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
 		Permissions-Policy "camera=(), microphone=(), geolocation=()"
 		Cross-Origin-Resource-Policy "same-site"
 		-Server
@@ -71,7 +73,8 @@
 	@backend path /api/* /auth/verify
 	handle @backend {
 		header {
-			Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
+			# Default for JSON responses; "?" keeps the CSP that /auth/verify sends itself.
+			?Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
 			Permissions-Policy "camera=(), microphone=(), geolocation=()"
 		}
 		import backend

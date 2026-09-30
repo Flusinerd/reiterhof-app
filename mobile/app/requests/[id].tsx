@@ -5,7 +5,7 @@ import { useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, View } from "react-native";
 
 import { RequestTypeIcon } from "@/components/request-type-icon";
-import { Avatar, Badge, Button, Card, Divider, Hero, Icon, Pill, Screen, SectionLabel, Sheet, Text } from "@/components/ui";
+import { Avatar, Badge, Button, Card, Divider, Icon, PageHeader, Pill, Screen, Section, Sheet, Text } from "@/components/ui";
 import { requestKeys, requestsApi } from "@/lib/api/requests";
 import { useAuth } from "@/lib/auth";
 import { colors } from "@/lib/theme";
@@ -72,14 +72,14 @@ export default function RequestDetail() {
   if (query.isPending) {
     return (
       <Screen back>
-        <ActivityIndicator />
+        <ActivityIndicator color={colors.primary.DEFAULT} />
       </Screen>
     );
   }
   if (!r) {
     return (
       <Screen back>
-        <Hero tone="plain" title="Anfrage nicht gefunden" description={requestErrorMessage(query.error)} />
+        <PageHeader title="Anfrage nicht gefunden" description={requestErrorMessage(query.error)} />
         <Button label="Erneut versuchen" variant="outline" onPress={() => void query.refetch()} />
       </Screen>
     );
@@ -106,13 +106,17 @@ export default function RequestDetail() {
         <RefreshControl refreshing={query.isRefetching} onRefresh={() => void query.refetch()} tintColor={colors.primary.DEFAULT} />
       }
     >
-      <Hero eyebrow={`Von ${r.is_creator ? "dir" : r.creator_name}`} title={requestTitle(r)} description={formatWhen(r)}>
-        <View className="flex-row items-center gap-3">
-          <RequestTypeIcon type={r.type} size={36} />
+      <PageHeader
+        eyebrow={`Von ${r.is_creator ? "dir" : r.creator_name}`}
+        title={requestTitle(r)}
+        description={formatWhen(r)}
+        action={<RequestTypeIcon type={r.type} size={44} />}
+      >
+        <View className="flex-row flex-wrap items-center gap-3">
           <Badge label={status.label} variant={status.variant} />
-          <Text variant="bodySm">{helperCountText(r.helpers_count, r.helpers_needed, r.type)}</Text>
+          <Text variant="secondary">{helperCountText(r.helpers_count, r.helpers_needed, r.type)}</Text>
         </View>
-      </Hero>
+      </PageHeader>
 
       {error ? (
         <Text variant="bodySm" tone="danger" accessibilityRole="alert">
@@ -132,8 +136,7 @@ export default function RequestDetail() {
         />
       ) : null}
 
-      <View className="gap-3">
-        <SectionLabel>Details</SectionLabel>
+      <Section title="Details">
         <Card className="gap-3">
           <Row label="Wann" value={formatWhen(r)} />
           {r.location ? <Row label="Wo" value={r.location} /> : null}
@@ -166,11 +169,10 @@ export default function RequestDetail() {
             </>
           ) : null}
         </Card>
-      </View>
+      </Section>
 
       {chips.length > 0 ? (
-        <View className="gap-3">
-          <SectionLabel>Checkliste</SectionLabel>
+        <Section title="Checkliste">
           <Card className="gap-1 py-2">
             {chips.map((c) => (
               <Pressable
@@ -187,11 +189,10 @@ export default function RequestDetail() {
               </Pressable>
             ))}
           </Card>
-        </View>
+        </Section>
       ) : null}
 
-      <View className="gap-3">
-        <SectionLabel>{`Helfer · ${helperStatusText(r.helpers_count, r.helpers_needed, r.type)}`}</SectionLabel>
+      <Section title="Helfer" description={helperStatusText(r.helpers_count, r.helpers_needed, r.type)}>
         <Card className="gap-3">
           {r.helpers.length === 0 ? <Text variant="secondary">Noch niemand.</Text> : null}
           {r.helpers.map((h) => (
@@ -208,7 +209,7 @@ export default function RequestDetail() {
             </View>
           ))}
         </Card>
-      </View>
+      </Section>
 
       <View className="gap-3">
         {r.is_helper && active ? (

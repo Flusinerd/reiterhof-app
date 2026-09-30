@@ -4,11 +4,10 @@ import { Pressable, View } from "react-native";
 
 import {
   Button,
-  Card,
   Icon,
   Input,
   Pill,
-  SectionLabel,
+  Section,
   Text,
   ToggleGroup,
   ToggleGroupItem,
@@ -35,8 +34,8 @@ type Props = {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <View className="gap-2">
-      <Text variant="secondary">{label}</Text>
+    <View className="gap-1.5">
+      <Text variant="label">{label}</Text>
       {children}
     </View>
   );
@@ -100,8 +99,7 @@ export function HorseForm({ horse, card, isAdmin, members, submitLabel, saving, 
 
   return (
     <>
-      <SectionLabel>Stammdaten</SectionLabel>
-      <Card className="gap-4">
+      <Section title="Stammdaten" className="gap-4">
         <Field label="Name">
           <Input value={name} onChangeText={setName} accessibilityLabel="Name" placeholder="z. B. Luna" />
         </Field>
@@ -175,25 +173,19 @@ export function HorseForm({ horse, card, isAdmin, members, submitLabel, saving, 
             placeholder="z. B. Futter, Weide, Besonderheiten"
           />
         </Field>
-      </Card>
+      </Section>
 
       {isAdmin && members ? (
-        <>
-          <SectionLabel>Besitzer</SectionLabel>
-          <Card className="gap-3">
-            <Text variant="secondary">Als Admin wählst du den Besitzer.</Text>
-            <View className="flex-row flex-wrap gap-2">
-              {members.map((m) => (
-                <Pill key={m.id} label={m.name} selected={ownerId === m.id} onPress={() => setOwnerId(m.id)} />
-              ))}
-            </View>
-          </Card>
-        </>
+        <Section title="Besitzer" description="Als Admin wählst du den Besitzer.">
+          <View className="flex-row flex-wrap gap-2">
+            {members.map((m) => (
+              <Pill key={m.id} label={m.name} selected={ownerId === m.id} onPress={() => setOwnerId(m.id)} />
+            ))}
+          </View>
+        </Section>
       ) : null}
 
-      <SectionLabel>Notfallkarte</SectionLabel>
-      <Card className="gap-4">
-        <Text variant="secondary">Sichtbar für alle im Stall.</Text>
+      <Section title="Notfallkarte" description="Sichtbar für alle im Stall." className="gap-4">
         <Field label="Tierarzt">
           <Input value={vetName} onChangeText={setVetName} accessibilityLabel="Name des Tierarztes" />
         </Field>
@@ -228,7 +220,7 @@ export function HorseForm({ horse, card, isAdmin, members, submitLabel, saving, 
         <Field label="Versicherung">
           <Input value={insurance} onChangeText={setInsurance} accessibilityLabel="Versicherung" />
         </Field>
-      </Card>
+      </Section>
 
       {problem || error ? (
         <Text variant="bodySm" tone="danger" accessibilityRole="alert">

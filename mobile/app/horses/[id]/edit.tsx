@@ -3,7 +3,7 @@ import { useState } from "react";
 
 import { HorseForm } from "@/components/horse-form";
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
-import { Hero, Screen } from "@/components/ui";
+import { PageHeader, Screen } from "@/components/ui";
 import { ApiError, errorMessage } from "@/lib/api";
 import { horsesApi, useEmergency, useHorse, useHorseMutation, useMembers } from "@/lib/api/horses";
 import { useAuth } from "@/lib/auth";
@@ -24,7 +24,7 @@ export default function EditHorse() {
     <Screen back keyboardShouldPersistTaps="handled">
       {horse.data && card.data && canEdit ? (
         <>
-          <Hero title={`${horse.data.name} bearbeiten`} description="Änderungen sehen alle im Stall." />
+          <PageHeader title={`${horse.data.name} bearbeiten`} description="Änderungen sehen alle im Stall." />
           <HorseForm
             key={horse.data.id}
             horse={horse.data}

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Alert, Linking, View } from "react-native";
 
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
-import { Button, Card, Divider, Hero, Input, Screen, SectionLabel, Sheet, Text } from "@/components/ui";
+import { Button, Card, Divider, Input, PageHeader, Screen, Section, Sheet, Text } from "@/components/ui";
 import { errorMessage } from "@/lib/api";
 import { horsesApi, useEmergency, useHorseMutation, type Contact } from "@/lib/api/horses";
 import { horseRoutes, telUrl } from "@/lib/horse-format";
@@ -98,25 +98,25 @@ export default function Emergency() {
 
   return (
     <Screen back keyboardShouldPersistTaps="handled">
-      <Hero
-        tone="warm"
+      <PageHeader
         eyebrow="Notfallkarte"
         title={c.horse_name}
         description={c.emergency_note ?? "Kein Notfall-Hinweis."}
-      >
-        {c.can_manage ? (
-          <Button
-            label="Bearbeiten"
-            icon={Pencil}
-            variant="outline"
-            size="sm"
-            onPress={() => router.push(horseRoutes.edit(c.horse_id) as Href)}
-          />
-        ) : null}
-      </Hero>
+        action={
+          c.can_manage ? (
+            <Button
+              label="Bearbeiten"
+              icon={Pencil}
+              variant="ghost"
+              size="sm"
+              onPress={() => router.push(horseRoutes.edit(c.horse_id) as Href)}
+            />
+          ) : undefined
+        }
+      />
 
-      <SectionLabel>Anrufen</SectionLabel>
-      <Card className="gap-3">
+      <Section title="Anrufen">
+        <Card className="gap-3">
         <CallRow label="Besitzer" name={c.owner?.name} phone={c.owner?.phone} />
         <Divider />
         <CallRow label="Tierarzt" name={c.vet_name} phone={c.vet_phone} />
@@ -143,19 +143,23 @@ export default function Emergency() {
             }}
           />
         ) : null}
-      </Card>
+        </Card>
+      </Section>
 
-      <SectionLabel>Medizinisches</SectionLabel>
-      <Card className="gap-4">
-        <Fact label="Notfall-Medikament" value={c.emergency_medication} />
-        <Fact label="Dauermedikation" value={c.permanent_medication} />
-        <Fact label="Allergien" value={c.allergies} />
-        <Fact label="Gewicht" value={c.weight_kg ? `${c.weight_kg} kg` : null} />
-        <Fact label="Versicherung" value={c.insurance} />
-        {!c.emergency_medication && !c.permanent_medication && !c.allergies && !c.weight_kg && !c.insurance ? (
-          <Text variant="secondary">Noch keine Angaben.</Text>
-        ) : null}
-      </Card>
+      <Section title="Medizinisches">
+        <View className="gap-4">
+          <Fact label="Notfall-Medikament" value={c.emergency_medication} />
+          <Fact label="Dauermedikation" value={c.permanent_medication} />
+          <Fact label="Allergien" value={c.allergies} />
+          <Fact label="Gewicht" value={c.weight_kg ? `${c.weight_kg} kg` : null} />
+          <Fact label="Versicherung" value={c.insurance} />
+          {!c.emergency_medication && !c.permanent_medication && !c.allergies && !c.weight_kg && !c.insurance ? (
+            <Text variant="body" tone="muted">
+              Noch keine Angaben.
+            </Text>
+          ) : null}
+        </View>
+      </Section>
 
       <Sheet
         open={draft !== null}

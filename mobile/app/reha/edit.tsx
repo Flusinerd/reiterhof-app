@@ -5,7 +5,7 @@ import { View } from "react-native";
 
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
 import { RehaPhaseSheet } from "@/components/reha-phase-sheet";
-import { Button, Card, Divider, Hero, Input, Screen, SectionLabel, Text } from "@/components/ui";
+import { Button, Card, Divider, Input, PageHeader, Screen, Section, Text } from "@/components/ui";
 import { useObservation } from "@/lib/api/observations";
 import { diagnosisFromObservation } from "@/lib/observations";
 import { rehaError, useCreatePlan, useReha, useUpdatePlan } from "@/lib/api/reha";
@@ -29,8 +29,8 @@ import { formatDate, isValidDate } from "@/lib/training";
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
-    <View className="gap-1">
-      <Text variant="secondary">{label}</Text>
+    <View className="gap-1.5">
+      <Text variant="label">{label}</Text>
       {children}
       {hint ? <Text variant="caption">{hint}</Text> : null}
     </View>
@@ -146,15 +146,13 @@ export default function RehaEdit() {
 
   return (
     <Screen back keyboardShouldPersistTaps="handled">
-      <Hero
-        tone="soft"
+      <PageHeader
         eyebrow={view.horse_name}
         title={editingPlan ? "Reha-Plan bearbeiten" : "Reha-Plan anlegen"}
         description="Phasen laufen nacheinander. Im Training gilt nur die erlaubte Einheit."
       />
 
-      <SectionLabel>Diagnose</SectionLabel>
-      <View className="gap-4">
+      <Section title="Diagnose" className="gap-4">
         <Field label="Diagnose">
           <Input
             accessibilityLabel="Diagnose"
@@ -187,13 +185,13 @@ export default function RehaEdit() {
             onChangeText={(checkupDate) => patch({ checkupDate })}
           />
         </Field>
-      </View>
+      </Section>
 
-      <SectionLabel>Phasen</SectionLabel>
+      <Section title="Phasen">
       {draft.phases.length === 0 ? (
-        <Card>
-          <Text variant="secondary">Noch keine Phase. z. B. „Boxenruhe“, „Schritt führen“.</Text>
-        </Card>
+        <Text variant="body" tone="muted">
+          Noch keine Phase. z. B. „Boxenruhe“, „Schritt führen“.
+        </Text>
       ) : (
         <Card padded={false}>
           {draft.phases.map((p, i) => (
@@ -260,8 +258,9 @@ export default function RehaEdit() {
           {daysText(total)} insgesamt, bis {formatDate(dated[dated.length - 1]?.end ?? draft.startDate)}.
         </Text>
       ) : null}
+      </Section>
 
-      <SectionLabel>Abbruchkriterien</SectionLabel>
+      <Section title="Abbruchkriterien">
       <Field label="Sofort abbrechen bei (optional)">
         <Input
           accessibilityLabel="Abbruchkriterien"
@@ -274,6 +273,7 @@ export default function RehaEdit() {
           onChangeText={(abortCriteria) => patch({ abortCriteria })}
         />
       </Field>
+      </Section>
 
       {replacesActive ? (
         <Text variant="secondary">Der aktive Plan wird beim Speichern beendet.</Text>

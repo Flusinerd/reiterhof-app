@@ -1,8 +1,9 @@
 import { useRouter } from "expo-router";
 import { useState } from "react";
+import { View } from "react-native";
 
 import { LegalLinks } from "@/components/consent-legal-links";
-import { Button, Card, Hero, Input, Screen, SectionLabel, Text } from "@/components/ui";
+import { Button, Input, PageHeader, Screen, Text } from "@/components/ui";
 import { errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { formatInviteCode, normalizeInviteCode } from "@/lib/validation";
@@ -31,15 +32,14 @@ export default function Join() {
   }
 
   return (
-    <Screen keyboardShouldPersistTaps="handled">
-      <Hero
+    <Screen keyboardShouldPersistTaps="handled" contentClassName="flex-grow pt-8">
+      <PageHeader
         eyebrow={user ? `Hallo ${user.name}` : undefined}
         title="Stall beitreten"
         description="Gib den Einladungscode deines Stalls ein."
       />
 
-      <SectionLabel>Einladungscode</SectionLabel>
-      <Card className="gap-3">
+      <View className="gap-3">
         <Input
           value={code}
           onChangeText={(v) => setCode(formatInviteCode(v))}
@@ -49,18 +49,22 @@ export default function Join() {
           autoCorrect={false}
           returnKeyType="go"
           onSubmitEditing={join}
+          className="h-16 text-center font-display text-title"
+          style={{ letterSpacing: 3 }}
         />
-        <Button label="Beitreten" fullWidth loading={busy} onPress={join} />
+        <Button label="Beitreten" size="lg" fullWidth loading={busy} onPress={join} />
         {error ? (
           <Text variant="bodySm" tone="danger" accessibilityRole="alert">
             {error}
           </Text>
         ) : null}
-      </Card>
+      </View>
 
-      <Button variant="ghost" label="Datenschutz und Konto" fullWidth onPress={() => router.push("/settings/privacy")} />
-      <LegalLinks />
-      <Button variant="ghost" label="Abmelden" fullWidth onPress={signOut} />
+      <View className="mt-auto gap-2">
+        <Button variant="ghost" label="Datenschutz und Konto" fullWidth onPress={() => router.push("/settings/privacy")} />
+        <Button variant="ghost" label="Abmelden" fullWidth onPress={signOut} />
+        <LegalLinks />
+      </View>
     </Screen>
   );
 }

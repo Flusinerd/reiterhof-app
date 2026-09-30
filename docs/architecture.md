@@ -143,7 +143,7 @@ bearer token, only its SHA-256 hash is stored, sessions last 90 days from the la
 
 | Route (all `POST`, no auth) | Body | Notes |
 | --- | --- | --- |
-| `/api/v1/auth/magic-link` | `{email}` | Always `204` (no user enumeration), `429` when rate limited (3 per email / 15 min, 20 per IP / h). Mail contains `stallfunk://auth/verify?token=...` and, if `REITERHOF_PUBLIC_URL` is set, an https fallback `<url>/auth/verify?token=...` (a page that only links to the app, it never consumes the token). Tokens live 15 min and work once. The same mail carries a 6-digit login code (see below); subject `Dein Stallfunk-Code: 123456`. The mail is branded HTML with a plain-text alternative (`auth.MailContent`, `internal/auth/mailtmpl.go`): logo inline as `cid:` image, code box, and a button to the https fallback (HTML never carries the `stallfunk://` link, mail clients drop custom schemes). `mail test` sends the same layout. |
+| `/api/v1/auth/magic-link` | `{email}` | Always `204` (no user enumeration), `429` when rate limited (3 per email / 15 min, 20 per IP / h). Mail contains `stallfunk://auth/verify?token=...` and, if `REITERHOF_PUBLIC_URL` is set, an https fallback `<url>/auth/verify?token=...` (a page in the app's design that only links to the app, it never consumes the token; it sends its own Content-Security-Policy with the hash of its stylesheet, Caddy's `default-src 'none'` is only a default). Tokens live 15 min and work once. The same mail carries a 6-digit login code (see below); subject `Dein Stallfunk-Code: 123456`. The mail is branded HTML with a plain-text alternative (`auth.MailContent`, `internal/auth/mailtmpl.go`): logo inline as `cid:` image, code box, and a button to the https fallback (HTML never carries the `stallfunk://` link, mail clients drop custom schemes). `mail test` sends the same layout. |
 | `/api/v1/auth/verify` | `{token}` | Creates the user if the email is new. `401 invalid_token` if unknown, used or expired. |
 | `/api/v1/auth/verify-code` | `{email, code}` | Signs in with the 6-digit code from the mail, exactly like `/auth/verify` (`code` may contain spaces or dashes). `401 invalid_code` for every failure (unknown email, wrong, expired, used, locked out), `429 rate_limited` after 30 calls per IP / 15 min. |
 | `/api/v1/auth/google` | `{id_token}` | RS256 ID token, checked against Google's JWKS (cached), `iss`, `aud` (`REITERHOF_GOOGLE_CLIENT_IDS`), `exp`. |
@@ -397,10 +397,16 @@ no third-party weather API. The KMZ (zip with one KML) has hourly steps for ~10 
 the Dorsten stable (51.66, 6.96) that is Essen-Bredeney, id `10410`. Override with
 `REITERHOF_WEATHER_STATION` (any MOSMIX id) or extend the list.
 
-**Night summary** (`weather.Summarize`): window 18:00 stable-local on the day until 08:00
-the next day (wall-clock, so DST nights are 15 h / 13 h). Result: `night_min_c`, max rain
-probability, rain sum, max wind. `will_rain = maxProb >= 50 % || sum >= 0.5 mm`
-(`weather.RainProbabilityThreshold`, `weather.RainSumThresholdMM`).
+**Forecast window** (`weather.Summarize`): from 18:00 stable-local on the day until 12:30 the
+next day, i.e. from covering in the evening until the horses come in and are uncovered
+(wall-clock, so DST nights are one hour longer or shorter). Temperature and wind use the hourly
+steps in the window; precipitation is per hour ending at the step and an hour counts with its
+share inside the window (12:00 to 13:00 counts half). Result: `night_min_c` (lowest temperature
+of the window), `temp_max_c`, max rain probability, rain sum `rain_mm`, `rain_peak_mm` (most in
+one hour), `rain_hours` (hours with at least 0.1 mm), `rain_from`/`rain_until`, max wind and an
+hourly `timeline`. `will_rain = maxProb >= 50 % || sum >= 0.5 mm`
+(`weather.RainProbabilityThreshold`, `weather.RainSumThresholdMM`). The details live in the
+`raw` JSON of the snapshot, so no migration; older snapshots lack them.
 
 **Job:** `weather.Service.Refresh` runs hourly (wired in `cmd/api`): per stable with lat/lng
 it stores snapshots for today and tomorrow in `weather_snapshots` (append-only, `raw` holds

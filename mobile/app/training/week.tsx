@@ -6,7 +6,8 @@ import { ActivityIndicator, RefreshControl, View } from "react-native";
 import { ActivityIcon } from "@/components/training-activity-icon";
 import { LoadBar } from "@/components/training-dots";
 import { HorseSwitcher } from "@/components/training-horse-switcher";
-import { Badge, Button, Card, Divider, Hero, Screen, SectionLabel, Text } from "@/components/ui";
+import { Badge, Button, Card, Divider, PageHeader, Screen, Text } from "@/components/ui";
+import { colors } from "@/lib/theme";
 import { trainingError, useTakeDay, useTrainingHorses, useWeek, type WeekDay } from "@/lib/api/training";
 import { weekRehaText } from "@/lib/reha";
 import { addDays, dayStatusLabel, formatDayLong, weekRangeLabel, weekdayShort } from "@/lib/training";
@@ -28,7 +29,7 @@ export default function TrainingWeek() {
     return (
       <Screen back>
         <View className="items-center py-16">
-          <ActivityIndicator />
+          <ActivityIndicator color={colors.primary.DEFAULT} />
         </View>
       </Screen>
     );
@@ -50,7 +51,9 @@ export default function TrainingWeek() {
   return (
     <Screen
       back
-      refreshControl={<RefreshControl refreshing={week.isRefetching} onRefresh={() => void week.refetch()} />}
+      refreshControl={
+        <RefreshControl refreshing={week.isRefetching} onRefresh={() => void week.refetch()} tintColor={colors.primary.DEFAULT} />
+      }
     >
       <HorseSwitcher
         horses={list}
@@ -61,13 +64,12 @@ export default function TrainingWeek() {
         }}
       />
 
-      <Hero
-        tone="soft"
+      <PageHeader
         eyebrow={`${horseName} · ${weekRangeLabel(data.start, data.end)}`}
         title={data.assessment}
       >
         <LoadBar segments={data.segments} />
-      </Hero>
+      </PageHeader>
 
       <View className="flex-row items-center justify-between">
         <Button variant="outline" size="icon" icon={ChevronLeft} accessibilityLabel="Vorherige Woche" onPress={() => shift(-7)} />
@@ -75,7 +77,6 @@ export default function TrainingWeek() {
         <Button variant="outline" size="icon" icon={ChevronRight} accessibilityLabel="Nächste Woche" onPress={() => shift(7)} />
       </View>
 
-      <SectionLabel>Tage</SectionLabel>
       <Card padded={false}>
         {data.days.map((d, i) => (
           <View key={d.date}>

@@ -36,13 +36,13 @@ export function BlanketHistory({
   const groups = groupByDay(history.data.states).slice(0, limit);
   if (groups.length === 0) {
     return (
-      <Card>
-        <Text variant="secondary">Noch nichts eingetragen.</Text>
-      </Card>
+      <Text variant="body" tone="muted">
+        Noch nichts eingetragen.
+      </Text>
     );
   }
   return (
-    <Card className="gap-0 p-0">
+    <Card padded={false}>
       {groups.map((g, gi) => (
         <View key={g.day}>
           {gi > 0 ? <Divider /> : null}

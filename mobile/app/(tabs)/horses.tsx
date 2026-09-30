@@ -2,11 +2,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { router, type Href } from "expo-router";
 import { Plus } from "lucide-react-native";
 import { useMemo, useState } from "react";
-import { RefreshControl, View } from "react-native";
+import { RefreshControl } from "react-native";
 
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
 import { HorseListItem } from "@/components/horse-list-item";
-import { Button, Card, Hero, Screen, SectionLabel, Text } from "@/components/ui";
+import { Button, PageHeader, Screen, Section, Text } from "@/components/ui";
 import { horseKeys, useHorses, type Horse } from "@/lib/api/horses";
 import { horseRoutes } from "@/lib/horse-format";
 import { colors } from "@/lib/theme";
@@ -46,41 +46,43 @@ export default function Horses() {
         <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary.DEFAULT} />
       }
     >
-      <Hero
-        value={query.data ? String(count) : "–"}
-        unit={count === 1 ? "Pferd" : "Pferde"}
+      <PageHeader
+        title="Pferde"
+        action={
+          <Button
+            label="Pferd anlegen"
+            icon={Plus}
+            size="sm"
+            variant="secondary"
+            onPress={() => router.push(horseRoutes.create as Href)}
+          />
+        }
         description={
-          query.data && groups.mine.length > 0
-            ? `${groups.mine.length === 1 ? "Eins" : groups.mine.length} davon von dir.`
+          query.data && count > 0
+            ? groups.mine.length > 0
+              ? `${count} ${count === 1 ? "Pferd" : "Pferde"}, ${groups.mine.length === 1 ? "eins" : groups.mine.length} davon von dir.`
+              : `${count} ${count === 1 ? "Pferd" : "Pferde"}.`
             : undefined
         }
-      >
-        <Button
-          label="Pferd anlegen"
-          icon={Plus}
-          variant="secondary"
-          onPress={() => router.push(horseRoutes.create as Href)}
-        />
-      </Hero>
+      />
 
       {query.isPending ? <HorseLoading /> : null}
       {query.isError ? <HorseError error={query.error} onRetry={() => query.refetch()} /> : null}
-      {query.data && count === 0 ? (
-        <Card>
-          <Text variant="secondary">Noch keine Pferde.</Text>
-        </Card>
-      ) : null}
 
       {sections
         .filter((s) => s.horses.length > 0)
         .map((s) => (
-          <View key={s.title} className="gap-3">
-            <SectionLabel>{s.title}</SectionLabel>
+          <Section key={s.title} title={s.title}>
             {s.horses.map((h) => (
               <HorseListItem key={h.id} horse={h} onPress={() => open(h.id)} />
             ))}
-          </View>
+          </Section>
         ))}
+      {query.data && count === 0 ? (
+        <Text variant="body" tone="muted">
+          Noch keine Pferde.
+        </Text>
+      ) : null}
     </Screen>
   );
 }

@@ -78,7 +78,10 @@ type Rule struct {
 	Note      string   `json:"note"`
 }
 
-// Weather is tonight's forecast (the newest snapshot of the day).
+// Weather is tonight's forecast (the newest snapshot of the day) for the time the
+// horse is covered: from the evening until about 12:30 the next day. The detail
+// fields are zero for snapshots stored before they existed (window_start is then
+// the zero time and Timeline is empty).
 type Weather struct {
 	NightMinC       float64   `json:"night_min_c"`
 	WillRain        bool      `json:"will_rain"`
@@ -86,6 +89,15 @@ type Weather struct {
 	RainMM          float64   `json:"rain_mm"`
 	WindKmh         float64   `json:"wind_kmh"`
 	FetchedAt       time.Time `json:"fetched_at"`
+
+	WindowStart time.Time           `json:"window_start"`
+	WindowEnd   time.Time           `json:"window_end"`
+	TempMaxC    float64             `json:"temp_max_c"`
+	RainPeakMM  float64             `json:"rain_peak_mm"`
+	RainHours   int                 `json:"rain_hours"`
+	RainFrom    *time.Time          `json:"rain_from"`
+	RainUntil   *time.Time          `json:"rain_until"`
+	Timeline    []weather.HourPoint `json:"timeline"`
 }
 
 // Recommendation statuses.
@@ -221,8 +233,18 @@ func (s *Service) loadWeather(ctx context.Context, stableID, day string) (*Weath
 	if err != nil {
 		return nil, err
 	}
-	return &Weather{NightMinC: snap.NightMinC, WillRain: snap.WillRain, RainProbability: snap.RainProb,
-		RainMM: snap.RainMM, WindKmh: snap.WindKmh, FetchedAt: snap.FetchedAt}, nil
+	raw := snap.RawSummary
+	w := &Weather{NightMinC: snap.NightMinC, WillRain: snap.WillRain, RainProbability: snap.RainProb,
+		RainMM: snap.RainMM, WindKmh: snap.WindKmh, FetchedAt: snap.FetchedAt,
+		WindowStart: raw.WindowStart, WindowEnd: raw.WindowEnd, TempMaxC: raw.TempMaxC,
+		RainPeakMM: raw.RainPeakMM, RainHours: raw.RainHours, Timeline: raw.Timeline}
+	if w.Timeline == nil {
+		w.Timeline = []weather.HourPoint{}
+	}
+	if !raw.RainFrom.IsZero() {
+		w.RainFrom, w.RainUntil = &raw.RainFrom, &raw.RainUntil
+	}
+	return w, nil
 }
 
 // loadNight loads the horses of a stable (or only horseID when not empty) with rules,

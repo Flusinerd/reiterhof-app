@@ -1,10 +1,11 @@
 import { router, useLocalSearchParams, type Href } from "expo-router";
-import { Check, HeartPulse, PawPrint, RotateCcw, Siren } from "lucide-react-native";
+import { Check, HeartPulse, RotateCcw, Siren } from "lucide-react-native";
 import { useState } from "react";
 import { Image, Linking, Pressable, View } from "react-native";
 
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
-import { Badge, Button, Card, Hero, Screen, SectionLabel, Text } from "@/components/ui";
+import { Horse } from "@/components/icons/horse";
+import { Badge, Button, PageHeader, Screen, Section, Text } from "@/components/ui";
 import { errorMessage } from "@/lib/api";
 import { useObservation, useObservationEvents, useSetObservationStatus } from "@/lib/api/observations";
 import { horseRoutes, joinParts } from "@/lib/horse-format";
@@ -42,8 +43,6 @@ export default function ObservationDetail() {
     );
   }
 
-  const urgentOpen = o.urgency === "urgent" && o.status === "watch";
-
   async function change() {
     if (!o) return;
     setError(null);
@@ -56,8 +55,7 @@ export default function ObservationDetail() {
 
   return (
     <Screen back>
-      <Hero
-        tone={urgentOpen ? "warm" : "forest"}
+      <PageHeader
         eyebrow={o.horse_name}
         title={categoryLabel(o.category)}
         description={joinParts([
@@ -69,20 +67,16 @@ export default function ObservationDetail() {
           <Badge variant={statusBadgeVariant(o.status)} label={statusLabel(o.status)} />
           <Badge variant={urgencyBadgeVariant(o.urgency)} label={urgencyLabel(o.urgency)} />
         </View>
-      </Hero>
+      </PageHeader>
 
       {o.description ? (
-        <>
-          <SectionLabel>Beschreibung</SectionLabel>
-          <Card>
-            <Text variant="body">{o.description}</Text>
-          </Card>
-        </>
+        <Section title="Beschreibung">
+          <Text variant="body">{o.description}</Text>
+        </Section>
       ) : null}
 
       {o.media.length > 0 ? (
-        <>
-          <SectionLabel>Fotos</SectionLabel>
+        <Section title="Fotos">
           <View className="flex-row flex-wrap gap-3">
             {o.media.map((m, i) => (
               <Pressable
@@ -99,7 +93,7 @@ export default function ObservationDetail() {
               </Pressable>
             ))}
           </View>
-        </>
+        </Section>
       ) : null}
 
       <View className="gap-3">
@@ -140,7 +134,7 @@ export default function ObservationDetail() {
         ) : null}
         <Button
           label="Pferdeakte"
-          icon={PawPrint}
+          icon={Horse}
           variant="ghost"
           fullWidth
           onPress={() => router.push(horseRoutes.detail(o.horse_id) as Href)}

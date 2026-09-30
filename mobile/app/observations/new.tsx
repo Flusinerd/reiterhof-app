@@ -5,7 +5,7 @@ import { useRef, useState } from "react";
 import { Alert, Image, Pressable, View } from "react-native";
 
 import { ObservationBodyPicker } from "@/components/observation-body-picker";
-import { Button, Hero, Icon, Input, Pill, Screen, SectionLabel, Text, ToggleGroup, ToggleGroupItem } from "@/components/ui";
+import { Button, Icon, Input, PageHeader, Pill, Screen, Section, Text, ToggleGroup, ToggleGroupItem } from "@/components/ui";
 import { errorMessage } from "@/lib/api";
 import { useHorses } from "@/lib/api/horses";
 import { useReportObservation } from "@/lib/api/observations";
@@ -20,7 +20,7 @@ import {
   urgencyHint,
   type Urgency,
 } from "@/lib/observations";
-import { fileSource, uploadErrorMessage, uploadFile, type UploadInput } from "@/lib/upload";
+import { uploadErrorMessage, uploadFile, type UploadInput } from "@/lib/upload";
 
 function confirmUrgent(): Promise<boolean> {
   return new Promise((resolve) => {
@@ -128,44 +128,47 @@ export default function NewObservation() {
 
   return (
     <Screen back keyboardShouldPersistTaps="handled">
-      <Hero
+      <PageHeader
         title="Auffälligkeit melden"
         description="Besitzer und Reitbeteiligungen werden informiert."
       />
 
-      <SectionLabel>Pferd</SectionLabel>
-      <View className="flex-row flex-wrap gap-2">
-        {(horses.data ?? []).map((h) => (
-          <Pill key={h.id} label={h.name} selected={horseId === h.id} onPress={() => setHorseId(h.id)} />
-        ))}
-        {horses.isPending ? <Text variant="secondary">Lädt …</Text> : null}
-        {horses.isError ? <Text variant="secondary" tone="danger">{errorMessage(horses.error)}</Text> : null}
-      </View>
+      <Section title="Pferd">
+        <View className="flex-row flex-wrap gap-2">
+          {(horses.data ?? []).map((h) => (
+            <Pill key={h.id} label={h.name} selected={horseId === h.id} onPress={() => setHorseId(h.id)} />
+          ))}
+          {horses.isPending ? <Text variant="secondary">Lädt …</Text> : null}
+          {horses.isError ? <Text variant="secondary" tone="danger">{errorMessage(horses.error)}</Text> : null}
+        </View>
+      </Section>
 
-      <SectionLabel>Was ist aufgefallen?</SectionLabel>
-      <View className="flex-row flex-wrap gap-2">
-        {CATEGORIES.map((c) => (
-          <Pill key={c} label={categoryLabel(c)} selected={category === c} onPress={() => setCategory(c)} />
-        ))}
-      </View>
+      <Section title="Was ist aufgefallen?">
+        <View className="flex-row flex-wrap gap-2">
+          {CATEGORIES.map((c) => (
+            <Pill key={c} label={categoryLabel(c)} selected={category === c} onPress={() => setCategory(c)} />
+          ))}
+        </View>
+      </Section>
 
-      <SectionLabel>Wo?</SectionLabel>
-      <ObservationBodyPicker value={bodyPart} onChange={setBodyPart} />
+      <Section title="Wo?">
+        <ObservationBodyPicker value={bodyPart} onChange={setBodyPart} />
+      </Section>
 
-      <SectionLabel>Beschreibung</SectionLabel>
-      <Input
-        value={description}
-        onChangeText={setDescription}
-        accessibilityLabel="Beschreibung"
-        placeholder="Seit wann, wie stark? (optional)"
-        multiline
-        textAlignVertical="top"
-        maxLength={MAX_DESCRIPTION}
-        className="h-32 py-3"
-      />
+      <Section title="Beschreibung">
+        <Input
+          value={description}
+          onChangeText={setDescription}
+          accessibilityLabel="Beschreibung"
+          placeholder="Seit wann, wie stark? (optional)"
+          multiline
+          textAlignVertical="top"
+          maxLength={MAX_DESCRIPTION}
+          className="h-32 py-3"
+        />
+      </Section>
 
-      <SectionLabel>Fotos</SectionLabel>
-      <View className="gap-3">
+      <Section title="Fotos">
         {photos.length > 0 ? (
           <View className="flex-row flex-wrap gap-3">
             {photos.map((p) => (
@@ -195,10 +198,9 @@ export default function NewObservation() {
           </View>
         ) : null}
         <Text variant="caption">Max. {MAX_PHOTOS} Fotos.</Text>
-      </View>
+      </Section>
 
-      <SectionLabel>Wie dringend?</SectionLabel>
-      <View className="gap-3">
+      <Section title="Wie dringend?">
         <ToggleGroup type="single" value={urgency} onValueChange={(v) => setUrgency(v as Urgency)}>
           <ToggleGroupItem value="info" label="Info" icon={Info} />
           <ToggleGroupItem value="check" label="Bitte ansehen" icon={Eye} />
@@ -207,7 +209,7 @@ export default function NewObservation() {
         <Text variant="secondary" tone={urgent ? "danger" : "muted"}>
           {urgencyHint(urgency)}
         </Text>
-      </View>
+      </Section>
 
       {error ? (
         <Text variant="bodySm" tone="danger" accessibilityRole="alert">
