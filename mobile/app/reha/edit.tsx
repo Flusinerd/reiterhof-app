@@ -6,6 +6,8 @@ import { View } from "react-native";
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
 import { RehaPhaseSheet } from "@/components/reha-phase-sheet";
 import { Button, Card, Divider, Hero, Input, Screen, SectionLabel, Text } from "@/components/ui";
+import { useObservation } from "@/lib/api/observations";
+import { diagnosisFromObservation } from "@/lib/observations";
 import { rehaError, useCreatePlan, useReha, useUpdatePlan } from "@/lib/api/reha";
 import {
   dateRange,
@@ -58,6 +60,8 @@ export default function RehaEdit() {
   const reha = useReha(horse);
   const create = useCreatePlan(horse ?? "");
   const update = useUpdatePlan(horse ?? "", planParam ?? "");
+  // A new plan from an observation (JAN-68) starts with the diagnosis taken from it.
+  const source = useObservation(observation ?? "", !!observation && !planParam);
 
   const [draft, setDraft] = useState<PlanDraft | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -69,8 +73,13 @@ export default function RehaEdit() {
   useEffect(() => {
     if (!view || draft) return;
     if (planParam && view.plan && view.plan.id === planParam) setDraft(draftFromPlan(view.plan));
-    else if (!planParam) setDraft(emptyPlanDraft(view.date));
-  }, [view, draft, planParam]);
+    else if (!planParam) {
+      // Wait for the observation; if it cannot be loaded the form just starts empty.
+      if (observation && source.isPending) return;
+      const base = emptyPlanDraft(view.date);
+      setDraft(source.data && source.data.horse_id === horse ? { ...base, diagnosis: diagnosisFromObservation(source.data) } : base);
+    }
+  }, [view, draft, planParam, observation, horse, source.isPending, source.data]);
 
   const dated = useMemo(() => {
     if (!draft || !isValidDate(draft.startDate)) return null;

@@ -84,7 +84,7 @@ func TestCheckupReminders(t *testing.T) {
 		t.Fatalf("2 days before: %v, want owner and rider", got)
 	}
 	m := j.fake.Sent()[0]
-	if m.Data["kind"] != push.KindRehaCheckup || m.Data["route"] != "/horses/"+fanta+"/reha" ||
+	if m.Data["kind"] != push.KindRehaCheckup || m.Data["route"] != "/horses/"+fanta+"/reha" || m.Data["screen"] != "/horses/"+fanta+"/reha" ||
 		!strings.Contains(m.Title, "Fanta") || !strings.Contains(m.Body, "in 2 Tagen") || !strings.Contains(m.Body, "10.04.2026") || !strings.Contains(m.Body, "Dr. Berger") {
 		t.Errorf("message = %+v", m)
 	}

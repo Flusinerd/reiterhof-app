@@ -68,7 +68,7 @@ Extra contacts (owner or admin): `POST /api/v1/horses/{id}/emergency-contacts {l
 
 | Route | Notes |
 | --- | --- |
-| `GET /api/v1/horses/{id}/health` | `{today, items, summary, can_manage}`; items ordered by due date (undated last); `summary` has the keys `vaccination, farrier, deworming, dentist`, each the item of that kind due first or `null`; every item has `days_until_due` (negative = overdue), counted from `today` in the stable's time zone |
+| `GET /api/v1/horses/{id}/health` | `{today, items, summary, can_manage}`; items ordered by due date (undated last); `summary` has the keys `vaccination, farrier, deworming, dentist`, each the item of that kind due first or `null`; every item has `days_until_due` (negative = overdue), counted from `today` in the stable's time zone; items of the kinds `vet`, `vaccination`, `dentist` that are due soon also carry `bundle {kind, count, horses[{id,name}]}` (other horses with the same kind due within 14 days, see [observations.md](observations.md#bundling-appointments-jan-54)) |
 | `POST /api/v1/horses/{id}/health-items` | `kind` (vaccination, farrier, deworming, dentist, physio, medication, vet), `label`, `due_date` (YYYY-MM-DD), `interval_days`, `note`, `daily_time` (HH:MM) |
 | `PATCH /api/v1/health-items/{id}`, `DELETE /api/v1/health-items/{id}` | owner or admin |
 | `POST /api/v1/health-items/{id}/done` | "erledigt": `due_date` moves forward by `interval_days`; if that is still not after today (very overdue), by further intervals; without a due date the interval counts from today; without interval the due date is cleared |
@@ -122,7 +122,8 @@ Shared storage for photos and documents; see also "Files" in `architecture.md`.
 
 - Tab "Pferde": hero with the number of horses, "Meine Pferde", "Ich reite", then the rest, button "Pferd anlegen".
 - Horse record `/horses/[id]`: header, emergency card preview, four health tiles, "Auffälligkeiten" (`components/horse-observations.tsx`,
-  see [observations.md](observations.md)), riders with rule
+  see [observations.md](observations.md); owner and admins get "In Reha-Plan umwandeln" on observations without a plan, see
+  [reha.md](reha.md)), riders with rule
   toggles (owner/admin), documents, links "Trainingsprofil", "Deckenplan", "Reha"
   (`horseRoutes` in `lib/horse-format.ts`).
 - Sub screens: `emergency` (tap to call), `health` (due list, add/edit sheet, "Erledigt"), `documents`

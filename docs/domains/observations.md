@@ -43,7 +43,8 @@ Report body (unknown fields are rejected):
 | `urgency` | `info` (default), `check` ("Bitte ansehen"), `urgent` |
 
 Observation shape: `id, horse_id, horse_name, reporter{id,name,color_key}, category, body_part, description,
-media[{path,url,content_type}], urgency, status, created_at, can_change`. New reports start with status `watch`
+media[{path,url,content_type}], urgency, status, created_at, can_change, reha_plan_id`. `reha_plan_id` is the reha plan
+created from this observation (`reha_plans.observation_id`; the active plan first, else the newest), `null` if none. New reports start with status `watch`
 ("Beobachten"); `done` is "Erledigt". `media[].url` is the files API route (send the session token, e.g.
 `fileSource()` in the app).
 
@@ -65,7 +66,7 @@ Sent after the report is saved (a push failure is logged, never fails the reques
 | `urgent` | `urgent_observation` | owner and riders of the horse **and everybody with an open presence visit** |
 
 Texts (German): title "Dringend: Luna" / "Auffälligkeit: Luna", body "Mia meldet: Kolik. Bitte sofort nach dem Pferd
-sehen." (`check` adds "Bitte ansehen."). Data: `observation_id, horse_id, urgency` (plus `kind`). The description
+sehen." (`check` adds "Bitte ansehen."). Data: `observation_id, horse_id, urgency`, `screen: /observations/<id>` (plus `kind`). The description
 is not part of the push (lock screen). Push only: no SMS, no call.
 
 **Why the presence visibility setting does not apply to the alert.** `presence_visibility` (`hidden`, `only_day`)
@@ -103,12 +104,13 @@ with a slow connection. The report screen asks for confirmation before an urgent
 
 - Horse record: `components/horse-observations.tsx` lists the newest 5 observations with badges "Beobachten" /
   "Erledigt" (and the urgency if not info), button **Melden** (`/observations/new?horse=<id>`). Prop
-  `renderActions(observation)` is the slot for extra buttons per observation, e.g. "In Reha-Plan umwandeln" of the reha
-  feature (rendered inside `ObservationCard`, taps do not open the detail screen).
+  `renderActions(observation)` is the slot for extra buttons per observation; the horse record uses it for
+  "In Reha-Plan umwandeln" (owner and admin, only while `reha_plan_id` is null; opens
+  `/reha/edit?observation=<id>&horse=<id>`). Rendered inside `ObservationCard`, taps do not open the detail screen.
 - `/observations/new?horse=<id>`: horse chips, category chips, horse pictogram (`react-native-svg`, tappable
   regions plus chips as accessible alternative), description, photos (camera / library, upload happens on send and is
   not repeated on retry), urgency "Info" / "Bitte ansehen" / "Dringend". After an urgent report the emergency card opens.
-- `/observations/[id]`: details, photos, status button (only if `can_change`), shortcuts to the emergency card and
+- `/observations/[id]`: details, photos, status button (only if `can_change`), shortcuts to the emergency card, the reha plan (if `reha_plan_id`) and
   the horse record.
 
 ## Seed

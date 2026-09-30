@@ -10,10 +10,17 @@ import (
 	"github.com/Flusinerd/reiterhof-app/backend/internal/seed"
 )
 
+// grantTracking gives the user the location tracking consent (JAN-19).
+func (e *env) grantTracking(userID string) {
+	e.exec(`INSERT INTO consents (user_id, stable_id, kind, version, granted_at)
+		SELECT id, stable_id, 'location_tracking', 'test', now() FROM users WHERE id = $1`, userID)
+}
+
 const windowJSON = `{"t":0,"f":[1.5,0.2,0.1,0.05,0.1,0.8],"p":"walk","a":"walk","v":5.1,"c":"trot"}`
 
 func TestTrackedSessionStoresTrackAndWindows(t *testing.T) {
 	e := newEnv(t)
+	e.grantTracking(seed.UserJan)
 	path := "/api/v1/horses/" + luna + "/sessions"
 	body := `{
 	  "activity": "hack", "minutes": 62, "started_at": "2026-03-25T08:30:00+01:00", "distance_m": 7400,
@@ -61,6 +68,7 @@ func TestTrackedSessionStoresTrackAndWindows(t *testing.T) {
 
 func TestTrackAndWindowValidation(t *testing.T) {
 	e := newEnv(t)
+	e.grantTracking(seed.UserJan)
 	path := "/api/v1/horses/" + luna + "/sessions"
 	point := func(n int) string {
 		parts := make([]string, n)
@@ -105,4 +113,30 @@ func TestTrackAndWindowValidation(t *testing.T) {
 	if err := e.pool.QueryRow(context.Background(), `SELECT count(*) FROM sessions`).Scan(&n); err != nil || n != 2 {
 		t.Fatalf("stored %d sessions, want only the two valid ones (err %v)", n, err)
 	}
+}
+
+// A GPS track needs the location tracking consent; indoor data and plain sessions do not (JAN-19 x JAN-63).
+func TestTrackNeedsLocationConsent(t *testing.T) {
+	e := newEnv(t)
+	path := "/api/v1/horses/" + luna + "/sessions"
+	withTrack := `{"activity":"hack","minutes":30,"track":[{"lat":52,"lon":9,"t":0}]}`
+	if code := e.errCode(seed.UserJan, http.MethodPost, path, withTrack, http.StatusForbidden); code != "consent_required" {
+		t.Fatalf("code = %q, want consent_required", code)
+	}
+	// Other consents do not count.
+	e.exec(`INSERT INTO consents (user_id, stable_id, kind, version, granted_at)
+		SELECT id, stable_id, 'location_geofence', 'test', now() FROM users WHERE id = $1`, seed.UserJan)
+	e.errCode(seed.UserJan, http.MethodPost, path, withTrack, http.StatusForbidden)
+	// Indoor windows, rein changes and quick logs are fine without it.
+	e.call(seed.UserJan, http.MethodPost, path, `{"activity":"hall","minutes":30,"gait_windows":[`+windowJSON+`],"rein_changes":[{"rein":"left","minutes":15},{"rein":"right","minutes":15}]}`, http.StatusCreated)
+	e.call(seed.UserJan, http.MethodPost, path, `{"activity":"hall","minutes":20}`, http.StatusCreated)
+	var n int
+	if err := e.pool.QueryRow(context.Background(), `SELECT count(*) FROM sessions WHERE track IS NOT NULL`).Scan(&n); err != nil || n != 0 {
+		t.Fatalf("stored %d tracks without consent (err %v)", n, err)
+	}
+	// With the consent the same request succeeds; revoking it closes the door again.
+	e.grantTracking(seed.UserJan)
+	e.call(seed.UserJan, http.MethodPost, path, withTrack, http.StatusCreated)
+	e.exec(`UPDATE consents SET revoked_at = now() WHERE user_id = $1 AND kind = 'location_tracking'`, seed.UserJan)
+	e.errCode(seed.UserJan, http.MethodPost, path, withTrack, http.StatusForbidden)
 }

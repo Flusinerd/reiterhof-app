@@ -97,7 +97,8 @@ The consent explanations of the sheets (short, plain German) are UI copy in `lib
 
 - `useConsentPrompt()` (`components/consent-prompt.tsx`): `if (!(await consent.ensure("photos"))) return;` shows the
   explanation sheet ("Erlauben", "Nicht jetzt", "Mehr erfahren" → `/legal/privacy`) when the consent is missing,
-  revoked or for an old text. Render `{consent.sheet}` in the screen. Gated so far: the geofence switch and "Bin da"
+  revoked or for an old text. Render `{consent.sheet}` in the screen. Gated so far: GPS ride tracking (`location_tracking`, before the OS permission; the server answers
+  `403 consent_required` to `POST /horses/{id}/sessions` with a `track` without it), the geofence switch and "Bin da"
   (`presence_sharing`, declining sets the visibility to hidden) on the presence screen, camera and photo library in the
   horse documents screen, push registration (`useDeviceSetup` registers the token only with the consent; the first-run
   sheet comes from `ConsentOnboarding` in the root layout, asked once per device).

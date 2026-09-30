@@ -100,6 +100,9 @@ type Observation struct {
 	CreatedAt   time.Time `json:"created_at"`
 	// CanChange: the caller may set the status (owner of the horse, admin or reporter).
 	CanChange bool `json:"can_change"`
+	// RehaPlanID is the reha plan created from this observation (the active one, else the newest),
+	// null if there is none. The app hides "In Reha-Plan umwandeln" and links to the plan instead.
+	RehaPlanID *string `json:"reha_plan_id"`
 }
 
 // CreateResponse is the body of POST /observations.
@@ -113,7 +116,10 @@ type CreateResponse struct {
 // $2 = caller is admin, $3 = caller id (for can_change).
 const selectObservation = `SELECT o.id, o.horse_id, h.name, o.reported_by, u.name, u.avatar_color,
 		o.category, o.body_part, o.description, o.media, o.urgency, o.status, o.created_at,
-		($2::boolean OR h.owner_id = $3 OR o.reported_by = $3)
+		($2::boolean OR h.owner_id = $3 OR o.reported_by = $3),
+		(SELECT rp.id::text FROM reha_plans rp
+		  WHERE rp.observation_id = o.id AND rp.stable_id = o.stable_id
+		  ORDER BY rp.active DESC, rp.created_at DESC LIMIT 1)
 	FROM observations o
 	JOIN horses h ON h.id = o.horse_id AND h.stable_id = o.stable_id
 	JOIN users u ON u.id = o.reported_by`
@@ -130,7 +136,7 @@ func scanObservation(row pgx.Row) (Observation, error) {
 		media []string
 	)
 	err := row.Scan(&o.ID, &o.HorseID, &o.HorseName, &o.Reporter.ID, &o.Reporter.Name, &o.Reporter.ColorKey,
-		&o.Category, &o.BodyPart, &o.Description, &media, &o.Urgency, &o.Status, &o.CreatedAt, &o.CanChange)
+		&o.Category, &o.BodyPart, &o.Description, &media, &o.Urgency, &o.Status, &o.CreatedAt, &o.CanChange, &o.RehaPlanID)
 	if err != nil {
 		return o, err
 	}

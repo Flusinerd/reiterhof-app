@@ -108,12 +108,14 @@ Wiring lives in `lib/tracking-session.ts` (hook), `lib/tracking-location.ts`, `l
 - `app.json` changes: foreground service for `expo-location` (`FOREGROUND_SERVICE`,
   `FOREGROUND_SERVICE_LOCATION`), iOS `UIBackgroundModes: location`, the `expo-sensors` plugin, and permission
   texts that now also mention ride recording. The store review needs a justification for background location.
-- Privacy: a track is precise location data that is stored in the cloud and shown to the stable. The consent
-  screen (JAN-19) and who may see tracks are not part of this work; consider a per-session "hide route" option.
+- Privacy: a track is precise location data that is stored in the cloud. GPS tracking needs the
+  `location_tracking` consent (JAN-19): the GPS screen calls `useConsentPrompt().ensure("location_tracking")`
+  before the OS permission is requested, and `POST /horses/{id}/sessions` with a `track` answers
+  `403 consent_required` without it (`privacy.Has`). Indoor tracking sends no coordinates and needs no location
+  consent. See [privacy.md](privacy.md); a per-session "hide route" option is not built.
 - Sensors in the background: Android may throttle or stop the accelerometer when the screen is off even with a
   foreground service; the GPS speed then decides the gait. Unverified. Phone placement matters (see the gait
   README); the learned calibration (`learnCalibration`) has no UI yet.
-- The training tab does not link to the exercise library yet; the entry is in the session chooser
-  ("Übungsbibliothek"). `docs/domains/training.md` still calls `session.tsx` a timer placeholder.
+- The exercise library is linked from the Training tab and from the session chooser ("Übungsbibliothek").
 - The rein starts on the left; a change within the first 5 s folds into the start, so "I start on the right
   rein" works by tapping "Handwechsel" right away.

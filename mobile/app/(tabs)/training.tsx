@@ -1,5 +1,5 @@
 import { useRouter, type Href } from "expo-router";
-import { CalendarDays, ChevronRight, ListChecks, Pencil, Play } from "lucide-react-native";
+import { BookOpen, CalendarDays, ChevronRight, ListChecks, Pencil, Play } from "lucide-react-native";
 import { useState } from "react";
 import { ActivityIndicator, RefreshControl, View } from "react-native";
 
@@ -272,6 +272,7 @@ export default function Training() {
           icon={CalendarDays}
           onPress={() => goto(`/training/week?horse=${activeId}`)}
         />
+        <Button label="Übungsbibliothek" variant="ghost" size="sm" icon={BookOpen} onPress={() => goto("/training/exercises")} />
         <Button label="Profil" variant="ghost" size="sm" onPress={() => goto(`/horses/${activeId}/training-profile`)} />
         {data?.reha || data?.status === "reha" ? (
           <Button label="Reha-Plan" variant="ghost" size="sm" onPress={() => goto(`/horses/${activeId}/reha`)} />

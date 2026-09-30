@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams, type Href } from "expo-router";
-import { ChevronRight, ClipboardList, Pencil, Plus, Stethoscope, TriangleAlert } from "lucide-react-native";
+import { ChevronRight, ClipboardList, Megaphone, Pencil, Plus, Stethoscope, TriangleAlert } from "lucide-react-native";
 import { useState } from "react";
 import { Alert, View } from "react-native";
 
@@ -17,6 +17,8 @@ import {
   type RehaPlan,
   type RehaView,
 } from "@/lib/api/reha";
+import { useObservation } from "@/lib/api/observations";
+import { observationRoute, observationTitle, reportedText } from "@/lib/observations";
 import { useInvalidateOnEvents } from "@/lib/realtime";
 import { checkupText, dateRange, planProgress, planStatusText } from "@/lib/reha";
 import { formatDate } from "@/lib/training";
@@ -57,6 +59,29 @@ function PlanCard({ plan }: { plan: RehaPlan }) {
       </View>
       <Fact label="Tierarzt" value={plan.vet} />
     </Card>
+  );
+}
+
+/** The observation ("Auffälligkeit") the plan was created from (JAN-68); opens its detail screen. */
+function SourceObservation({ observationId }: { observationId: string }) {
+  const query = useObservation(observationId);
+  const o = query.data;
+  if (!o) return null;
+  return (
+    <PressableCard
+      accessibilityLabel={`${observationTitle(o)} öffnen`}
+      className="flex-row items-center gap-3"
+      onPress={() => router.push(observationRoute(o.id) as Href)}
+    >
+      <Icon as={Megaphone} size={24} className="text-primary-deep" />
+      <View className="flex-1">
+        <Text variant="bodyStrong">{observationTitle(o)}</Text>
+        <Text variant="secondary">
+          {o.reporter.name}, {reportedText(o.created_at, new Date())}
+        </Text>
+      </View>
+      <Icon as={ChevronRight} size={20} className="text-muted" />
+    </PressableCard>
   );
 }
 
@@ -177,6 +202,13 @@ export default function Reha() {
         <>
           <SectionLabel>Plan</SectionLabel>
           <PlanCard plan={plan} />
+
+          {plan.observation_id ? (
+            <>
+              <SectionLabel>Ausgelöst durch</SectionLabel>
+              <SourceObservation observationId={plan.observation_id} />
+            </>
+          ) : null}
 
           <SectionLabel>Phasen</SectionLabel>
           <RehaTimeline phases={plan.phases} />

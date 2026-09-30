@@ -330,6 +330,9 @@ func TestDueReminders(t *testing.T) {
 		if c.kind != push.KindHealthDue || c.stableID != seed.StableB {
 			t.Errorf("call = %+v", c)
 		}
+		if h, _ := c.data["horse_id"].(string); c.data["screen"] != "/horses/"+h+"/health" {
+			t.Errorf("data.screen = %v", c.data["screen"])
+		}
 		switch {
 		case c.data["horse_id"] == seed.HorseBalu:
 			sawBalu = true

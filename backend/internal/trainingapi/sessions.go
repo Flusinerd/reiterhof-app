@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Flusinerd/reiterhof-app/backend/internal/httpx"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/privacy"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/training"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/training/load"
 )
@@ -220,6 +221,19 @@ func (h *handler) createSession(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		invalid(w, err.Error())
 		return
+	}
+	// A GPS track is location data: it needs the location tracking consent (JAN-19). Indoor
+	// sessions (gait windows, rein changes) carry no coordinates and need nothing.
+	if len(in.Track) > 0 {
+		granted, err := privacy.Has(ctx, h.deps.Pool, a.user.ID, privacy.KindLocationTracking)
+		if err != nil {
+			h.fail(w, r, err)
+			return
+		}
+		if !granted {
+			httpx.WriteError(w, http.StatusForbidden, "consent_required", "GPS tracking needs the location tracking consent")
+			return
+		}
 	}
 	if v.exerciseID != "" {
 		ok, err := h.exerciseVisible(ctx, a.user.StableID, v.exerciseID)

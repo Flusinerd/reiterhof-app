@@ -3,6 +3,7 @@ import { Play } from "lucide-react-native";
 import { useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 
+import { useConsentPrompt } from "@/components/consent-prompt";
 import { TrackingMap } from "@/components/tracking-map";
 import { GaitChip, GaitLegend, StatTile, TrackingControls, useLeaveGuard } from "@/components/tracking-parts";
 import { Button, Card, Hero, Screen, SectionLabel, Text } from "@/components/ui";
@@ -55,10 +56,19 @@ function GpsRun({
   const [failure, setFailure] = useState<Exclude<StartResult, { ok: true }>["reason"] | null>(null);
   const [noBackground, setNoBackground] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [declined, setDeclined] = useState(false);
+  const consent = useConsentPrompt();
   useLeaveGuard(started, t.pause);
 
   const start = async () => {
     setBusy(true);
+    // GPS tracking needs the location tracking consent (JAN-19); it comes before the OS permission.
+    const allowed = await consent.ensure("location_tracking");
+    setDeclined(!allowed);
+    if (!allowed) {
+      setBusy(false);
+      return;
+    }
     const result = await t.begin();
     setBusy(false);
     if (result.ok) {
@@ -101,12 +111,19 @@ function GpsRun({
             der Bewegung; trage es am besten in der Jackentasche oder am Körper.
           </Text>
         </Card>
+        {declined ? (
+          <Text variant="secondary" tone="danger" accessibilityRole="alert">
+            Ohne deine Einwilligung zur Standortaufzeichnung kann der Ausritt nicht aufgezeichnet werden. Du kannst die
+            Einheit auch ohne Aufzeichnung eintragen.
+          </Text>
+        ) : null}
         {failure ? (
           <Text variant="secondary" tone="danger" accessibilityRole="alert">
             {startFailureText(failure)}
           </Text>
         ) : null}
         <Button label="Aufzeichnung starten" icon={Play} size="lg" fullWidth loading={busy} onPress={start} />
+        {consent.sheet}
       </Screen>
     );
   }

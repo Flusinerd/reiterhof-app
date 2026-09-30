@@ -8,6 +8,19 @@ Helfer, Pferdeakte und Training.
 | `backend/` | Go-Service, Cloud-API. `net/http` ServeMux, kein Framework. |
 | `mobile/` | Expo-/React-Native-App (TypeScript, Expo Router). |
 
+## Funktionen
+
+- **Anwesenheit**: „Bin da“ und „Bin weg“, wer gerade im Stall ist, optional automatisch per Geofence.
+- **Decken und Wetter**: Deckenplan pro Pferd nach Regeln, Vorschlag für die Nacht aus dem DWD-Wetter, Erinnerung an die letzte Person im Stall.
+- **Anfragen**: Helfer für Reiten, Führen, Turniere oder Tierarzttermine finden, auch als Serie, mit Kalendereintrag.
+- **Pferdeakte**: Stammdaten, Reitbeteiligungen mit Rechten, Notfallkarte, Gesundheitstermine mit Erinnerungen, Dokumente.
+- **Auffälligkeiten**: melden (auch dringend, mit Alarm an alle im Stall), beobachten, in einen Reha-Plan umwandeln.
+- **Training**: „Was heute?“, Wochenplan, Übungsbibliothek, Einheiten eintragen oder aufzeichnen (GPS-Ausritt, Halle mit Gangarterkennung).
+- **Reha-Plan**: Phasen mit „Heute erlaubt“, Abbruchkriterien und Kontrolltermin.
+- **Datenschutz**: Einwilligungen pro Funktion, Datenexport, Konto löschen, Datenschutzerklärung und Impressum in der App.
+
+Fachliche Details je Bereich: [`docs/domains/`](docs/domains/).
+
 ## Loslegen
 
 Voraussetzungen: Go 1.26, Node 22, [`just`](https://just.systems), Postgres 16.
@@ -36,6 +49,17 @@ Für ein echtes Gerät `expo.extra.apiUrl` in `mobile/app.json` setzen.
 - Go-Tests nur mit der Standardbibliothek.
 - UI der App: Komponenten aus `mobile/components/ui/`, siehe [docs/design-system.md](docs/design-system.md).
 - Code, Bezeichner und Code-Kommentare sind englisch; nur die UI-Texte sind deutsch.
+
+## Einrichtung durch den Betreiber
+
+Einmalige Schritte, die nicht im Repository stehen:
+
+1. **Server und Betrieb**: VPS, DNS, TLS, Backups und Restore nach [`deploy/README.md`](deploy/README.md) und [`deploy/restore.md`](deploy/restore.md).
+2. **Anmeldung**: SMTP für die Anmelde-Links, Google- und Apple-Anmeldung nach [`docs/auth-setup.md`](docs/auth-setup.md). Den ersten Stall und den ersten Admin legt der Betreiber direkt in der Datenbank an (es gibt dafür keine API, siehe [`docs/architecture.md`](docs/architecture.md#authentication-and-roles)); weitere Mitglieder treten mit einem Einladungscode bei.
+3. **Rechtstexte**: die Entwürfe [`docs/legal/datenschutz.md`](docs/legal/datenschutz.md) und [`docs/legal/impressum.md`](docs/legal/impressum.md) ausfüllen und rechtlich prüfen lassen, Verträge mit Dienstleistern nach [`docs/legal/avv-checkliste.md`](docs/legal/avv-checkliste.md). Danach `node scripts/gen-legal.mjs` ausführen (erzeugt die Texte der App, siehe [`docs/domains/privacy.md`](docs/domains/privacy.md)).
+4. **Google-Maps-API-Key für Android**: `react-native-maps` zeigt auf Android Google Maps und braucht einen Key in `mobile/app.json` unter `expo.android.config.googleMaps.apiKey`, sonst bleibt die Karte der Ausritte leer (iOS nutzt Apple Maps). Details in [`docs/domains/tracking.md`](docs/domains/tracking.md#setup-and-open-points).
+5. **EAS-Projekt für Push**: `eas init` ausführen und die `projectId` in `mobile/app.json` unter `expo.extra.eas.projectId` eintragen; ohne sie gibt es keinen Push-Token. Für Push auf Android zusätzlich Firebase (FCM) in EAS hinterlegen, für iOS einen Apple-Developer-Zugang. Optional `REITERHOF_EXPO_ACCESS_TOKEN` auf dem Server ([`docs/architecture.md`](docs/architecture.md#push)).
+6. **Testgeräte**: GPS-Tracking, Hintergrundortung, Karte und Push laufen nicht in Expo Go; ein Development Build ist nötig (siehe [`docs/domains/tracking.md`](docs/domains/tracking.md)).
 
 ## CI und Deployment
 

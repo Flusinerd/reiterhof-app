@@ -275,12 +275,14 @@ func TestNotificationRecipients(t *testing.T) {
 	// Non-urgent: owner (Jan) and rider (Mia) of Luna, never the reporter; Tom is present but
 	// not involved, so he is not notified.
 	e.present(seed.UserTom)
-	e.expect(e.call(seed.UserKai, "POST", "/api/v1/observations", report(seed.HorseLuna, map[string]any{"urgency": "check"})), 201)
+	rec1 := e.call(seed.UserKai, "POST", "/api/v1/observations", report(seed.HorseLuna, map[string]any{"urgency": "check"}))
+	e.expect(rec1, 201)
+	first := decode[observations.CreateResponse](t, rec1)
 	if got := e.recipients(names); !slices.Equal(got, []string{"jan", "mia"}) {
 		t.Fatalf("check recipients = %v, want [jan mia]", got)
 	}
 	for _, m := range e.fake.Sent() {
-		if m.Data["kind"] != push.KindObservation || m.Data["horse_id"] != seed.HorseLuna || m.Data["urgency"] != "check" {
+		if m.Data["kind"] != push.KindObservation || m.Data["horse_id"] != seed.HorseLuna || m.Data["urgency"] != "check" || m.Data["screen"] != "/observations/"+first.Observation.ID {
 			t.Errorf("data = %v", m.Data)
 		}
 		if !strings.Contains(m.Body, "Kai meldet: Husten. Bitte ansehen.") || m.Title != "Auffälligkeit: Luna" {
@@ -313,7 +315,7 @@ func TestNotificationRecipients(t *testing.T) {
 	}
 	resp := decode[observations.CreateResponse](t, rec)
 	for _, m := range e.fake.Sent() {
-		if m.Data["kind"] != push.KindUrgentObservation || m.Data["observation_id"] != resp.Observation.ID {
+		if m.Data["kind"] != push.KindUrgentObservation || m.Data["observation_id"] != resp.Observation.ID || m.Data["screen"] != "/observations/"+resp.Observation.ID {
 			t.Errorf("data = %v", m.Data)
 		}
 		if m.Title != "Dringend: Luna" || !strings.Contains(m.Body, "Kai meldet: Kolik.") {
@@ -431,6 +433,47 @@ func TestListGetPatch(t *testing.T) {
 	if l := list(seed.UserKai, "?status=done"); len(l) != 2 || l[0].ID != ids["third"] {
 		t.Errorf("done filter = %+v", l)
 	}
+}
+
+func TestRehaPlanLink(t *testing.T) {
+	e := setup(t)
+	rec := e.call(seed.UserMia, "POST", "/api/v1/observations", report(seed.HorseLuna, map[string]any{"category": "lameness"}))
+	e.expect(rec, 201)
+	id := decode[observations.CreateResponse](t, rec).Observation.ID
+	get := func() observations.Observation {
+		rec := e.call(seed.UserKai, "GET", "/api/v1/observations/"+id, nil)
+		e.expect(rec, 200)
+		return decode[observations.Observation](t, rec)
+	}
+	if o := get(); o.RehaPlanID != nil {
+		t.Fatalf("reha_plan_id = %v, want null", *o.RehaPlanID)
+	}
+	// Two plans refer to it: an ended, older one and the active one; the active one is reported.
+	var oldID, activeID string
+	for _, c := range []struct {
+		active bool
+		age    string
+		dst    *string
+	}{{false, "10 days", &oldID}, {true, "1 day", &activeID}} {
+		err := e.pool.QueryRow(context.Background(),
+			`INSERT INTO reha_plans (stable_id, horse_id, diagnosis, start_date, active, observation_id, created_at)
+			 VALUES ($1, $2, 'Test', CURRENT_DATE, $3, $4, now() - $5::interval) RETURNING id::text`,
+			seed.StableB, seed.HorseLuna, c.active, id, c.age).Scan(c.dst)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if o := get(); o.RehaPlanID == nil || *o.RehaPlanID != activeID {
+		t.Fatalf("reha_plan_id = %v, want %s", o.RehaPlanID, activeID)
+	}
+	// The list carries it as well; without an active plan the newest one wins.
+	e.exec(`UPDATE reha_plans SET active = false WHERE id = $1`, activeID)
+	rec = e.call(seed.UserKai, "GET", "/api/v1/horses/"+seed.HorseLuna+"/observations", nil)
+	e.expect(rec, 200)
+	if l := decode[[]observations.Observation](t, rec); len(l) != 1 || l[0].RehaPlanID == nil || *l[0].RehaPlanID != activeID {
+		t.Fatalf("list = %+v", l)
+	}
+	_ = oldID
 }
 
 func TestRealtimeEvent(t *testing.T) {

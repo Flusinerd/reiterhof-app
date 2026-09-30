@@ -25,6 +25,8 @@ export type Observation = {
   created_at: string;
   /** The caller may change the status (owner, admin or reporter). */
   can_change: boolean;
+  /** Reha plan created from this observation (active one first), null if none. */
+  reha_plan_id: string | null;
 };
 
 /** Body of POST /observations. `media` are paths returned by the files API. */
@@ -70,8 +72,8 @@ export function useObservationEvents() {
 export const useObservations = (horseId: string) =>
   useQuery({ queryKey: observationKeys.list(horseId), queryFn: () => observationsApi.list(horseId) });
 
-export const useObservation = (id: string) =>
-  useQuery({ queryKey: observationKeys.detail(id), queryFn: () => observationsApi.get(id) });
+export const useObservation = (id: string, enabled = true) =>
+  useQuery({ queryKey: observationKeys.detail(id), queryFn: () => observationsApi.get(id), enabled: enabled && !!id });
 
 /** Sends a report. An urgent one puts the emergency card into the cache so it opens instantly. */
 export function useReportObservation() {
