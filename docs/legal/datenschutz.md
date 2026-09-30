@@ -32,7 +32,7 @@ Zweck: Du brauchst ein Konto, damit die App weiß, wer du bist und was du sehen 
 
 Rechtsgrundlage: Durchführung des Nutzungsverhältnisses, Art. 6 Abs. 1 lit. b DSGVO.
 
-Anmeldung per E-Mail: Wir senden dir eine Mail mit einem Link und einem 6-stelligen Code (der Code steht auch in der Betreffzeile). Beide gelten 15 Minuten und funktionieren einmal. Gespeichert werden nur ein Hash des Links und ein mit einem Server-Schlüssel gesicherter Hash des Codes; abgelaufene Anmeldeversuche werden nach spätestens einem Tag gelöscht. Den Versand übernimmt der E-Mail-Dienst Resend (Resend, Inc., USA; Versand über die EU-Region). Resend verarbeitet dafür deine E-Mail-Adresse und den Inhalt der Mail.
+Anmeldung per E-Mail: Wir senden dir eine Mail mit einem Link und einem 6-stelligen Code (der Code steht auch in der Betreffzeile). Beide gelten 15 Minuten und funktionieren einmal. Gespeichert werden nur ein Hash des Links und ein mit einem Server-Schlüssel gesicherter Hash des Codes; abgelaufene Anmeldeversuche werden nach spätestens einem Tag gelöscht. Den Versand übernimmt der E-Mail-Dienst Resend (Plus Five Five, Inc., San Francisco, USA; die Mails werden über die EU-Region versendet, Konto- und Nutzungsdaten des Dienstes liegen in den USA). Resend verarbeitet dafür deine E-Mail-Adresse und den Inhalt der Mail; mit Resend besteht ein Vertrag zur Auftragsverarbeitung mit EU-Standardvertragsklauseln, außerdem ist Resend nach dem EU-US Data Privacy Framework zertifiziert.
 
 Anmeldung mit Google oder Apple: Wenn du das wählst, sendet dein Handy ein Anmeldezeichen von Google bzw. Apple an unseren Server. Wir prüfen es und speichern die Kennung deines Kontos beim Anbieter („sub“), deine E-Mail-Adresse und ggf. deinen Namen. Wir erhalten kein Passwort. Für die Anmeldung gelten zusätzlich die Datenschutzhinweise von Google (Google Ireland Limited) bzw. Apple (Apple Distribution International Ltd.).
 
@@ -130,7 +130,7 @@ Nutzt du Stallfunk als Web-App (zum Home-Bildschirm hinzugefügt), speichern wir
 
 Rechtsgrundlage: Einwilligung, Art. 6 Abs. 1 lit. a DSGVO. Widerrufst du sie, löschen wir deine Push-Tokens und Browser-Push-Adressen. Einzelne Erinnerungsarten kannst du zusätzlich abschalten.
 
-Drittlandübermittlung: Expo, Resend und ggf. Google und Apple (Anmeldung, Push, Karten) verarbeiten Daten auch in den USA. Grundlage sind Angemessenheitsbeschluss (EU-US Data Privacy Framework) bzw. Standardvertragsklauseln des jeweiligen Anbieters [vor Veröffentlichung prüfen].
+Drittlandübermittlung: Expo, Resend und ggf. Google und Apple (Anmeldung, Push, Karten) verarbeiten Daten auch in den USA. Grundlage sind der Angemessenheitsbeschluss zum EU-US Data Privacy Framework bzw. Standardvertragsklauseln des jeweiligen Anbieters; für Resend ist beides vereinbart, für Expo, Google und Apple [vor Veröffentlichung prüfen].
 
 ### 3.10 Wetter
 
@@ -154,16 +154,15 @@ Rechtsgrundlage: Art. 8 DSGVO in Verbindung mit Art. 6 Abs. 1 lit. c DSGVO (Nach
 
 ## 5. Wo laufen die Daten? Hosting und Backups
 
-- **Hosting:** Server der Netcup GmbH, Karlsruhe, Rechenzentrum in Deutschland. Mit Netcup besteht ein Vertrag zur Auftragsverarbeitung nach Art. 28 DSGVO [Abschluss bestätigen].
+- **Hosting:** Server der Netcup GmbH, Karlsruhe, Rechenzentrum in Deutschland. Mit Netcup besteht ein Vertrag zur Auftragsverarbeitung nach Art. 28 DSGVO; Netcup setzt dafür Gesellschaften der Anexia-Gruppe in Deutschland und Österreich ein.
 - **Server-Protokolle:** Der Webserver schreibt kein Zugriffsprotokoll mit IP-Adressen. Die API protokolliert Fehler ohne Inhalte deiner Einträge. Für den Schutz vor zu vielen Anmeldeversuchen wird deine IP-Adresse bis zu 24 Stunden im Arbeitsspeicher gehalten und nicht dauerhaft gespeichert.
-- **Backups:** Täglich wird die Datenbank gesichert und zusammen mit den hochgeladenen Dateien verschlüsselt an einen externen Speicher [Anbieter des Backup-Speichers, Standort EU] kopiert (Auftragsverarbeitung nach Art. 28 DSGVO [Abschluss bestätigen]). Die Verschlüsselung geschieht auf unserem Server, bevor die Daten ihn verlassen; ein unverschlüsseltes Ziel lehnt das Backup ab. Backups werden auf dem Server bis zu 14 Tage (tägliche) bzw. 8 Wochen (wöchentliche) und extern bis zu 90 Tage aufbewahrt. Gelöschte Daten verschwinden aus Backups daher spätestens nach 90 Tagen. Wird ein Backup zurückgespielt, werden Löschungen erneut ausgeführt.
+- **Backups:** Täglich werden die Datenbank und die hochgeladenen Dateien auf demselben Server gesichert; die Sicherungen verlassen den Server nicht. Aufbewahrt werden 14 tägliche und 8 wöchentliche Stände. Gelöschte Daten verschwinden aus den Backups daher spätestens nach 8 Wochen. Wird ein Backup zurückgespielt, werden Löschungen erneut ausgeführt.
 
 ## 6. Wer bekommt deine Daten?
 
 - Mitglieder deines Stalls, soweit oben beschrieben und nach deinen Sichtbarkeits-Einstellungen.
 - Netcup GmbH als Hosting-Anbieter (Auftragsverarbeiter).
-- Anbieter des externen Backup-Speichers (Auftragsverarbeiter, erhält nur verschlüsselte Daten).
-- Resend, Inc. (USA) als E-Mail-Dienst für Anmelde-Mails und die Mail an Eltern (Auftragsverarbeiter).
+- Resend (Plus Five Five, Inc., USA) als E-Mail-Dienst für Anmelde-Mails und die Mail an Eltern (Auftragsverarbeiter).
 - Expo, Apple und Google für Push-Benachrichtigungen (in der Web-App die Push-Dienste von Apple, Google oder Mozilla, je nach Browser), und Google bzw. Apple, wenn du dich damit anmeldest.
 - Apple, Google oder OpenFreeMap als Kartendienst, wenn du Karten erlaubst (Punkt 3.4).
 - Deutscher Wetterdienst (nur Abruf öffentlicher Daten, keine Übermittlung von Personendaten).
@@ -182,7 +181,7 @@ Wir verkaufen keine Daten und geben sie nicht zu Werbezwecken weiter.
 - **Links an Eltern:** 7 Tage; die Adresse des Elternteils und die Zustimmung, solange das Konto besteht.
 - **Einwilligungen und Altersangabe:** solange das Konto besteht (als Nachweis).
 - **Pferdeakte, Dokumente, Anfragen, Trainingseinheiten:** solange sie gebraucht werden; sie können vom Besitzer oder Admin gelöscht werden. Beim Löschen deines Kontos bleiben Einträge, die andere betreffen, ohne deinen Namen erhalten (siehe 8).
-- **Backups:** bis zu 90 Tage (siehe 5).
+- **Backups:** bis zu 8 Wochen (siehe 5).
 
 ## 8. Was passiert, wenn ich mein Konto lösche?
 

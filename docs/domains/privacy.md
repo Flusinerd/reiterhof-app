@@ -92,8 +92,8 @@ Decisions:
 - **Kept, now attributed to "Gelöschtes Mitglied":** observation text, training sessions (without track), requests
   (open and assigned ones are `cancelled`), week slots, document metadata, reha plans.
 - Publishes `presence.changed` for the stable. Users without a stable can export and delete too.
-- Backups still contain the data until they expire (14 daily, 8 weekly locally, 90 days offsite); documented in the
-  privacy text. After a restore, repeat deletions.
+- Backups still contain the data until they expire (14 daily, 8 weekly on the server; no offsite copy for now);
+  documented in the privacy text. After a restore, repeat deletions.
 
 ## Retention
 
@@ -110,7 +110,7 @@ Scheduler job `privacy-retention`, daily 03:30 Europe/Berlin (`privacy.Job`, `pr
 | `auth_sessions` | 90 days sliding | deleted when expired |
 | `stable_invites` | 30 days after `expires_at` (`InviteGraceDays`) | deleted (they name their creator) |
 | `parental_consent_tokens` | until `expires_at` (7 days) | deleted when expired |
-| Backups | 14 daily + 8 weekly on the server, 90 days offsite (`deploy/backup.sh`, only to an encrypting `crypt` remote) | deleted |
+| Backups | 14 daily + 8 weekly on the server; no offsite copy for now (`deploy/backup.sh` with `REITERHOF_SKIP_OFFSITE=1`; an offsite target must be an encrypting `crypt` remote) | deleted |
 
 Raw gait windows (`gait_windows`, stored with tracked sessions to improve the gait model) follow the track: deleted
 12 months after the session's `started_at`, and immediately when the account is deleted. Everything else (horse record, documents, requests) is kept until a user with

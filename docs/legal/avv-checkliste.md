@@ -6,10 +6,11 @@
 
 Ein AVV ist nötig, wenn ein Dienstleister in deinem Auftrag personenbezogene Daten verarbeitet.
 
-- [ ] **Netcup GmbH (Hosting, VPS).** Im Netcup-Kundenkontrollpanel (CCP) den AVV abschließen, Bestätigung als PDF ablegen. Stelle im CCP nach „Auftragsverarbeitung“ / „AVV“ suchen; sie kann sich ändern. Siehe auch `deploy/README.md`, Abschnitt 9.
-- [ ] **Offsite-Backup-Speicher** (Ziel des `rclone`-Kopierens, siehe `deploy/README.md`, Abschnitt 6). Eigener AVV mit diesem Anbieter, Standort EU, Remote als `crypt`-Remote verschlüsseln. Anbieter im Datenschutztext (`[Anbieter des Backup-Speichers]`) eintragen.
-- [ ] **Resend** (E-Mail-Versand der Anmelde-Links und der Mails an Eltern, `REITERHOF_SMTP_*`, siehe `docs/auth-setup.md`). Das DPA von Resend prüfen/akzeptieren und ablegen; Grundlage der US-Übermittlung (Data Privacy Framework oder Standardvertragsklauseln) prüfen. Im Datenschutztext bereits eingetragen.
-- [ ] **Offsite-Backup verschlüsselt:** `backup.sh` kopiert nur auf ein rclone-`crypt`-Remote (sonst bricht es ab). Das Passwort des crypt-Remotes getrennt vom Server sichern, sonst ist das Backup wertlos.
+- [x] **Netcup GmbH (Hosting, VPS).** AVV Version 7 (Stand 2026/07) am 30.09.2026 im Kundenkontrollpanel angenommen, von Netcup gegengezeichnet; Anhang 3 mit den Kategorien der App (Nutzer, Erziehungsberechtigte, Kontaktpersonen; Namens-, Kontakt-, Vertrags-, Login-, Standort-, Bewegungsprofil-, Verkehrs-, Foto- und Verhaltensdaten; keine besonderen Kategorien). Unterauftragsverarbeiter: Anexia-Gesellschaften in Klagenfurt und Karlsruhe (Anhang 2). Das PDF liegt im Drive des Betreibers, nicht im Repository (Privatanschrift, Kundennummer, Vertraulichkeitsklausel in Ziffer 11).
+- [ ] **Standort des VPS prüfen:** Netcup betreibt Rechenzentren in Nürnberg und Wien (und außerhalb der EU); der Ort der Verarbeitung folgt laut Anhang 3 dem bestellten Produkt. Der Datenschutztext sagt „Rechenzentrum in Deutschland“; stimmt das nicht, Abschnitt 5 anpassen.
+- [x] **Resend** (E-Mail-Versand der Anmelde-Links und der Mails an Eltern, `REITERHOF_SMTP_*`, siehe `docs/auth-setup.md`). DPA von Plus Five Five, Inc. (Text vom 31.12.2025, gegengezeichnet 14.01.2026, gilt mit Annahme der Terms of Service): EU-Standardvertragsklauseln Modul 2 unter irischem Recht und Zertifizierung nach dem EU-US Data Privacy Framework; Löschung 90 Tage nach Kontoende; Unterauftragsverarbeiter unter resend.com/legal/subprocessors mit 14 Tagen Vorankündigung. PDF im Drive des Betreibers. Im Datenschutztext eingetragen.
+- [ ] **Resend-Konto:** Öffnungs- und Klick-Tracking für die Domain ausgeschaltet lassen (das DPA nennt es als Option, der Datenschutztext schließt Tracking aus); Domain in der EU-Region angelegt.
+- [ ] **Offsite-Backup:** vorerst keins (Stand 30.09.2026); `REITERHOF_SKIP_OFFSITE=1` in `backup.env`, Datenschutztext Abschnitte 5 bis 7 beschreiben nur die Sicherungen auf dem Server. Wird später eines eingerichtet: AVV mit dem Anbieter (Standort EU), rclone-`crypt`-Remote (Pflicht in `backup.sh`, Passwort getrennt vom Server sichern), Abschnitte 5 bis 7 des Datenschutztexts und die Checkliste ergänzen.
 - [ ] **Domain-/DNS-Anbieter:** nur nötig, wenn dort personenbezogene Daten anfallen (in der Regel nicht).
 
 ## 2. Expo, Google und Apple
@@ -28,9 +29,8 @@ Quelle der Texte: `docs/legal/datenschutz.md` und `docs/legal/impressum.md`. Nac
 
 - [ ] Verantwortlicher: `[Name, Anschrift, E-Mail]` (Datenschutz, Abschnitt 1 und 9)
 - [ ] Name des Stalls: `[Name des Stalls]`
-- [ ] `[Anbieter des Backup-Speichers, Standort EU]` (Abschnitte 5, 6)
 - [ ] `[zuständige Aufsichtsbehörde, Anschrift, Website]` (Abschnitt 9)
-- [ ] Hinweise `[Abschluss bestätigen]` und `[vor Veröffentlichung prüfen]` entfernen, sobald erledigt
+- [ ] Hinweis `[vor Veröffentlichung prüfen]` (Drittlandübermittlung Expo, Google, Apple) entfernen, sobald erledigt
 - [ ] Impressum: Name, Anschrift, E-Mail, Telefon, Verbraucherstreitbeilegung
 - [ ] Die Marke „Entwurf – vor Veröffentlichung rechtlich prüfen lassen“ aus beiden Texten entfernen, wenn die Prüfung abgeschlossen ist.
 - [ ] Bei jeder inhaltlichen Änderung `TextVersion` in `backend/internal/privacy/consents.go` und die „Textversion“ in den Texten gemeinsam erhöhen (der Test `TestLegalTextsMatchTextVersion` schlägt sonst fehl).
@@ -55,7 +55,7 @@ Quelle der Texte: `docs/legal/datenschutz.md` und `docs/legal/impressum.md`. Nac
 - [ ] Technisch-organisatorische Maßnahmen dokumentieren (Server-Härtung, siehe `deploy/`, Backups, Verschlüsselung, Zugriff nur für Admin-Benutzer).
 - [ ] Ablauf für Auskunfts- und Löschanfragen festlegen. Die App erledigt Export und Löschung selbst; Anfragen per E-Mail kannst du mit den Endpunkten `GET /api/v1/me/export` und `POST /api/v1/me/delete` bzw. per SQL erledigen.
 - [ ] Ablauf bei Datenpannen (Meldung binnen 72 Stunden an die Aufsichtsbehörde, Art. 33).
-- [ ] Restore-Test der Backups (Vierteljahr), siehe `deploy/restore.md`; nach einem Restore die Löschungen seit dem Backup erneut ausführen.
+- [ ] Restore-Test der Backups (Vierteljahr), siehe `deploy/restore.md`; nach einem Restore die Löschungen seit dem Backup erneut ausführen. Ohne Offsite-Backup liegen alle Stände auf demselben Server: Fällt er aus, sind Daten und Backups weg.
 - [ ] Datenschutz-Links in App Store Connect und Play Console eintragen (URL der Datenschutzerklärung, in der Web-App `https://stallfunk.de/legal/privacy`; die App zeigt den Text auch selbst an).
 - [ ] App Store Connect „App-Datenschutz“ und Play Console „Data safety“ müssen zum Privacy Manifest in `mobile/app.json` (`ios.privacyManifests`: Name, E-Mail, Telefon, Nutzer-ID, genauer Standort, Fotos, Inhalte, Sensormerkmale; kein Tracking) und zum Datenschutztext passen. Hintergrundstandort in der Play Console begründen (Geofence, Streckenaufzeichnung).
 - [ ] Export-Compliance: `ITSAppUsesNonExemptEncryption` ist `false` (nur Standard-TLS). Stimmt weiter, solange die App keine eigene Verschlüsselung mitbringt.

@@ -241,6 +241,11 @@ danach Kopie per `rclone` an einen externen Speicher.
    (`REITERHOF_ALLOW_PLAIN_OFFSITE=1` in `backup.env` schaltet die Prüfung ab, dann muss der Datenschutztext
    angepasst werden). Das Passwort des crypt-Remotes getrennt vom Server aufbewahren.
 
+**Vorerst ohne Offsite-Kopie** (Stand 30.09.2026): `REITERHOF_SKIP_OFFSITE=1` in `/etc/reiterhof/backup.env`
+eintragen, sonst meldet der Timer jede Nacht einen Fehler und der Ping bleibt aus. Alle Stände liegen dann auf
+demselben Server; fällt er aus, sind Daten und Backups weg. Sobald ein Offsite-Ziel eingerichtet wird, die Schritte
+1 bis 5 oben durchführen, den Datenschutztext (Abschnitte 5 bis 7) und `docs/legal/avv-checkliste.md` ergänzen.
+
 ## 7. Restore testen
 
 Ein Backup gilt erst als vorhanden, wenn ein Restore geklappt hat. Anleitung und Testskript:

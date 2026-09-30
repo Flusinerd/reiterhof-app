@@ -253,9 +253,11 @@ EOF
 # Backup settings (offsite remote etc.). Created once, edited by the owner.
 if [[ ! -f /etc/reiterhof/backup.env ]]; then
   cat >/etc/reiterhof/backup.env <<'EOF'
-# rclone destination for offsite copies, e.g. "offsite:reiterhof-backups".
+# rclone destination for offsite copies, e.g. "offsite:reiterhof-backups" (must be a "crypt" remote).
 # Configure the remote with: sudo -u reiterhof RCLONE_CONFIG=/var/lib/reiterhof/rclone/rclone.conf rclone config
 REITERHOF_RCLONE_REMOTE=
+# Without an offsite destination set REITERHOF_SKIP_OFFSITE=1, else every backup run reports an error.
+#REITERHOF_SKIP_OFFSITE=1
 # Optional dead man's switch: URL pinged (HTTP GET) after a successful backup
 # (e.g. a healthchecks.io check).
 REITERHOF_BACKUP_PING_URL=
