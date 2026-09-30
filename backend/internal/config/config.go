@@ -9,6 +9,8 @@ type Config struct {
 	Addr string
 	// DatabaseURL is the Postgres connection string (REITERHOF_DATABASE_URL).
 	DatabaseURL string
+	// Auth holds the authentication settings.
+	Auth Auth
 }
 
 // FromEnv reads the configuration from environment variables and applies defaults.
@@ -16,6 +18,7 @@ func FromEnv() Config {
 	return Config{
 		Addr:        getenv("REITERHOF_ADDR", ":8080"),
 		DatabaseURL: getenv("REITERHOF_DATABASE_URL", "postgres://postgres:postgres@localhost:5432/reiterhof?sslmode=disable"),
+		Auth:        authFromEnv(),
 	}
 }
 
