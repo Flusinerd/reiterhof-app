@@ -6,7 +6,7 @@
     "scheme": "reiterhof",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "plugins": ["expo-router", "expo-notifications", "expo-secure-store", "expo-apple-authentication", "expo-web-browser"],
+    "plugins": ["expo-router", "expo-notifications", "expo-secure-store", "expo-apple-authentication", "expo-web-browser", ["expo-calendar", { "calendarPermission": "Reiterhof trägt Termine deiner Anfragen in deinen Kalender ein." }]],
     "experiments": { "typedRoutes": true },
     "android": { "package": "org.datenlotse.reiterhof" },
     "ios": { "bundleIdentifier": "org.datenlotse.reiterhof", "usesAppleSignIn": true },
