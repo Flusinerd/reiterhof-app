@@ -4,6 +4,7 @@
 # Run as root, from a checkout/copy of the deploy/ directory:
 #
 #   sudo REITERHOF_DOMAIN=api.example.org \
+#        REITERHOF_WEB_DOMAIN=example.org \
 #        REITERHOF_DB_PASSWORD="$(openssl rand -hex 24)" \
 #        REITERHOF_ADMIN_SSH_PUBKEY="ssh-ed25519 AAAA... me@laptop" \
 #        REITERHOF_DEPLOY_SSH_PUBKEY="ssh-ed25519 AAAA... github-actions" \
@@ -14,7 +15,9 @@
 # REITERHOF_DB_PASSWORD may be omitted: the password is taken from api.env.
 #
 # Required environment variables:
-#   REITERHOF_DOMAIN             public DNS name served by Caddy (A/AAAA record must point here)
+#   REITERHOF_DOMAIN             public DNS name of the API served by Caddy (A/AAAA/CNAME must point here)
+#   REITERHOF_WEB_DOMAIN         public DNS name of the web app (PWA), e.g. example.org; Caddy serves the
+#                                static export from /var/www/stallfunk/current and proxies /api there
 #   REITERHOF_DB_PASSWORD        password of the database role (only [A-Za-z0-9._~-], so it
 #                                can be embedded into a URL without escaping)
 #   REITERHOF_ADMIN_SSH_PUBKEY   public key of the human admin (full sudo, key login only)
@@ -28,6 +31,7 @@ set -euo pipefail
 
 # --- Inputs -----------------------------------------------------------------
 : "${REITERHOF_DOMAIN:?set REITERHOF_DOMAIN (e.g. api.example.org)}"
+: "${REITERHOF_WEB_DOMAIN:?set REITERHOF_WEB_DOMAIN (e.g. example.org), the host of the web app}"
 # On a re-run, api.env already holds the database password (and is never overwritten).
 # Reuse it, so a re-run cannot set a different role password and lock the API out.
 existing_db_password=""
@@ -67,6 +71,8 @@ esac
 [[ "$REITERHOF_DB_PASSWORD" =~ ^[A-Za-z0-9._~-]{16,}$ ]] ||
   die "REITERHOF_DB_PASSWORD must be >= 16 chars of [A-Za-z0-9._~-] (try: openssl rand -hex 24)"
 [[ "$REITERHOF_DOMAIN" =~ ^[A-Za-z0-9.-]+$ ]] || die "REITERHOF_DOMAIN looks invalid"
+[[ "$REITERHOF_WEB_DOMAIN" =~ ^[A-Za-z0-9.-]+$ ]] || die "REITERHOF_WEB_DOMAIN looks invalid"
+[[ "$REITERHOF_WEB_DOMAIN" != "$REITERHOF_DOMAIN" ]] || die "REITERHOF_WEB_DOMAIN and REITERHOF_DOMAIN must differ"
 [[ "$DB_NAME" =~ ^[a-z_][a-z0-9_]*$ && "$DB_USER" =~ ^[a-z_][a-z0-9_]*$ ]] ||
   die "database and role names must match [a-z_][a-z0-9_]*"
 for f in Caddyfile postgresql.conf.d/reiterhof.conf api.env.example backup.sh restore-test.sh stallfunk-admin.sh \
@@ -215,6 +221,10 @@ apt-get install -y -qq caddy >/dev/null
 # --- Directories --------------------------------------------------------------------------
 log "Creating directories"
 install -d -m 2750 -o "$DEPLOY_USER" -g reiterhof /opt/reiterhof # setgid: new files keep group reiterhof
+# Web app (PWA): the deploy user writes the releases and switches the "current" symlink
+# (deploy/remote-swap.sh), Caddy only reads. The content is public, so world-readable.
+install -d -m 0755 -o "$DEPLOY_USER" -g caddy /var/www/stallfunk
+install -d -m 0755 -o "$DEPLOY_USER" -g caddy /var/www/stallfunk/releases
 install -d -m 0750 -o root -g reiterhof /etc/reiterhof
 install -d -m 0750 -o reiterhof -g reiterhof /var/lib/reiterhof
 install -d -m 0750 -o reiterhof -g reiterhof /var/lib/reiterhof/uploads
@@ -230,8 +240,8 @@ fi
 chown root:reiterhof /etc/reiterhof/api.env
 chmod 0640 /etc/reiterhof/api.env
 
-# Domain for the Caddyfile ({$REITERHOF_DOMAIN}) via a systemd drop-in.
-printf 'REITERHOF_DOMAIN=%s\n' "$REITERHOF_DOMAIN" >/etc/reiterhof/caddy.env
+# Domains for the Caddyfile ({$REITERHOF_DOMAIN}, {$REITERHOF_WEB_DOMAIN}) via a systemd drop-in.
+printf 'REITERHOF_DOMAIN=%s\nREITERHOF_WEB_DOMAIN=%s\n' "$REITERHOF_DOMAIN" "$REITERHOF_WEB_DOMAIN" >/etc/reiterhof/caddy.env
 chmod 0640 /etc/reiterhof/caddy.env
 chown root:reiterhof /etc/reiterhof/caddy.env
 install -d /etc/systemd/system/caddy.service.d
@@ -269,7 +279,7 @@ log "Enabling services"
 systemctl enable reiterhof-api.service >/dev/null # starts after the first deploy
 systemctl enable --now reiterhof-backup.timer >/dev/null
 # Caddy: validate first, then (re)load. Without a running API it answers 502 until deployed.
-runuser -u caddy -- env REITERHOF_DOMAIN="$REITERHOF_DOMAIN" \
+runuser -u caddy -- env REITERHOF_DOMAIN="$REITERHOF_DOMAIN" REITERHOF_WEB_DOMAIN="$REITERHOF_WEB_DOMAIN" \
   caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null
 systemctl enable caddy >/dev/null
 systemctl restart caddy
@@ -279,7 +289,8 @@ cat <<EOF
   1. Test SSH login as '${ADMIN_USER}' and '${DEPLOY_USER}' in a NEW terminal before closing this session.
   2. Review /etc/reiterhof/api.env.
   3. Configure the offsite backup remote (see /etc/reiterhof/backup.env).
-  4. Trigger the first deploy from GitHub Actions (workflow "Deploy").
+  4. Trigger the first deploy from GitHub Actions (workflow "Deploy"); it also publishes the web app
+     to /var/www/stallfunk (until then ${REITERHOF_WEB_DOMAIN} answers 404).
   5. Create the first stable and admin: stallfunk-admin help (see deploy/README.md, "Betrieb").
   See deploy/README.md for the full runbook.
 EOF
