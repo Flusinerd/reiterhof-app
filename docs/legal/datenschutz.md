@@ -143,7 +143,7 @@ Auf deinem Gerät speichert die App nur, was sie zum Funktionieren braucht: den 
 
 ### 3.12 Wochenplan mit KI-Vorschlägen (Mistral AI)
 
-Besitzer und Admins können sich für ein Pferd einen Vorschlag für die offenen Tage der Woche machen lassen („Woche planen“). Hat der Besitzer des Pferdes „KI-Vorschläge für den Wochenplan“ erlaubt, fragt unser Server dafür ein Sprachmodell der Mistral AI SAS (Paris, Frankreich). Ohne diese Erlaubnis kommt der Vorschlag nur aus den festen Regeln der App, und es wird nichts an Mistral gesendet.
+Besitzer und Admins können sich für ein Pferd einen Vorschlag für die offenen Tage der Woche machen lassen („Woche planen“). Hat der Besitzer des Pferdes „KI-Vorschläge für den Wochenplan“ erlaubt und angegeben, mindestens 16 Jahre alt zu sein, fragt unser Server dafür ein Sprachmodell der Mistral AI SAS (Paris, Frankreich). Sonst kommt der Vorschlag nur aus den festen Regeln der App, und es wird nichts an Mistral gesendet.
 
 Gesendet werden nur Trainingsdaten des Pferdes: Disziplin, Trainingsstatus (fit, Reha, Pause), der gewünschte Rhythmus, die freigegebenen Aktivitäten, die Trainingseinheiten der letzten 14 Tage (vor wie vielen Tagen, Aktivität, Minuten, Belastung, Galopp-Anteil, wie sich das Pferd angefühlt hat), in wie vielen Tagen Turniere sind, die Vorgaben eines Reha-Plans je Tag (Aktivität und Minuten), Wetter und Boden von heute und welche Tage der Woche schon vergeben sind.
 
@@ -151,7 +151,7 @@ Nicht gesendet werden Namen von Personen oder Pferden, Kennungen, Notizen und an
 
 Die festen Regeln der App prüfen jeden Vorschlag (Profil, Reha-Plan, Ruhetag nach dem Turnier, Rhythmus) und ersetzen, was nicht passt. Gespeichert wird der Vorschlag erst, wenn du ihn übernimmst; im Wochenplan steht dann „KI-Vorschlag“ dabei.
 
-Mistral verarbeitet die Anfragen als Auftragsverarbeiter in unserem Auftrag. In unserem Konto bei Mistral ist ausgeschaltet, dass Anfragen zum Training der Modelle genutzt werden, und wir verwenden keine Modelle, bei denen Mistral trotzdem trainiert („Labs“). Mistral speichert Anfragen laut eigenen Angaben bis zu 30 Tage, um Missbrauch zu erkennen, und löscht sie danach. Unser Server speichert weder die Anfrage noch die Antwort.
+Mistral verarbeitet die Anfragen als Auftragsverarbeiter in unserem Auftrag; der Vertrag zur Auftragsverarbeitung nach Art. 28 DSGVO ist Teil der Geschäftsbedingungen von Mistral. In unserem Konto bei Mistral ist ausgeschaltet, dass Anfragen zum Training der Modelle genutzt werden, und wir verwenden keine Modelle, bei denen Mistral trotzdem trainiert („Labs“). Für eine automatische Missbrauchskontrolle speichert Mistral Anfrage und Antwort 30 Tage und ist dafür selbst verantwortlich (Datenschutzerklärung von Mistral unter legal.mistral.ai); danach werden sie gelöscht. Unser Server speichert weder die Anfrage noch die Antwort. Mistral setzt vorrangig Dienstleister in der EU ein; verarbeitet ein Dienstleister Daten außerhalb der EU, geschieht das auf Grundlage eines Angemessenheitsbeschlusses oder der Standardvertragsklauseln der EU-Kommission.
 
 Rechtsgrundlage: Einwilligung des Besitzers, Art. 6 Abs. 1 lit. a DSGVO. Einheiten, die Reitbeteiligungen eingetragen haben, gehen ohne Namen und ohne Datum mit in die Anfrage ein; Rechtsgrundlage dafür ist das berechtigte Interesse an einer guten Trainingsplanung für das Pferd, Art. 6 Abs. 1 lit. f DSGVO. Die Einwilligung kannst du jederzeit in den Einstellungen unter Datenschutz zurücknehmen; danach wird nichts mehr an Mistral gesendet.
 
@@ -178,7 +178,7 @@ Rechtsgrundlage: Art. 8 DSGVO in Verbindung mit Art. 6 Abs. 1 lit. c DSGVO (Nach
 - Resend (Plus Five Five, Inc., USA) als E-Mail-Dienst für Anmelde-Mails und die Mail an Eltern (Auftragsverarbeiter).
 - Apple und Google für Push-Benachrichtigungen (in der Web-App die Push-Dienste von Apple, Google oder Mozilla, je nach Browser), und Google bzw. Apple, wenn du dich damit anmeldest.
 - Apple, Google oder OpenFreeMap als Kartendienst, wenn du Karten erlaubst (Punkt 3.4).
-- Mistral AI SAS (Paris, Frankreich) für KI-Vorschläge im Wochenplan, wenn der Besitzer des Pferdes sie erlaubt (Auftragsverarbeiter, Punkt 3.12).
+- Mistral AI SAS (Paris, Frankreich) für KI-Vorschläge im Wochenplan, wenn der Besitzer des Pferdes sie erlaubt (Auftragsverarbeiter; für die Missbrauchskontrolle eigener Verantwortlicher, Punkt 3.12).
 - Deutscher Wetterdienst (nur Abruf öffentlicher Daten, keine Übermittlung von Personendaten).
 - Das Elternteil, das du für die Zustimmung nennst, erfährt deinen Namen und deine E-Mail-Adresse (Punkt 4).
 
@@ -195,7 +195,7 @@ Wir verkaufen keine Daten und geben sie nicht zu Werbezwecken weiter.
 - **Links an Eltern:** 7 Tage; die Adresse des Elternteils und die Zustimmung, solange das Konto besteht.
 - **Einwilligungen und Altersangabe:** solange das Konto besteht (als Nachweis).
 - **Pferdeakte, Dokumente, Anfragen, Trainingseinheiten:** solange sie gebraucht werden; sie können vom Besitzer oder Admin gelöscht werden. Beim Löschen deines Kontos bleiben Einträge, die andere betreffen, ohne deinen Namen erhalten (siehe 8).
-- **Anfragen für KI-Vorschläge:** bei uns gar nicht; bei Mistral bis zu 30 Tage (Punkt 3.12). Übernommene Vorschläge bleiben im Wochenplan wie andere Einträge.
+- **Anfragen für KI-Vorschläge:** bei uns gar nicht; bei Mistral 30 Tage (Punkt 3.12). Übernommene Vorschläge bleiben im Wochenplan wie andere Einträge.
 - **Fehlerprotokolle des Servers:** 4 Wochen.
 - **Backups:** bis zu 8 Wochen (siehe 5).
 

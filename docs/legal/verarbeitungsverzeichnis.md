@@ -7,7 +7,7 @@ Für den Betreiber, nicht für die App. Verzeichnis nach Art. 30 Abs. 1 DSGVO, B
 - **Verantwortlicher:** Jan Krüger (Privatperson), jankrueger1999@gmail.com. Betreibt die App als Einstaller für die Einstaller seines Stalls, nicht gewerblich, nur auf Einladung.
 - **Stallbetrieb:** betreibt die App nicht, entscheidet nicht über Zwecke und Mittel, hat keinen Zugang zu Server oder Admin-Werkzeug. Keine gemeinsame Verantwortlichkeit (Art. 26), solange das so bleibt (siehe Checkliste, Teil 4).
 - **Datenschutzbeauftragter:** nicht benannt; nicht erforderlich (§ 38 BDSG: weniger als 20 Personen, keine Art. 35-Pflicht, siehe Abschnitt D).
-- **Auftragsverarbeiter:** Netcup GmbH (Hosting, AVV vom 30.09.2026), Resend / Plus Five Five, Inc. (E-Mail, DPA mit EU-Standardvertragsklauseln, DPF), Mistral AI SAS, Paris (Sprachmodell für KI-Vorschläge im Wochenplan, nur mit Einwilligung des Besitzers; Training mit API-Anfragen im Konto ausgeschaltet; DPA siehe Checkliste, Teil 1).
+- **Auftragsverarbeiter:** Netcup GmbH (Hosting, AVV vom 30.09.2026), Resend / Plus Five Five, Inc. (E-Mail, DPA mit EU-Standardvertragsklauseln, DPF), Mistral AI SAS, Paris (Sprachmodell für KI-Vorschläge im Wochenplan, nur mit Einwilligung des Besitzers ab 16; Data Processing Addendum vom 27.07.2026 als Teil der Commercial Terms of Service; Training mit API-Anfragen im Konto ausgeschaltet; für die Missbrauchskontrolle, 30 Tage, eigener Verantwortlicher; Einzelheiten in der Checkliste, Teil 1).
 - **Eigene Verantwortliche bzw. Übermittlungsempfänger:** Apple (APNs, Sign in with Apple, Apple Maps; Drittland USA über Standardvertragsklauseln), Google (FCM, Google Sign-In, Google Maps; Google LLC nach dem EU-US Data Privacy Framework zertifiziert), Push-Dienste der Browser (Apple, Google, Mozilla; Inhalt Ende-zu-Ende verschlüsselt), OpenFreeMap (Kartenkacheln der Web-App).
 - **Betroffene allgemein:** Einstaller und Reitbeteiligungen (Nutzer, auch Minderjährige), Erziehungsberechtigte minderjähriger Nutzer, von Nutzern eingetragene Kontaktpersonen (Notfallkarte, Tierarzt).
 - **Keine** besonderen Kategorien (Art. 9), kein Profiling, keine automatisierten Entscheidungen, keine Werbung, keine Analyse-Dienste. Die KI-Vorschläge im Wochenplan (B9) betreffen Pferde, werden von festen Regeln geprüft und nur übernommen, wenn eine Person das bestätigt.
@@ -75,11 +75,11 @@ Rechtsgrundlagen und Einzelheiten stehen im Datenschutztext (Abschnittsnummern i
 ### B9. KI-Vorschläge im Wochenplan (3.12)
 
 - **Zweck:** Vorschlag für die offenen Trainingstage einer Woche.
-- **Betroffene:** Besitzer mit Einwilligung (`ai_training`); Reitbeteiligungen und andere Eintragende nur mittelbar über die Einheiten ihres Pferdes, ohne Namen und ohne Datum.
+- **Betroffene:** Besitzer ab 16 mit Einwilligung (`ai_training`; bei Zustimmung der Eltern statt eigener Altersangabe läuft keine KI); Reitbeteiligungen und andere Eintragende nur mittelbar über die Einheiten ihres Pferdes, ohne Namen und ohne Datum.
 - **Daten:** Disziplin, Status, Rhythmus, freigegebene Aktivitäten, Einheiten der letzten 14 Tage (Tage zurück, Aktivität, Minuten, Belastung, Galopp-Anteil, Gefühl), Turniere in Tagen, Reha-Vorgaben je Tag, Wetter und Boden von heute, belegte Tage der Woche. Keine Namen, Kennungen, Freitexte, Kalenderdaten oder Standortdaten (`backend/internal/training/weekplan`, Funktion `Prompt`, mit Test).
-- **Empfänger:** Mistral AI SAS (Auftragsverarbeiter, EU).
+- **Empfänger:** Mistral AI SAS (Auftragsverarbeiter, EU; für die automatische Missbrauchskontrolle eigener Verantwortlicher). Unterauftragsverarbeiter laut Trust Center von Mistral, außerhalb der EU nur mit Angemessenheitsbeschluss oder Standardvertragsklauseln (DPA Ziffer 8).
 - **Rechtsgrundlage:** Einwilligung des Besitzers (Art. 6 Abs. 1 lit. a), für die Einheiten anderer Personen berechtigtes Interesse (lit. f).
-- **Löschung:** Anfrage und Antwort werden auf dem Server nicht gespeichert; bei Mistral laut Anbieter bis zu 30 Tage (Missbrauchskontrolle). Übernommene Tage liegen in `week_slots` wie andere Einträge (B5).
+- **Löschung:** Anfrage und Antwort werden auf dem Server nicht gespeichert; bei Mistral 30 Tage (Missbrauchskontrolle, Datenschutzerklärung von Mistral, Abschnitt 5). Übernommene Tage liegen in `week_slots` wie andere Einträge (B5).
 
 ### B8. Betrieb: Protokolle, Missbrauchsschutz, Backups (5)
 
