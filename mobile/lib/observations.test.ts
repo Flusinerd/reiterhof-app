@@ -7,6 +7,7 @@ import {
   bodyPartShort,
   bundleText,
   categoryLabel,
+  diagnosisFromObservation,
   CATEGORIES,
   horseNamesText,
   MAX_DESCRIPTION,
@@ -16,6 +17,7 @@ import {
   observationRoute,
   observationTitle,
   openCount,
+  rehaFromObservationRoute,
   reportedText,
   reportProblem,
   statusActionLabel,
@@ -120,4 +122,20 @@ test("routes", () => {
   assert.equal(newObservationRoute("h 1"), "/observations/new?horse=h%201");
   assert.equal(newObservationRoute(), "/observations/new");
   assert.equal(newObservationRoute(null), "/observations/new");
+});
+
+test("rehaFromObservationRoute carries the observation and the horse", () => {
+  assert.equal(rehaFromObservationRoute("o1", "h1"), "/reha/edit?observation=o1&horse=h1");
+});
+
+test("diagnosisFromObservation uses category, body part and description", () => {
+  assert.equal(diagnosisFromObservation({ category: "lameness", body_part: null, description: null }), "Lahmheit");
+  assert.equal(
+    diagnosisFromObservation({ category: "lameness", body_part: "front_right", description: "  Lahmt\n im Trab  " }),
+    `Lahmheit (${bodyPartLabel("front_right")}): Lahmt im Trab`,
+  );
+  assert.equal(diagnosisFromObservation({ category: null, body_part: null, description: "" }), "Auffälligkeit");
+  const long = diagnosisFromObservation({ category: "injury", body_part: null, description: "x".repeat(500) });
+  assert.equal(long.length, 200);
+  assert.ok(long.endsWith("…"));
 });

@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams, type Href } from "expo-router";
-import { Check, PawPrint, RotateCcw, Siren } from "lucide-react-native";
+import { Check, HeartPulse, PawPrint, RotateCcw, Siren } from "lucide-react-native";
 import { useState } from "react";
 import { Image, Linking, Pressable, View } from "react-native";
 
@@ -127,6 +127,15 @@ export default function ObservationDetail() {
             variant="outline"
             fullWidth
             onPress={() => router.push(horseRoutes.emergency(o.horse_id) as Href)}
+          />
+        ) : null}
+        {o.reha_plan_id ? (
+          <Button
+            label="Reha-Plan ansehen"
+            icon={HeartPulse}
+            variant="outline"
+            fullWidth
+            onPress={() => router.push(horseRoutes.reha(o.horse_id) as Href)}
           />
         ) : null}
         <Button

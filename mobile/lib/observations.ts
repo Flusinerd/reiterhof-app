@@ -15,6 +15,11 @@ export function newObservationRoute(horseId?: string | null): string {
   return horseId ? `/observations/new?horse=${encodeURIComponent(horseId)}` : "/observations/new";
 }
 
+/** Reha plan form (JAN-68): creates a plan linked to the observation, diagnosis prefilled. */
+export function rehaFromObservationRoute(observationId: string, horseId: string): string {
+  return `/reha/edit?observation=${encodeURIComponent(observationId)}&horse=${encodeURIComponent(horseId)}`;
+}
+
 // --- categories ----------------------------------------------------------------------------
 
 export const CATEGORIES = [
@@ -158,6 +163,25 @@ export function statusActionLabel(status: string): string {
 export function observationTitle(o: { category: string | null; body_part: string | null }): string {
   const parts = [categoryLabel(o.category), bodyPartLabel(o.body_part)].filter((p) => p !== "");
   return parts.join(" · ");
+}
+
+/** Longest diagnosis the reha API accepts. */
+const MAX_DIAGNOSIS = 200;
+
+/**
+ * Prefilled diagnosis of a reha plan created from an observation (JAN-68): "Lahmheit (Vorne links)",
+ * followed by ": " and the description (whitespace collapsed) if there is one, at most 200 characters.
+ */
+export function diagnosisFromObservation(o: {
+  category: string | null;
+  body_part: string | null;
+  description: string | null;
+}): string {
+  const part = bodyPartLabel(o.body_part);
+  const head = part ? `${categoryLabel(o.category)} (${part})` : categoryLabel(o.category);
+  const desc = (o.description ?? "").replace(/\s+/g, " ").trim();
+  const text = desc ? `${head}: ${desc}` : head;
+  return text.length <= MAX_DIAGNOSIS ? text : `${text.slice(0, MAX_DIAGNOSIS - 1).trimEnd()}…`;
 }
 
 /** "heute", "gestern", "vor 5 Tagen"; from 14 days on the date "08.10.2026". */

@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams, type Href } from "expo-router";
-import { Activity, ChevronRight, FileText, HeartPulse, Pencil, Shirt } from "lucide-react-native";
+import { Activity, ChevronRight, ClipboardPlus, FileText, HeartPulse, Pencil, Shirt } from "lucide-react-native";
 import type { LucideIcon } from "lucide-react-native";
 import { useState } from "react";
 import { RefreshControl, View } from "react-native";
@@ -13,6 +13,7 @@ import { HorseRiders } from "@/components/horse-riders";
 import { Avatar, Badge, Button, Card, Hero, Icon, PressableCard, Screen, SectionLabel, Text } from "@/components/ui";
 import { horseKeys, useDocuments, useEmergency, useHealth, useHorse } from "@/lib/api/horses";
 import { ageText, horseRoutes, joinParts, sexLabel } from "@/lib/horse-format";
+import { rehaFromObservationRoute } from "@/lib/observations";
 import { colors } from "@/lib/theme";
 
 function LinkRow({ icon, label, description, onPress }: { icon: LucideIcon; label: string; description?: string; onPress: () => void }) {
@@ -121,7 +122,21 @@ export default function HorseRecord() {
 
       <View className="gap-3">
         <SectionLabel>Auffälligkeiten</SectionLabel>
-        <HorseObservations horseId={h.id} />
+        <HorseObservations
+          horseId={h.id}
+          renderActions={(o) =>
+            h.can_manage && !o.reha_plan_id ? (
+              <Button
+                label="In Reha-Plan umwandeln"
+                icon={ClipboardPlus}
+                variant="outline"
+                size="sm"
+                fullWidth
+                onPress={() => go(rehaFromObservationRoute(o.id, h.id))}
+              />
+            ) : null
+          }
+        />
       </View>
 
       <View className="gap-3">
