@@ -43,7 +43,8 @@ export type HelpRequest = {
   status: RequestStatus;
   recurring_rule: string | null;
   series_id: string | null;
-  remind_helper_at: string | null;
+  /** The viewer's own reminder as helper; null when off or not a helper. */
+  my_remind_at: string | null;
   payload: Record<string, unknown>;
   created_at: string;
   helpers: RequestHelper[];
@@ -277,25 +278,45 @@ export function eventRange(w: When): { start: Date; end: Date; allDay: boolean }
 
 // --- helper reminder ------------------------------------------------------------------------
 
-export type ReminderOption = "default" | "morning" | "two_hours";
+export type ReminderOption = "default" | "morning" | "two_hours" | "off";
 
 export const REMINDER_OPTIONS: readonly { value: ReminderOption; label: string }[] = [
   { value: "default", label: "Vortag 18:00" },
   { value: "morning", label: "Am Morgen 07:00" },
   { value: "two_hours", label: "2 Stunden vorher" },
+  { value: "off", label: "Keine" },
 ];
 
 /**
- * RFC 3339 instant for `remind_helper_at` (device time zone), or null for the server
- * default (day before at 18:00). "two_hours" needs a start time and falls back to the default.
+ * RFC 3339 instant of a reminder option (device time zone), or null when there is none:
+ * "off", an unparsable date, or "two_hours" without a start time.
  */
 export function reminderAt(option: ReminderOption, date: string, timeFrom: string | null): string | null {
   const p = parseDate(date);
-  if (!p || option === "default") return null;
+  if (!p || option === "off") return null;
+  if (option === "default") return new Date(p.year, p.month - 1, p.day - 1, 18, 0).toISOString();
   if (option === "morning") return new Date(p.year, p.month - 1, p.day, 7, 0).toISOString();
   if (!timeFrom) return null;
   const [h, m] = timeFrom.split(":").map(Number);
   return new Date(p.year, p.month - 1, p.day, h - 2, m).toISOString();
+}
+
+/** The options a helper can still pick: their time lies ahead ("off" always does). */
+export function reminderChoices(date: string, timeFrom: string | null, now: Date = new Date()) {
+  return REMINDER_OPTIONS.filter((o) => {
+    const at = reminderAt(o.value, date, timeFrom);
+    return o.value === "off" || (at !== null && new Date(at) > now);
+  });
+}
+
+/** Which option matches the stored reminder, or null for a custom time. */
+export function currentReminder(mine: string | null, date: string, timeFrom: string | null): ReminderOption | null {
+  if (!mine) return "off";
+  const t = new Date(mine).getTime();
+  return REMINDER_OPTIONS.find((o) => {
+    const at = reminderAt(o.value, date, timeFrom);
+    return at !== null && new Date(at).getTime() === t;
+  })?.value ?? null;
 }
 
 // --- recurrence -----------------------------------------------------------------------------

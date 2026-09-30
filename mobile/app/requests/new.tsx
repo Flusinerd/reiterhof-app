@@ -10,17 +10,14 @@ import { Button, Input, PageHeader, Pill, PressableCard, Screen, Section, Switch
 import { requestKeys, requestsApi, type RequestInput } from "@/lib/api/requests";
 import {
   CREATABLE_TYPES,
-  REMINDER_OPTIONS,
   SHOW_TASKS,
   buildRule,
   describeRule,
   isRequestType,
   normalizeTime,
-  reminderAt,
   toIsoDate,
   typeMeta,
   type Recurrence,
-  type ReminderOption,
   type RequestType,
   type ShowClass,
 } from "@/lib/requests";
@@ -47,7 +44,6 @@ export default function NewRequest() {
   const [helpers, setHelpers] = useState(1);
   const [tasks, setTasks] = useState<string[]>([]);
   const [taskDraft, setTaskDraft] = useState("");
-  const [reminder, setReminder] = useState<ReminderOption>("default");
   const [recurrence, setRecurrence] = useState<Recurrence>("none");
   const [error, setError] = useState<string | null>(null);
 
@@ -132,8 +128,6 @@ export default function NewRequest() {
     if (type !== "show_helper" && tasks.length > 0) input.tasks = tasks;
     const rule = dateEnd ? "" : buildRule(recurrence, date);
     if (rule) input.recurring_rule = rule;
-    const remind = reminderAt(reminder, date, from);
-    if (remind) input.remind_helper_at = remind;
     create.mutate(input);
   }
 
@@ -327,14 +321,6 @@ export default function NewRequest() {
               textAlignVertical="top"
               accessibilityLabel="Beschreibung"
             />
-          </FieldRow>
-
-          <FieldRow label="Erinnerung für Helfer">
-            <View className="flex-row flex-wrap gap-2">
-              {REMINDER_OPTIONS.map((o) => (
-                <Pill key={o.value} label={o.label} selected={reminder === o.value} onPress={() => setReminder(o.value)} />
-              ))}
-            </View>
           </FieldRow>
 
           {dateEnd ? null : (

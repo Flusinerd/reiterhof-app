@@ -630,8 +630,8 @@ func TestHelperReminders(t *testing.T) {
 
 	// Default: the day before at 18:00 Berlin (= 16:00 UTC).
 	want := time.Date(2026, 10, 1, 18, 0, 0, 0, berlin)
-	if accepted.RemindHelperAt == nil || !accepted.RemindHelperAt.Equal(want) {
-		t.Fatalf("remind_helper_at = %v, want %v", accepted.RemindHelperAt, want)
+	if accepted.MyRemindAt == nil || !accepted.MyRemindAt.Equal(want) {
+		t.Fatalf("my_remind_at = %v, want %v", accepted.MyRemindAt, want)
 	}
 	e.fake.Reset()
 	e.setNow(want.Add(-time.Minute))
@@ -671,24 +671,36 @@ func TestHelperReminders(t *testing.T) {
 	}
 	var sentRows int
 	_ = e.pool.QueryRow(ctx, `SELECT count(*) FROM reminders WHERE source_table = 'requests' AND source_id = $1 AND kind = 'helper' AND sent_at IS NOT NULL`, r.ID).Scan(&sentRows)
-	if sentRows != 2 {
+	if sentRows != 1 {
 		t.Errorf("reminder rows = %d", sentRows)
 	}
 
-	// A creator-chosen time wins over the default; changing it re-arms the reminder.
+	// A time the helper picks when accepting wins over the default; the others stay private.
 	e.setNow(time.Date(2026, 9, 30, 10, 0, 0, 0, berlin))
-	r2 := e.create(seed.UserAnna, m{"type": "other", "date": "2026-10-05", "remind_helper_at": "2026-10-05T05:00:00Z"})
-	got := e.do(seed.UserKai, "POST", "/api/v1/requests/"+r2.ID+"/accept", nil).status(t, 200).req(t)
-	if got.RemindHelperAt == nil || !got.RemindHelperAt.Equal(time.Date(2026, 10, 5, 5, 0, 0, 0, time.UTC)) {
-		t.Fatalf("custom reminder = %v", got.RemindHelperAt)
+	r2 := e.create(seed.UserAnna, m{"type": "other", "date": "2026-10-05", "helpers_needed": 3})
+	e.do(seed.UserKai, "POST", "/api/v1/requests/"+r2.ID+"/accept", m{"remind_at": "2026-09-29T10:00:00Z"}).status(t, 400)
+	got := e.do(seed.UserKai, "POST", "/api/v1/requests/"+r2.ID+"/accept", m{"remind_at": "2026-10-05T05:00:00Z"}).status(t, 200).req(t)
+	if got.MyRemindAt == nil || !got.MyRemindAt.Equal(time.Date(2026, 10, 5, 5, 0, 0, 0, time.UTC)) {
+		t.Fatalf("custom reminder = %v", got.MyRemindAt)
+	}
+	other := e.do(seed.UserTom, "POST", "/api/v1/requests/"+r2.ID+"/accept", nil).status(t, 200).req(t)
+	if other.MyRemindAt == nil || !other.MyRemindAt.Equal(time.Date(2026, 10, 4, 16, 0, 0, 0, time.UTC)) {
+		t.Fatalf("second helper reminder = %v", other.MyRemindAt)
+	}
+	// Non-helpers cannot set one; helpers can change or switch theirs off.
+	e.do(seed.UserLea, "PUT", "/api/v1/requests/"+r2.ID+"/reminder", m{"remind_at": "2026-10-05T05:00:00Z"}).status(t, 403)
+	e.do(seed.UserTom, "PUT", "/api/v1/requests/"+r2.ID+"/reminder", m{"remind_at": "2026-09-29T05:00:00Z"}).status(t, 400)
+	got = e.do(seed.UserTom, "PUT", "/api/v1/requests/"+r2.ID+"/reminder", m{"remind_at": nil}).status(t, 200).req(t)
+	if got.MyRemindAt != nil {
+		t.Fatalf("reminder not switched off: %v", got.MyRemindAt)
 	}
 	e.fake.Reset()
 	e.setNow(time.Date(2026, 10, 5, 7, 5, 0, 0, berlin))
 	if err := e.svc.SendHelperReminders(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if len(sentTo(e.fake, seed.UserKai)) != 1 {
-		t.Fatalf("custom reminder not sent: %+v", e.fake.Sent())
+	if len(sentTo(e.fake, seed.UserKai)) != 1 || len(sentTo(e.fake, seed.UserTom)) != 0 {
+		t.Fatalf("reminders = %+v", e.fake.Sent())
 	}
 
 	// Cancelled requests and finished days send nothing.
@@ -709,8 +721,8 @@ func TestHelperReminders(t *testing.T) {
 	e.setNow(time.Date(2026, 10, 11, 20, 0, 0, 0, berlin))
 	r4 := e.create(seed.UserAnna, m{"type": "other", "date": "2026-10-12"})
 	got = e.do(seed.UserKai, "POST", "/api/v1/requests/"+r4.ID+"/accept", nil).status(t, 200).req(t)
-	if got.RemindHelperAt != nil {
-		t.Errorf("late accept has reminder %v", got.RemindHelperAt)
+	if got.MyRemindAt != nil {
+		t.Errorf("late accept has reminder %v", got.MyRemindAt)
 	}
 }
 

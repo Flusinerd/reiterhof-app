@@ -158,9 +158,9 @@ func (s *Service) Calendar(ctx context.Context, u auth.User, from, to string) ([
 
 const insertRequest = `
 INSERT INTO requests (stable_id, type, horse_id, created_by, date, date_end, time_from, time_to, location, description,
-                      tasks, helpers_needed, recurring_rule, remind_helper_at, payload)
+                      tasks, helpers_needed, recurring_rule, payload)
 VALUES ($1, $2, $3::uuid, $4::uuid, $5::date, $6::date, $7::time, $8::time, NULLIF($9, ''), NULLIF($10, ''),
-        $11::jsonb, $12, NULLIF($13, ''), $14, $15::jsonb)
+        $11::jsonb, $12, NULLIF($13, ''), $14::jsonb)
 RETURNING id::text`
 
 func (s *Service) checkHorse(ctx context.Context, q querier, stableID string, horseID *string) error {
@@ -195,7 +195,7 @@ func (s *Service) Create(ctx context.Context, u auth.User, in Input) (Request, e
 	err := s.tx(ctx, func(tx pgx.Tx) error {
 		if err := tx.QueryRow(ctx, insertRequest, u.StableID, in.Type, in.HorseID, u.ID, in.Date, in.DateEnd,
 			in.TimeFrom, in.TimeTo, in.Location, in.Description, string(tasks), in.HelpersNeeded, in.RecurringRule,
-			in.RemindHelperAt, string(in.Payload)).Scan(&id); err != nil {
+			string(in.Payload)).Scan(&id); err != nil {
 			return err
 		}
 		if in.RecurringRule != "" {
@@ -305,20 +305,27 @@ func (s *Service) Update(ctx context.Context, u auth.User, id string, p Patch) (
 		_, err = tx.Exec(ctx, `
 			UPDATE requests SET horse_id = $3::uuid, date = $4::date, date_end = $5::date, time_from = $6::time,
 			       time_to = $7::time, location = NULLIF($8, ''), description = NULLIF($9, ''), tasks = $10::jsonb,
-			       helpers_needed = $11, payload = $12::jsonb, remind_helper_at = $13, status = $14
+			       helpers_needed = $11, payload = $12::jsonb, status = $13
 			WHERE stable_id = $1 AND id = $2::uuid`,
 			u.StableID, id, in.HorseID, in.Date, in.DateEnd, in.TimeFrom, in.TimeTo, in.Location, in.Description,
-			string(tasks), in.HelpersNeeded, string(in.Payload), in.RemindHelperAt, statusFor(l.Helpers, in.HelpersNeeded))
+			string(tasks), in.HelpersNeeded, string(in.Payload), statusFor(l.Helpers, in.HelpersNeeded))
 		if err != nil {
 			if isUniqueViolation(err) {
 				return errf(http.StatusConflict, "conflict", "another request of this series already exists on that day")
 			}
 			return err
 		}
-		changedWhen = in.Date != cur.Date || strEq(in.TimeFrom, cur.TimeFrom) == false || in.Location != cur.Location ||
-			!ptrEq(in.RemindHelperAt, cur.RemindHelperAt)
-		if !ptrEq(in.RemindHelperAt, cur.RemindHelperAt) || in.Date != cur.Date {
-			// New reminder time: allow the job to send again.
+		changedWhen = in.Date != cur.Date || strEq(in.TimeFrom, cur.TimeFrom) == false || in.Location != cur.Location
+		if in.Date != cur.Date {
+			// New day: every helper gets the default reminder again (they can change it).
+			def, derr := defaultReminder(in.Date, loc)
+			var remind *time.Time
+			if derr == nil && def.After(s.now()) {
+				remind = &def
+			}
+			if _, err := tx.Exec(ctx, `UPDATE request_assignees SET remind_at = $2 WHERE request_id = $1::uuid`, id, remind); err != nil {
+				return err
+			}
 			if _, err := tx.Exec(ctx, `DELETE FROM reminders WHERE source_table = 'requests' AND source_id = $1::uuid AND kind = 'helper'`, id); err != nil {
 				return err
 			}
@@ -354,13 +361,6 @@ func strEq(a, b *string) bool {
 	return *a == *b
 }
 
-func ptrEq(a, b *time.Time) bool {
-	if a == nil || b == nil {
-		return a == b
-	}
-	return a.Equal(*b)
-}
-
 func orEmpty(prefix, s string) string {
 	if s == "" {
 		return ""
@@ -380,12 +380,53 @@ func wrap(err error) error {
 	return internal(err)
 }
 
+// ---------------------------------------------------------------- helper reminder
+
+// SetReminder changes the viewer's own reminder as a helper; nil switches it off.
+// The new time may not lie in the past, and a reminder already sent is re-armed.
+func (s *Service) SetReminder(ctx context.Context, u auth.User, id string, remindAt *time.Time) (Request, error) {
+	now := s.now()
+	td := today(now, stableLocation(ctx, s.Pool, u.StableID))
+	var after Request
+	err := s.tx(ctx, func(tx pgx.Tx) error {
+		l, err := lock(ctx, tx, u.StableID, id)
+		if errors.Is(err, errNotFound) {
+			return errMissing
+		}
+		if err != nil {
+			return err
+		}
+		if l.Status != StatusOpen && l.Status != StatusAssigned {
+			return errf(http.StatusConflict, "not_open", "the request is already %s", l.Status)
+		}
+		if remindAt != nil && !remindAt.After(now) {
+			return invalid("remind_at must lie in the future")
+		}
+		tag, err := tx.Exec(ctx, `UPDATE request_assignees SET remind_at = $3 WHERE request_id = $1::uuid AND user_id = $2::uuid`, id, u.ID, remindAt)
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() == 0 {
+			return errf(http.StatusForbidden, "not_helper", "only helpers of the request can set a reminder")
+		}
+		if _, err := tx.Exec(ctx, `DELETE FROM reminders WHERE source_table = 'requests' AND source_id = $1::uuid AND user_id = $2::uuid AND kind = 'helper'`, id, u.ID); err != nil {
+			return err
+		}
+		after, err = s.get(ctx, tx, u.StableID, u.ID, id, td)
+		return err
+	})
+	if err != nil {
+		return Request{}, wrap(err)
+	}
+	return after, nil
+}
+
 // ---------------------------------------------------------------- state transitions
 
 // Accept adds the user as helper ("Mach ich" / "Ich komme mit"). It is
 // idempotent, locks the row so that two people cannot take the last seat, and
 // moves the request to assigned when it is full.
-func (s *Service) Accept(ctx context.Context, u auth.User, id string) (Request, error) {
+func (s *Service) Accept(ctx context.Context, u auth.User, id string, remindAt *time.Time) (Request, error) {
 	loc := stableLocation(ctx, s.Pool, u.StableID)
 	now := s.now()
 	td := today(now, loc)
@@ -416,29 +457,19 @@ func (s *Service) Accept(ctx context.Context, u auth.User, id string) (Request, 
 			if l.Helpers >= l.HelpersNeeded {
 				return errf(http.StatusConflict, "request_full", "all helpers have been found already")
 			}
-			if _, err := tx.Exec(ctx, `INSERT INTO request_assignees (stable_id, request_id, user_id) VALUES ($1, $2::uuid, $3::uuid)`, u.StableID, id, u.ID); err != nil {
-				return err
-			}
-			joined = true
-			remind := l.RemindHelperAt
+			remind := remindAt
 			if remind == nil {
 				// Default: the day before at 18:00, only if that lies ahead.
 				if def, err := defaultReminder(l.Date, loc); err == nil && def.After(now) {
 					remind = &def
-					if _, err := tx.Exec(ctx, `UPDATE requests SET remind_helper_at = $2 WHERE id = $1::uuid`, id, def); err != nil {
-						return err
-					}
 				}
+			} else if !remind.After(now) {
+				return invalid("remind_at must lie in the future")
 			}
-			if remind != nil && !remind.After(now) {
-				// The reminder time has passed: do not remind someone who just said yes.
-				if _, err := tx.Exec(ctx, `
-					INSERT INTO reminders (stable_id, user_id, kind, title, due_at, source_table, source_id, sent_at)
-					VALUES ($1, $2::uuid, 'helper', 'Anfrage angenommen', $3, 'requests', $4::uuid, $5)
-					ON CONFLICT DO NOTHING`, u.StableID, u.ID, *remind, id, now); err != nil {
-					return err
-				}
+			if _, err := tx.Exec(ctx, `INSERT INTO request_assignees (stable_id, request_id, user_id, remind_at) VALUES ($1, $2::uuid, $3::uuid, $4)`, u.StableID, id, u.ID, remind); err != nil {
+				return err
 			}
+			joined = true
 			if _, err := tx.Exec(ctx, `UPDATE requests SET status = $2 WHERE id = $1::uuid`, id, statusFor(l.Helpers+1, l.HelpersNeeded)); err != nil {
 				return err
 			}
@@ -636,7 +667,7 @@ func (s *Service) Cancel(ctx context.Context, u auth.User, id, scope string) (Re
 // ---------------------------------------------------------------- series
 
 func (s *Service) updateSeries(ctx context.Context, u auth.User, id string, p Patch) (Request, error) {
-	if p.HorseID != nil || p.Date != nil || p.DateEnd != nil || p.RemindHelperAt != nil {
+	if p.HorseID != nil || p.Date != nil || p.DateEnd != nil {
 		return Request{}, invalid("scope series only changes time, location, description, tasks, helpers_needed, payload and recurring_rule")
 	}
 	loc := stableLocation(ctx, s.Pool, u.StableID)

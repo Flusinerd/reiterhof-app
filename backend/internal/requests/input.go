@@ -34,47 +34,45 @@ var (
 // Input is the body of POST /api/v1/requests and, after merging a Patch, the
 // validated state that is stored.
 type Input struct {
-	Type           string          `json:"type"`
-	HorseID        *string         `json:"horse_id"`
-	Date           string          `json:"date"`     // YYYY-MM-DD
-	DateEnd        *string         `json:"date_end"` // inclusive
-	TimeFrom       *string         `json:"time_from"`
-	TimeTo         *string         `json:"time_to"`
-	Location       string          `json:"location"`
-	Description    string          `json:"description"`
-	Tasks          []string        `json:"tasks"`
-	HelpersNeeded  int             `json:"helpers_needed"`
-	RecurringRule  string          `json:"recurring_rule"`
-	RemindHelperAt *time.Time      `json:"remind_helper_at"`
-	Payload        json.RawMessage `json:"payload"`
+	Type          string          `json:"type"`
+	HorseID       *string         `json:"horse_id"`
+	Date          string          `json:"date"`     // YYYY-MM-DD
+	DateEnd       *string         `json:"date_end"` // inclusive
+	TimeFrom      *string         `json:"time_from"`
+	TimeTo        *string         `json:"time_to"`
+	Location      string          `json:"location"`
+	Description   string          `json:"description"`
+	Tasks         []string        `json:"tasks"`
+	HelpersNeeded int             `json:"helpers_needed"`
+	RecurringRule string          `json:"recurring_rule"`
+	Payload       json.RawMessage `json:"payload"`
 }
 
 // Patch is the body of PATCH /api/v1/requests/{id}. Absent fields stay as they
-// are; "" clears horse_id, date_end, time_from, time_to and remind_helper_at.
+// are; "" clears horse_id, date_end, time_from, time_to.
 // Scope "series" applies time_from, time_to, location, description, tasks,
 // helpers_needed, payload and recurring_rule to the template and all upcoming
 // open occurrences; other fields are rejected in that scope.
 type Patch struct {
-	Scope          string          `json:"scope"` // "" or "one" | "series"
-	HorseID        *string         `json:"horse_id"`
-	Date           *string         `json:"date"`
-	DateEnd        *string         `json:"date_end"`
-	TimeFrom       *string         `json:"time_from"`
-	TimeTo         *string         `json:"time_to"`
-	Location       *string         `json:"location"`
-	Description    *string         `json:"description"`
-	Tasks          *[]string       `json:"tasks"`
-	HelpersNeeded  *int            `json:"helpers_needed"`
-	RecurringRule  *string         `json:"recurring_rule"`
-	RemindHelperAt *string         `json:"remind_helper_at"` // RFC 3339
-	Payload        json.RawMessage `json:"payload"`
+	Scope         string          `json:"scope"` // "" or "one" | "series"
+	HorseID       *string         `json:"horse_id"`
+	Date          *string         `json:"date"`
+	DateEnd       *string         `json:"date_end"`
+	TimeFrom      *string         `json:"time_from"`
+	TimeTo        *string         `json:"time_to"`
+	Location      *string         `json:"location"`
+	Description   *string         `json:"description"`
+	Tasks         *[]string       `json:"tasks"`
+	HelpersNeeded *int            `json:"helpers_needed"`
+	RecurringRule *string         `json:"recurring_rule"`
+	Payload       json.RawMessage `json:"payload"`
 }
 
 func inputFromRequest(r Request) Input {
 	in := Input{
 		Type: r.Type, HorseID: r.HorseID, Date: r.Date, DateEnd: r.DateEnd, TimeFrom: r.TimeFrom, TimeTo: r.TimeTo,
 		Location: r.Location, Description: r.Description, Tasks: r.Tasks, HelpersNeeded: r.HelpersNeeded,
-		RemindHelperAt: r.RemindHelperAt, Payload: r.Payload,
+		Payload: r.Payload,
 	}
 	if r.RecurringRule != nil {
 		in.RecurringRule = *r.RecurringRule
@@ -124,17 +122,6 @@ func (p Patch) apply(in *Input) error {
 	}
 	if p.RecurringRule != nil {
 		in.RecurringRule = strings.TrimSpace(*p.RecurringRule)
-	}
-	if p.RemindHelperAt != nil {
-		if strings.TrimSpace(*p.RemindHelperAt) == "" {
-			in.RemindHelperAt = nil
-		} else {
-			t, err := time.Parse(time.RFC3339, *p.RemindHelperAt)
-			if err != nil {
-				return errors.New("remind_helper_at must be an RFC 3339 timestamp")
-			}
-			in.RemindHelperAt = &t
-		}
 	}
 	if len(p.Payload) > 0 {
 		in.Payload = p.Payload

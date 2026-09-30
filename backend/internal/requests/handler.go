@@ -47,6 +47,7 @@ func RegisterService(mux *http.ServeMux, svc *Service) {
 	route("GET /api/v1/requests/{id}", h.get)
 	route("PATCH /api/v1/requests/{id}", h.update)
 	route("POST /api/v1/requests/{id}/accept", h.accept)
+	route("PUT /api/v1/requests/{id}/reminder", h.reminder)
 	route("POST /api/v1/requests/{id}/withdraw", h.withdraw)
 	route("POST /api/v1/requests/{id}/done", h.done)
 	route("POST /api/v1/requests/{id}/cancel", h.cancel)
@@ -188,7 +189,25 @@ func (h *handler) update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) accept(w http.ResponseWriter, r *http.Request) {
-	req, err := h.svc.Accept(r.Context(), user(r), r.PathValue("id"))
+	var body struct {
+		RemindAt *time.Time `json:"remind_at"`
+	}
+	if r.ContentLength != 0 && !httpx.ReadJSON(w, r, &body) {
+		return
+	}
+	req, err := h.svc.Accept(r.Context(), user(r), r.PathValue("id"), body.RemindAt)
+	h.respond(w, req, err)
+}
+
+// reminder handles PUT /api/v1/requests/{id}/reminder {"remind_at": RFC 3339 | null}.
+func (h *handler) reminder(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		RemindAt *time.Time `json:"remind_at"`
+	}
+	if !httpx.ReadJSON(w, r, &body) {
+		return
+	}
+	req, err := h.svc.SetReminder(r.Context(), user(r), r.PathValue("id"), body.RemindAt)
 	h.respond(w, req, err)
 }
 

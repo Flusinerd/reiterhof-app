@@ -20,8 +20,9 @@ Status: `open` -> `assigned` (when helpers == `helpers_needed`) -> `done`; `canc
 Request JSON (all responses): `id, type, horse_id, horse_name, horse_color_key, created_by,
 creator_name, date (YYYY-MM-DD), date_end (inclusive or null), time_from, time_to (HH:MM),
 location, description, tasks[], helpers_needed, status, recurring_rule, series_id,
-remind_helper_at, payload, created_at, helpers[{user_id,name,avatar_color,thanked,joined_at}],
-helpers_count, spots_left, is_creator, is_helper, can_accept`.
+payload, created_at, helpers[{user_id,name,avatar_color,thanked,joined_at}],
+helpers_count, spots_left, is_creator, is_helper, can_accept, my_remind_at` (the viewer's own
+reminder as helper; other helpers' reminders are never exposed).
 
 ### Types and `payload`
 
@@ -46,10 +47,11 @@ All under `/api/v1`, JSON, errors as in `docs/architecture.md`.
 | Route | Purpose |
 | --- | --- |
 | `GET /requests?status=open,assigned&type=&mine=true&assigned=true&horse_id=&from=&to=&limit=` | List, `{requests, open_count}`. `mine` = created by me, `assigned` = I help, `from` compares with the last day, `to` with the first. Default status excludes `cancelled`. `open_count` = open, not expired, ignores filters. |
-| `POST /requests` | Create (`201`). Body: `type, horse_id?, date, date_end?, time_from?, time_to?, location?, description?, tasks?, helpers_needed?, recurring_rule?, remind_helper_at?, payload`. Date must not be in the past. |
+| `POST /requests` | Create (`201`). Body: `type, horse_id?, date, date_end?, time_from?, time_to?, location?, description?, tasks?, helpers_needed?, recurring_rule?, payload`. Date must not be in the past. |
 | `GET /requests/{id}` | Detail |
 | `PATCH /requests/{id}` | Creator or admin, only while open/assigned. Optional `scope: "series"` (see below). `409 too_many_helpers` if fewer helpers than already joined. |
-| `POST /requests/{id}/accept` | "Mach ich / Ich komme mit". Locks the row (`FOR UPDATE`). Idempotent. `403 own_request`, `409 request_full`, `409 not_open`, `409 expired`. |
+| `POST /requests/{id}/accept` | "Mach ich / Ich komme mit". Optional body `{remind_at}` (RFC 3339, future; default see Helper reminder). Locks the row (`FOR UPDATE`). Idempotent. `403 own_request`, `409 request_full`, `409 not_open`, `409 expired`. |
+| `PUT /requests/{id}/reminder` | Helper only: `{remind_at: RFC 3339 \| null}` sets or switches off my own reminder (`400` if in the past, `403 not_helper`, `409 not_open`) |
 | `POST /requests/{id}/withdraw` | Leave; idempotent; `409 not_open` once done/cancelled |
 | `POST /requests/{id}/done` | Creator or helper; idempotent |
 | `POST /requests/{id}/cancel` | Creator or admin; optional body `{scope: "one"\|"series"}`; idempotent |
@@ -97,12 +99,15 @@ so it is idempotent). Occurrences copy the template and start `open`.
 
 ## Helper reminder
 
-`remind_helper_at` is set by the creator or, on the first accept, defaults to the day before
-at 18:00 in the stable's time zone (only if that lies in the future). The job
-`request-helper-reminders` (every 5 minutes) sends a push with date, place and checklist to
-each helper of an open/assigned request whose time has passed. A row in `reminders`
-(`source_table = 'requests'`, unique per request and user) marks it as sent. Someone who accepts
-after the time has passed gets no reminder; changing date or reminder time re-arms it.
+Each helper chooses their own reminder (`request_assignees.remind_at`); the creator does not
+set one. On accept it defaults to the day before at 18:00 in the stable's time zone (only if
+that lies in the future), or the app sends `remind_at`. The helper changes it in the detail
+screen ("Meine Erinnerung": Vortag 18:00, Am Morgen 07:00, 2 Stunden vorher, Keine) via
+`PUT /requests/{id}/reminder`. The job `request-helper-reminders` (every 5 minutes) sends a push
+with date, place and checklist to each helper of an open/assigned request whose own time has
+passed. A row in `reminders` (`source_table = 'requests'`, unique per request and user) marks it
+as sent; changing the reminder re-arms it, as does withdrawing. Changing the request's date resets
+all helpers to the default for the new day.
 
 ## Calendar (ICS)
 

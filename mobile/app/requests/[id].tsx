@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
-import { Bell, Calendar, Check, CheckCheck, HandHeart, Heart, Repeat, Square, SquareCheck, UserMinus, X } from "lucide-react-native";
+import { Calendar, Check, CheckCheck, HandHeart, Heart, Repeat, Square, SquareCheck, UserMinus, X } from "lucide-react-native";
 import { useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, View } from "react-native";
 
@@ -12,15 +12,19 @@ import { colors } from "@/lib/theme";
 import {
   acceptLabel,
   describeRule,
+  currentReminder,
   formatInstant,
   formatWhen,
   helperCountText,
   helperStatusText,
   payloadDetails,
+  reminderAt,
+  reminderChoices,
   requestTitle,
   statusBadge,
   taskChips,
   type HelpRequest,
+  type ReminderOption,
 } from "@/lib/requests";
 import { addToDeviceCalendar } from "@/lib/requests-calendar";
 import { requestErrorMessage } from "@/lib/requests-errors";
@@ -59,6 +63,13 @@ export default function RequestDetail() {
       setError(null);
       setNotice(null);
     },
+    onSuccess: afterChange,
+    onError: (e) => setError(requestErrorMessage(e)),
+  });
+
+  const remind = useMutation({
+    mutationFn: (value: ReminderOption) => requestsApi.setReminder(id, reminderAt(value, r?.date ?? "", r?.time_from ?? null)),
+    onMutate: () => setError(null),
     onSuccess: afterChange,
     onError: (e) => setError(requestErrorMessage(e)),
   });
@@ -153,15 +164,6 @@ export default function RequestDetail() {
               </View>
             </View>
           ) : null}
-          {r.remind_helper_at ? (
-            <View className="flex-row items-center justify-between gap-4">
-              <Text variant="secondary">Erinnerung</Text>
-              <View className="flex-row items-center gap-1.5">
-                <Icon as={Bell} size={16} className="text-muted" />
-                <Text variant="bodySm">{formatInstant(r.remind_helper_at)}</Text>
-              </View>
-            </View>
-          ) : null}
           {r.description ? (
             <>
               <Divider />
@@ -170,6 +172,24 @@ export default function RequestDetail() {
           ) : null}
         </Card>
       </Section>
+
+      {r.is_helper && active ? (
+        <Section title="Meine Erinnerung" description="Nur du siehst und erhältst sie.">
+          <View className="flex-row flex-wrap gap-2">
+            {reminderChoices(r.date, r.time_from).map((o) => (
+              <Pill
+                key={o.value}
+                label={o.label}
+                selected={currentReminder(r.my_remind_at, r.date, r.time_from) === o.value}
+                onPress={() => remind.mutate(o.value)}
+              />
+            ))}
+          </View>
+          {currentReminder(r.my_remind_at, r.date, r.time_from) === null && r.my_remind_at ? (
+            <Text variant="secondary">Aktuell: {formatInstant(r.my_remind_at)}</Text>
+          ) : null}
+        </Section>
+      ) : null}
 
       {chips.length > 0 ? (
         <Section title="Checkliste">

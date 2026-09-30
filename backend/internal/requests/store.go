@@ -40,27 +40,26 @@ type Helper struct {
 // Request is the API representation of a help request, including the viewer's
 // perspective (is_creator, is_helper, can_accept).
 type Request struct {
-	ID             string          `json:"id"`
-	Type           string          `json:"type"`
-	HorseID        *string         `json:"horse_id"`
-	HorseName      *string         `json:"horse_name"`
-	HorseColorKey  *string         `json:"horse_color_key"`
-	CreatedBy      string          `json:"created_by"`
-	CreatorName    string          `json:"creator_name"`
-	Date           string          `json:"date"`     // YYYY-MM-DD, stable-local
-	DateEnd        *string         `json:"date_end"` // inclusive
-	TimeFrom       *string         `json:"time_from"`
-	TimeTo         *string         `json:"time_to"`
-	Location       string          `json:"location"`
-	Description    string          `json:"description"`
-	Tasks          []string        `json:"tasks"`
-	HelpersNeeded  int             `json:"helpers_needed"`
-	Status         string          `json:"status"`
-	RecurringRule  *string         `json:"recurring_rule"`
-	SeriesID       *string         `json:"series_id"`
-	RemindHelperAt *time.Time      `json:"remind_helper_at"`
-	Payload        json.RawMessage `json:"payload"`
-	CreatedAt      time.Time       `json:"created_at"`
+	ID            string          `json:"id"`
+	Type          string          `json:"type"`
+	HorseID       *string         `json:"horse_id"`
+	HorseName     *string         `json:"horse_name"`
+	HorseColorKey *string         `json:"horse_color_key"`
+	CreatedBy     string          `json:"created_by"`
+	CreatorName   string          `json:"creator_name"`
+	Date          string          `json:"date"`     // YYYY-MM-DD, stable-local
+	DateEnd       *string         `json:"date_end"` // inclusive
+	TimeFrom      *string         `json:"time_from"`
+	TimeTo        *string         `json:"time_to"`
+	Location      string          `json:"location"`
+	Description   string          `json:"description"`
+	Tasks         []string        `json:"tasks"`
+	HelpersNeeded int             `json:"helpers_needed"`
+	Status        string          `json:"status"`
+	RecurringRule *string         `json:"recurring_rule"`
+	SeriesID      *string         `json:"series_id"`
+	Payload       json.RawMessage `json:"payload"`
+	CreatedAt     time.Time       `json:"created_at"`
 
 	Helpers      []Helper `json:"helpers"`
 	HelpersCount int      `json:"helpers_count"`
@@ -68,6 +67,8 @@ type Request struct {
 	IsCreator    bool     `json:"is_creator"`
 	IsHelper     bool     `json:"is_helper"`
 	CanAccept    bool     `json:"can_accept"`
+	// MyRemindAt is the viewer's own reminder as helper; other helpers' reminders are private.
+	MyRemindAt *time.Time `json:"my_remind_at"`
 }
 
 // EndDate is the last day of the request (date_end or date).
@@ -83,7 +84,7 @@ SELECT r.id::text, r.type, r.horse_id::text, h.name, h.color_key, r.created_by::
        to_char(r.date, 'YYYY-MM-DD'), to_char(r.date_end, 'YYYY-MM-DD'),
        to_char(r.time_from, 'HH24:MI'), to_char(r.time_to, 'HH24:MI'),
        COALESCE(r.location, ''), COALESCE(r.description, ''), r.tasks, r.helpers_needed, r.status,
-       r.recurring_rule, r.series_id::text, r.remind_helper_at, r.payload, r.created_at
+       r.recurring_rule, r.series_id::text, r.payload, r.created_at
 FROM requests r
 JOIN users u ON u.id = r.created_by
 LEFT JOIN horses h ON h.id = r.horse_id AND h.stable_id = r.stable_id
@@ -94,7 +95,7 @@ func scanRequest(row pgx.Row) (Request, error) {
 	var tasks, payload []byte
 	err := row.Scan(&r.ID, &r.Type, &r.HorseID, &r.HorseName, &r.HorseColorKey, &r.CreatedBy, &r.CreatorName,
 		&r.Date, &r.DateEnd, &r.TimeFrom, &r.TimeTo, &r.Location, &r.Description, &tasks, &r.HelpersNeeded,
-		&r.Status, &r.RecurringRule, &r.SeriesID, &r.RemindHelperAt, &payload, &r.CreatedAt)
+		&r.Status, &r.RecurringRule, &r.SeriesID, &payload, &r.CreatedAt)
 	if err != nil {
 		return r, err
 	}
@@ -221,7 +222,7 @@ func (s *Service) attach(ctx context.Context, q querier, stableID, viewerID, tod
 		idx[r.ID] = i
 	}
 	rows, err := q.Query(ctx, `
-		SELECT a.request_id::text, u.id::text, u.name, u.avatar_color, a.thanked, a.created_at
+		SELECT a.request_id::text, u.id::text, u.name, u.avatar_color, a.thanked, a.created_at, a.remind_at
 		FROM request_assignees a JOIN users u ON u.id = a.user_id
 		WHERE a.stable_id = $1 AND a.request_id = ANY($2::uuid[])
 		ORDER BY a.created_at, u.name`, stableID, ids)
@@ -232,10 +233,14 @@ func (s *Service) attach(ctx context.Context, q querier, stableID, viewerID, tod
 	for rows.Next() {
 		var reqID string
 		var h Helper
-		if err := rows.Scan(&reqID, &h.UserID, &h.Name, &h.AvatarColor, &h.Thanked, &h.JoinedAt); err != nil {
+		var remind *time.Time
+		if err := rows.Scan(&reqID, &h.UserID, &h.Name, &h.AvatarColor, &h.Thanked, &h.JoinedAt, &remind); err != nil {
 			return err
 		}
 		i := idx[reqID]
+		if h.UserID == viewerID {
+			reqs[i].MyRemindAt = remind
+		}
 		reqs[i].Helpers = append(reqs[i].Helpers, h)
 	}
 	if err := rows.Err(); err != nil {
@@ -258,16 +263,15 @@ func (s *Service) attach(ctx context.Context, q querier, stableID, viewerID, tod
 
 // lockRow is the part of a request the state transitions need, read FOR UPDATE.
 type lockRow struct {
-	ID             string
-	Type           string
-	CreatedBy      string
-	Status         string
-	HelpersNeeded  int
-	Date           string
-	EndDate        string
-	SeriesID       *string
-	RemindHelperAt *time.Time
-	Helpers        int
+	ID            string
+	Type          string
+	CreatedBy     string
+	Status        string
+	HelpersNeeded int
+	Date          string
+	EndDate       string
+	SeriesID      *string
+	Helpers       int
 }
 
 var errNotFound = errors.New("request not found")
@@ -281,9 +285,9 @@ func lock(ctx context.Context, tx pgx.Tx, stableID, id string) (lockRow, error) 
 	err := tx.QueryRow(ctx, `
 		SELECT id::text, type, created_by::text, status, helpers_needed,
 		       to_char(date, 'YYYY-MM-DD'), to_char(COALESCE(date_end, date), 'YYYY-MM-DD'),
-		       series_id::text, remind_helper_at
+		       series_id::text
 		FROM requests WHERE stable_id = $1 AND id = $2::uuid FOR UPDATE`, stableID, id).
-		Scan(&l.ID, &l.Type, &l.CreatedBy, &l.Status, &l.HelpersNeeded, &l.Date, &l.EndDate, &l.SeriesID, &l.RemindHelperAt)
+		Scan(&l.ID, &l.Type, &l.CreatedBy, &l.Status, &l.HelpersNeeded, &l.Date, &l.EndDate, &l.SeriesID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return l, errNotFound
 	}

@@ -18,7 +18,6 @@ export type RequestInput = {
   tasks?: string[];
   helpers_needed?: number;
   recurring_rule?: string;
-  remind_helper_at?: string;
   payload?: Record<string, unknown>;
 };
 
@@ -47,6 +46,7 @@ export const requestsApi = {
   create: (input: RequestInput) => authed.post<HelpRequest>(base, input),
   update: (id: string, patch: RequestPatch) => authed.patch<HelpRequest>(`${base}/${id}`, patch),
   accept: (id: string) => authed.post<HelpRequest>(`${base}/${id}/accept`),
+  setReminder: (id: string, remindAt: string | null) => authed.put<HelpRequest>(`${base}/${id}/reminder`, { remind_at: remindAt }),
   withdraw: (id: string) => authed.post<HelpRequest>(`${base}/${id}/withdraw`),
   done: (id: string) => authed.post<HelpRequest>(`${base}/${id}/done`),
   cancel: (id: string, scope: "one" | "series" = "one") => authed.post<HelpRequest>(`${base}/${id}/cancel`, { scope }),

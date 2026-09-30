@@ -19,7 +19,9 @@ import {
   parseDate,
   payloadDetails,
   relativeDay,
+  currentReminder,
   reminderAt,
+  reminderChoices,
   requestTitle,
   statusBadge,
   taskChips,
@@ -100,7 +102,11 @@ test("eventRange builds timed and all-day events", () => {
 });
 
 test("reminderAt computes local instants", () => {
-  assert.equal(reminderAt("default", "2026-10-02", "18:00"), null);
+  const day = reminderAt("default", "2026-10-02", "18:00");
+  assert.ok(day);
+  assert.equal(new Date(day).getDate(), 1);
+  assert.equal(new Date(day).getHours(), 18);
+  assert.equal(reminderAt("off", "2026-10-02", "18:00"), null);
   const morning = reminderAt("morning", "2026-10-02", null);
   assert.ok(morning);
   assert.equal(new Date(morning).getHours(), 7);
@@ -111,6 +117,19 @@ test("reminderAt computes local instants", () => {
   assert.equal(new Date(two).getMinutes(), 30);
   assert.equal(reminderAt("two_hours", "2026-10-02", null), null);
   assert.equal(reminderAt("morning", "kaputt", null), null);
+});
+
+test("reminder choices skip past times and match the stored value", () => {
+  const now = new Date(2026, 9, 1, 20, 0); // the evening before: only the morning and 2 h options remain
+  const values = reminderChoices("2026-10-02", "09:30", now).map((o) => o.value);
+  assert.deepEqual(values, ["morning", "two_hours", "off"]);
+  assert.deepEqual(
+    reminderChoices("2026-10-02", null, now).map((o) => o.value),
+    ["morning", "off"],
+  );
+  assert.equal(currentReminder(null, "2026-10-02", null), "off");
+  assert.equal(currentReminder(reminderAt("morning", "2026-10-02", null), "2026-10-02", null), "morning");
+  assert.equal(currentReminder("2026-10-02T03:33:00.000Z", "2026-10-02", null), null);
 });
 
 test("recurrence rules are built and described in German", () => {

@@ -32,18 +32,18 @@ type dueReminder struct {
 }
 
 // SendHelperReminders sends kind "helper" pushes to the helpers of requests whose
-// remind_helper_at has passed. Each (request, helper) pair is claimed by inserting a
+// own remind_at has passed. Each (request, helper) pair is claimed by inserting a
 // row into reminders (unique index), so a reminder is never sent twice, even with
 // overlapping runs.
 func (s *Service) SendHelperReminders(ctx context.Context) error {
 	now := s.now()
 	rows, err := s.Pool.Query(ctx, `
-		SELECT r.id::text, r.stable_id::text, a.user_id::text, r.remind_helper_at
+		SELECT r.id::text, r.stable_id::text, a.user_id::text, a.remind_at
 		FROM requests r
 		JOIN stables st ON st.id = r.stable_id
 		JOIN request_assignees a ON a.request_id = r.id
 		WHERE r.status IN ('open', 'assigned')
-		  AND r.remind_helper_at IS NOT NULL AND r.remind_helper_at <= $1
+		  AND a.remind_at IS NOT NULL AND a.remind_at <= $1
 		  AND ($1::timestamptz AT TIME ZONE st.timezone)::date <= COALESCE(r.date_end, r.date)
 		  AND NOT EXISTS (SELECT 1 FROM reminders m
 		                  WHERE m.source_table = 'requests' AND m.source_id = r.id AND m.user_id = a.user_id AND m.kind = 'helper')
