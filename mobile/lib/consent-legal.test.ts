@@ -21,7 +21,7 @@ test("the privacy text carries the draft marker and the version", () => {
 
 test("the privacy text covers every data category and consent", () => {
   for (const topic of [
-    "[Name, Anschrift, E-Mail]",
+    "Wer ist verantwortlich",
     "Anwesenheit",
     "Geofence",
     "GPS",

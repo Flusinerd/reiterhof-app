@@ -8,9 +8,9 @@
 
 Verantwortlich für die Verarbeitung deiner Daten in dieser App ist:
 
-[Name, Anschrift, E-Mail]
+Jan Krüger, E-Mail: jankrueger1999@gmail.com
 
-Die App ist ein privates Angebot für die Stallgasse [Name des Stalls]. Sie wird nicht gewerblich betrieben und enthält keine Werbung, kein Tracking zu Werbezwecken und keine Analyse-Dienste.
+Die App ist ein privates Angebot einer Privatperson, die selbst Einstaller ist, für die Einstaller ihres Stalls. Sie ist nur auf Einladung nutzbar, wird nicht gewerblich betrieben und enthält keine Werbung, kein Tracking zu Werbezwecken und keine Analyse-Dienste. Der Stallbetrieb betreibt die App nicht und entscheidet nicht darüber, welche Daten sie verarbeitet.
 
 ## 2. Das Wichtigste in Kürze
 
@@ -130,7 +130,7 @@ Nutzt du Stallfunk als Web-App (zum Home-Bildschirm hinzugefügt), speichern wir
 
 Rechtsgrundlage: Einwilligung, Art. 6 Abs. 1 lit. a DSGVO. Widerrufst du sie, löschen wir deine Push-Tokens und Browser-Push-Adressen. Einzelne Erinnerungsarten kannst du zusätzlich abschalten.
 
-Drittlandübermittlung: Resend und ggf. Google und Apple (Anmeldung, Push, Karten) verarbeiten Daten auch in den USA. Grundlage sind der Angemessenheitsbeschluss zum EU-US Data Privacy Framework bzw. Standardvertragsklauseln des jeweiligen Anbieters; für Resend ist beides vereinbart, für Google und Apple [vor Veröffentlichung prüfen].
+Drittlandübermittlung: Resend und ggf. Google und Apple (Anmeldung, Push, Karten) verarbeiten Daten auch in den USA. Grundlage sind der Angemessenheitsbeschluss zum EU-US Data Privacy Framework bzw. Standardvertragsklauseln des jeweiligen Anbieters; für Resend ist beides vereinbart. Google (Google LLC) ist nach dem EU-US Data Privacy Framework zertifiziert; Apple stützt die Übermittlung in die USA auf die Standardvertragsklauseln der EU-Kommission.
 
 ### 3.10 Wetter
 
@@ -201,9 +201,9 @@ Du hast das Recht auf
 - Einschränkung der Verarbeitung (Art. 18) und Widerspruch (Art. 21) gegen Verarbeitungen, die auf berechtigtem Interesse beruhen.
 - Widerruf erteilter Einwilligungen mit Wirkung für die Zukunft (Art. 7 Abs. 3): Einstellungen, Datenschutz. Die Rechtmäßigkeit der bisherigen Verarbeitung bleibt davon unberührt.
 
-Schreibe uns für alles andere an [Name, Anschrift, E-Mail].
+Schreibe für alles andere an die E-Mail-Adresse aus Punkt 1.
 
-**Beschwerderecht:** Du kannst dich bei einer Datenschutz-Aufsichtsbehörde beschweren, zum Beispiel bei [zuständige Aufsichtsbehörde, Anschrift, Website].
+**Beschwerderecht:** Du kannst dich bei einer Datenschutz-Aufsichtsbehörde beschweren (Art. 77 DSGVO), zum Beispiel bei der Behörde des Bundeslandes, in dem du wohnst. Die Anschriften aller Aufsichtsbehörden stehen auf der Website der Bundesbeauftragten für den Datenschutz und die Informationsfreiheit, www.bfdi.bund.de.
 
 ## 10. Automatisierte Entscheidungen
 
