@@ -17,7 +17,7 @@ without a row was never granted. `stable_id` is nullable (a person may consent b
 | `location_tracking` | recording the GPS track of a training session | none yet: the tracking feature checks `privacy.Has(ctx, pool, userID, privacy.KindLocationTracking)` |
 | `presence_sharing` | others may see that I am at the stable | revoking sets `users.presence_visibility` to `hidden` |
 | `photos` | camera and photo library | none (device permission plus explanation) |
-| `push` | push notifications | revoking deletes the user's `push_tokens`; `push.Notifier` sends only to users with a current grant |
+| `push` | push notifications | revoking deletes the user's `push_tokens` and `web_push_subscriptions`; `push.Notifier` sends only to users with a current grant (Expo and web alike) |
 
 `privacy.TextVersion` (`"2026-09-30"`) is the version of the privacy text; a grant stores it. Changing the texts
 means raising both `TextVersion` and the `**Textversion:**` line in `docs/legal/*.md` (a test checks this); existing
@@ -35,7 +35,7 @@ For other packages: `privacy.Has(ctx, q, userID, kind)` tells whether a grant ex
 **Export** `GET /api/v1/me/export` (attachment `reiterhof-export-<date>.json`, `Cache-Control: no-store`). All
 personal data of the caller across tables, as whole table rows (`to_jsonb`, so new columns appear automatically):
 `profile`, `stable`, `sign_in_identities`, `sign_in_sessions` (no token hashes), `consents`, `push_tokens` (masked to
-first and last four characters), `reminder_settings`, `reminders`, `presence_visits`, `training_sessions`
+first and last four characters), `web_push_subscriptions` (push service host, user agent and date only; the endpoint URL is a secret), `reminder_settings`, `reminders`, `presence_visits`, `training_sessions`
 (including GPS tracks), `week_slots`, `observations_reported`, `requests_created`, `requests_helped`, `horses_owned`,
 `horse_rider_roles`, `blanket_changes`, `reha_days_done`, `documents_uploaded` and `uploaded_files` (paths of documents
 and observation photos). Only rows the user owns or authored; rows of other people are never included. **When you add a
@@ -54,7 +54,7 @@ Decisions:
   horse reference it (`NOT NULL` foreign keys) and the horse's history should survive: `name = "Gelöschtes Mitglied"`,
   `email = deleted-<id>@deleted.invalid` (the address can be registered again), `phone`, `avatar_color`, `stable_id`
   cleared, `is_admin = false`, `deleted_at` set. Without a stable the row does not show up in any member list.
-- **Deleted:** sessions, sign-in identities, login tokens for the email, push tokens, reminder settings, reminders,
+- **Deleted:** sessions, sign-in identities, login tokens for the email, push tokens, web push subscriptions, reminder settings, reminders,
   presence visits, rider roles, helper assignments (a request that was `assigned` only to this user is `open` again),
   consents, GPS tracks (`sessions.track`) and raw gait windows (`gait_windows`), the media of reported observations (files are removed from disk after the
   commit; photos may show people and carry location metadata).

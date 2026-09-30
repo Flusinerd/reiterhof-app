@@ -5,6 +5,7 @@ import { CONSENTS_KEY, privacyApi } from "./api/privacy";
 import { useAuth } from "./auth";
 import { isGranted, type ConsentKind } from "./consent-core.ts";
 import { disableGeofence } from "./geofence";
+import { disableWebPush } from "./webpush";
 
 /** The consents of the signed-in user (`GET /me/consents`), refetched after every change. */
 export function useConsents() {
@@ -24,7 +25,7 @@ export function useHasConsent(kind: ConsentKind): boolean | undefined {
 
 /**
  * Grants or revokes one consent. A revocation also switches off what runs on this device:
- * the geofence stops when the location consent is withdrawn. (Push tokens and the presence
+ * the geofence stops when the location consent is withdrawn. (Push tokens, web push subscriptions and the presence
  * visibility are cleaned up by the server.)
  */
 export function useSetConsent() {
@@ -33,6 +34,7 @@ export function useSetConsent() {
     mutationFn: async ({ kind, granted }: { kind: ConsentKind; granted: boolean }) => {
       const item = await privacyApi.setConsent(kind, granted);
       if (!granted && kind === "location_geofence") await disableGeofence();
+      if (!granted && kind === "push") await disableWebPush(); // no-op outside the web build
       return item;
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: CONSENTS_KEY }),

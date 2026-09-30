@@ -6,6 +6,7 @@ import { ActivityIndicator, View } from "react-native";
 
 import { useConsentPrompt } from "@/components/consent-prompt";
 import { ReminderTimeCard } from "@/components/reminder-time-card";
+import { WebPushCard } from "@/components/web-push-card";
 import {
   Button,
   Card,
@@ -108,6 +109,7 @@ export default function Settings() {
           <Button label="Mitteilungen erlauben" variant="outline" onPress={() => void allowPush()} />
         </Card>
       ) : null}
+      <WebPushCard />
       <Card className="gap-4">
         {settings.isPending ? (
           <ActivityIndicator />

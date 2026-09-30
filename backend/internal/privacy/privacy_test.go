@@ -179,6 +179,8 @@ func TestRevocationConsequences(t *testing.T) {
 	e := setup(t)
 	e.exec(`INSERT INTO push_tokens (stable_id, user_id, token, platform) VALUES ($1, $2, 'ExponentPushToken[anna]', 'android'), ($1, $3, 'ExponentPushToken[tom]', 'ios')`,
 		seed.StableB, seed.UserAnna, seed.UserTom)
+	e.exec(`INSERT INTO web_push_subscriptions (stable_id, user_id, endpoint, p256dh, auth) VALUES ($1, $2, 'https://push.example.com/anna', 'k', 'a'), ($1, $3, 'https://push.example.com/tom', 'k', 'a')`,
+		seed.StableB, seed.UserAnna, seed.UserTom)
 	for _, k := range []string{"push", "presence_sharing"} {
 		e.do(seed.UserAnna, "PUT", "/api/v1/me/consents/"+k, map[string]any{"granted": true})
 	}
@@ -190,6 +192,12 @@ func TestRevocationConsequences(t *testing.T) {
 	}
 	if n := e.count(`SELECT count(*) FROM push_tokens WHERE user_id = $1`, seed.UserTom); n != 1 {
 		t.Errorf("Tom has %d push tokens, want 1", n)
+	}
+	if n := e.count(`SELECT count(*) FROM web_push_subscriptions WHERE user_id = $1`, seed.UserAnna); n != 0 {
+		t.Errorf("Anna keeps %d web push subscriptions after revoking push", n)
+	}
+	if n := e.count(`SELECT count(*) FROM web_push_subscriptions WHERE user_id = $1`, seed.UserTom); n != 1 {
+		t.Errorf("Tom has %d web push subscriptions, want 1", n)
 	}
 	e.do(seed.UserAnna, "PUT", "/api/v1/me/consents/presence_sharing", map[string]any{"granted": false})
 	var vis string
@@ -212,6 +220,7 @@ func (e *env) addMiaData() string {
 		($1, $2, $3, $4, 'geofence'), ($1, $5, $3, $4, 'manual')`,
 		seed.StableB, seed.UserMia, clock.Add(-48*time.Hour), clock.Add(-46*time.Hour), seed.UserTom)
 	e.exec(`INSERT INTO push_tokens (stable_id, user_id, token, platform) VALUES ($1, $2, 'ExponentPushToken[abcdefghijkl]', 'ios')`, seed.StableB, seed.UserMia)
+	e.exec(`INSERT INTO web_push_subscriptions (stable_id, user_id, endpoint, p256dh, auth, user_agent) VALUES ($1, $2, 'https://web.push.apple.com/SECRETPATH', 'k', 'a', 'Safari')`, seed.StableB, seed.UserMia)
 	e.exec(`INSERT INTO sessions (stable_id, horse_id, user_id, activity, started_at, duration_min, track, source, note)
 		VALUES ($1, $2, $3, 'hack', $4, 45, '[{"lat":51.6,"lng":6.9}]', 'tracked', 'schoen'),
 		       ($1, $2, $5, 'hack', $4, 30, '[{"lat":50.0,"lng":7.0}]', 'tracked', 'Toms Ritt')`,
@@ -249,7 +258,7 @@ func TestExportContainsOnlyOwnData(t *testing.T) {
 	body := rec.Body.String()
 	doc := decode[map[string]json.RawMessage](t, rec)
 	for _, key := range []string{"profile", "stable", "consents", "push_tokens", "presence_visits", "training_sessions",
-		"observations_reported", "requests_created", "requests_helped", "horse_rider_roles", "uploaded_files", "sign_in_sessions"} {
+		"observations_reported", "requests_created", "requests_helped", "horse_rider_roles", "uploaded_files", "sign_in_sessions", "web_push_subscriptions"} {
 		if _, ok := doc[key]; !ok {
 			t.Errorf("export lacks %q", key)
 		}
@@ -273,7 +282,7 @@ func TestExportContainsOnlyOwnData(t *testing.T) {
 		t.Fatal(err)
 	}
 	for key, want := range map[string]int{"presence_visits": 1, "observations_reported": observations,
-		"requests_created": 1, "requests_helped": 1, "push_tokens": 1, "uploaded_files": 1} {
+		"requests_created": 1, "requests_helped": 1, "push_tokens": 1, "web_push_subscriptions": 1, "uploaded_files": 1} {
 		if got := count(key); got != want {
 			t.Errorf("%s has %d entries, want %d", key, got, want)
 		}
@@ -283,12 +292,12 @@ func TestExportContainsOnlyOwnData(t *testing.T) {
 		t.Errorf("consents = %s", doc["consents"])
 	}
 	// The push token is masked, the session hash is not exported, the photo is listed.
-	for _, must := range []string{"Expo...jkl]", "Mias Beobachtung", "Mias Anfrage", "schoen", photo} {
+	for _, must := range []string{"Expo...jkl]", "web.push.apple.com", "Mias Beobachtung", "Mias Anfrage", "schoen", photo} {
 		if !strings.Contains(body, must) {
 			t.Errorf("export lacks %q", must)
 		}
 	}
-	for _, mustNot := range []string{"ExponentPushToken[abcdefghijkl]", "token_hash", "Toms Beobachtung", "Toms Ritt", "Toms Anfrage",
+	for _, mustNot := range []string{"ExponentPushToken[abcdefghijkl]", "SECRETPATH", "token_hash", "Toms Beobachtung", "Toms Ritt", "Toms Anfrage",
 		"tom@example.org", "Fremd", "+49 999", "50.0"} {
 		if strings.Contains(body, mustNot) {
 			t.Errorf("export leaks %q", mustNot)
@@ -338,7 +347,7 @@ func TestDeleteAccountAnonymisesAndKeepsOthersIntact(t *testing.T) {
 	if rec.Code != 401 {
 		t.Errorf("old session after deletion = %d, want 401", rec.Code)
 	}
-	for _, table := range []string{"auth_sessions", "auth_identities", "push_tokens", "consents", "presence", "horse_riders", "request_assignees"} {
+	for _, table := range []string{"auth_sessions", "auth_identities", "push_tokens", "web_push_subscriptions", "consents", "presence", "horse_riders", "request_assignees"} {
 		if n := e.count(`SELECT count(*) FROM `+table+` WHERE user_id = $1`, seed.UserMia); n != 0 {
 			t.Errorf("%s keeps %d rows of the deleted user", table, n)
 		}
