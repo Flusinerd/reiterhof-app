@@ -528,9 +528,23 @@ func TestCheckAcceptsAllowedActivityAndFitsMinutes(t *testing.T) {
 	if v := Check(in, training.ActivityLunge, 0); !v.OK || v.Recommendation.Minutes != 25 {
 		t.Errorf("zero minutes should become the default duration: %+v", v)
 	}
+	// Each activity has a sensible range: at most 30 minutes on the lunge, at least 30 in the hall.
+	if v := Check(in, training.ActivityLunge, 50); !v.OK || v.Recommendation.Minutes != 30 {
+		t.Errorf("lunge 50 minutes: %+v", v)
+	}
+	if v := Check(in, training.ActivityHall, 10); !v.OK || v.Recommendation.Minutes != 30 {
+		t.Errorf("hall 10 minutes: %+v", v)
+	}
 	in.Profile.Rhythm.MaxMinutes = 0
-	if v := Check(in, training.ActivityHack, 500); v.Recommendation.Minutes != MaxPlanMinutes {
+	if _, max := MinutesRange(training.ActivityHack); max != 120 {
+		t.Fatalf("hack range max = %d", max)
+	}
+	if v := Check(in, training.ActivityHack, 500); v.Recommendation.Minutes != 120 {
 		t.Errorf("no rhythm maximum: minutes = %d", v.Recommendation.Minutes)
+	}
+	in.Profile.Rhythm.MaxMinutes = 20
+	if v := Check(in, training.ActivityHall, 45); v.Recommendation.Minutes != 20 {
+		t.Errorf("the rhythm maximum wins over the activity minimum: %d", v.Recommendation.Minutes)
 	}
 }
 

@@ -31,7 +31,7 @@ const (
 )
 
 // MaxReasonRunes caps the model's reason text.
-const MaxReasonRunes = 160
+const MaxReasonRunes = 140
 
 const dateLayout = "2006-01-02"
 
@@ -154,20 +154,52 @@ var dayCodes = []string{"mo", "di", "mi", "do", "fr", "sa", "so"}
 
 func dayCode(t time.Time) string { return dayCodes[(int(t.Weekday())+6)%7] }
 
-// SystemPrompt is the fixed instruction for the model.
-const SystemPrompt = `You plan the training week of one horse for its owner at a private riding stable.
+// SystemPrompt is the fixed instruction for the model. It names the German words and the
+// sensible duration of every activity, because small models otherwise invent both.
+var SystemPrompt = buildSystemPrompt()
+
+func buildSystemPrompt() string {
+	var acts strings.Builder
+	for _, a := range training.AllActivities {
+		lo, hi := recommend.MinutesRange(a)
+		fmt.Fprintf(&acts, "- %s = %s (%s), %d-%d minutes\n", a, a.GermanName(), activityHints[a], lo, hi)
+	}
+	return `You plan the training week of one horse at a private riding stable. The reader is the horse's owner.
 The user message is JSON:
 - discipline, status (fit, reha = rehabilitation, pause = training break) and rhythm (sessions and rest days per week, max_minutes per session, rest_after_show).
 - activities: the only activities allowed for this horse; "conditional": true means allowed with a condition the owner knows.
-  hall = indoor school, arena = outdoor arena, hack = hack out, lunge = lunging, jumping, groundwork, walker = horse walker.
-- history: sessions of the last days (days_ago 1 = yesterday), with load (minutes x intensity) and how the horse felt.
+- history: sessions of the last days (days_ago 1 = yesterday) with load (minutes x intensity) and how the horse felt (fresh, loose, tired, tense).
 - shows_in_days: competitions relative to today (0 = today, negative = past).
 - today: weather and ground of today (only known for today).
 - days: the days of this week. Plan every day with "open": true. Closed days are context: "planned" is an activity someone already planned, "rest" a rest day, "done" a day with a session. "reha" is the unit a vet's rehabilitation plan allows that day.
-Plan a sensible week: vary the activities, alternate demanding and light days, respect the rhythm, keep the day before a show light and plan a rest day after a show when rest_after_show is true. In reha or pause only light work. On a reha day follow the reha unit exactly.
-Use only the listed activities or "rest". Minutes must not exceed max_minutes (when it is above 0).
+
+Activities (code = German name, meaning, sensible duration):
+` + acts.String() + `
+Plan a sensible week: vary the activities, alternate demanding and light days, respect the rhythm, keep the day before a show light and plan a rest day after a show when rest_after_show is true. After a tired or tense session or a demanding day, plan something light. In reha or pause only light work. On a reha day follow the reha unit exactly.
+Use only the listed activities or "rest". Keep every duration within its sensible range and at most max_minutes (when above 0).
+
+The reason is shown to the owner next to the day. Rules for the reason:
+- One short, correct German sentence, at most 100 characters.
+- It is about the horse in the third person ("das Pferd", or no subject at all). Never address the horse or the reader, never use "du", "dich", "dir", "dein".
+- Use the German activity names from the list above.
+- Give the concrete cause from the data: the previous days, variety, a show, the weather today, the reha plan. No general phrases like "um die Muskeln zu stärken".
+- Do not use "heute" or "morgen" unless in_days is 0 or 1.
+Good reasons: "Nach dem Ausritt gestern ist lockere Arbeit an der Longe gut." "Zwei Tage vor dem Turnier noch einmal konzentriert in der Halle." "Nach drei Arbeitstagen braucht das Pferd einen Ruhetag."
+
 Answer with JSON only, no other text:
-{"days":[{"day":"<day code from the input>","activity":"<activity or rest>","minutes":<integer, 0 for rest>,"reason":"<one short German sentence addressed with du, max 120 characters, no names>"}]}`
+{"days":[{"day":"<day code from the input>","activity":"<activity code or rest>","minutes":<integer, 0 for rest>,"reason":"<the reason>"}]}`
+}
+
+// activityHints explain the activity codes to the model.
+var activityHints = map[training.Activity]string{
+	training.ActivityHall:       "riding in the indoor school",
+	training.ActivityArena:      "riding in the outdoor arena",
+	training.ActivityHack:       "hacking out in the countryside",
+	training.ActivityLunge:      "lunging, the horse works on a circle around the person",
+	training.ActivityJumping:    "jumping training",
+	training.ActivityGroundwork: "groundwork, leading and exercises from the ground",
+	training.ActivityWalker:     "horse walker, walk only",
+}
 
 // Prompt returns the user message for the model. It holds only what the plan needs, and
 // nothing that identifies a person or the horse: no names, no ids, no free text (notes,

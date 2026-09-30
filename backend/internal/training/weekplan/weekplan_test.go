@@ -228,3 +228,14 @@ func TestParse(t *testing.T) {
 		}
 	}
 }
+
+func TestSystemPromptNamesGermanWordsAndRanges(t *testing.T) {
+	for _, want := range []string{
+		"lunge = Longe", "15-30 minutes", "walker = Führanlage", "hack = Ausritt", "30-120 minutes",
+		`never use "du"`, `{"days":[`,
+	} {
+		if !strings.Contains(SystemPrompt, want) {
+			t.Errorf("system prompt lacks %q", want)
+		}
+	}
+}

@@ -165,19 +165,27 @@ type Result struct {
 	Hidden          []Hidden         `json:"hidden"`
 }
 
-type durations struct{ def, min int }
+// durations per activity: usual (def), shortest sensible (min) and longest sensible (max)
+// unit. Recommend scores against def and min; Check fits proposals into [min, max].
+type durations struct{ def, min, max int }
 
 var durationTable = map[training.Activity]durations{
-	training.ActivityWalker:     {30, 20},
-	training.ActivityGroundwork: {30, 15},
-	training.ActivityLunge:      {25, 15},
-	training.ActivityHack:       {60, 30},
-	training.ActivityHall:       {45, 30},
-	training.ActivityArena:      {45, 30},
-	training.ActivityJumping:    {40, 30},
+	training.ActivityWalker:     {30, 20, 60},
+	training.ActivityGroundwork: {30, 15, 45},
+	training.ActivityLunge:      {25, 15, 30},
+	training.ActivityHack:       {60, 30, 120},
+	training.ActivityHall:       {45, 30, 60},
+	training.ActivityArena:      {45, 30, 60},
+	training.ActivityJumping:    {40, 30, 45},
 }
 
-// DefaultMinutes is the usual duration of an activity (0 for rest or unknown ones).
+// MinutesRange is the shortest and the longest sensible unit of an activity (0, 0 for rest
+// or unknown ones).
+func MinutesRange(a training.Activity) (min, max int) {
+	d := durationTable[a]
+	return d.min, d.max
+}
+
 func DefaultMinutes(a training.Activity) int { return durationTable[a].def }
 
 type disciplineInfo struct {
@@ -450,9 +458,6 @@ type Verdict struct {
 	Why string
 }
 
-// MaxPlanMinutes caps a checked duration when the rhythm sets no maximum.
-const MaxPlanMinutes = 120
-
 // Check tests a proposed activity (training.ActivityRest for a rest day) with a duration
 // for in.Today against the hard rules of Recommend: visibility (profile, rider rules), the
 // active reha phase, the rest day after a show, the filters for pause/reha, a near show and
@@ -460,8 +465,9 @@ const MaxPlanMinutes = 120
 // soft scoring does not apply: every activity that passes the rules is fine.
 //
 // A rest day always passes. Minutes are fitted into the limits: the reha phase range, the
-// rhythm maximum (MaxPlanMinutes without one), PauseMaxMinutes and ShowLightMaxMinutes;
-// zero or negative minutes become the activity's default duration.
+// activity's sensible range (MinutesRange, e.g. at most 30 minutes on the lunge), the rhythm
+// maximum, PauseMaxMinutes and ShowLightMaxMinutes; zero or
+// negative minutes become the activity's default duration.
 func Check(in Input, act training.Activity, minutes int) Verdict {
 	today := training.Day(in.Today)
 	horse := in.Profile.HorseName
@@ -539,8 +545,11 @@ func Check(in Input, act training.Activity, minutes int) Verdict {
 	if minutes <= 0 {
 		minutes = dur.def
 	}
-	limit := MaxPlanMinutes
-	if m := in.Profile.Rhythm.MaxMinutes; m > 0 {
+	if minutes < dur.min {
+		minutes = dur.min
+	}
+	limit := dur.max
+	if m := in.Profile.Rhythm.MaxMinutes; m > 0 && m < limit {
 		limit = m
 	}
 	if recentOnly && PauseMaxMinutes < limit {

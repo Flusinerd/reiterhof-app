@@ -143,12 +143,13 @@ stable's timezone, so DST weeks still have seven days.
   unknown or closed days and unknown activities.
 - **Checking:** `recommend.Check` tests each proposal against the hard rules (visibility, reha phase, rest after a
   show, pause/reha/show/frozen-ground filters, `rhythm.sessions_max`) and fits the minutes (reha range, rhythm
-  maximum or 120, pause 20, before a show 30). A failing proposal is replaced by the rules (`replaced` says why);
+  maximum, the activity's sensible range from `recommend.MinutesRange`, e.g. lunge 15-30, hall 30-60, hack 30-120,
+  pause 20, before a show 30). A failing proposal is replaced by the rules (`replaced` says why);
   days the model left out come from the rules.
 - **Response:** `{horse_id, start, end, source: ai|rules, ai_status, owner_is_me, days: [{date, weekday, activity
   (or rest), label, minutes, intensity, intensity_label, reason, note, source, replaced, user}]}`. `ai_status`:
   `used`, `not_configured`, `no_consent`, `owner_under_16`, `limit` (HTTP 429: free credits, rate or capacity limit; the client retries once after
-  `Retry-After`, at most 5 s), `failed` (error, timeout 40 s, unusable answer), `nothing_to_plan`. Failures fall back to
+  `Retry-After`, at most 5 s), `failed` (error, timeout 90 s, unusable answer), `nothing_to_plan`. Failures fall back to
   the rules and are logged without content: status plus Mistral's error type, code and (for 401/402/403/429/5xx)
   its own message, e.g. `journalctl -u reiterhof-api | grep "week plan"`.
 - **App:** "Woche planen" in `app/training/week.tsx` (only with `can_edit`), `components/training-plan-sheet.tsx`

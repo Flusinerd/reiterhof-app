@@ -26,8 +26,9 @@ const (
 	aiNothingToPlan = "nothing_to_plan" // no open day in the week
 )
 
-// planTimeout bounds the call to the model; the rules plan needs no time.
-const planTimeout = 40 * time.Second
+// planTimeout bounds the call to the model including one retry after HTTP 429; the rules plan
+// needs no time.
+const planTimeout = 90 * time.Second
 
 type planDayOut struct {
 	Date           string            `json:"date"`
