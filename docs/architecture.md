@@ -239,7 +239,7 @@ real `*push.Notifier`). In tests pass `Notify: push.NewNotifier(pool, fake, nil)
   Only non-token failures are returned as error.
 - Kinds are constants (`push.KindLastPerson`, `KindWeatherChange`, `KindMedication`,
   `KindHelper`, `KindTrainingPlan`, `KindHealthDue`, `KindRehaCheckup`,
-  `KindNewRequest`, `KindUrgentObservation`; `push.Kinds()`, `push.ValidKind`).
+  `KindNewRequest`, `KindUrgentObservation`, `KindObservation`; `push.Kinds()`, `push.ValidKind`).
 - Store: `push.RegisterToken(ctx, pool, stableID, userID, token, platform)` upserts
   by token (a device handed to another user is re-assigned; the user must belong to
   the stable, else `ErrUnknownUser`); `push.DeleteToken(ctx, pool, stableID, userID,
@@ -412,4 +412,5 @@ In tests call `files.SetDir(t.TempDir())`. The app uses `mobile/lib/upload.ts` (
 - [Presence](domains/presence.md): check-in/out, visibility, geofence.
 - Requests (Anfragen, M4): [docs/domains/requests.md](domains/requests.md). Note for push: `new_request` is an opt-in kind (`push.OptIn`), it is only sent to users with an enabling `reminder_settings` row; all other kinds stay opt-out.
 - [Horses, horse record, health, documents, files](domains/horses.md): `internal/horses`, `internal/health`, `internal/files`.
+- [Observations (Auffälligkeiten)](domains/observations.md): report, urgent alert to everyone present, status, appointment bundling (`internal/observations`, `internal/health/bundle.go`).
 - [Training](domains/training.md): profile, "Was heute?", sessions, week view and exercise library (`internal/trainingapi`, M6).
