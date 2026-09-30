@@ -12,7 +12,7 @@ Internet -> Caddy (80/443, automatisches TLS) -> reiterhof-api (127.0.0.1:8080) 
 | Datei | Zweck |
 | --- | --- |
 | `provision.sh` | Einmalige, wiederholbare Server-Einrichtung (als root) |
-| `Caddyfile` | Reverse Proxy und Web-App-Hosting, TLS, Security-Header (inkl. CSP der Web-App; für die API nur ein Default, `/auth/verify` setzt seine eigene), Upload-Limit 25 MB |
+| `Caddyfile` | Reverse Proxy und Web-App-Hosting, TLS, Security-Header (inkl. CSP der Web-App; für die API nur ein Default, `/auth/verify` und `/parental-consent` setzen ihre eigene), Upload-Limit 25 MB |
 | `postgresql.conf.d/reiterhof.conf` | PostgreSQL-Tuning für 4 GB RAM |
 | `systemd/reiterhof-api.service` | API als gehärteter systemd-Dienst |
 | `api.env.example` | Vorlage für `/etc/reiterhof/api.env` |
@@ -235,8 +235,11 @@ danach Kopie per `rclone` an einen externen Speicher.
    ausbleibt.
 4. Sofort testen: `sudo systemctl start reiterhof-backup.service && journalctl -u reiterhof-backup -n 30`.
    Ein fehlgeschlagenes Backup beendet die Unit mit Fehler (`systemctl --failed`).
-5. Stände auf dem Offsite-Speicher sollten verschlüsselt sein (rclone `crypt`-Remote), weil
-   sie personenbezogene Daten enthalten.
+5. Das Offsite-Ziel **muss** ein rclone-`crypt`-Remote sein (Verschlüsselung auf dem Server, bevor die
+   Daten ihn verlassen): Die Stände enthalten personenbezogene Daten, und der Datenschutztext verspricht die
+   Verschlüsselung. `backup.sh` prüft den Typ des Remotes und bricht die Offsite-Kopie sonst mit Fehler ab
+   (`REITERHOF_ALLOW_PLAIN_OFFSITE=1` in `backup.env` schaltet die Prüfung ab, dann muss der Datenschutztext
+   angepasst werden). Das Passwort des crypt-Remotes getrennt vom Server aufbewahren.
 
 ## 7. Restore testen
 

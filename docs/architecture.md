@@ -43,7 +43,7 @@ Configuration (environment):
 | `REITERHOF_WEATHER_STATION` | unset | force one MOSMIX station id for all stables; unset = nearest per stable |
 | `REITERHOF_EXPO_ACCESS_TOKEN` | unset | optional Expo access token for the push API (`push.NewClientFromEnv`) |
 | `REITERHOF_VAPID_PUBLIC_KEY`, `_PRIVATE_KEY`, `_SUBJECT` | unset | VAPID identity for Web Push (base64url P-256 keys, `mailto:`/`https:` subject); unset = web push off (`cmd/vapidkeys` generates a pair) |
-| `REITERHOF_PUBLIC_URL`, `REITERHOF_SMTP_*`, `REITERHOF_*_CLIENT_IDS`, `REITERHOF_DEV_LOGIN` | unset | authentication, see [Authentication and roles](#authentication-and-roles) |
+| `REITERHOF_PUBLIC_URL`, `REITERHOF_WEB_URL`, `REITERHOF_LOGIN_CODE_KEY`, `REITERHOF_SMTP_*`, `REITERHOF_*_CLIENT_IDS`, `REITERHOF_DEV_LOGIN` | unset | authentication, see [Authentication and roles](#authentication-and-roles) |
 
 ## Adding a domain package
 
@@ -148,7 +148,7 @@ bearer token, only its SHA-256 hash is stored, sessions last 90 days from the la
 | `/api/v1/auth/verify-code` | `{email, code}` | Signs in with the 6-digit code from the mail, exactly like `/auth/verify` (`code` may contain spaces or dashes). `401 invalid_code` for every failure (unknown email, wrong, expired, used, locked out), `429 rate_limited` after 30 calls per IP / 15 min. |
 | `/api/v1/auth/google` | `{id_token}` | RS256 ID token, checked against Google's JWKS (cached), `iss`, `aud` (`REITERHOF_GOOGLE_CLIENT_IDS`), `exp`. |
 | `/api/v1/auth/apple` | `{id_token, name?}` | Same for Apple (`REITERHOF_APPLE_CLIENT_IDS`); Apple sends the name only to the client on first sign-in, so the app passes it along. |
-| `/api/v1/auth/dev-login` | `{email}` | `404` unless `REITERHOF_DEV_LOGIN=true`. Signs in (or creates) any email, for local testing with seed users (`jan@example.org` is admin). Never enable in production. |
+| `/api/v1/auth/dev-login` | `{email}` | `404` unless `REITERHOF_DEV_LOGIN=true` (the API logs a warning at start while it is on). Signs in (or creates) any email, for local testing with seed users (`jan@example.org` is admin). Never enable in production. |
 
 **Login code** (migration `0140_login_code.up.sql`, `internal/auth/logincode.go`). Why: on iOS the
 mail link opens in Safari, not in the installed home-screen PWA (separate storage), so the
@@ -180,13 +180,20 @@ provider and subject). A new identity is attached to the account with the same *
 email (merge); Apple relay addresses are ordinary emails and so match nothing. Tokens
 without verified email are rejected (`401 email_not_verified`).
 
-Authenticated routes: `POST /api/v1/auth/logout` (`204`), `GET /api/v1/me` (user, stable
-or `null`, `roles.owned_horse_ids`, `roles.rider_horse_ids`), `PATCH /api/v1/me`
+Authenticated routes: `POST /api/v1/auth/logout` (`204`), `GET /api/v1/me` (user with `age_status`
+and `parent_email`, stable or `null`, `roles.owned_horse_ids`, `roles.rider_horse_ids`), `PATCH /api/v1/me`
 (`name`, `phone`, `avatar_color`, `presence_visibility`; `""` clears phone/avatar_color),
+`POST /api/v1/me/age` and `POST /api/v1/me/parental-consent` (age confirmation, Art. 8 GDPR; see
+[domains/privacy.md](domains/privacy.md#age-confirmation-and-parental-consent-jan-86)),
 `POST /api/v1/stables/join` (`{code}`, sets `users.stable_id`; `404 invalid_code`,
-`409 already_in_stable`), `POST /api/v1/stables/invites` (admin only, optional
+`409 already_in_stable`, `403 age_unconfirmed`), `POST /api/v1/stables/invites` (admin only, optional
 `{expires_in_days (1..90, default 7), max_uses (1..100, default 10)}`, returns
 `{code: "ABCD-EFGH", expires_at, max_uses}`). Codes are case- and separator-insensitive.
+Without a session: `GET/POST /parental-consent` (the parent's page, own CSP like `/auth/verify`).
+
+The session token travels in the `Authorization` header only; no route reads it from the query
+string (histories, proxies and share sheets would keep it). File downloads that cannot send
+headers use short-lived download links (`files.DownloadLink`, see [Files](#files)).
 
 Stable-less users: a person may sign up before joining a stable, so `users.stable_id`
 is **nullable**. Domain handlers must never see such users; wrap them in `RequireStable`.
@@ -262,7 +269,9 @@ Configuration (all optional; unset means the feature is off or in dev mode):
 
 | Variable | Purpose |
 | --- | --- |
-| `REITERHOF_PUBLIC_URL` | public base URL of the API, e.g. `https://api.example.org`, for the mail's https fallback link |
+| `REITERHOF_PUBLIC_URL` | public base URL of the API, e.g. `https://api.example.org`, for the mail's https fallback link and the parental consent link |
+| `REITERHOF_WEB_URL` | public base URL of the web app, e.g. `https://example.org`; pages and mails link `<url>/legal/privacy` |
+| `REITERHOF_LOGIN_CODE_KEY` | HMAC key of the stored login codes; the download link key is derived from it |
 | `REITERHOF_SMTP_HOST`, `_PORT` (587), `_USER`, `_PASSWORD`, `_FROM` | SMTP for login mails (STARTTLS, port 465 = implicit TLS). Without host the mail is only logged (dev) |
 | `REITERHOF_GOOGLE_CLIENT_IDS` | comma separated OAuth client IDs (web, iOS, Android) accepted as `aud` |
 | `REITERHOF_APPLE_CLIENT_IDS` | comma separated accepted `aud` (iOS bundle ID `de.flusinerd.stallfunk`) |
@@ -458,12 +467,9 @@ may have been missed. Because Postgres fans out NOTIFY, several API processes wo
 32 events; a client that falls behind is dropped (the stream ends, the app reconnects and
 refetches). No replay: clients refetch after (re)connecting.
 
-**Authentication:** `Authorization: Bearer <token>`; additionally `?access_token=<token>` for
-EventSource libraries in React Native that cannot set headers. Tradeoff: a token in the URL
-ends up in access logs and proxies, and it is the same long-lived session token. The query
-form is accepted for this path only (`auth.BearerToken`); configure the reverse proxy not to
-log the query string of `/api/v1/events`. The mobile app uses `expo/fetch` streaming with the
-header and does not need it.
+**Authentication:** `Authorization: Bearer <token>` only; a token in the query string is not
+accepted (it would end up in access logs and proxies). The clients use `expo/fetch` streaming
+(native) and `fetch` (browser), which both send the header.
 
 **Mobile:** `useStableEvents(types, handler)` and `useInvalidateOnEvents({ "request.changed":
 [["requests"]] })` in `mobile/lib/realtime.ts`; one shared connection, closed in the background.
@@ -471,21 +477,24 @@ header and does not need it.
 ## Files
 
 Package `internal/files` stores uploads on local disk (`REITERHOF_UPLOAD_DIR`, default `./uploads`, production
-`/var/lib/reiterhof/uploads`) as `<stable_id>/<random>.<ext>`. Use it for every photo or document; details in
+`/var/lib/reiterhof/uploads`) as `<stable_id>/<random>.<ext>`. Images are stored without metadata (EXIF position,
+XMP, comments, trailers). Use it for every photo or document; details in
 [domains/horses.md](domains/horses.md#files-internalfiles).
 
 ```go
-// Save an upload (JPEG, PNG, WebP, HEIC, PDF; max 20 MB; the content is sniffed) and store saved.Path in your table.
-saved, err := files.Save(ctx, user.StableID, reader, declaredContentType) // errors: files.ErrTooLarge, files.ErrUnsupportedType
+// Save an upload (JPEG, PNG, WebP, PDF; max 20 MB; the content is sniffed, image metadata stripped) and store saved.Path in your table.
+saved, err := files.Save(ctx, user.StableID, reader, declaredContentType) // errors: files.ErrTooLarge, files.ErrUnsupportedType, files.ErrCorrupt
 files.Belongs(stableID, path)      // validate a path sent by a client before storing it
 f, contentType, err := files.Open(stableID, path) // ErrInvalidPath (also for other stables), ErrNotFound
 files.Remove(stableID, path)
-files.Serve(w, r, deps, stableID, path) // after your own role check; wrap the route with files.QueryToken(deps) for ?access_token=
+files.Serve(w, r, deps, stableID, path) // after your own role check; wrap the route with files.DownloadLink(deps) for ?dl= links
 ```
 
 HTTP: `POST /api/v1/files` (multipart, field `file`) returns `{path, url, content_type, size}`; `GET /api/v1/files/{path...}`
-serves files to members of the same stable only (`?access_token=` accepted, see the tradeoff in the domain doc).
-In tests call `files.SetDir(t.TempDir())`. The app uses `mobile/lib/upload.ts` (`uploadFile`, `fileSource`).
+serves a file with the visibility of the record that references it (documents: owner, riders, admins; observation and
+blanket photos: members; unreferenced: 404). `POST /api/v1/files/download-link {url}` mints a five-minute, path-bound
+`?dl=` link for viewers that cannot send headers. In tests call `files.SetDir(t.TempDir())` and take valid images from
+`internal/files/filestest`. The app uses `mobile/lib/upload.ts` (`uploadFile`, `fileSource`, `openStoredFile`).
 
 ## Domains
 

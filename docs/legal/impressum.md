@@ -28,6 +28,10 @@ Verantwortlich im Sinne von § 18 Abs. 2 MStV: [Vor- und Nachname, Anschrift wie
 
 Informationen zum Umgang mit deinen Daten findest du in der Datenschutzerklärung.
 
+## Open-Source-Software
+
+„Stallfunk“ enthält Software anderer Autorinnen und Autoren unter freien Lizenzen. Die Lizenzhinweise stehen in der App unter Rechtliches, Lizenzen.
+
 ## Haftung für Inhalte
 
 Die Inhalte der App werden von den Mitgliedern des Stalls eingetragen. Der Betreiber prüft sie nicht laufend. Bei Hinweisen auf Rechtsverletzungen werden entsprechende Inhalte umgehend entfernt.

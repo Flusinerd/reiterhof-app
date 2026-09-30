@@ -41,6 +41,9 @@ create an API key restricted to "Sending access" for that domain. Add a DMARC re
 (`_dmarc.stallfunk.de TXT "v=DMARC1; p=none;"` to start), otherwise login mails may land in spam.
 `REITERHOF_PUBLIC_URL` adds an https fallback link (`/auth/verify?token=...`) to the mail; it opens a page that
 links to the app. It does not need Universal Links / App Links (not configured yet, see open points in the JAN-6 report).
+The same base URL carries the link in the mail to parents (`/parental-consent?token=...`, see
+[domains/privacy.md](domains/privacy.md#age-confirmation-and-parental-consent-jan-86)); `REITERHOF_WEB_URL`
+(`https://stallfunk.de`) lets that mail and page link the privacy text of the web app.
 
 ## Login code key
 

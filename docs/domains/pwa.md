@@ -33,7 +33,7 @@ Voraussetzungen und Grenzen:
 | Automatisches Ein-/Auschecken (Geofence) | **nein**, Hinweistext „Automatisch ein- und auschecken gibt es nur in der App aus dem App Store.“ | `lib/geofence.web.ts` (Stub „unsupported“) |
 | GPS-Aufzeichnung | nur **im Vordergrund** | `lib/tracking-location.web.ts` (`watchPosition`), Wake Lock, Warnung „Bildschirm während der Aufzeichnung anlassen“ |
 | Gangarterkennung | ja, wenn der Browser Bewegungsdaten liefert | `lib/tracking-sensors.web.ts` (`devicemotion`, m/s² → g) |
-| Karte der Ausritte | ja | `components/tracking-map.web.tsx` (MapLibre GL JS, OpenFreeMap) |
+| Karte der Ausritte | ja, nach der Einwilligung „Karten anzeigen“ | `components/tracking-map.web.tsx` (MapLibre GL JS, OpenFreeMap), `components/map-consent-gate.tsx` |
 | Fotos und Dokumente hochladen | ja | `expo-image-picker` / `expo-document-picker` (Web-Dateiauswahl), `lib/upload.ts` |
 | Kalendereintrag | Datei statt Kalender-Dialog | `lib/requests-calendar.web.ts`: ICS über Web Share (iOS-Teilen-Menü → „Zum Kalender“), sonst Download |
 | Datenexport (Datenschutz) | ja, als Datei | `lib/export-file.web.ts` |
@@ -53,7 +53,7 @@ Voraussetzungen und Grenzen:
 - **API-Adresse**: `lib/api.ts` → `resolveApiUrl` (`lib/platform-core.ts`). Web: `window.location.origin`
   (Caddy leitet `/api` an das Backend). Überschreiben beim Build mit `STALLFUNK_API_URL` (über `app.config.js`)
   oder `EXPO_PUBLIC_API_URL`, z. B. `STALLFUNK_API_URL=http://localhost:8080 npx expo export --platform web`.
-  Realtime, Dateiadressen (`?access_token=`, `fileSource`) und ICS-Links nutzen dieselbe Basis.
+  Realtime, Dateiadressen (`fileSource`, Download-Links über `openStoredFile`) und ICS-Links nutzen dieselbe Basis.
 - **Speicher**: `lib/storage.ts` (SecureStore) bzw. `lib/storage.web.ts` (**localStorage**) für Sitzungs-Token,
   Geofence-Schalter, „Einwilligung schon gefragt“. localStorage ist schwächer geschützt als der
   Schlüsselbund: jedes Skript der Origin kann es lesen. Deshalb keine Drittanbieter-Skripte und eine

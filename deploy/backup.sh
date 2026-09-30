@@ -19,6 +19,9 @@
 #   REITERHOF_KEEP_WEEKLY          default 8
 #   REITERHOF_OFFSITE_KEEP_DAYS    default 90 (older offsite files are deleted)
 #   REITERHOF_SKIP_OFFSITE         set to 1 to skip the offsite copy (not recommended)
+#   REITERHOF_ALLOW_PLAIN_OFFSITE  set to 1 to copy to a remote that is not an rclone "crypt"
+#                                  remote (the backups then leave the server unencrypted;
+#                                  the privacy text promises encryption, so do not)
 #   REITERHOF_BACKUP_PING_URL      optional URL pinged after full success (dead man's switch)
 set -euo pipefail
 
@@ -33,6 +36,7 @@ stamp="$(date +%Y-%m-%d)"
 dump_name="reiterhof-${stamp}.dump"
 uploads_name="reiterhof-${stamp}-uploads.tar.gz"
 failed=0
+offsite_ok=1 # cleared when the offsite remote would store the backups unencrypted
 
 log() { printf '%s %s\n' "$(date -Is)" "$*"; }
 err() {
@@ -102,6 +106,17 @@ elif [[ -z "${REITERHOF_RCLONE_REMOTE:-}" ]]; then
   err "REITERHOF_RCLONE_REMOTE is not set; no offsite backup was made"
 else
   export RCLONE_CONFIG="${RCLONE_CONFIG:-/var/lib/reiterhof/rclone/rclone.conf}"
+  # The dumps hold personal data: they only leave the server through an encrypting
+  # ("crypt") remote, as the privacy text promises. Everything before the first ":" names
+  # the remote; "rclone config show <remote>" prints its "type = ..." line.
+  remote_name="${REITERHOF_RCLONE_REMOTE%%:*}"
+  remote_type="$(rclone config show "$remote_name" 2>/dev/null | sed -n 's/^type *= *//p' | head -n1)"
+  if [[ "$remote_type" != "crypt" && "${REITERHOF_ALLOW_PLAIN_OFFSITE:-0}" != "1" ]]; then
+    err "offsite remote '${remote_name}' is of type '${remote_type:-unknown}', not 'crypt'; backups must be encrypted before they leave the server (set REITERHOF_ALLOW_PLAIN_OFFSITE=1 to override)"
+    offsite_ok=0
+  fi
+fi
+if [[ "${REITERHOF_SKIP_OFFSITE:-0}" != "1" && -n "${REITERHOF_RCLONE_REMOTE:-}" && "$offsite_ok" == "1" ]]; then
   log "Copying to ${REITERHOF_RCLONE_REMOTE}"
   # copy (not sync): a wiped local directory must never delete the offsite copies.
   rclone copy --immutable "$BACKUP_DIR/daily" "${REITERHOF_RCLONE_REMOTE%/}/daily" ||

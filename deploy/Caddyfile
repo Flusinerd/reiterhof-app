@@ -69,8 +69,9 @@
 		-Server
 	}
 
-	# API and the https fallback page of the login mail (/auth/verify?token=...).
-	@backend path /api/* /auth/verify
+	# API, the https fallback page of the login mail (/auth/verify?token=...) and the
+	# parents' consent page (/parental-consent?token=...).
+	@backend path /api/* /auth/verify /parental-consent
 	handle @backend {
 		header {
 			# Default for JSON responses; "?" keeps the CSP that /auth/verify sends itself.

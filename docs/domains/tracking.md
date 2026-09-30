@@ -112,7 +112,9 @@ Wiring lives in `lib/tracking-session.ts` (hook), `lib/tracking-location.ts`, `l
   `location_tracking` consent (JAN-19): the GPS screen calls `useConsentPrompt().ensure("location_tracking")`
   before the OS permission is requested, and `POST /horses/{id}/sessions` with a `track` answers
   `403 consent_required` without it (`privacy.Has`). Indoor tracking sends no coordinates and needs no location
-  consent. See [privacy.md](privacy.md); a per-session "hide route" option is not built.
+  consent. The map itself needs the `maps` consent (`MapConsentGate`): the tiles come from Apple, Google or
+  OpenFreeMap, which see the viewer's IP address and the map area. See [privacy.md](privacy.md); a per-session
+  "hide route" option is not built.
 - Sensors in the background: Android may throttle or stop the accelerometer when the screen is off even with a
   foreground service; the GPS speed then decides the gait. Unverified. Phone placement matters (see the gait
   README); the learned calibration (`learnCalibration`) has no UI yet.

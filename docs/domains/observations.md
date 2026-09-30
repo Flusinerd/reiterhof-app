@@ -48,7 +48,8 @@ created from this observation (`reha_plans.observation_id`; the active plan firs
 ("Beobachten"); `done` is "Erledigt". `media[].url` is the files API route (send the session token, e.g.
 `fileSource()` in the app).
 
-Photos only: `internal/files` accepts JPEG, PNG, WebP, HEIC and PDF. Videos are not supported (they would need
+Photos only: `internal/files` accepts JPEG, PNG, WebP and PDF (images without their metadata, see
+[horses.md](horses.md#files-internalfiles)). Videos are not supported (they would need
 larger limits and streaming, and the Caddy body limit is 25 MB); extending the type table in `files` is the
 place to add mp4/mov later. The app offers camera and photo library for images only.
 

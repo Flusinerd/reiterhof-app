@@ -93,7 +93,7 @@ Farrier items show "Termin begleiten" in the app, which opens
 
 `GET /api/v1/horses/{id}/documents`, `POST` (`{kind, title, file_path}`, `file_path` comes from the files API of
 the same stable), `PATCH .../documents/{docId}` (`kind`, `title`), `DELETE` (also removes the file),
-`GET .../documents/{docId}/file` (role check, accepts `?access_token=`). Kinds: `passport`,
+`GET .../documents/{docId}/file` (role check; viewers that cannot send headers use a download link, see Files). Kinds: `passport`,
 `vaccination_record`, `insurance`, `other`. Flow in the app: pick a photo or PDF, `uploadFile()`, then
 `POST .../documents`.
 
@@ -103,20 +103,24 @@ Shared storage for photos and documents; see also "Files" in `architecture.md`.
 
 - Directory `REITERHOF_UPLOAD_DIR` (default `./uploads`, production `/var/lib/reiterhof/uploads`, see
   `deploy/api.env.example`), files at `<stable_id>/<32 hex random>.<ext>`.
-- `POST /api/v1/files` (multipart, field `file`): JPEG, PNG, WebP, HEIC, PDF, at most 20 MB. The content is sniffed
+- `POST /api/v1/files` (multipart, field `file`): JPEG, PNG, WebP, PDF, at most 20 MB. The content is sniffed
   (a declared type that is not allowed is rejected, a wrong but allowed one is corrected), the client file name is
-  never used. `201 {path, url, content_type, size}`; `413 file_too_large`, `415 unsupported_type`,
-  `400 invalid_upload`. Caddy allows 25 MB bodies (`deploy/Caddyfile`).
-- `GET /api/v1/files/{path...}`: members of the stable only (`401` without session, `404` for other stables and for
-  every path that is not exactly `stable_id/random.ext`). Sent with `Content-Type` from the extension,
-  `X-Content-Type-Options: nosniff`, `Cache-Control: private`.
-- `?access_token=<session token>` is accepted on file downloads for consumers that cannot set headers. Tradeoff:
-  the full session token ends up in the URL and can appear in proxy or access logs and history. Use
-  `Authorization` where possible (React Native `<Image source={{ uri, headers }}>` works). Signed short-lived URLs
-  would be the next step.
-- The stable check is the only access check of `/files`. File names are unguessable, but anybody in the stable who
-  knows a path can load it; where the path is sensitive (horse documents) the domain package serves the file
-  through its own role-checked route and never hands out the raw path.
+  never used. Images are stored without metadata (`metadata.go`: EXIF, XMP, IPTC, comments, unknown application
+  segments, PNG text and time chunks, WebP EXIF/XMP chunks, trailing data); a damaged container is refused. HEIC is
+  recognised but refused (its metadata cannot be rewritten; the phone picker delivers JPEG). `201 {path, url,
+  content_type, size}` (the size after stripping); `413 file_too_large`, `415 unsupported_type`, `400 invalid_upload`
+  (malformed upload or damaged image). Caddy allows 25 MB bodies (`deploy/Caddyfile`).
+- `GET /api/v1/files/{path...}` follows the record that references the file (least privilege): a
+  `horse_documents.file_path` only for the owner, riders and admins of the horse, an `observations.media` entry or a
+  `blankets.photo_path` for every member of the stable. `401` without session, `404` for other stables, malformed
+  paths and files nothing points to (never attached, or detached since). Sent with `Content-Type` from the
+  extension, `X-Content-Type-Options: nosniff`, `Cache-Control: private`.
+- Session tokens are never read from the URL. Viewers that cannot send headers (Linking.openURL of a PDF or a full-size
+  photo) ask `POST /api/v1/files/download-link {url}` for `{url: "<same path>?dl=<token>", expires_at}`: the token is
+  bound to the user and the exact path, expires after five minutes (`files.DownloadLinkTTL`) and is signed with a key
+  derived from `REITERHOF_LOGIN_CODE_KEY` (random per process without it). `files.DownloadLink(deps)` wraps the two
+  file routes and puts the user into the context; the role checks run as usual. Everything else uses `Authorization`
+  (React Native `<Image source={{ uri, headers }}>` works).
 
 ## App
 
@@ -129,7 +133,7 @@ Shared storage for photos and documents; see also "Files" in `architecture.md`.
 - Sub screens: `emergency` (tap to call), `health` (due list, add/edit sheet, "Erledigt"), `documents`
   (photo/PDF upload), `edit`, and `/horses/new`.
 - Upload helper `lib/upload.ts`: `uploadFile({uri, name, mimeType, size})`, `fileSource(url)`,
-  `fileUrlWithToken(url)`, `uploadErrorMessage(err)`.
+  `openStoredFile(url)` (download link, then `Linking.openURL`), `uploadErrorMessage(err)`.
 
 ## Seed
 
