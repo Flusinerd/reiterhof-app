@@ -47,6 +47,14 @@ func Register(mux *http.ServeMux, deps httpx.Deps) {
 
 type handler struct{ deps httpx.Deps }
 
+// AfterCheckOut, when set, is called after POST /presence/check-out closed a visit (not
+// for the stale-visit job and not when nothing was open). The blanket reminder uses it
+// to nudge the last person leaving the stable. It runs synchronously in the request
+// after the visit is committed and the response is written, so implementations that
+// talk to slow services should hand the work to a goroutine. cmd/api sets it; nil is a
+// no-op.
+var AfterCheckOut func(ctx context.Context, stableID, userID string)
+
 // Visit is one stay of the current user.
 type Visit struct {
 	ID        string     `json:"id"`
@@ -97,6 +105,9 @@ func (h *handler) checkOut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, visitResponse{Visit: v})
+	if v != nil && AfterCheckOut != nil {
+		AfterCheckOut(r.Context(), user.StableID, user.ID)
+	}
 }
 
 type txStarter interface {
