@@ -151,6 +151,11 @@ func BearerToken(r *http.Request) string {
 	if len(h) > 7 && strings.EqualFold(h[:7], "bearer ") {
 		return strings.TrimSpace(h[7:])
 	}
+	// EventSource clients in React Native cannot set headers; the SSE endpoint (and only
+	// it) therefore also accepts ?access_token=. See docs/architecture.md, "Realtime".
+	if r.URL.Path == "/api/v1/events" {
+		return r.URL.Query().Get("access_token")
+	}
 	return ""
 }
 

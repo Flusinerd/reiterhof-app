@@ -34,7 +34,32 @@ type Deps struct {
 	// no-op, so handlers can always call it. Tests can pass
 	// push.NewNotifier(pool, &push.Fake{}, nil) to inspect what was sent.
 	Notify Notifier
+	// Events is the subscribe side of the realtime hub (SSE). httpapi.NewHandler
+	// replaces nil with a no-op; cmd/api wires the real *realtime.Hub. Publishing
+	// does not need it: use realtime.Publish(ctx, q, ...) inside your transaction.
+	Events EventBus
 }
+
+// Event is one realtime message for the members of a stable.
+type Event struct {
+	StableID string          `json:"stable_id"`
+	Type     string          `json:"type"`
+	Data     json.RawMessage `json:"data"`
+}
+
+// EventBus hands out event streams; *realtime.Hub implements it.
+type EventBus interface {
+	// Subscribe returns a channel with the events of one stable and a cancel
+	// function (idempotent). The channel is closed when the subscriber is too
+	// slow (buffer full) or the hub stops; cancel must still be called.
+	Subscribe(stableID string) (events <-chan Event, cancel func())
+}
+
+// NopEvents never delivers an event.
+type NopEvents struct{}
+
+// Subscribe implements EventBus.
+func (NopEvents) Subscribe(string) (<-chan Event, func()) { return make(chan Event), func() {} }
 
 // Notifier delivers push notifications to users of a stable; *push.Notifier
 // implements it. kind must be one of the push.Kind* constants.
