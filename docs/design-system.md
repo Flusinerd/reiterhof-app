@@ -122,6 +122,8 @@ All exported from `@/components/ui` (barrel) or individually from `@/components/
 - **`BackButton`**: round 44 px, goes back or to `/`. Normally rendered by `Screen back`.
 - **`Card`**: `shape` (`card` 20 | `tile` 16), `padded` (default true, 20 px). **`PressableCard`**: same, tappable.
   **`Divider`**: hairline inside cards; with `label="oder"` a labeled rule between two groups on the page.
+- **`LinkRow`**: navigation row with `icon`, `label`, optional `description`, `onPress` and a chevron (44 px minimum).
+  Stack several in one `Card padded={false}` with `Divider`s between them.
 - **`Brand`** (`@/components/brand`): logo and wordmark, as in the login mail. Sign-in and the magic-link screen only.
 
 ### Text and icons
@@ -140,6 +142,13 @@ All exported from `@/components/ui` (barrel) or individually from `@/components/
 - **`ToggleGroup`** + **`ToggleGroupItem`**: `type="single"` (`value: string`) or `type="multiple"` (`value: string[]`), items have `value`, `label`, `icon`.
 - **`Tabs`**, **`TabsList`**, **`TabsTrigger`**, **`TabsContent`**: in-page segmented tabs, controlled with `value` / `onValueChange`.
 - **`Pill`**: tappable chip (`label`, `selected`, `icon`) for filters. 36 px visual, 44 px touch target.
+- **`Stepper`**: progress of a multi-step flow (`steps`, `current` zero-based, `label`): equal bars and "Schritt 2 von 5 · Aktivitäten".
+  Sits inside the `PageHeader` of the wizard screens.
+- **`NumberStepper`**: whole number with "Weniger" / "Mehr" icon buttons (`value`, `min`, `max`, `onChange`, `accessibilityLabel`, `format`).
+  **`RangeStepper`** (same file): `label`, `min`, `max`, `lowerBound`, `upperBound`, `onChange(min, max)`; two steppers joined by "bis",
+  the other end is dragged along when they would cross.
+- **`DateField`**: date field with the native picker (Android dialog, iOS wheel, web `<input type="date">`). `value` is `"YYYY-MM-DD"` or `""`,
+  shown as "17.05.2026"; `accessibilityLabel`, `placeholder`, `clearable`, `minimumDate`. Sibling of `TimeField`, same look as `Input`.
 
 ### Display and overlays
 

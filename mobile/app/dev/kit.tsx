@@ -1,4 +1,4 @@
-import { Check, Plus } from "lucide-react-native";
+import { Check, FileText, HeartPulse, Plus } from "lucide-react-native";
 import { useState } from "react";
 import { View } from "react-native";
 
@@ -8,15 +8,20 @@ import {
   Badge,
   Button,
   Card,
+  DateField,
   Divider,
   Icon,
   Input,
+  LinkRow,
   LivePanel,
+  NumberStepper,
   PageHeader,
   Pill,
+  RangeStepper,
   Screen,
   Section,
   Sheet,
+  Stepper,
   Switch,
   Tabs,
   TabsContent,
@@ -38,13 +43,17 @@ export default function Kit() {
   const [on, setOn] = useState(true);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [code, setCode] = useState("");
+  const [step, setStep] = useState(1);
+  const [count, setCount] = useState(4);
+  const [range, setRange] = useState({ min: 4, max: 5 });
+  const [date, setDate] = useState("2026-05-17");
 
   return (
     <Screen back>
       <PageHeader
         eyebrow="Entwicklung"
         title="Komponenten"
-        value="24"
+        value="28"
         valueSize="sm"
         unit="Bausteine"
         description="Alle Bausteine des Design-Systems auf einen Blick."
@@ -196,10 +205,40 @@ export default function Kit() {
           <Icon as={Check} className="text-primary" />
           <Text variant="body">Kachel mit Radius 16</Text>
         </Card>
+        <Card padded={false}>
+          <LinkRow icon={FileText} label="Dokumente" description="3 Dateien" onPress={() => {}} />
+          <Divider />
+          <LinkRow icon={HeartPulse} label="Reha-Plan" onPress={() => {}} />
+        </Card>
         <Button label="Sheet öffnen" variant="outline" onPress={() => setSheetOpen(true)} />
         <Sheet open={sheetOpen} onOpenChange={setSheetOpen} title="Neue Anfrage" description="Beispiel für ein Bottom-Sheet.">
           <Button label="Senden" fullWidth onPress={() => setSheetOpen(false)} />
         </Sheet>
+      </Section>
+
+      <Section title="Schritte und Datum">
+        <Stepper steps={5} current={step} label="Aktivitäten" />
+        <View className="flex-row gap-3">
+          <Button label="Zurück" variant="outline" size="sm" disabled={step === 0} onPress={() => setStep((s) => s - 1)} />
+          <Button label="Weiter" size="sm" disabled={step === 4} onPress={() => setStep((s) => s + 1)} />
+        </View>
+        <NumberStepper
+          value={count}
+          min={1}
+          max={7}
+          onChange={setCount}
+          accessibilityLabel="Einheiten pro Woche"
+          format={(v) => `${v}×`}
+        />
+        <RangeStepper
+          label="Einheiten pro Woche"
+          min={range.min}
+          max={range.max}
+          lowerBound={1}
+          upperBound={7}
+          onChange={(min, max) => setRange({ min, max })}
+        />
+        <DateField value={date} onChange={setDate} accessibilityLabel="Datum" clearable />
       </Section>
     </Screen>
   );
