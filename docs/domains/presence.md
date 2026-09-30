@@ -81,8 +81,9 @@ publishes `presence.changed` for the affected stables.
   the session token itself, because it may run in a fresh JS context; failures are silent.
 - The location never leaves the device; the server only learns "arrived" / "left".
 - No-op on web and wherever the task manager is unavailable (the switch is hidden).
-- The privacy consent (JAN-19) is not built yet; the screen says so. Add the consent before
-  the switch can be turned on when it exists.
+- The switch needs the `location_geofence` consent ([privacy](privacy.md)): the presence screen asks first, and the
+  server refuses `check-in` with `source: "geofence"` (`403 consent_required`) without it. Revoking the consent stops the
+  geofence on the device. Being seen at the stable also asks for `presence_sharing`; declining sets the visibility to hidden.
 - Requires a development build or a standalone build; Expo Go cannot run background location.
 
 ## Tests
