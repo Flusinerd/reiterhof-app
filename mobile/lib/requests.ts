@@ -223,6 +223,33 @@ export function addDays(date: string, days: number): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
 }
 
+const MONTHS_LONG = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+
+/** "Oktober 2026" for a 1-based month. */
+export function monthTitle(year: number, month: number): string {
+  return `${MONTHS_LONG[month - 1]} ${year}`;
+}
+
+/** Shifts a year/month (1-based) by whole months. */
+export function addMonths(year: number, month: number, delta: number): { year: number; month: number } {
+  const index = year * 12 + (month - 1) + delta;
+  return { year: Math.floor(index / 12), month: (index % 12) + 1 };
+}
+
+/** Weeks of a month, Monday first; days outside the month are null. */
+export function monthGrid(year: number, month: number): (string | null)[][] {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const first = new Date(Date.UTC(year, month - 1, 1));
+  const lead = (first.getUTCDay() + 6) % 7;
+  const length = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const cells: (string | null)[] = [
+    ...Array<null>(lead).fill(null),
+    ...Array.from({ length }, (_, i) => `${year}-${pad(month)}-${pad(i + 1)}`),
+  ];
+  while (cells.length % 7 !== 0) cells.push(null);
+  return Array.from({ length: cells.length / 7 }, (_, w) => cells.slice(w * 7, w * 7 + 7));
+}
+
 /** "Heute", "Morgen" or the weekday and date. */
 export function relativeDay(date: string, today: string): string {
   if (date === today) return "Heute";
