@@ -360,15 +360,15 @@ sudo bash -c 'cd /root/stallfunk && git pull --ff-only && cd deploy &&
 ## Caddyfile aktualisieren
 
 Die Caddyfile kommt nur über `provision.sh` auf den Server; der Deploy-Workflow fasst sie nicht an.
-Ändert sich nur die Caddyfile (z. B. die Security-Header), reicht es, sie einzeln einzuspielen,
-vom eigenen Rechner aus, im Repository:
+Ändert sich nur die Caddyfile (z. B. die Security-Header), reicht es, sie einzeln einzuspielen.
+Das Repository liegt auf dem Server unter `/root/stallfunk`; als `admin`:
 
 ```sh
-scp deploy/Caddyfile admin@<server-ip>:/tmp/Caddyfile
-ssh admin@<server-ip> 'sudo bash -c "set -a && . /etc/reiterhof/caddy.env && set +a &&
-  caddy validate --config /tmp/Caddyfile --adapter caddyfile &&
-  install -m 0644 -o root -g root /tmp/Caddyfile /etc/caddy/Caddyfile &&
-  systemctl reload caddy" && rm -f /tmp/Caddyfile'
+sudo bash -c 'cd /root/stallfunk && git pull --ff-only &&
+  set -a && . /etc/reiterhof/caddy.env && set +a &&
+  caddy validate --config deploy/Caddyfile --adapter caddyfile &&
+  install -m 0644 -o root -g root deploy/Caddyfile /etc/caddy/Caddyfile &&
+  systemctl reload caddy'
 ```
 
 `caddy validate` prüft die Datei mit den Domains aus `/etc/reiterhof/caddy.env`, bevor sie
@@ -380,8 +380,9 @@ curl -sI https://stallfunk.de/auth/verify?token=aaaaaaaaaaaaaaaaaaaaaaaa | grep 
 curl -sI https://stallfunk.de/api/v1/me | grep -i content-security-policy   # Caddy-Default: default-src 'none'
 ```
 
-Alternativ das Repository auf dem Server aktualisieren und `provision.sh` erneut ausführen
-(Befehl unter [Betrieb](#betrieb-stallfunk-admin)); das installiert die Caddyfile ebenfalls.
+Alternativ `provision.sh` erneut ausführen (Befehl unter [Betrieb](#betrieb-stallfunk-admin)); das
+installiert die Caddyfile ebenfalls. Ohne Repository auf dem Server tut es auch `scp deploy/Caddyfile`
+nach `/tmp` und dieselben Schritte ab `caddy validate` mit `/tmp/Caddyfile`.
 
 ## Wartung
 
