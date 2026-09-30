@@ -1,5 +1,6 @@
 import { Alert, type AlertButton } from "react-native";
 
+import { registerServiceWorker } from "./service-worker";
 import { planAlert } from "./web-alert-core";
 
 /**
@@ -10,10 +11,11 @@ import { planAlert } from "./web-alert-core";
  * be dead. It is routed to `window.confirm` / `window.alert`, which iOS Safari shows as native
  * dialogs, so the screens stay shared.
  *
- * Hook point for the service worker: the web push agent's `registerServiceWorker()` from
- * `lib/service-worker.web.ts` is meant to be called here once that module exists on main.
+ * It also registers the service worker (`public/sw.js`) at start: Chromium only offers
+ * installation with a registered worker, and web push reuses the same registration.
  */
 export function setupWeb(): void {
+  void registerServiceWorker();
   Alert.alert = (title: string, message?: string, buttons?: AlertButton[]) => {
     const plan = planAlert(title, message, buttons);
     if (plan.kind === "notice") {
