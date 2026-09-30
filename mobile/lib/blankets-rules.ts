@@ -70,17 +70,17 @@ export function parseDraft(draft: RuleDraft, position: number): Parsed {
   const min = parseTemp(draft.temp_min);
   const max = parseTemp(draft.temp_max);
   if (min === undefined || max === undefined) {
-    return { ok: false, error: `${label}: Bitte gib die Temperatur als Zahl an, zum Beispiel 5 oder -2,5.` };
+    return { ok: false, error: `${label}: Temperatur als Zahl, z. B. 5 oder -2,5.` };
   }
   if ((min !== null && Math.abs(min) > TEMP_LIMIT) || (max !== null && Math.abs(max) > TEMP_LIMIT)) {
-    return { ok: false, error: `${label}: Die Temperatur muss zwischen -${TEMP_LIMIT} und ${TEMP_LIMIT} °C liegen.` };
+    return { ok: false, error: `${label}: Temperatur zwischen -${TEMP_LIMIT} und ${TEMP_LIMIT} °C.` };
   }
   if (min !== null && max !== null && min >= max) {
     return { ok: false, error: `${label}: „Ab“ muss kleiner sein als „Unter“.` };
   }
   const note = draft.note.trim();
   if (note.length > MAX_NOTE) {
-    return { ok: false, error: `${label}: Der Hinweis darf höchstens ${MAX_NOTE} Zeichen lang sein.` };
+    return { ok: false, error: `${label}: Wunsch: höchstens ${MAX_NOTE} Zeichen.` };
   }
   return {
     ok: true,
@@ -96,7 +96,7 @@ export function parseDraft(draft: RuleDraft, position: number): Parsed {
 
 /** Parses all drafts; the first problem wins. */
 export function parseDrafts(drafts: readonly RuleDraft[]): { ok: true; value: RuleValue[] } | { ok: false; error: string } {
-  if (drafts.length > MAX_RULES) return { ok: false, error: `Es sind höchstens ${MAX_RULES} Regeln möglich.` };
+  if (drafts.length > MAX_RULES) return { ok: false, error: `Höchstens ${MAX_RULES} Regeln.` };
   const out: RuleValue[] = [];
   for (let i = 0; i < drafts.length; i++) {
     const parsed = parseDraft(drafts[i]!, i + 1);

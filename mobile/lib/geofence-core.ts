@@ -56,14 +56,14 @@ export type GeofenceFailure =
 export function failureMessage(reason: GeofenceFailure): string {
   switch (reason) {
     case "unsupported":
-      return "Die automatische Erkennung funktioniert nur in der App auf dem Handy.";
+      return "Nur in der App auf dem Handy möglich.";
     case "no_location":
-      return "Für diesen Stall ist noch kein Standort hinterlegt.";
+      return "Für den Stall fehlt der Standort.";
     case "foreground_denied":
-      return "Ohne Standortzugriff kann die App nicht erkennen, wann du im Stall bist.";
+      return "Standortzugriff fehlt.";
     case "background_denied":
-      return "Bitte erlaube den Standortzugriff „Immer“ in den Einstellungen, damit die App auch im Hintergrund erkennt, wann du kommst und gehst.";
+      return "Erlaube in den Einstellungen den Standortzugriff „Immer“.";
     case "error":
-      return "Die automatische Erkennung konnte nicht gestartet werden. Bitte versuche es erneut.";
+      return "Konnte nicht gestartet werden. Versuch es erneut.";
   }
 }

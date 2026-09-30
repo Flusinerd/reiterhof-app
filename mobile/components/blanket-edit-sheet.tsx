@@ -57,10 +57,10 @@ export function BlanketEditSheet({ open, onOpenChange, horseId, blanket }: Props
 
   async function submit() {
     setError(null);
-    if (name.trim() === "") return setError("Bitte gib einen Namen ein, zum Beispiel „Regendecke“.");
+    if (name.trim() === "") return setError("Name fehlt.");
     const fillG = fill.trim() === "" ? 0 : Number(fill.trim());
     if (!Number.isInteger(fillG) || fillG < 0 || fillG > 2000) {
-      return setError("Die Füllung muss eine ganze Zahl in Gramm sein, zum Beispiel 100.");
+      return setError("Füllung: ganze Zahl in Gramm, z. B. 100.");
     }
     try {
       await save.mutateAsync();
@@ -90,7 +90,7 @@ export function BlanketEditSheet({ open, onOpenChange, horseId, blanket }: Props
     setError(null);
     if (source === "camera") {
       const perm = await ImagePicker.requestCameraPermissionsAsync();
-      if (!perm.granted) return setError("Ohne Kamerazugriff kann kein Foto aufgenommen werden.");
+      if (!perm.granted) return setError("Kamerazugriff fehlt.");
     }
     const options = { mediaTypes: ["images" as const], quality: 0.7 };
     const res =
@@ -114,7 +114,6 @@ export function BlanketEditSheet({ open, onOpenChange, horseId, blanket }: Props
       open={open}
       onOpenChange={onOpenChange}
       title={blanket ? "Decke bearbeiten" : "Neue Decke"}
-      description="Foto, Füllung und Aufbewahrungsort helfen den Helfern, die richtige Decke zu finden."
     >
       <ScrollView style={{ maxHeight: height * 0.55 }} contentContainerClassName="gap-4" keyboardShouldPersistTaps="handled">
         <View className="flex-row items-center gap-4">
@@ -137,7 +136,7 @@ export function BlanketEditSheet({ open, onOpenChange, horseId, blanket }: Props
           )}
           <View className="flex-1 gap-2">
             <Button label="Foto aufnehmen" icon={Camera} variant="outline" size="sm" fullWidth onPress={() => void take("camera")} />
-            <Button label="Aus Fotos wählen" icon={ImageIcon} variant="outline" size="sm" fullWidth onPress={() => void take("library")} />
+            <Button label="Aus Fotos" icon={ImageIcon} variant="outline" size="sm" fullWidth onPress={() => void take("library")} />
           </View>
         </View>
         {photo.kind !== "remove" && (photo.kind === "new" || blanket?.photo_url) ? (
@@ -149,7 +148,7 @@ export function BlanketEditSheet({ open, onOpenChange, horseId, blanket }: Props
           value={fill}
           onChangeText={setFill}
           accessibilityLabel="Füllung in Gramm"
-          placeholder="Füllung in Gramm, z. B. 100 (0 = ohne)"
+          placeholder="Füllung in g, z. B. 100 (0 = ohne)"
           keyboardType="number-pad"
         />
         <Input value={color} onChangeText={setColor} accessibilityLabel="Farbe" placeholder="Farbe, z. B. dunkelblau" maxLength={40} />
@@ -157,7 +156,7 @@ export function BlanketEditSheet({ open, onOpenChange, horseId, blanket }: Props
           value={location}
           onChangeText={setLocation}
           accessibilityLabel="Aufbewahrungsort"
-          placeholder="Wo hängt sie? z. B. Haken 3"
+          placeholder="Ort, z. B. Haken 3"
           maxLength={80}
         />
       </ScrollView>

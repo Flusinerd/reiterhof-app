@@ -76,7 +76,7 @@ test("night line", () => {
   assert.equal(nightLine(weather(3, true)), "Heute Nacht 3 °C, Regen");
   assert.equal(nightLine(weather(8.4, false)), "Heute Nacht 8 °C, trocken");
   assert.equal(nightLine(weather(-1.6, false)), "Heute Nacht -2 °C, trocken");
-  assert.match(nightLine(null), /Noch keine Wettervorhersage/);
+  assert.match(nightLine(null), /Noch keine Vorhersage/);
   assert.equal(nightTempShort(weather(2.6, false)), "3°");
   assert.equal(nightTempShort(null), "–");
 });
@@ -85,8 +85,8 @@ test("progress", () => {
   assert.equal(progressLabel({ done: 4, total: 7 }), "4/7");
   assert.equal(progressText({ done: 4, total: 7 }), "Noch 3 Pferde offen");
   assert.equal(progressText({ done: 6, total: 7 }), "Noch 1 Pferd offen");
-  assert.equal(progressText({ done: 7, total: 7 }), "Alle Pferde versorgt");
-  assert.equal(progressText({ done: 0, total: 0 }), "Noch keine Pferde im Stall");
+  assert.equal(progressText({ done: 7, total: 7 }), "Alle versorgt");
+  assert.equal(progressText({ done: 0, total: 0 }), "Noch keine Pferde");
   assert.equal(progressFraction({ done: 1, total: 4 }), 0.25);
   assert.equal(progressFraction({ done: 0, total: 0 }), 1);
   assert.equal(progressFraction({ done: 9, total: 4 }), 1);
@@ -100,7 +100,7 @@ test("recommendation texts", () => {
   assert.equal(recommendationTitle(rec("no_weather")), "Noch keine Empfehlung");
   assert.equal(recommendationDetail(rec("blanket", blanket)), "Ort: Haken 4");
   assert.equal(recommendationDetail(rec("blanket", { ...blanket, location: null })), "Ort nicht eingetragen");
-  assert.match(recommendationDetail(rec("none")), /ohne Decke/);
+  assert.match(recommendationDetail(rec("none")), /Deckenplan/);
 });
 
 test("buttons depend on the recommendation", () => {
@@ -193,7 +193,7 @@ test("my blanket lines on the start screen", () => {
   const lines = myBlanketLines(horses, new Set(["h1", "h2", "h4"]));
   assert.deepEqual(lines, ["Luna: Decke 100 g", "Balu: Keine Decke"]);
   assert.equal(startWeatherText(lines, true, true), "Luna: Decke 100 g\nBalu: Keine Decke");
-  assert.match(startWeatherText([], false, true), /Sobald die Vorhersage/);
-  assert.match(startWeatherText([], true, false), /keine eigenen Pferde/);
-  assert.match(startWeatherText([], true, true), /noch keine Empfehlung/);
+  assert.match(startWeatherText([], false, true), /Noch keine Vorhersage/);
+  assert.match(startWeatherText([], true, false), /Keine eigenen Pferde/);
+  assert.match(startWeatherText([], true, true), /Noch keine Empfehlung/);
 });

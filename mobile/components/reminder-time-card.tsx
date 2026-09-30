@@ -62,7 +62,7 @@ export function ReminderTimeCard() {
       <View className="gap-1">
         <Text variant="bodyStrong">Erinnerung fürs Decken</Text>
         <Text variant="secondary">
-          Zu dieser Uhrzeit erinnert die App die letzte Person im Stall, wenn noch Pferde ohne Decken-Eintrag sind. Danach alle 15 Minuten bis 22:00 Uhr.
+          Erinnert die letzte Person im Stall, wenn Pferde ohne Eintrag offen sind. Danach alle 15 Minuten bis 22:00 Uhr.
         </Text>
       </View>
       {canEdit ? (
@@ -102,7 +102,7 @@ export function ReminderTimeCard() {
         </>
       ) : (
         <Text variant="body">
-          Aktuell um <Text variant="bodyStrong">{saved} Uhr</Text>. Ändern können das nur Verwalter des Stalls.
+          Aktuell um <Text variant="bodyStrong">{saved} Uhr</Text>. Nur Verwalter können das ändern.
         </Text>
       )}
     </Card>

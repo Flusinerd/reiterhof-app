@@ -59,7 +59,7 @@ test("time labels use the stable time zone", () => {
   assert.equal(timeLabel(item({ due_at: "2026-09-30T06:00:00Z" }), BERLIN), "08:00 Uhr");
   assert.equal(timeLabel(item({ due_at: "2026-01-15T07:00:00Z" }), BERLIN), "08:00 Uhr");
   assert.equal(timeLabel(item({ all_day: true }), BERLIN), "ganztägig");
-  assert.equal(sentLabel(item({ sent_at: "2026-09-30T06:01:00Z" }), BERLIN), "Gesendet um 08:01 Uhr");
+  assert.equal(sentLabel(item({ sent_at: "2026-09-30T06:01:00Z" }), BERLIN), "Gesendet 08:01 Uhr");
   assert.equal(sentLabel(item({ sent_at: null }), BERLIN), "");
 });
 
@@ -116,15 +116,15 @@ test("blanketHero", () => {
   const up = blanketHero(check({}));
   assert.equal(up.value, "4/7");
   assert.equal(up.unit, "Pferde versorgt");
-  assert.match(up.description, /Heute Abend um 20:30 Uhr/);
+  assert.match(up.description, /Erinnerung folgt/);
 
-  assert.match(blanketHero(check({ state: "due" })).description, /seit 20:30 Uhr: 3 Pferde sind noch offen/);
-  assert.match(blanketHero(check({ state: "due", done: 6 })).description, /Ein Pferd ist noch offen/);
-  assert.match(blanketHero(check({ state: "done", done: 7 })).description, /Alle Pferde/);
+  assert.match(blanketHero(check({ state: "due" })).description, /3 Pferde noch offen/);
+  assert.match(blanketHero(check({ state: "due", done: 6 })).description, /1 Pferd noch offen/);
+  assert.match(blanketHero(check({ state: "done", done: 7 })).description, /Alle versorgt/);
   assert.equal(blanketHero(check({ state: "done", done: 1, total: 1 })).unit, "Pferd versorgt");
   const empty = blanketHero(check({ state: "empty", done: 0, total: 0 }));
   assert.equal(empty.value, "–");
-  assert.match(empty.description, /keine Pferde/);
+  assert.match(empty.description, /Noch keine Pferde/);
 });
 
 test("reminder time validation", () => {

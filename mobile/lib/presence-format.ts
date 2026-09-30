@@ -17,11 +17,11 @@ export function visibilityLabel(v: Visibility): string {
 export function visibilityDescription(v: Visibility): string {
   switch (v) {
     case "all":
-      return "Alle im Stall sehen, dass und seit wann du da bist.";
+      return "Alle sehen, dass und seit wann du da bist.";
     case "only_day":
-      return "Andere sehen nur, dass du heute da bist oder an welchem Tag, aber keine Uhrzeiten.";
+      return "Andere sehen nur den Tag, keine Uhrzeit.";
     case "hidden":
-      return "Andere sehen dich nicht. Du selbst siehst weiterhin alles.";
+      return "Andere sehen dich nicht. Du siehst weiter alle.";
   }
 }
 

@@ -124,7 +124,7 @@ export function itemDay(item: ReminderItem, timeZone: string, today: string): st
   return day < today ? today : day;
 }
 
-/** "08:00 Uhr", "ganztägig", or "Gesendet um 08:01 Uhr" (only for the sent line). */
+/** "08:00 Uhr", "ganztägig", or "Gesendet 08:01 Uhr" (only for the sent line). */
 export function timeLabel(item: ReminderItem, timeZone: string): string {
   if (item.all_day) return "ganztägig";
   const clock = formatClock(item.due_at, timeZone);
@@ -134,7 +134,7 @@ export function timeLabel(item: ReminderItem, timeZone: string): string {
 export function sentLabel(item: ReminderItem, timeZone: string): string {
   if (!item.sent_at) return "";
   const clock = formatClock(item.sent_at, timeZone);
-  return clock ? `Gesendet um ${clock} Uhr` : "Gesendet";
+  return clock ? `Gesendet ${clock} Uhr` : "Gesendet";
 }
 
 export type DaySection = { day: string; heading: string; items: ReminderItem[] };
@@ -167,19 +167,19 @@ export function blanketHero(check: BlanketCheck): BlanketHero {
   const unit = check.total === 1 ? "Pferd versorgt" : "Pferde versorgt";
   switch (check.state) {
     case "empty":
-      return { value: "–", unit: "", description: "Im Stall sind noch keine Pferde eingetragen." };
+      return { value: "–", unit: "", description: "Noch keine Pferde." };
     case "done":
-      return { value, unit, description: "Alle Pferde sind für heute Nacht versorgt. Danke!" };
+      return { value, unit, description: "Alle versorgt." };
     case "due": {
       const open = check.total - check.done;
       return {
         value,
         unit,
-        description: `Erinnerung seit ${check.time} Uhr: ${open === 1 ? "Ein Pferd ist" : `${open} Pferde sind`} noch offen.`,
+        description: `${open === 1 ? "1 Pferd" : `${open} Pferde`} noch offen.`,
       };
     }
     default:
-      return { value, unit, description: `Heute Abend um ${check.time} Uhr erinnert dich die App ans Decken.` };
+      return { value, unit, description: "Erinnerung folgt." };
   }
 }
 
@@ -231,9 +231,9 @@ export function reminderErrorMessage(err: unknown): string {
   if (err instanceof ApiError) {
     switch (err.code) {
       case "forbidden":
-        return "Das dürfen nur Verwalter des Stalls.";
+        return "Nur Verwalter dürfen das.";
       case "validation_failed":
-        return "Die Uhrzeit muss zwischen 16:00 und 22:00 Uhr liegen.";
+        return "Uhrzeit zwischen 16:00 und 22:00 Uhr wählen.";
       case "not_found":
         return "Diese Erinnerung gibt es nicht mehr.";
     }

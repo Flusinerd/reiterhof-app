@@ -138,9 +138,9 @@ test("helper counts read naturally", () => {
   assert.equal(helperCountText(0, 1, "ride_share"), "0 von 1 Platz");
   assert.equal(helperStatusText(0, 2), "Noch 2 Helfer gesucht");
   assert.equal(helperStatusText(1, 2), "Noch 1 Helfer gesucht");
-  assert.equal(helperStatusText(2, 2), "Alle Helfer sind gefunden");
+  assert.equal(helperStatusText(2, 2), "Alle Helfer gefunden");
   assert.equal(helperStatusText(1, 2, "ride_share"), "Noch 1 Platz frei");
-  assert.equal(helperStatusText(2, 2, "ride_share"), "Alle Plätze sind belegt");
+  assert.equal(helperStatusText(2, 2, "ride_share"), "Alle Plätze belegt");
 });
 
 test("status badges", () => {
@@ -168,7 +168,7 @@ test("payload details are shown in German", () => {
     [
       { label: "Turnier", value: "Herbstturnier" },
       { label: "Prüfungen", value: "E-Dressur (09:30), A-Springen" },
-      { label: "Mitfahrgelegenheit", value: "Im Hänger ist Platz" },
+      { label: "Mitfahrgelegenheit", value: "Platz im Hänger" },
     ],
   );
   assert.deepEqual(payloadDetails({ type: "ride_share", payload: { destination: "Haltern", departure_time: "07:15", seats_free: 2 } }), [

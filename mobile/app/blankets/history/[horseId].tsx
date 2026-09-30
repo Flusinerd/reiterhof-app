@@ -12,11 +12,7 @@ export default function BlanketHistoryScreen() {
   const { me } = useAuth();
   return (
     <Screen back>
-      <Hero
-        eyebrow={horse.data?.name ?? "Pferd"}
-        title="Deckenverlauf"
-        description="Wer hat wann eingedeckt, abgedeckt oder geprüft."
-      />
+      <Hero eyebrow={horse.data?.name ?? "Pferd"} title="Deckenverlauf" />
       <SectionLabel>Letzte 60 Tage</SectionLabel>
       <BlanketHistory horseId={horseId} days={60} timeZone={me?.stable?.timezone ?? "Europe/Berlin"} />
     </Screen>
