@@ -33,6 +33,10 @@ export type PlanDay = {
   focus?: string;
   /** Library exercise for the unit; null for hack, walker and rest. */
   exercise: { id: string; title: string } | null;
+  /** Level of the unit by its load (JAN-93); absent for rest days. */
+  level?: "recovery" | "light" | "normal" | "demanding";
+  /** German label of the level, e.g. "aktive Erholung". */
+  level_label?: string;
 };
 
 export type PlanResponse = {

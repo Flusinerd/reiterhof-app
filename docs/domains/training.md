@@ -66,6 +66,32 @@ note; activities missing from the list count as off. `shows` are `{date, name, c
 `training.DefaultRhythm()` (4-5 sessions, 1-2 rest days, 60 minutes, rest day after a show); when
 decoding a stored profile the API always starts from that default. `status` is `fit|reha|pause`.
 
+**Week structure** (JAN-93, `rhythm.days`, `rhythm.quotas`): `days` are seven rules, Monday first,
+`{kind, activity?}` with `kind` one of `""` (free, the planner decides), `rest`, `recovery` (active recovery),
+`light`, `normal`, `demanding` or `activity` (with an allowed `activity`). At most `rest_days_max` days may be
+`rest`. `quotas` are units per week (Monday to Sunday): `{demanding, recovery, activities: {hall: 2, ...}}`, each
+0-7, activities must be allowed, and all quota units plus `rest_days_min` must fit into seven days. `demanding`
+and the activity quotas are also maximums, `recovery` is a minimum only. Like the other rhythm keys, missing
+`days` or `quotas` (or `days: []`) mean the default: free days, no quotas. The app edits both in "Wochenstruktur"
+and "Wochenziele" of the training profile.
+
+**Unit levels** (`recommend.UnitLevel`) come from the load of a unit (`load.Score` without canter, i.e.
+minutes × factor): active recovery below 20, light below 30, normal below 45, demanding from 45.
+
+**Structure rules** (`recommend.structureFor`, applied by `Recommend`, `Check` and the week plan) come after
+the safety rules (profile, rider rules, reha, show, pause, frozen ground) and turn into a rest day, activities
+that are out and a minute window per activity. In order; a group is dropped when nothing would be left after
+it, except the load limit:
+
+1. The owner's rule for the weekday (fixed rule, not a preference).
+2. Default rules, only on free days: no demanding unit after a demanding day; after two days with at least
+   normal load only a light unit (or less).
+3. Needs of the week (week plan only): when the open days left, or the sessions `sessions_max` still allows,
+   are needed for missing rest days (`rest_days_min`) or quota units, the day fills one of them.
+4. Quota maximums: no more demanding units and no more units of an activity than set.
+5. Load limit: when the 14 days before the week have at least 3 sessions, the week's load may be at most
+   1.2 × their weekly average (at least 90); when no unit fits, the day becomes a rest day.
+
 ### Today
 
 Input for `recommend.Recommend`: profile, sessions of the last 14 days, the latest
@@ -138,7 +164,8 @@ stable's timezone, so DST weeks still have seven days.
   older (`users.age_confirmed_at`; Mistral's terms forbid personal data of children below the age of digital
   consent, so a parental consent is not enough). `weekplan.Prompt` sends discipline, the level only as a library
   level (`training.LevelClass`: E/A beginner, A*-L* intermediate, L** and up advanced, anything else nothing), the
-  horse's age in years, status, rhythm, allowed activities (without notes), the sessions of the last 14 days as days
+  horse's age in years, status, rhythm with the week structure (`days[].rule`), the quotas and the load limit
+  (`load.previous_weeks_average`, `load.week_limit`), allowed activities (without notes), the sessions of the last 14 days as days
   ago, activity, minutes, load, canter share, feel and the library exercise with its rating (hard, better, solid),
   shows as days from today, the reha unit per day, the weather of today and tomorrow and today's ground, and the
   candidate exercises: the **global** library (own-stable exercises are free text and stay on the server) in the
@@ -147,7 +174,9 @@ stable's timezone, so DST weeks still have seven days.
   dates; a test checks this.
 - **System prompt** (`weekplan.SystemPrompt`, JAN-92): role (riding instructor in the FN system, welfare first),
   the input, every activity with German name, meaning, intensity and sensible duration, then the planning rules:
-  week structure by load and recovery (no two demanding days in a row, at most three working days in a row, rhythm),
+  unit levels, the week structure (the owner's rules and quotas are binding; on free days no two demanding days in a
+  row and a light unit after two days of normal or demanding load; rest days minimum, active recovery, load limit,
+  rhythm),
   content by the training scale (Takt and Losgelassenheit first; Anlehnung, Schwung, Durchlässigkeit for
   intermediate; Geraderichtung and Versammlung only for advanced, fit horses, at most twice a week), discipline,
   age, shows, weather, reha and pause; how to pick focus and exercise; rules for the German reason (third person,
@@ -155,20 +184,20 @@ stable's timezone, so DST weeks still have seven days.
   `{"days":[{"day","activity","minutes","focus","exercise","reason"}]}`. `weekplan.Parse` drops unknown or closed
   days and unknown activities; an unknown exercise key becomes no exercise.
 - **Checking:** `recommend.Check` tests each proposal against the hard rules (visibility, reha phase, rest after a
-  show, pause/reha/show/frozen-ground filters, `rhythm.sessions_max`) and fits the minutes (reha range, rhythm
+  show, pause/reha/show/frozen-ground filters, `rhythm.sessions_max`, the structure rules above) and fits the minutes (reha range, rhythm
   maximum, the activity's sensible range from `recommend.MinutesRange`, e.g. lunge 15-30, hall 30-60, hack 30-120,
   pause 20, before a show 30). A failing proposal is replaced by the rules (`replaced` says why);
   days the model left out come from the rules. A proposed exercise stays only when its library fits the activity;
   days from the rules get the first exercise of their library the horse has not mastered, and no focus.
 - **Response:** `{horse_id, start, end, source: ai|rules, ai_status, owner_is_me, days: [{date, weekday, activity
   (or rest), label, minutes, intensity, intensity_label, reason, note, source, replaced, user, focus, exercise
-  {id, title}}]}`. `ai_status`:
+  {id, title}, level, level_label}]}` (`level` is the unit level, absent for rest). `ai_status`:
   `used`, `not_configured`, `no_consent`, `owner_under_16`, `limit` (HTTP 429: free credits, rate or capacity limit; the client retries once after
   `Retry-After`, at most 5 s), `failed` (error, timeout 90 s, unusable answer), `nothing_to_plan`. Failures fall back to
   the rules and are logged without content: status plus Mistral's error type, code and (for 401/402/403/429/5xx)
   its own message, e.g. `journalctl -u reiterhof-api | grep "week plan"`.
 - **App:** "Woche planen" in `app/training/week.tsx` (only with `can_edit`), `components/training-plan-sheet.tsx`
-  shows the days with the badge "KI-Vorschlag" or "Regel", focus and exercise; "Übernehmen" stores each day with
+  shows the days with the badge "KI-Vorschlag" or "Regel", level, focus and exercise; "Übernehmen" stores each day with
   `PUT /week/{day}` (`planned` with activity, focus, `exercise_id` and the claimed user, or `rest`; a rest day
   proposed for a claimed day is not stored, the claim stays) and a note such as
   "KI-Vorschlag: 45 Min. · …" (`lib/training-plan.ts`). The week rows show slot notes, the focus and the exercise

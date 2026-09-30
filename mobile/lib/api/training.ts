@@ -14,6 +14,7 @@ import {
   type ReinSegment,
 } from "../training";
 import { planApplyBody, type PlanDay, type PlanResponse } from "../training-plan";
+import type { DayRuleApi, QuotasApi } from "../training-profile";
 
 // --- types (mirror backend/internal/trainingapi) -----------------------------------------
 
@@ -158,6 +159,9 @@ export type Rhythm = {
   rest_days_max: number;
   max_minutes: number;
   rest_after_show: boolean;
+  /** Owner's week structure, Monday first (JAN-93). */
+  days: DayRuleApi[];
+  quotas: QuotasApi;
 };
 
 export type ProfileActivity = { activity: Activity; mode: ActivityMode; note?: string };

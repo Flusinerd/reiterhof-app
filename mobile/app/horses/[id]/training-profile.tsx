@@ -1,7 +1,7 @@
 import { useLocalSearchParams } from "expo-router";
-import { Plus, Trash2 } from "lucide-react-native";
+import { ChevronRight, Plus, Trash2 } from "lucide-react-native";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, Pressable, View } from "react-native";
 
 import { ActivityIcon } from "@/components/training-activity-icon";
 import {
@@ -9,11 +9,13 @@ import {
   Button,
   Card,
   Divider,
+  Icon,
   Input,
   PageHeader,
   Pill,
   Screen,
   Section,
+  Sheet,
   Switch,
   Text,
 } from "@/components/ui";
@@ -31,6 +33,8 @@ import {
   type Activity,
 } from "@/lib/training";
 import {
+  dayChoiceLabel,
+  dayChoices,
   draftFromProfile,
   draftToInput,
   toggleActivity,
@@ -50,6 +54,8 @@ export default function TrainingProfile() {
   const [draft, setDraft] = useState<ProfileDraft | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState(false);
+  // Weekday whose choice sheet is open (0 = Monday).
+  const [dayOpen, setDayOpen] = useState<number | null>(null);
 
   useEffect(() => {
     if (profile.data) setDraft(draftFromProfile(profile.data));
@@ -294,6 +300,97 @@ export default function TrainingProfile() {
         />
       </Section>
 
+      <Section title="Wochenstruktur">
+        <Text variant="secondary">
+          Feste Regeln je Wochentag. Die Planung hält sich daran; nur Sicherheitsregeln (Reha, Pause, Turnier) gehen vor.
+        </Text>
+        <Card padded={false}>
+          {WEEKDAYS.map((wd, i) => {
+            const label = dayChoiceLabel(draft.days[i] ?? "");
+            return (
+              <View key={wd}>
+                {i > 0 ? <Divider /> : null}
+                <Pressable
+                  accessibilityRole={editable ? "button" : undefined}
+                  accessibilityLabel={`${wd}: ${label}`}
+                  disabled={!editable}
+                  onPress={() => setDayOpen(i)}
+                  className="min-h-12 flex-row items-center gap-3 px-4 py-3 active:bg-background"
+                >
+                  <Text variant="body" className="flex-1">
+                    {wd}
+                  </Text>
+                  <Text variant={draft.days[i] ? "bodyStrong" : "secondary"}>{label}</Text>
+                  {editable ? <Icon as={ChevronRight} size={20} className="text-muted" /> : null}
+                </Pressable>
+              </View>
+            );
+          })}
+        </Card>
+      </Section>
+
+      <Section title="Wochenziele">
+        <Text variant="secondary">
+          Einheiten pro Woche (Mo–So). Die Planung füllt sie auf und plant nicht mehr fordernde Einheiten oder mehr einer
+          Aktivität als angegeben. Leer = kein Ziel.
+        </Text>
+        <Card padded={false}>
+          <QuotaRow
+            label="Fordernd"
+            value={draft.quotaDemanding}
+            editable={editable}
+            first
+            onChange={(quotaDemanding) => patch({ quotaDemanding })}
+          />
+          <QuotaRow
+            label="Aktive Erholung (mindestens)"
+            value={draft.quotaRecovery}
+            editable={editable}
+            onChange={(quotaRecovery) => patch({ quotaRecovery })}
+          />
+          {ACTIVITIES.filter((a) => draft.modes[a].mode !== "off").map((a) => (
+            <QuotaRow
+              key={a}
+              label={activityLabel(a)}
+              value={draft.quotaActivities[a]}
+              editable={editable}
+              onChange={(v) => patch({ quotaActivities: { ...draft.quotaActivities, [a]: v } })}
+            />
+          ))}
+        </Card>
+        <Text variant="caption">
+          Die Belastung steigt höchstens um etwa 20 % gegenüber dem Schnitt der letzten zwei Wochen.
+        </Text>
+      </Section>
+
+      <Sheet
+        open={dayOpen !== null}
+        onOpenChange={(open) => {
+          if (!open) setDayOpen(null);
+        }}
+        title={dayOpen !== null ? WEEKDAYS[dayOpen] : undefined}
+        description="Was an diesem Tag gilt."
+      >
+        <View className="flex-row flex-wrap gap-2">
+          {dayChoices(draft).map((c) => (
+            <Pill
+              key={c.value || "free"}
+              label={c.label}
+              selected={dayOpen !== null && draft.days[dayOpen] === c.value}
+              onPress={() => {
+                if (dayOpen === null) return;
+                patch({ days: draft.days.map((d, j) => (j === dayOpen ? c.value : d)) });
+                setDayOpen(null);
+              }}
+            />
+          ))}
+        </View>
+        <Text variant="caption">
+          Aktive Erholung: kurze, lockere Einheit. Leicht, normal und fordernd richten sich nach der Belastung (Dauer ×
+          Aktivität).
+        </Text>
+      </Sheet>
+
       {draft.riders.length > 0 ? (
         <Section title={editable ? "Reitbeteiligungen" : "Meine Regeln"}>
             {draft.riders.map((r) => (
@@ -357,6 +454,46 @@ export default function TrainingProfile() {
         </View>
       ) : null}
     </Screen>
+  );
+}
+
+const WEEKDAYS = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"] as const;
+
+function QuotaRow({
+  label,
+  value,
+  editable,
+  first,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  editable: boolean;
+  first?: boolean;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <View>
+      {first ? null : <Divider />}
+      <View className="min-h-12 flex-row items-center gap-3 px-4 py-2">
+        <Text variant="body" className="flex-1">
+          {label}
+        </Text>
+        {editable ? (
+          <Input
+            accessibilityLabel={`${label}, pro Woche`}
+            keyboardType="number-pad"
+            placeholder="–"
+            value={value}
+            maxLength={1}
+            onChangeText={onChange}
+            className="w-16 text-center"
+          />
+        ) : (
+          <Text variant={value ? "bodyStrong" : "secondary"}>{value || "–"}</Text>
+        )}
+      </View>
+    </View>
   );
 }
 

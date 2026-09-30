@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { draftFromProfile, draftToInput, modeSummary, toggleActivity, type ProfileLike } from "./training-profile.ts";
+import {
+  dayChoiceLabel,
+  dayChoices,
+  draftFromProfile,
+  draftToInput,
+  modeSummary,
+  toggleActivity,
+  type ProfileLike,
+} from "./training-profile.ts";
 
 const profile: ProfileLike = {
   discipline: "dressage",
@@ -70,6 +78,66 @@ test("validation messages are German", () => {
   const empty = draftToInput({ ...base, seasonEnd: "", maxMinutes: "0" });
   assert.ok(empty.ok);
   if (empty.ok) assert.equal(empty.input.season_end, null);
+});
+
+test("week structure and quotas round-trip", () => {
+  const p: ProfileLike = {
+    ...profile,
+    rhythm: {
+      ...profile.rhythm,
+      days: [
+        { kind: "rest" },
+        { kind: "" },
+        { kind: "demanding" },
+        { kind: "activity", activity: "hack" },
+        { kind: "recovery" },
+        { kind: "" },
+        { kind: "" },
+      ],
+      quotas: { demanding: 2, recovery: 1, activities: { hall: 2 } },
+    },
+  };
+  const d = draftFromProfile(p);
+  assert.deepEqual(d.days, ["rest", "", "demanding", "hack", "recovery", "", ""]);
+  assert.equal(d.quotaDemanding, "2");
+  assert.equal(d.quotaActivities.hall, "2");
+  assert.equal(d.quotaActivities.hack, "");
+  const r = draftToInput(d);
+  assert.ok(r.ok);
+  if (!r.ok) return;
+  assert.deepEqual(r.input.rhythm.days, p.rhythm.days);
+  assert.deepEqual(r.input.rhythm.quotas, { demanding: 2, recovery: 1, activities: { hall: 2 } });
+});
+
+test("a profile without structure gets seven free days and no quotas", () => {
+  const d = draftFromProfile(profile);
+  assert.deepEqual(d.days, ["", "", "", "", "", "", ""]);
+  const r = draftToInput(d);
+  assert.ok(r.ok);
+  if (r.ok) assert.deepEqual(r.input.rhythm.quotas, { demanding: 0, recovery: 0, activities: {} });
+});
+
+test("week structure validation", () => {
+  const base = draftFromProfile(profile);
+  const bad = (patch: Partial<typeof base>) => {
+    const r = draftToInput({ ...base, ...patch });
+    assert.ok(!r.ok);
+    return r.ok ? "" : r.error;
+  };
+  assert.match(bad({ days: ["jumping", "", "", "", "", "", ""] }), /Springen ist im Profil ausgeschaltet/);
+  assert.match(bad({ days: ["rest", "rest", "rest", "", "", "", ""] }), /3 Ruhetage, erlaubt sind höchstens 2/);
+  assert.match(bad({ quotaDemanding: "zwei" }), /Wochenziele: nur ganze Zahlen/);
+  assert.match(bad({ quotaActivities: { ...base.quotaActivities, jumping: "1" } }), /Springen ist im Profil ausgeschaltet/);
+  assert.match(bad({ quotaDemanding: "4", quotaRecovery: "3" }), /passen nicht in eine Woche/);
+  assert.match(bad({ quotaActivities: { ...base.quotaActivities, hall: "8" } }), /höchstens 7/);
+});
+
+test("day choices offer the kinds and the allowed activities", () => {
+  const d = draftFromProfile(profile);
+  const labels = dayChoices(d).map((c) => c.label);
+  assert.deepEqual(labels, ["Frei", "Ruhetag", "Aktive Erholung", "Leicht", "Normal", "Fordernd", "Halle", "Ausritt"]);
+  assert.equal(dayChoiceLabel("recovery"), "Aktive Erholung");
+  assert.equal(dayChoiceLabel("hack"), "Ausritt");
 });
 
 test("toggleActivity keeps the canonical order", () => {

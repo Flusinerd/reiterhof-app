@@ -17,7 +17,7 @@ export type PlanSheetProps = {
 };
 
 /**
- * Week plan proposal (JAN-89): one row per open day with activity, minutes and the reason.
+ * Week plan proposal (JAN-89): one row per open day with activity, minutes, level and the reason.
  * Days from the language model carry the badge "KI-Vorschlag"; the rules checked them. Nothing
  * is stored until "Übernehmen".
  */
@@ -67,7 +67,8 @@ export function PlanSheet({ plan, open, onOpenChange, onApply, applying, onAllow
 }
 
 function PlanRow({ day }: { day: PlanDay }) {
-  const what = day.activity === "rest" ? day.label : `${day.label} · ${day.minutes} Min.`;
+  const level = day.level_label ? ` · ${day.level_label}` : "";
+  const what = day.activity === "rest" ? day.label : `${day.label} · ${day.minutes} Min.${level}`;
   const who = !day.user ? "" : day.activity === "rest" ? ` · ${day.user.name} bleibt eingetragen` : ` · für ${day.user.name}`;
   return (
     <View className="gap-1.5 p-3" accessible accessibilityLabel={`${formatDayLong(day.date)}: ${what}${who}. ${day.reason}`}>

@@ -1,8 +1,41 @@
 // Pure conversion between the training profile API shape and the editable form state of
 // app/horses/[id]/training-profile.tsx, including German validation messages.
-import { ACTIVITIES, isValidDate, type Activity, type ActivityMode } from "./training.ts";
+import { ACTIVITIES, activityLabel, isValidDate, type Activity, type ActivityMode } from "./training.ts";
 
 export type ShowDraft = { date: string; name: string; classes: string; helper: string };
+
+/** Kinds of a day in the owner's week structure (JAN-93); "" leaves the day to the planner. */
+export type DayKind = "" | "rest" | "recovery" | "light" | "normal" | "demanding";
+
+/** What the owner chose for a weekday: a kind or an activity. */
+export type DayChoice = DayKind | Activity;
+
+export const DAY_KIND_OPTIONS: readonly { value: DayKind; label: string }[] = [
+  { value: "", label: "Frei" },
+  { value: "rest", label: "Ruhetag" },
+  { value: "recovery", label: "Aktive Erholung" },
+  { value: "light", label: "Leicht" },
+  { value: "normal", label: "Normal" },
+  { value: "demanding", label: "Fordernd" },
+];
+
+/** Short German label of a day choice. */
+export function dayChoiceLabel(choice: DayChoice): string {
+  const kind = DAY_KIND_OPTIONS.find((o) => o.value === choice);
+  if (kind) return kind.label;
+  return activityLabel(choice);
+}
+
+/** Choices for a weekday: the kinds, then the activities the profile allows. */
+export function dayChoices(d: Pick<ProfileDraft, "modes">): { value: DayChoice; label: string }[] {
+  return [
+    ...DAY_KIND_OPTIONS,
+    ...ACTIVITIES.filter((a) => d.modes[a].mode !== "off").map((a) => ({ value: a as DayChoice, label: activityLabel(a) })),
+  ];
+}
+
+export type DayRuleApi = { kind: "" | "rest" | "recovery" | "light" | "normal" | "demanding" | "activity"; activity?: Activity };
+export type QuotasApi = { demanding: number; recovery: number; activities?: Partial<Record<Activity, number>> };
 
 export type RiderDraft = {
   userId: string;
@@ -26,6 +59,12 @@ export type ProfileDraft = {
   restDaysMax: string;
   maxMinutes: string;
   restAfterShow: boolean;
+  /** Week structure, Monday first (JAN-93). */
+  days: DayChoice[];
+  /** Quotas per week as text while typing; "" = none. */
+  quotaDemanding: string;
+  quotaRecovery: string;
+  quotaActivities: Record<Activity, string>;
   status: "fit" | "reha" | "pause";
   riders: RiderDraft[];
 };
@@ -44,6 +83,8 @@ export type ProfileLike = {
     rest_days_max: number;
     max_minutes: number;
     rest_after_show: boolean;
+    days?: DayRuleApi[];
+    quotas?: QuotasApi;
   };
   status: "fit" | "reha" | "pause";
   rider_rules: {
@@ -75,6 +116,19 @@ export function draftFromProfile(p: ProfileLike): ProfileDraft {
     restDaysMax: String(p.rhythm.rest_days_max),
     maxMinutes: String(p.rhythm.max_minutes),
     restAfterShow: p.rhythm.rest_after_show,
+    days: Array.from({ length: 7 }, (_, i) => {
+      const rule = p.rhythm.days?.[i];
+      if (!rule) return "";
+      return rule.kind === "activity" ? (rule.activity ?? "") : rule.kind;
+    }),
+    quotaDemanding: p.rhythm.quotas?.demanding ? String(p.rhythm.quotas.demanding) : "",
+    quotaRecovery: p.rhythm.quotas?.recovery ? String(p.rhythm.quotas.recovery) : "",
+    quotaActivities: Object.fromEntries(
+      ACTIVITIES.map((a) => {
+        const n = p.rhythm.quotas?.activities?.[a];
+        return [a, n ? String(n) : ""];
+      }),
+    ) as Record<Activity, string>,
     status: p.status,
     riders: p.rider_rules.map((r) => ({
       userId: r.user_id,
@@ -142,6 +196,39 @@ export function draftToInput(d: ProfileDraft): DraftResult {
     return { ok: false, error: "Saisonende als JJJJ-MM-TT, z. B. 2026-10-31." };
   }
 
+  const isAllowed = (a: Activity) => d.modes[a].mode !== "off";
+  const days: DayRuleApi[] = [];
+  for (const choice of d.days) {
+    if ((ACTIVITIES as readonly string[]).includes(choice)) {
+      const a = choice as Activity;
+      if (!isAllowed(a)) return { ok: false, error: `Wochenstruktur: ${activityLabel(a)} ist im Profil ausgeschaltet.` };
+      days.push({ kind: "activity", activity: a });
+    } else {
+      days.push({ kind: choice as DayKind });
+    }
+  }
+  const restDays = days.filter((x) => x.kind === "rest").length;
+  if (restDays > rMax) return { ok: false, error: `Wochenstruktur: ${restDays} Ruhetage, erlaubt sind höchstens ${rMax}.` };
+
+  const count = (text: string): number | null => (text.trim() === "" ? 0 : int(text));
+  const qDemanding = count(d.quotaDemanding);
+  const qRecovery = count(d.quotaRecovery);
+  if (qDemanding === null || qRecovery === null) return { ok: false, error: "Wochenziele: nur ganze Zahlen." };
+  const quotaActs: Partial<Record<Activity, number>> = {};
+  let units = qDemanding + qRecovery;
+  for (const a of ACTIVITIES) {
+    const n = count(d.quotaActivities[a]);
+    if (n === null) return { ok: false, error: "Wochenziele: nur ganze Zahlen." };
+    if (n === 0) continue;
+    if (!isAllowed(a)) return { ok: false, error: `Wochenziele: ${activityLabel(a)} ist im Profil ausgeschaltet.` };
+    quotaActs[a] = n;
+    units += n;
+  }
+  if (qDemanding > 7 || qRecovery > 7 || Object.values(quotaActs).some((n) => (n ?? 0) > 7)) {
+    return { ok: false, error: "Wochenziele: höchstens 7 pro Woche." };
+  }
+  if (units + rMin > 7) return { ok: false, error: "Wochenziele und Ruhetage passen nicht in eine Woche." };
+
   return {
     ok: true,
     input: {
@@ -157,6 +244,8 @@ export function draftToInput(d: ProfileDraft): DraftResult {
         rest_days_max: rMax,
         max_minutes: maxMin,
         rest_after_show: d.restAfterShow,
+        days,
+        quotas: { demanding: qDemanding, recovery: qRecovery, activities: quotaActs },
       },
       status: d.status,
       rider_rules: d.riders.map((r) => ({

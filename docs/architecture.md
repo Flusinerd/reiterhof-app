@@ -392,6 +392,9 @@ Pure packages (no HTTP, no DB, no clock; "today" is always an input):
   German one-sentence reason (the strongest factor). Full description in the package doc.
   `Check(Input, activity, minutes)` (JAN-89) tests a proposed unit against the same hard
   rules plus the weekly maximum and returns the rule-based replacement when it fails.
+  Both apply the week structure (JAN-93, `structure.go`): unit levels by load, the owner's
+  weekday rules and quotas, default structure rules, the week's needs when a whole week is
+  planned (`Input.Ahead`) and the load limit (+20 % over the two weeks before).
 - `training/weekplan` (JAN-89, JAN-92): plans the open days of a week (activity, minutes, focus, exercise). `Rules` uses the recommender day by
   day (each planned unit becomes a simulated session for the next days); `Prompt`/`Parse` build the
   language model's input (no names, ids, free text or dates) and read its JSON answer; `Merge`
