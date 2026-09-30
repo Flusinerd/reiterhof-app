@@ -20,6 +20,7 @@ import (
 	"github.com/Flusinerd/reiterhof-app/backend/internal/privacy"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/push"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/realtime"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/reha"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/requests"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/scheduler"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/weather"
@@ -77,6 +78,14 @@ func main() {
 		Schedule:   scheduler.Every(15 * time.Minute),
 		RunOnStart: true,
 		Run:        healthReminders.Run,
+	})
+
+	rehaReminders := &reha.Reminders{Pool: pool, Notify: notifier, Log: log, Now: time.Now}
+	(&scheduler.Scheduler{Log: log}).Go(ctx, &jobs, scheduler.Job{
+		Name:       "reha-checkup-reminders",
+		Schedule:   scheduler.Every(15 * time.Minute),
+		RunOnStart: true,
+		Run:        rehaReminders.Run,
 	})
 
 	deps := httpapi.Deps{

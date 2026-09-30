@@ -59,7 +59,18 @@ export type TodayResponse = {
   recommendations: Recommendation[];
   hidden: { activity: Activity; label: string; reason: string }[];
   week: ApiDot[];
-  reha: { plan_id: string; phase: string; phase_index: number; phases: number; activity: string } | null;
+  reha: {
+    plan_id: string;
+    phase: string;
+    phase_index: number;
+    phases: number;
+    activity: string;
+    /** Today's allowed minutes (ramp), 0 for a rest phase. */
+    minutes: number;
+    rest: boolean;
+    done: boolean;
+    text: string;
+  } | null;
   can_log: boolean;
   can_edit: boolean;
 };
@@ -78,6 +89,16 @@ export type WeekDay = {
   rest_reason?: string;
   show: { name: string; classes?: string; helper?: string } | null;
   can_take: boolean;
+  /** The unit the active reha plan allows that day. */
+  reha: {
+    plan_id: string;
+    phase: string;
+    activity: string;
+    activity_label: string;
+    rest: boolean;
+    minutes: number;
+    done: boolean;
+  } | null;
 };
 
 export type WeekResponse = {

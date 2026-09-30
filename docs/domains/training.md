@@ -85,10 +85,13 @@ Dots (`week`): the last seven days, today last; `kind` is `trained` (a session o
 `rest` (planned rest day or the mandatory rest day after a show) or `nothing`; `intensity` is the
 classification of the day's load.
 
-**Reha phases.** `reha_plans.phases` is a JSON list of consecutive phases starting at `start_date`:
-`{name, days | weeks | duration_days, activity, min_minutes, max_minutes, conditions}`. The phase
-that covers today is passed to the recommender; before the start, after the last phase or without
-active plan there is no phase (status `reha` then means light activities only).
+**Reha phases.** `reha_plans.phases` is a JSON list of consecutive phases starting at `start_date`
+(`{name, days | weeks | duration_days, activity, min_minutes, max_minutes, conditions}`). Parsing, the
+calendar layout and the minute ramp live in `internal/reha` (see [reha.md](reha.md)). The phase that covers
+today is passed to the recommender with today's ramp value as upper and the phase minimum as lower bound; a
+`rest` phase (Boxenruhe) recommends a rest day. Before the start, after the last phase or without active
+plan there is no phase (status `reha` then means light activities only). The `reha` block of the response
+also has `minutes`, `rest`, `done` (the "Heute erledigt" mark) and `text`.
 
 ### Sessions
 
@@ -108,7 +111,8 @@ canter share is `gait_shares.canter`. Saving marks the week slot of that day (st
 
 Each day has a `status`: `done` (a session exists), `today`, `planned` (someone claimed a future
 day), `open` ("Niemand eingetragen"), `empty` (past, nothing) or `rest` (`rest_reason`:
-`after_show` fixed, `planned`). Show days carry `show {name, classes, helper}`. `segments` are the 7
+`after_show` fixed, `planned`). Show days carry `show {name, classes, helper}`; days covered by an active reha plan carry `reha {plan_id, phase,
+activity, activity_label, rest, minutes, done}`. `segments` are the 7
 load levels and `assessment` is the German sentence from `load.Assess`. Hidden sessions (riders) still
 count for status and load but reveal neither user nor activity. Days are calendar days in the
 stable's timezone, so DST weeks still have seven days.
@@ -119,14 +123,14 @@ stable's timezone, so DST weeks still have seven days.
 only while `discipline` is still empty, so local edits survive), 11 global exercises (dressage
 Übergänge, Zirkel verkleinern und vergrößern, Schulterherein, Travers, Traversale; jumping
 Stangenarbeit, Cavaletti, Gymnastikreihe; groundwork Führen und Halten, Rückwärtsrichten,
-Freiarbeit), a reha plan for Fanta, 20 sessions in the two weeks before the day of seeding and
+Freiarbeit), a reha plan for Fanta (with abort criteria), 20 sessions in the two weeks before the day of seeding and
 three planned week slots for Luna.
 
 ## Open points
 
 - The tracking screen (`app/training/session.tsx`) is a timer placeholder; the later tracker hands
   `gait` and `rein` (JSON) plus `started_at` to `session/finish` in the same way.
-- `/horses/{id}/reha` (link "Reha-Plan") and `/observations/new?horse=` ("Etwas aufgefallen?") are
-  built by other work; the reha link only shows for horses in reha.
+- `/horses/{id}/reha` (link "Reha-Plan", see [reha.md](reha.md)) is built; `/observations/new?horse=`
+  ("Etwas aufgefallen?") comes from other work. The reha link only shows for horses in reha.
 - The weather temperature is the night minimum of the snapshot; a daytime value would need an
   extension of `weather_snapshots`.

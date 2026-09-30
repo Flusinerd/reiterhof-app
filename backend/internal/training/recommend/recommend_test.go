@@ -301,6 +301,25 @@ func TestRehaPhaseOverride(t *testing.T) {
 	}
 }
 
+// A rest phase (box rest) allows nothing: one rest recommendation, for owners and riders alike.
+func TestRehaRestPhase(t *testing.T) {
+	for _, role := range []Role{RoleOwner, RoleRider} {
+		in := base(allOn())
+		in.Profile.Status = training.StatusReha
+		in.Role = role
+		in.Rider = &training.RiderRules{AllowedActivities: training.AllActivities}
+		in.Reha = &RehaPhase{Name: "Boxenruhe", Activity: training.ActivityRest, Conditions: "Nur Handgrasen"}
+		r := Recommend(in)
+		if len(r.Recommendations) != 1 || r.Recommendations[0].Activity != training.ActivityRest {
+			t.Fatalf("role %v: got %v", role, acts(r))
+		}
+		contains(t, r.Recommendations[0].Reason, "Boxenruhe")
+		if r.Recommendations[0].Note != "Nur Handgrasen" {
+			t.Errorf("note = %q", r.Recommendations[0].Note)
+		}
+	}
+}
+
 func TestRehaPhaseBlockedForRider(t *testing.T) {
 	in := base(allOn())
 	in.Reha = &RehaPhase{Name: "Phase 1", Activity: training.ActivityLunge, MinMinutes: 10, MaxMinutes: 15}

@@ -204,8 +204,9 @@ func insertTraining(ctx context.Context, tx pgx.Tx, now time.Time) error {
 		{"name": "Schrittführen", "days": 14, "activity": "walker", "min_minutes": 15, "max_minutes": 20, "conditions": "Nur auf ebenem Boden"},
 		{"name": "Longieren im Schritt", "days": 14, "activity": "lunge", "min_minutes": 10, "max_minutes": 15, "conditions": "Große Kreise, kein Trab"},
 	})
-	q(`INSERT INTO reha_plans (id, stable_id, horse_id, diagnosis, vet, start_date, phases, checkup_date, active)
-	   VALUES ($1, $2, $3, 'Sehnenzerrung vorne links', 'Dr. Berger', $4, $5, $6, true)`,
+	q(`INSERT INTO reha_plans (id, stable_id, horse_id, diagnosis, vet, start_date, phases, checkup_date, active, abort_criteria)
+	   VALUES ($1, $2, $3, 'Sehnenzerrung vorne links', 'Dr. Berger', $4, $5, $6, true,
+	           'Bei Lahmheit, Wärme oder Schwellung im Bein sofort abbrechen und Dr. Berger anrufen.')`,
 		seedID("b", 1), StableB, HorseFanta, today.AddDate(0, 0, -10), phases, today.AddDate(0, 0, 20))
 
 	// --- sessions of the last two weeks -----------------------------------------------

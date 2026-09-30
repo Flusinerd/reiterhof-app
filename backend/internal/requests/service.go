@@ -187,6 +187,9 @@ func (s *Service) Create(ctx context.Context, u auth.User, in Input) (Request, e
 	if err := s.checkHorse(ctx, s.Pool, u.StableID, in.HorseID); err != nil {
 		return Request{}, err
 	}
+	if err := s.fillRules(ctx, s.Pool, u.StableID, &in); err != nil {
+		return Request{}, err
+	}
 	tasks, _ := json.Marshal(in.Tasks)
 	var id string
 	err := s.tx(ctx, func(tx pgx.Tx) error {
@@ -290,6 +293,9 @@ func (s *Service) Update(ctx context.Context, u auth.User, id string, p Patch) (
 			return err
 		}
 		if err := s.checkHorse(ctx, tx, u.StableID, in.HorseID); err != nil {
+			return err
+		}
+		if err := s.fillRules(ctx, tx, u.StableID, &in); err != nil {
 			return err
 		}
 		if in.HelpersNeeded < l.Helpers {

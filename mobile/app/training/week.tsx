@@ -8,6 +8,7 @@ import { LoadBar } from "@/components/training-dots";
 import { HorseSwitcher } from "@/components/training-horse-switcher";
 import { Badge, Button, Card, Divider, Hero, Screen, SectionLabel, Text } from "@/components/ui";
 import { trainingError, useTakeDay, useTrainingHorses, useWeek, type WeekDay } from "@/lib/api/training";
+import { weekRehaText } from "@/lib/reha";
 import { addDays, dayStatusLabel, formatDayLong, weekRangeLabel, weekdayShort } from "@/lib/training";
 
 /** Week view (JAN-59): who trains on which day, show days, load bar and an assessment. */
@@ -126,6 +127,14 @@ function DayRow({ day, busy, onTake }: { day: WeekDay; busy: boolean; onTake: ()
           <Button label="Ich" size="sm" variant="secondary" loading={busy} onPress={onTake} />
         ) : null}
       </View>
+      {day.reha ? (
+        <View className="ml-[60px] flex-row items-center gap-2" accessibilityLabel={`Reha: ${weekRehaText(day.reha)}`}>
+          <Badge variant={day.reha.done ? "primary" : "info"} label="Reha" />
+          <Text variant="secondary" className="flex-1">
+            {weekRehaText(day.reha)}
+          </Text>
+        </View>
+      ) : null}
       {day.show ? (
         <View className="ml-[60px] gap-1 rounded-tile bg-accent-soft p-3" accessibilityLabel={`Turnier ${day.show.name}`}>
           <View className="flex-row items-center gap-2">

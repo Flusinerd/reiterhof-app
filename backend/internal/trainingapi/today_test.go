@@ -157,7 +157,7 @@ func TestTodayRehaPhase(t *testing.T) {
 
 	got := e.call(seed.UserAnna, http.MethodGet, "/api/v1/horses/"+fanta+"/today?minutes=45", "", http.StatusOK)
 	r := recs(got)
-	if len(r) != 1 || r[0]["activity"] != "walker" || !strings.Contains(str(r[0]["reason"]), "Schrittführen") || num(r[0]["minutes"]) != 20 {
+	if len(r) != 1 || r[0]["activity"] != "walker" || !strings.Contains(str(r[0]["reason"]), "Schrittführen") || num(r[0]["minutes"]) != 19 {
 		t.Fatalf("reha recommendation = %v", got["recommendations"])
 	}
 	reha := obj(got["reha"])

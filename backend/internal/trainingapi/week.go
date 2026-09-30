@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Flusinerd/reiterhof-app/backend/internal/httpx"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/reha"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/training"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/training/load"
 )
@@ -79,6 +80,19 @@ type weekDayOut struct {
 	Show       *showOut `json:"show"`
 	// CanTake tells whether the caller may claim the day with "Ich".
 	CanTake bool `json:"can_take"`
+	// Reha is the unit the active reha plan allows that day (null without plan or outside it).
+	Reha *weekRehaOut `json:"reha"`
+}
+
+// weekRehaOut is a reha entry of the week: planned minutes and whether "Heute erledigt" was tapped.
+type weekRehaOut struct {
+	PlanID        string `json:"plan_id"`
+	Phase         string `json:"phase"`
+	Activity      string `json:"activity"`
+	ActivityLabel string `json:"activity_label"`
+	Rest          bool   `json:"rest"`
+	Minutes       int    `json:"minutes"`
+	Done          bool   `json:"done"`
 }
 
 type segmentOut struct {
@@ -144,6 +158,16 @@ func (h *handler) buildWeek(ctx context.Context, a access, start time.Time, loc 
 	if err != nil {
 		return weekOut{}, err
 	}
+	rehaPlan, err := reha.ActivePlan(ctx, h.deps.Pool, stableID, a.horseID)
+	if err != nil {
+		return weekOut{}, err
+	}
+	var rehaDone map[string]reha.DoneDay
+	if rehaPlan != nil {
+		if rehaDone, err = reha.DoneDays(ctx, h.deps.Pool, stableID, rehaPlan.ID, start, end); err != nil {
+			return weekOut{}, err
+		}
+	}
 	sessions := domainSessions(all, loc)
 	segs := load.WeekLoad(sessions, start)
 	shows := map[string]showDTO{}
@@ -171,6 +195,16 @@ func (h *handler) buildWeek(ctx context.Context, a access, start time.Time, loc 
 		d := weekDayOut{Date: key, Weekday: i, IsToday: day.Equal(today)}
 		if sh, ok := shows[key]; ok {
 			d.Show = &showOut{Name: sh.Name, Classes: sh.Classes, Helper: sh.Helper}
+		}
+		if rehaPlan != nil {
+			if al := rehaPlan.AllowedOn(day); al != nil {
+				_, isDone := rehaDone[key]
+				d.Reha = &weekRehaOut{
+					PlanID: rehaPlan.ID, Phase: al.Phase.Name, Activity: al.Phase.Activity,
+					ActivityLabel: reha.ActivityLabel(al.Phase.Activity), Rest: al.Phase.Rest(),
+					Minutes: al.Minutes, Done: isDone,
+				}
+			}
 		}
 		slot, hasSlot := slots[key]
 		if hasSlot {
