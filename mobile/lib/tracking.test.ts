@@ -21,6 +21,7 @@ import {
   isPaused,
   pause,
   pointGait,
+  pointShares,
   reinSegments,
   resume,
   segmentByGait,
@@ -378,4 +379,16 @@ test("checklist toggle keeps the indexes sorted", () => {
   assert.deepEqual(toggleStep([], 2), [2]);
   assert.deepEqual(toggleStep([2], 0), [0, 2]);
   assert.deepEqual(toggleStep([0, 2], 2), [0]);
+});
+
+test("point shares weight stretches by time and skip pauses", () => {
+  const pts = [gp(0, "walk"), gp(10, "walk"), gp(20, "trot"), gp(30, "trot"), gp(500, "walk", 1), gp(510, "canter", 1)];
+  const sh = pointShares(pts);
+  // stretches: walk 10 s, trot 20 s, canter 10 s; the pause bridge (30 -> 500) is not counted
+  assert.equal(sh.walk, 25);
+  assert.equal(sh.trot, 50);
+  assert.equal(sh.canter, 25);
+  const total = sh.halt + sh.walk + sh.trot + sh.canter;
+  assert.ok(Math.abs(total - 100) < 1e-9);
+  assert.deepEqual(pointShares([]), { halt: 0, walk: 0, trot: 0, canter: 0 });
 });

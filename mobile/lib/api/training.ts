@@ -104,6 +104,10 @@ export type SessionInput = {
   note?: string;
   visible_to_rider?: boolean;
   distance_m?: number;
+  /** Simplified GPS track of a ride (lib/tracking.ts buildApiTrack), at most 5000 points. */
+  track?: { lat: number; lon: number; t: number; alt?: number; g?: string }[];
+  /** Raw gait windows for model improvement (lib/gait/export.ts WindowRecord), at most 3000. */
+  gait_windows?: { t: number; f: number[]; p: string; a: string; v?: number; c?: string }[];
 };
 
 export type CreatedSession = {

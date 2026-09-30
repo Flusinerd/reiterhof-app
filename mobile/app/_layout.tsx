@@ -13,6 +13,7 @@ import { Button, Screen, Text } from "@/components/ui";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { fontAssets } from "@/lib/fonts";
 import "@/lib/geofence"; // registers the background geofence task at app start
+import "@/lib/tracking-location"; // registers the ride tracking task at app start
 import { useDeviceSetup } from "@/lib/use-push-registration";
 import { colors } from "@/lib/theme";
 

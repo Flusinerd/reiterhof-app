@@ -339,6 +339,21 @@ export function segmentByGait(points: readonly GaitPoint[]): GaitSegment[] {
 
 // --- API payload ------------------------------------------------------------------------------
 
+/**
+ * Gait shares (percent, summing to 100) from the GPS points alone, weighting each stretch by
+ * its duration. Used when no accelerometer windows exist (sensor missing or stopped).
+ */
+export function pointShares(points: readonly GaitPoint[]): Record<Gait, number> {
+  const ms: Record<Gait, number> = { halt: 0, walk: 0, trot: 0, canter: 0 };
+  points.forEach((p, i) => {
+    const prev = points[i - 1];
+    if (prev && prev.seg === p.seg && p.t > prev.t) ms[p.gait] += p.t - prev.t;
+  });
+  const total = ms.halt + ms.walk + ms.trot + ms.canter;
+  const pct = (v: number) => (total > 0 ? (v / total) * 100 : 0);
+  return { halt: pct(ms.halt), walk: pct(ms.walk), trot: pct(ms.trot), canter: pct(ms.canter) };
+}
+
 export const MAX_TRACK_POINTS = 5000;
 
 export type ApiTrackPoint = { lat: number; lon: number; t: number; alt?: number; g: Gait };
