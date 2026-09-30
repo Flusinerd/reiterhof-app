@@ -20,6 +20,7 @@ const (
 	aiUsed          = "used"            // the model answered; accepted days have source "ai"
 	aiNotConfigured = "not_configured"  // no API key on the server
 	aiNoConsent     = "no_consent"      // the owner has not granted ai_training
+	aiOwnerUnder16  = "owner_under_16"  // the owner has not stated to be 16 or older
 	aiLimit         = "limit"           // free credits or rate limit used up
 	aiFailed        = "failed"          // error or unusable answer
 	aiNothingToPlan = "nothing_to_plan" // no open day in the week
@@ -63,7 +64,9 @@ type planOut struct {
 // keeps with PUT /week/{day}.
 //
 // The language model is asked only when it is configured and the owner of the horse has
-// granted the ai_training consent; every proposal is checked by the rules
+// granted the ai_training consent and stated to be 16 or older (Mistral's terms forbid personal
+// data of children under the age of digital consent, even with a parent's consent); every
+// proposal is checked by the rules
 // (recommend.Check). Without the model, or when it fails, the rules plan every day.
 func (h *handler) planWeek(w http.ResponseWriter, r *http.Request) {
 	a, ok := h.authorize(w, r)
@@ -109,18 +112,25 @@ func (h *handler) planWeek(w http.ResponseWriter, r *http.Request) {
 	case h.deps.Chat == nil:
 		out.AIStatus = aiNotConfigured
 	default:
-		consented := false
+		consented, adult := false, false
 		if ownerID != nil {
 			if consented, err = privacy.Has(ctx, h.deps.Pool, *ownerID, privacy.KindAITraining); err != nil {
 				h.fail(w, r, err)
 				return
 			}
+			if err = h.deps.Pool.QueryRow(ctx, `SELECT age_confirmed_at IS NOT NULL FROM users WHERE id = $1`, *ownerID).Scan(&adult); err != nil {
+				h.fail(w, r, err)
+				return
+			}
 		}
-		if !consented {
+		switch {
+		case !consented:
 			out.AIStatus = aiNoConsent
-			break
+		case !adult:
+			out.AIStatus = aiOwnerUnder16
+		default:
+			entries, out.AIStatus = h.askModel(ctx, in)
 		}
-		entries, out.AIStatus = h.askModel(ctx, in)
 	}
 	if entries == nil {
 		entries = weekplan.Rules(in)

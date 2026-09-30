@@ -138,6 +138,13 @@ func TestPlanWeekWithModel(t *testing.T) {
 		t.Errorf("fanta = %v, calls %d", got, chat.calls)
 	}
 
+	// An owner under 16 (parental consent instead of the own statement) gets no model.
+	e.exec(`UPDATE users SET age_confirmed_at = NULL, parental_consent_at = now() WHERE id = $1`, seed.UserJan)
+	if got := e.call(seed.UserJan, http.MethodPost, planPath, "", http.StatusOK); got["ai_status"] != "owner_under_16" || got["source"] != "rules" || chat.calls != 1 {
+		t.Errorf("owner under 16: %v, calls %d", got, chat.calls)
+	}
+	e.exec(`UPDATE users SET age_confirmed_at = now(), parental_consent_at = NULL WHERE id = $1`, seed.UserJan)
+
 	// A revoked consent stops it again.
 	e.exec(`UPDATE consents SET revoked_at = now() WHERE user_id = $1 AND kind = 'ai_training'`, seed.UserJan)
 	if got := e.call(seed.UserJan, http.MethodPost, planPath, "", http.StatusOK); got["ai_status"] != "no_consent" || chat.calls != 1 {

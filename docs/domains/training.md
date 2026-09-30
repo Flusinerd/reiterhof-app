@@ -133,7 +133,9 @@ stable's timezone, so DST weeks still have seven days.
   units planned so far, so variety, recent load and the weekly maximum apply across the week. Weather and ground are
   only known for today. The active reha plan gives each day its unit.
 - **Language model:** used when `REITERHOF_MISTRAL_API_KEY` is set and the horse's **owner** has the `ai_training`
-  consent (whoever plans; an admin planning someone else's horse needs that owner's consent). `weekplan.Prompt` sends
+  consent (whoever plans; an admin planning someone else's horse needs that owner's consent) and stated to be 16 or
+  older (`users.age_confirmed_at`; Mistral's terms forbid personal data of children below the age of digital
+  consent, so a parental consent is not enough). `weekplan.Prompt` sends
   discipline, status, rhythm, allowed activities (without notes), the sessions of the last 14 days as days ago,
   activity, minutes, load, canter share and feel, shows as days from today, the reha unit per day and today's weather
   and ground. No names, ids, free text (level, notes, conditions, show and phase names) or dates; a test checks this.
@@ -145,7 +147,7 @@ stable's timezone, so DST weeks still have seven days.
   days the model left out come from the rules.
 - **Response:** `{horse_id, start, end, source: ai|rules, ai_status, owner_is_me, days: [{date, weekday, activity
   (or rest), label, minutes, intensity, intensity_label, reason, note, source, replaced, user}]}`. `ai_status`:
-  `used`, `not_configured`, `no_consent`, `limit` (HTTP 429: free credits or rate limit), `failed` (error, timeout
+  `used`, `not_configured`, `no_consent`, `owner_under_16`, `limit` (HTTP 429: free credits or rate limit), `failed` (error, timeout
   40 s, unusable answer), `nothing_to_plan`. Failures are logged without content and fall back to the rules.
 - **App:** "Woche planen" in `app/training/week.tsx` (only with `can_edit`), `components/training-plan-sheet.tsx`
   shows the days with the badge "KI-Vorschlag" or "Regel"; "Übernehmen" stores each day with

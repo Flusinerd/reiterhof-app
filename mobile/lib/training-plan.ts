@@ -4,7 +4,14 @@
 import type { Activity } from "./training.ts";
 
 /** Whether and how the language model took part (planOut.ai_status). */
-export type PlanAIStatus = "used" | "not_configured" | "no_consent" | "limit" | "failed" | "nothing_to_plan";
+export type PlanAIStatus =
+  | "used"
+  | "not_configured"
+  | "no_consent"
+  | "owner_under_16"
+  | "limit"
+  | "failed"
+  | "nothing_to_plan";
 
 export type PlanDay = {
   date: string;
@@ -75,6 +82,8 @@ export function planStatusText(status: PlanAIStatus, ownerIsMe: boolean): string
       return ownerIsMe
         ? "Der Plan kommt aus den festen Regeln. Mit deiner Erlaubnis schlägt eine KI die Woche vor."
         : "Der Plan kommt aus den festen Regeln. KI-Vorschläge kann nur der Besitzer des Pferdes erlauben.";
+    case "owner_under_16":
+      return "KI-Vorschläge gibt es nur für Pferde von Besitzern ab 16 Jahren. Der Plan kommt aus den festen Regeln.";
     case "limit":
       return "Das KI-Kontingent ist für diesen Monat aufgebraucht. Der Plan kommt aus den festen Regeln.";
     case "failed":

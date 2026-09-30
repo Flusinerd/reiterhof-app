@@ -43,7 +43,7 @@ test("status hints and the consent offer", () => {
   assert.equal(planStatusText("used", true), null);
   assert.match(planStatusText("no_consent", true)!, /Mit deiner Erlaubnis/);
   assert.match(planStatusText("no_consent", false)!, /nur der Besitzer/);
-  for (const s of ["not_configured", "limit", "failed"] as const) assert.match(planStatusText(s, true)!, /festen Regeln/);
+  for (const s of ["not_configured", "owner_under_16", "limit", "failed"] as const) assert.match(planStatusText(s, true)!, /festen Regeln/);
   assert.match(planStatusText("nothing_to_plan", true)!, /kein Tag/);
 
   const plan = (over: Partial<PlanResponse>): PlanResponse => ({
@@ -59,4 +59,5 @@ test("status hints and the consent offer", () => {
   assert.equal(canAskForAI(plan({})), true);
   assert.equal(canAskForAI(plan({ owner_is_me: false })), false);
   assert.equal(canAskForAI(plan({ ai_status: "failed" })), false);
+  assert.equal(canAskForAI(plan({ ai_status: "owner_under_16" })), false);
 });
