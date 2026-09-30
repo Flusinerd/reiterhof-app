@@ -10,6 +10,7 @@ import { BlanketPhoto } from "@/components/blanket-photo";
 import { BlanketRulesSheet } from "@/components/blanket-rules-sheet";
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
 import { Badge, Button, Card, Icon, Input, PageHeader, Screen, Section, Sheet, Text } from "@/components/ui";
+import { WeatherCard } from "@/components/weather-card";
 import { errorMessage } from "@/lib/api";
 import { BLANKET_PLAN_EVENT, BLANKET_STATE_EVENT, blanketKeys, usePlan } from "@/lib/api/blankets";
 import { horsesApi, useHorseMutation } from "@/lib/api/horses";
@@ -96,6 +97,8 @@ export default function BlanketPlan() {
           </View>
         </Card>
       </PageHeader>
+
+      {p.weather ? <WeatherCard weather={p.weather} timeZone={timeZone} /> : null}
 
       <Section
         title="Regeln"

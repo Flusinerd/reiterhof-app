@@ -12,7 +12,7 @@ import { BLANKET_PLAN_EVENT, BLANKET_STATE_EVENT, blanketKeys, useToday } from "
 import { PRESENCE_KEY } from "@/lib/api/presence";
 import { requestKeys } from "@/lib/api/requests";
 import { useAuth } from "@/lib/auth";
-import { greeting, myBlanketLines, nightTempShort, startWeatherText } from "@/lib/blankets";
+import { greeting, myBlanketLines, nightTempShort, nightUnit, startWeatherText } from "@/lib/blankets";
 import { useInvalidateOnEvents } from "@/lib/realtime";
 import { colors } from "@/lib/theme";
 
@@ -70,7 +70,7 @@ export default function Home() {
         }
         value={data ? nightTempShort(weather) : "–"}
         valueSize="lg"
-        unit={weather ? (weather.will_rain ? "heute Nacht, mit Regen" : "heute Nacht, trocken") : "heute Nacht"}
+        unit={nightUnit(weather)}
         description={data ? startWeatherText(lines, weather !== null, mineIds.size > 0) : "Wird geladen ..."}
       />
 

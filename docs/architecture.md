@@ -397,10 +397,16 @@ no third-party weather API. The KMZ (zip with one KML) has hourly steps for ~10 
 the Dorsten stable (51.66, 6.96) that is Essen-Bredeney, id `10410`. Override with
 `REITERHOF_WEATHER_STATION` (any MOSMIX id) or extend the list.
 
-**Night summary** (`weather.Summarize`): window 18:00 stable-local on the day until 08:00
-the next day (wall-clock, so DST nights are 15 h / 13 h). Result: `night_min_c`, max rain
-probability, rain sum, max wind. `will_rain = maxProb >= 50 % || sum >= 0.5 mm`
-(`weather.RainProbabilityThreshold`, `weather.RainSumThresholdMM`).
+**Forecast window** (`weather.Summarize`): from 18:00 stable-local on the day until 12:30 the
+next day, i.e. from covering in the evening until the horses come in and are uncovered
+(wall-clock, so DST nights are one hour longer or shorter). Temperature and wind use the hourly
+steps in the window; precipitation is per hour ending at the step and an hour counts with its
+share inside the window (12:00 to 13:00 counts half). Result: `night_min_c` (lowest temperature
+of the window), `temp_max_c`, max rain probability, rain sum `rain_mm`, `rain_peak_mm` (most in
+one hour), `rain_hours` (hours with at least 0.1 mm), `rain_from`/`rain_until`, max wind and an
+hourly `timeline`. `will_rain = maxProb >= 50 % || sum >= 0.5 mm`
+(`weather.RainProbabilityThreshold`, `weather.RainSumThresholdMM`). The details live in the
+`raw` JSON of the snapshot, so no migration; older snapshots lack them.
 
 **Job:** `weather.Service.Refresh` runs hourly (wired in `cmd/api`): per stable with lat/lng
 it stores snapshots for today and tomorrow in `weather_snapshots` (append-only, `raw` holds

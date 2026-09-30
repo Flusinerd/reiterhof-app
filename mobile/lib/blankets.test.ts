@@ -13,6 +13,7 @@ import {
   myBlanketLines,
   nightLine,
   nightTempShort,
+  nightUnit,
   progressFraction,
   progressLabel,
   progressText,
@@ -21,7 +22,15 @@ import {
   reminderHint,
   ruleBlanketName,
   ruleCondition,
+  hasWeatherDetails,
+  rainAmount,
+  rainIntensity,
+  rainTiming,
   startWeatherText,
+  temperatureRange,
+  weatherBarFraction,
+  weatherFacts,
+  windowLabel,
   stateActions,
   stateByline,
   stateLabel,
@@ -39,6 +48,14 @@ const weather = (night_min_c: number, will_rain: boolean): Weather => ({
   rain_mm: 1,
   wind_kmh: 10,
   fetched_at: "2026-09-30T16:00:00Z",
+  window_start: "2026-09-30T16:00:00Z",
+  window_end: "2026-10-01T10:30:00Z",
+  temp_max_c: night_min_c,
+  rain_peak_mm: 0,
+  rain_hours: 0,
+  rain_from: null,
+  rain_until: null,
+  timeline: [],
 });
 
 const blanket: Blanket = {
@@ -73,9 +90,12 @@ const state = (patch: Partial<BlanketState> = {}): BlanketState => ({
 });
 
 test("night line", () => {
-  assert.equal(nightLine(weather(3, true)), "Heute Nacht 3 °C, Regen");
-  assert.equal(nightLine(weather(8.4, false)), "Heute Nacht 8 °C, trocken");
-  assert.equal(nightLine(weather(-1.6, false)), "Heute Nacht -2 °C, trocken");
+  assert.equal(nightLine(weather(3, true)), "Heute Nacht 3 °C, 1 mm Regen");
+  assert.equal(nightLine(weather(8.4, false)), "Heute Nacht 8 °C, 1 mm Regen");
+  assert.equal(nightLine({ ...weather(-1.6, false), rain_mm: 0 }), "Heute Nacht -2 °C, trocken");
+  assert.equal(nightLine({ ...weather(3, true), temp_max_c: 9.4, rain_mm: 4.8 }), "Heute Nacht 3 bis 9 °C, 4,8 mm Regen");
+  assert.equal(nightUnit({ ...weather(3, true), rain_mm: 4.8 }), "heute Nacht, 4,8 mm Regen");
+  assert.equal(nightUnit(null), "heute Nacht");
   assert.match(nightLine(null), /Noch keine Vorhersage/);
   assert.equal(nightTempShort(weather(2.6, false)), "3°");
   assert.equal(nightTempShort(null), "–");
@@ -196,4 +216,56 @@ test("my blanket lines on the start screen", () => {
   assert.match(startWeatherText([], false, true), /Noch keine Vorhersage/);
   assert.match(startWeatherText([], true, false), /Keine eigenen Pferde/);
   assert.match(startWeatherText([], true, true), /Noch keine Empfehlung/);
+});
+
+test("rain amount and intensity", () => {
+  assert.equal(rainAmount({ rain_mm: 0 }), "trocken");
+  assert.equal(rainAmount({ rain_mm: 0.3 }), "kaum Regen");
+  assert.equal(rainAmount({ rain_mm: 1.54 }), "1,5 mm Regen");
+  assert.equal(rainAmount({ rain_mm: 12 }), "12 mm Regen");
+  assert.deepEqual([0, 0.3, 1, 3, 8].map(rainIntensity), [
+    "trocken",
+    "kaum Regen",
+    "leichter Regen",
+    "mäßiger Regen",
+    "starker Regen",
+  ]);
+  assert.equal(weatherBarFraction(2), 0.5);
+  assert.equal(weatherBarFraction(10), 1);
+});
+
+test("temperature range", () => {
+  assert.equal(temperatureRange({ night_min_c: 3.2, temp_max_c: 3.4 }), "3 °C");
+  assert.equal(temperatureRange({ night_min_c: 3.2, temp_max_c: 9.4 }), "3 bis 9 °C");
+});
+
+test("weather details", () => {
+  const w: Weather = {
+    ...weather(3, true),
+    temp_max_c: 9,
+    rain_mm: 4.8,
+    rain_probability: 70,
+    wind_kmh: 24.4,
+    rain_peak_mm: 2,
+    rain_hours: 3,
+    rain_from: "2026-09-30T20:00:00Z",
+    rain_until: "2026-10-01T00:00:00Z",
+    timeline: [{ time: "2026-09-30T16:00:00Z", temp_c: 8, rain_mm: 0, rain_prob: 0, wind_kmh: 10 }],
+  };
+  assert.equal(hasWeatherDetails(w), true);
+  assert.equal(hasWeatherDetails(weather(3, true)), false);
+  assert.equal(windowLabel(w, "Europe/Berlin"), "18:00 bis 12:30 Uhr");
+  assert.equal(windowLabel(weather(3, true), "Europe/Berlin"), "über Nacht");
+  assert.equal(rainTiming(w, "Europe/Berlin"), "22:00 bis 02:00 Uhr");
+  assert.equal(rainTiming(weather(3, false), "Europe/Berlin"), "trocken");
+  assert.deepEqual(weatherFacts(w, "Europe/Berlin"), [
+    { label: "Temperatur", value: "3 bis 9 °C" },
+    { label: "Regen", value: "4,8 mm (mäßiger Regen)" },
+    { label: "Regenzeit", value: "22:00 bis 02:00 Uhr" },
+    { label: "Stärkster Regen", value: "2 mm pro Stunde" },
+    { label: "Regenwahrscheinlichkeit", value: "bis 70 %" },
+    { label: "Wind", value: "bis 24 km/h" },
+  ]);
+  const dry = weatherFacts({ ...w, rain_mm: 0, rain_from: null, rain_until: null }, "Europe/Berlin");
+  assert.deepEqual(dry.map((f) => f.label), ["Temperatur", "Regen", "Regenwahrscheinlichkeit", "Wind"]);
 });

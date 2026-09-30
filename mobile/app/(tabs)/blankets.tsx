@@ -6,6 +6,7 @@ import { RefreshControl, View } from "react-native";
 import { BlanketDoneRow, BlanketHorseCard } from "@/components/blanket-horse-card";
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
 import { Card, PageHeader, Screen, Section, Text } from "@/components/ui";
+import { WeatherCard } from "@/components/weather-card";
 import { errorMessage } from "@/lib/api";
 import { BLANKET_PLAN_EVENT, BLANKET_STATE_EVENT, blanketKeys, useSetState, useToday } from "@/lib/api/blankets";
 import { useAuth } from "@/lib/auth";
@@ -101,6 +102,7 @@ export default function Blankets() {
         )
       ) : (
         <>
+          {data.weather ? <WeatherCard weather={data.weather} timeZone={timeZone} /> : null}
           {open.length > 0 ? (
             <Section title="Noch offen">
               {open.map((item) => (
