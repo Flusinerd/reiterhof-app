@@ -94,6 +94,6 @@ test("formatExport is readable JSON that round-trips", () => {
 });
 
 test("consentErrorMessage explains a text version conflict", () => {
-  assert.match(consentErrorMessage("version_mismatch") ?? "", /aktualisiere/);
+  assert.match(consentErrorMessage("version_mismatch") ?? "", /Aktualisiere/);
   assert.equal(consentErrorMessage("internal"), null);
 });

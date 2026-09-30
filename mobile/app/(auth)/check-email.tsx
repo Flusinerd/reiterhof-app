@@ -15,7 +15,7 @@ import {
 } from "@/lib/login-code";
 
 /**
- * Shown after "Link senden". The mail carries a 6-digit code and the magic link. The code is
+ * Shown after "Code senden". The mail carries a 6-digit code and the magic link. The code is
  * the way in when the link opens in another app or browser than the one the user signs in to
  * (an installed PWA on iOS has separate storage from Safari); the link keeps working through
  * `app/auth/verify.tsx`.
@@ -74,7 +74,7 @@ export default function CheckEmail() {
       setAvailableAt(Date.now() + RESEND_COOLDOWN_SECONDS * 1000);
       setCode("");
       setCodeError(null);
-      setMessage({ text: "Wir haben dir einen neuen Code und Link geschickt. Der alte Code gilt nicht mehr.", error: false });
+      setMessage({ text: "Neuer Code und Link sind unterwegs. Der alte Code ist ungültig.", error: false });
     } catch (e) {
       setMessage({ text: errorMessage(e), error: true });
     } finally {
@@ -84,15 +84,11 @@ export default function CheckEmail() {
 
   return (
     <Screen back keyboardShouldPersistTaps="handled">
-      <Hero
-        eyebrow="Fast geschafft"
-        title="Schau in dein Postfach"
-        description="Wir haben dir einen Code und einen Link geschickt. Gib den Code hier ein oder tippe auf den Link in der Mail."
-      />
+      <Hero title="Postfach prüfen" description="Code eintippen oder Link in der Mail antippen." />
 
       {email ? (
         <>
-          <SectionLabel>Code aus der E-Mail</SectionLabel>
+          <SectionLabel>Code</SectionLabel>
           <Card className="gap-3">
             <Input
               value={formatLoginCode(code)}
@@ -122,7 +118,7 @@ export default function CheckEmail() {
               </Text>
             ) : null}
             <Text variant="bodySm" tone="muted">
-              Gesendet an {email}. Code und Link sind 15 Minuten gültig.
+              Gesendet an {email}. 15 Minuten gültig.
             </Text>
           </Card>
         </>
@@ -130,7 +126,7 @@ export default function CheckEmail() {
 
       <Card className="gap-3">
         <Text variant="bodySm" tone="muted">
-          Keine E-Mail bekommen? Schau auch im Spam-Ordner nach.
+          Nichts angekommen? Schau im Spam-Ordner.
         </Text>
         <Button
           variant="secondary"
@@ -140,7 +136,7 @@ export default function CheckEmail() {
           disabled={secondsLeft > 0}
           onPress={resend}
         />
-        <Button variant="ghost" label="Andere Adresse verwenden" fullWidth onPress={() => router.back()} />
+        <Button variant="ghost" label="Andere Adresse" fullWidth onPress={() => router.back()} />
         {message ? (
           <Text variant="bodySm" tone={message.error ? "danger" : "primary"} accessibilityRole={message.error ? "alert" : undefined}>
             {message.text}

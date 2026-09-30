@@ -80,7 +80,7 @@ function AuthGate() {
       <Screen scroll={false} className="justify-center">
         <Text variant="title">Server nicht erreichbar</Text>
         <Text variant="body" tone="muted">
-          Bitte prüfe deine Internetverbindung und versuche es erneut.
+          Prüfe deine Internetverbindung und versuch es noch mal.
         </Text>
         <Button label="Erneut versuchen" onPress={refresh} />
       </Screen>

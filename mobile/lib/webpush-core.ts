@@ -72,13 +72,13 @@ export function webPushReasonMessage(reason: WebPushReason): string {
     case "needs_install":
       return "Zum Home-Bildschirm hinzufügen, dann Mitteilungen erlauben";
     case "unsupported":
-      return "Dieser Browser kann keine Mitteilungen zustellen. Nutze Safari, Chrome oder Firefox in der aktuellen Version.";
+      return "Dieser Browser unterstützt keine Mitteilungen. Nutze aktuelles Safari, Chrome oder Firefox.";
     case "permission_denied":
-      return "Mitteilungen sind für Stallfunk blockiert. Erlaube sie in den Einstellungen deines Geräts oder Browsers.";
+      return "Mitteilungen sind blockiert. Erlaube sie in den Geräte- oder Browser-Einstellungen.";
     case "not_configured":
-      return "Mitteilungen sind auf diesem Server noch nicht eingerichtet.";
+      return "Mitteilungen sind auf dem Server noch nicht eingerichtet.";
     case "error":
-      return "Mitteilungen konnten nicht eingerichtet werden. Bitte versuche es später erneut.";
+      return "Mitteilungen konnten nicht eingerichtet werden. Versuch es später noch mal.";
   }
 }
 

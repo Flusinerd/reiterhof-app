@@ -23,7 +23,7 @@ export default function Verify() {
     if (started.current) return; // a token works once; never send it twice
     started.current = true;
     if (!isPlausibleToken(token)) {
-      setError("Der Link ist ungültig. Fordere einen neuen an.");
+      setError("Link ungültig. Fordere einen neuen an.");
       return;
     }
     signInWithMagicToken(token).catch((e) => setError(errorMessage(e)));
@@ -32,9 +32,8 @@ export default function Verify() {
   return (
     <Screen>
       <Hero
-        eyebrow="Stallfunk"
-        title={error ? "Anmeldung fehlgeschlagen" : "Du wirst angemeldet"}
-        description={error ?? "Einen Moment bitte."}
+        title={error ? "Anmeldung fehlgeschlagen" : "Anmeldung läuft"}
+        description={error ?? undefined}
         tone={error ? "warm" : "forest"}
       />
       {error ? (
@@ -42,7 +41,7 @@ export default function Verify() {
           <Text variant="bodySm" tone="muted">
             Links gelten 15 Minuten und nur einmal.
           </Text>
-          <Button label="Neuen Link anfordern" fullWidth onPress={() => router.replace("/(auth)/sign-in")} />
+          <Button label="Neu anfordern" fullWidth onPress={() => router.replace("/(auth)/sign-in")} />
         </Card>
       ) : (
         <ActivityIndicator />

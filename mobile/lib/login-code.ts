@@ -31,9 +31,9 @@ export function cooldownRemainingSeconds(availableAtMs: number, nowMs: number): 
   return Math.max(0, Math.ceil((availableAtMs - nowMs) / 1000));
 }
 
-/** Label of the resend button: "Link und Code erneut senden" or "Erneut senden in 0:45". */
+/** Label of the resend button: "Erneut senden" or "Erneut senden in 0:45". */
 export function resendLabel(secondsLeft: number): string {
-  if (secondsLeft <= 0) return "Link und Code erneut senden";
+  if (secondsLeft <= 0) return "Erneut senden";
   const s = Math.ceil(secondsLeft);
   return `Erneut senden in ${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
@@ -42,14 +42,14 @@ export function resendLabel(secondsLeft: number): string {
 export function loginCodeErrorMessage(err: unknown): string {
   if (err instanceof ApiError) {
     if (err.code === "invalid_code") {
-      return "Der Code stimmt nicht oder ist abgelaufen. Prüfe die Ziffern oder fordere einen neuen an.";
+      return "Code falsch oder abgelaufen. Prüfe die Ziffern oder fordere einen neuen an.";
     }
     if (err.code === "rate_limited") {
-      return "Zu viele Versuche. Bitte warte kurz und versuche es später erneut.";
+      return "Zu viele Versuche. Warte kurz.";
     }
     if (err.code === "network") {
-      return "Keine Verbindung zum Server. Bitte prüfe deine Internetverbindung.";
+      return "Keine Verbindung. Versuch es gleich noch mal.";
     }
   }
-  return "Etwas ist schiefgelaufen. Bitte versuche es erneut.";
+  return "Etwas ist schiefgelaufen. Versuch es noch mal.";
 }

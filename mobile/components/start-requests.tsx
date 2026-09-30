@@ -44,7 +44,7 @@ export function StartRequests() {
   if (list.data.requests.length === 0) {
     return (
       <Card>
-        <Text variant="secondary">Aktuell sucht niemand Hilfe. Schön!</Text>
+        <Text variant="secondary">Keine offenen Anfragen.</Text>
       </Card>
     );
   }

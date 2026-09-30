@@ -16,7 +16,7 @@ export default function Join() {
 
   async function join() {
     if (normalizeInviteCode(code).length < 8) {
-      setError("Der Code hat 8 Zeichen, zum Beispiel ABCD-EFGH.");
+      setError("Der Code hat 8 Zeichen, z. B. ABCD-EFGH.");
       return;
     }
     setError(null);
@@ -33,9 +33,9 @@ export default function Join() {
   return (
     <Screen keyboardShouldPersistTaps="handled">
       <Hero
-        eyebrow={user ? `Hallo ${user.name}` : "Stallfunk"}
+        eyebrow={user ? `Hallo ${user.name}` : undefined}
         title="Stall beitreten"
-        description="Gib den Einladungscode ein, den du von deinem Stall bekommen hast."
+        description="Gib den Einladungscode deines Stalls ein."
       />
 
       <SectionLabel>Einladungscode</SectionLabel>

@@ -44,15 +44,15 @@ test("cooldown", () => {
 });
 
 test("resendLabel", () => {
-  assert.equal(resendLabel(0), "Link und Code erneut senden");
-  assert.equal(resendLabel(-3), "Link und Code erneut senden");
+  assert.equal(resendLabel(0), "Erneut senden");
+  assert.equal(resendLabel(-3), "Erneut senden");
   assert.equal(resendLabel(45), "Erneut senden in 0:45");
   assert.equal(resendLabel(60), "Erneut senden in 1:00");
   assert.equal(resendLabel(5), "Erneut senden in 0:05");
 });
 
 test("loginCodeErrorMessage", () => {
-  assert.match(loginCodeErrorMessage(new ApiError(401, "invalid_code", "x")), /Code stimmt nicht/);
+  assert.match(loginCodeErrorMessage(new ApiError(401, "invalid_code", "x")), /Code falsch/);
   assert.match(loginCodeErrorMessage(new ApiError(429, "rate_limited", "x")), /Zu viele Versuche/);
   assert.match(loginCodeErrorMessage(new ApiError(0, "network", "x")), /Keine Verbindung/);
   assert.match(loginCodeErrorMessage(new Error("boom")), /schiefgelaufen/);
