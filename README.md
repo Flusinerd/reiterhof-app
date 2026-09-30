@@ -74,6 +74,6 @@ Einmalige Schritte, die nicht im Repository stehen:
 
 ## CI und Deployment
 
-- CI (`.github/workflows/ci.yml`): Backend (`go vet`, `go test` mit Postgres 16), Mobile (Typecheck, Tests, `npx expo install --check`, Web-Export der PWA), Pin-Check und ShellCheck.
+- CI (`.github/workflows/ci.yml`): Backend (`go vet`, `go test` mit Postgres 16), Mobile (Typecheck, Tests, Web-Export der PWA; `npx expo install --check` warnt nur, damit neue Expo-Patches main nicht rot machen), Pin-Check und ShellCheck.
 - `just check-pins` prüft lokal, dass alle Abhängigkeiten exakt gepinnt und alle GitHub Actions auf einen Commit-SHA fixiert sind.
 - Deployment auf einen einzelnen Linux-VPS (Netcup): Runbook in [`deploy/README.md`](deploy/README.md), Restore in [`deploy/restore.md`](deploy/restore.md).
