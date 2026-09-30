@@ -1,9 +1,10 @@
 // Pure helpers for editing blanket rules (JAN-30): drafts as the form holds them, parsing
 // with German error texts, reordering. No React Native imports (unit-tested with node --test).
 
-import type { Rule } from "./blankets.ts";
+import { RAIN_STEPS, rainStrength, type RainStrength, type Rule } from "./blankets.ts";
 
 export type RainChoice = "any" | "rain" | "dry";
+export type { RainStrength };
 
 /** One rule while it is edited: numbers are still text so that "" and "-" can be typed. */
 export type RuleDraft = {
@@ -12,6 +13,11 @@ export type RuleDraft = {
   temp_min: string;
   temp_max: string;
   rain: RainChoice;
+  /** Only used with rain = "rain". */
+  rain_strength: RainStrength;
+  /** Own amounts for rain_strength = "exact", as text like the temperatures. */
+  rain_min_mm: string;
+  rain_max_mm: string;
   blanket_id: string | null;
   note: string;
 };
@@ -20,6 +26,8 @@ export type RuleValue = {
   temp_min: number | null;
   temp_max: number | null;
   rain: boolean | null;
+  rain_min_mm: number | null;
+  rain_max_mm: number | null;
   blanket_id: string | null;
   note: string;
 };
@@ -27,6 +35,7 @@ export type RuleValue = {
 export const MAX_RULES = 30;
 export const MAX_NOTE = 200;
 export const TEMP_LIMIT = 60;
+export const RAIN_LIMIT_MM = 500;
 
 let counter = 0;
 function nextKey(): string {
@@ -38,19 +47,52 @@ function numberText(v: number | null): string {
   return v === null ? "" : String(v).replace(".", ",");
 }
 
-export function toDraft(rule: Pick<Rule, "temp_min" | "temp_max" | "rain" | "blanket_id" | "note">): RuleDraft {
+export function toDraft(
+  rule: Pick<Rule, "temp_min" | "temp_max" | "rain" | "blanket_id" | "note"> &
+    Partial<Pick<Rule, "rain_min_mm" | "rain_max_mm">>,
+): RuleDraft {
+  const min = rule.rain === true ? (rule.rain_min_mm ?? null) : null;
+  const max = rule.rain === true ? (rule.rain_max_mm ?? null) : null;
+  const strength = rainStrength({ rain_min_mm: min, rain_max_mm: max });
   return {
     key: nextKey(),
     temp_min: numberText(rule.temp_min),
     temp_max: numberText(rule.temp_max),
     rain: rule.rain === true ? "rain" : rule.rain === false ? "dry" : "any",
+    rain_strength: strength,
+    rain_min_mm: strength === "exact" ? numberText(min) : "",
+    rain_max_mm: strength === "exact" ? numberText(max) : "",
     blanket_id: rule.blanket_id,
     note: rule.note,
   };
 }
 
 export function emptyDraft(): RuleDraft {
-  return { key: nextKey(), temp_min: "", temp_max: "", rain: "any", blanket_id: null, note: "" };
+  return {
+    key: nextKey(),
+    temp_min: "",
+    temp_max: "",
+    rain: "any",
+    rain_strength: "any",
+    rain_min_mm: "",
+    rain_max_mm: "",
+    blanket_id: null,
+    note: "",
+  };
+}
+
+/**
+ * Patch for choosing a rain strength. Switching to "exact" starts from the amounts of the step
+ * chosen before (so "Stark" becomes "ab 8 mm" to adjust), unless amounts were typed already.
+ */
+export function chooseStrength(draft: RuleDraft, strength: RainStrength): Partial<RuleDraft> {
+  if (strength !== "exact" || draft.rain_min_mm !== "" || draft.rain_max_mm !== "") return { rain_strength: strength };
+  const prev = draft.rain_strength === "any" || draft.rain_strength === "exact" ? null : RAIN_STEPS[draft.rain_strength];
+  return {
+    rain_strength: strength,
+    rain_min_mm: numberText(prev?.min ?? null),
+    rain_max_mm: numberText(prev?.max ?? null),
+  };
 }
 
 /** Parses "3", "-2,5" or "" (= open bound). Returns undefined for anything else. */
@@ -78,6 +120,29 @@ export function parseDraft(draft: RuleDraft, position: number): Parsed {
   if (min !== null && max !== null && min >= max) {
     return { ok: false, error: `${label}: „Ab“ muss kleiner sein als „Unter“.` };
   }
+  let rainMin: number | null = null;
+  let rainMax: number | null = null;
+  if (draft.rain === "rain" && draft.rain_strength === "exact") {
+    const a = parseTemp(draft.rain_min_mm);
+    const b = parseTemp(draft.rain_max_mm);
+    if (a === undefined || b === undefined) {
+      return { ok: false, error: `${label}: Regenmenge als Zahl, z. B. 2 oder 0,5.` };
+    }
+    if ((a !== null && (a < 0 || a > RAIN_LIMIT_MM)) || (b !== null && (b < 0 || b > RAIN_LIMIT_MM))) {
+      return { ok: false, error: `${label}: Regenmenge zwischen 0 und ${RAIN_LIMIT_MM} mm.` };
+    }
+    if (a !== null && b !== null && a >= b) {
+      return { ok: false, error: `${label}: Regenmenge: „Ab“ muss kleiner sein als „Unter“.` };
+    }
+    rainMin = a;
+    rainMax = b;
+  } else if (draft.rain === "rain") {
+    const strength = draft.rain_strength;
+    if (strength !== "any" && strength !== "exact") {
+      rainMin = RAIN_STEPS[strength].min;
+      rainMax = RAIN_STEPS[strength].max;
+    }
+  }
   const note = draft.note.trim();
   if (note.length > MAX_NOTE) {
     return { ok: false, error: `${label}: Wunsch: höchstens ${MAX_NOTE} Zeichen.` };
@@ -88,6 +153,8 @@ export function parseDraft(draft: RuleDraft, position: number): Parsed {
       temp_min: min,
       temp_max: max,
       rain: draft.rain === "rain" ? true : draft.rain === "dry" ? false : null,
+      rain_min_mm: rainMin,
+      rain_max_mm: rainMax,
       blanket_id: draft.blanket_id,
       note,
     },
@@ -136,5 +203,9 @@ function covers(outer: RuleValue, inner: RuleValue): boolean {
   if (lo(outer.temp_min) > lo(inner.temp_min)) return false;
   if (hi(outer.temp_max) < hi(inner.temp_max)) return false;
   if (outer.rain !== null && outer.rain !== inner.rain) return false;
+  // Amounts only exist on rain rules; an outer rule with amounts covers only rain rules inside them.
+  // Amounts are never negative, so an open lower bound is 0.
+  if ((outer.rain_min_mm ?? 0) > (inner.rain_min_mm ?? 0)) return false;
+  if (hi(outer.rain_max_mm) < hi(inner.rain_max_mm)) return false;
   return true;
 }

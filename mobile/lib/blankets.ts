@@ -27,6 +27,9 @@ export type Rule = {
   temp_min: number | null;
   temp_max: number | null;
   rain: boolean | null;
+  /** Rain amount over the cover window, only with rain = true: min <= mm < max, null = open. */
+  rain_min_mm: number | null;
+  rain_max_mm: number | null;
   blanket_id: string | null;
   note: string;
 };
@@ -149,13 +152,45 @@ function num(v: number): string {
 /** Rain below this (mm in the whole window) is drizzle at most and shown as "kaum Regen". */
 const NEGLIGIBLE_RAIN_MM = 0.5;
 
+/** Rain in the whole window from which it counts as moderate and as heavy (weather card and rules). */
+export const MODERATE_RAIN_MM = 2;
+export const HEAVY_RAIN_MM = 8;
+
 /** Word for the amount of rain: "trocken", "leichter Regen", "mäßiger Regen", "starker Regen". */
 export function rainIntensity(mm: number): string {
   if (mm < 0.1) return "trocken";
   if (mm < NEGLIGIBLE_RAIN_MM) return "kaum Regen";
-  if (mm < 2) return "leichter Regen";
-  if (mm < 8) return "mäßiger Regen";
+  if (mm < MODERATE_RAIN_MM) return "leichter Regen";
+  if (mm < HEAVY_RAIN_MM) return "mäßiger Regen";
   return "starker Regen";
+}
+
+/** Rain strength of a rule: a step of the weather card, "any" (no amount) or "exact" (own amounts). */
+export type RainStrength = "any" | "light" | "moderate" | "heavy" | "exact";
+
+/** Amounts of the steps, min <= mm < max, null = open. */
+export const RAIN_STEPS: Record<"light" | "moderate" | "heavy", { min: number | null; max: number | null }> = {
+  light: { min: null, max: MODERATE_RAIN_MM },
+  moderate: { min: MODERATE_RAIN_MM, max: HEAVY_RAIN_MM },
+  heavy: { min: HEAVY_RAIN_MM, max: null },
+};
+
+/** Which strength the amounts of a rule are. */
+export function rainStrength(rule: Pick<Rule, "rain_min_mm" | "rain_max_mm">): RainStrength {
+  const { rain_min_mm: min, rain_max_mm: max } = rule;
+  if (min === null && max === null) return "any";
+  for (const step of ["light", "moderate", "heavy"] as const) {
+    if (RAIN_STEPS[step].min === min && RAIN_STEPS[step].max === max) return step;
+  }
+  return "exact";
+}
+
+/** Amounts in words: "ab 8 mm", "unter 2 mm", "2 bis unter 8 mm". */
+export function rainRange(min: number | null, max: number | null): string {
+  if (min !== null && max !== null) return `${num(min)} bis unter ${num(max)} mm`;
+  if (min !== null) return `ab ${num(min)} mm`;
+  if (max !== null) return `unter ${num(max)} mm`;
+  return "jede Menge";
 }
 
 /** "trocken" or "4,8 mm Regen" ("kaum Regen" below 0.5 mm). */
@@ -321,15 +356,29 @@ export function fillLabel(fillG: number): string {
   return fillG > 0 ? `Füllung ${fillG} g` : "ohne Füllung";
 }
 
-/** Condition of a rule in words: "0 bis unter 5 °C, bei Regen". */
-export function ruleCondition(rule: Pick<Rule, "temp_min" | "temp_max" | "rain">): string {
+const STRENGTH_TEXT: Record<Exclude<RainStrength, "exact">, string> = {
+  any: "bei Regen",
+  light: "bei leichtem Regen",
+  moderate: "bei mäßigem Regen",
+  heavy: "bei starkem Regen",
+};
+
+/** Condition of a rule in words: "0 bis unter 5 °C, bei Regen", "…, bei starkem Regen", "…, bei Regen ab 3 mm". */
+export function ruleCondition(
+  rule: Pick<Rule, "temp_min" | "temp_max" | "rain"> & Partial<Pick<Rule, "rain_min_mm" | "rain_max_mm">>,
+): string {
   const { temp_min: min, temp_max: max } = rule;
   let t: string;
   if (min !== null && max !== null) t = `${min} bis unter ${max} °C`;
   else if (min !== null) t = `ab ${min} °C`;
   else if (max !== null) t = `unter ${max} °C`;
   else t = "Jede Temperatur";
-  if (rule.rain === true) return `${t}, bei Regen`;
+  if (rule.rain === true) {
+    const amounts = { rain_min_mm: rule.rain_min_mm ?? null, rain_max_mm: rule.rain_max_mm ?? null };
+    const strength = rainStrength(amounts);
+    if (strength !== "exact") return `${t}, ${STRENGTH_TEXT[strength]}`;
+    return `${t}, bei Regen ${rainRange(amounts.rain_min_mm, amounts.rain_max_mm)}`;
+  }
   if (rule.rain === false) return `${t}, ohne Regen`;
   return t;
 }

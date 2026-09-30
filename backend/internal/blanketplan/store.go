@@ -11,7 +11,7 @@ import (
 // scopes the query, so a horse of another stable yields no rules.
 func LoadRules(ctx context.Context, pool *pgxpool.Pool, stableID, horseID string) ([]Rule, error) {
 	rows, err := pool.Query(ctx, `
-		SELECT position, temp_min::float8, temp_max::float8, rain, blanket_id::text, COALESCE(note, '')
+		SELECT position, temp_min::float8, temp_max::float8, rain, rain_min_mm::float8, rain_max_mm::float8, blanket_id::text, COALESCE(note, '')
 		FROM blanket_rules
 		WHERE stable_id = $1 AND horse_id = $2
 		ORDER BY position`, stableID, horseID)
@@ -22,7 +22,7 @@ func LoadRules(ctx context.Context, pool *pgxpool.Pool, stableID, horseID string
 	var rules []Rule
 	for rows.Next() {
 		var r Rule
-		if err := rows.Scan(&r.Position, &r.TempMin, &r.TempMax, &r.Rain, &r.BlanketID, &r.Note); err != nil {
+		if err := rows.Scan(&r.Position, &r.TempMin, &r.TempMax, &r.Rain, &r.RainMinMM, &r.RainMaxMM, &r.BlanketID, &r.Note); err != nil {
 			return nil, fmt.Errorf("blanketplan: scan rule: %w", err)
 		}
 		rules = append(rules, r)

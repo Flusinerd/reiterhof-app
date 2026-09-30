@@ -4,17 +4,36 @@ import { ScrollView, View, useWindowDimensions } from "react-native";
 
 import { Button, Card, Input, Pill, Sheet, Text, ToggleGroup, ToggleGroupItem } from "@/components/ui";
 import { blanketsApi, usePlanMutation } from "@/lib/api/blankets";
-import { blanketErrorMessage, type Blanket, type Rule } from "@/lib/blankets";
+import { RAIN_STEPS, blanketErrorMessage, rainRange, type Blanket, type Rule } from "@/lib/blankets";
 import {
   MAX_RULES,
+  chooseStrength,
   emptyDraft,
   moveItem,
   parseDrafts,
   toDraft,
   unreachableRules,
   type RainChoice,
+  type RainStrength,
   type RuleDraft,
 } from "@/lib/blankets-rules";
+
+/** Rain strengths in the order of the chips; the steps match the words of the weather card. */
+const STRENGTHS: { value: RainStrength; label: string }[] = [
+  { value: "any", label: "Egal" },
+  { value: "light", label: "Leicht" },
+  { value: "moderate", label: "Mäßig" },
+  { value: "heavy", label: "Stark" },
+  { value: "exact", label: "Genau" },
+];
+
+/** What a step means, below the chips: "unter 2 mm im Deckenzeitraum". */
+function strengthHint(strength: RainStrength): string {
+  if (strength === "any" || strength === "exact") return "Jede Regenmenge im Deckenzeitraum.";
+  const step = RAIN_STEPS[strength];
+  const range = rainRange(step.min, step.max);
+  return `${range.charAt(0).toUpperCase()}${range.slice(1)} Regen im Deckenzeitraum.`;
+}
 
 type Props = {
   open: boolean;
@@ -102,6 +121,36 @@ export function BlanketRulesSheet({ open, onOpenChange, horseId, rules, blankets
               <ToggleGroupItem value="rain" label="Regen" />
               <ToggleGroupItem value="dry" label="Trocken" />
             </ToggleGroup>
+            {d.rain === "rain" ? (
+              <View className="gap-2">
+                <Text variant="caption">Wie stark?</Text>
+                <View className="flex-row flex-wrap gap-2">
+                  {STRENGTHS.map((s) => (
+                    <Pill
+                      key={s.value}
+                      label={s.label}
+                      accessibilityLabel={`Regel ${i + 1}: Regen ${s.label}`}
+                      selected={d.rain_strength === s.value}
+                      onPress={() => patch(d.key, chooseStrength(d, s.value))}
+                    />
+                  ))}
+                </View>
+                {d.rain_strength === "exact" ? (
+                  <View className="flex-row gap-3">
+                    <View className="flex-1 gap-1">
+                      <Text variant="caption">Ab (mm)</Text>
+                      <Input value={d.rain_min_mm} onChangeText={(v) => patch(d.key, { rain_min_mm: v })} accessibilityLabel={`Regel ${i + 1}: ab Regenmenge`} placeholder="egal" keyboardType="decimal-pad" />
+                    </View>
+                    <View className="flex-1 gap-1">
+                      <Text variant="caption">Unter (mm)</Text>
+                      <Input value={d.rain_max_mm} onChangeText={(v) => patch(d.key, { rain_max_mm: v })} accessibilityLabel={`Regel ${i + 1}: unter Regenmenge`} placeholder="egal" keyboardType="decimal-pad" />
+                    </View>
+                  </View>
+                ) : (
+                  <Text variant="caption">{strengthHint(d.rain_strength)}</Text>
+                )}
+              </View>
+            ) : null}
             <View className="gap-2">
               <Text variant="caption">Decke</Text>
               <View className="flex-row flex-wrap gap-2">

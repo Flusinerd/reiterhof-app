@@ -2,7 +2,8 @@
 //
 // Semantics (see docs/architecture.md): rules are evaluated by Position, the
 // first matching rule wins; a rule matches when TempMin <= night minimum <
-// TempMax (a nil bound is open) and Rain is nil or equals the forecast.
+// TempMax (a nil bound is open), Rain is nil or equals the forecast and, for
+// a rain rule, RainMinMM <= rain amount < RainMaxMM (a nil bound is open).
 // A rule with a nil BlanketID means "no blanket".
 package blanketplan
 
@@ -12,15 +13,18 @@ type Rule struct {
 	TempMin   *float64 // inclusive lower bound, nil = unbounded
 	TempMax   *float64 // exclusive upper bound, nil = unbounded
 	Rain      *bool    // nil = any weather
+	RainMinMM *float64 // inclusive lower bound of the rain amount, only with Rain = true
+	RainMaxMM *float64 // exclusive upper bound of the rain amount, only with Rain = true
 	BlanketID *string  // nil = no blanket
 	Note      string
 }
 
-// Forecast is the input of the recommendation: the night minimum and whether
-// rain is expected (see weather.Summary).
+// Forecast is the input of the recommendation: the night minimum, whether rain
+// is expected and how much (sum over the cover window, see weather.Summary).
 type Forecast struct {
 	NightMinC float64
 	WillRain  bool
+	RainMM    float64
 }
 
 // Matches reports whether the rule applies to the forecast.
@@ -32,6 +36,12 @@ func (r Rule) Matches(f Forecast) bool {
 		return false
 	}
 	if r.Rain != nil && *r.Rain != f.WillRain {
+		return false
+	}
+	if r.RainMinMM != nil && f.RainMM < *r.RainMinMM {
+		return false
+	}
+	if r.RainMaxMM != nil && f.RainMM >= *r.RainMaxMM {
 		return false
 	}
 	return true

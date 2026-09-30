@@ -341,7 +341,8 @@ real `*push.Notifier`). In tests pass `Notify: push.NewNotifier(pool, fake, nil)
   and `httptest`, or call your `Register` on a fresh `http.NewServeMux()`.
 - Blanket rules semantics (seed and evaluation): rules are evaluated by `position`,
   the first match wins; `temp_min <= temp < temp_max`, `NULL` bound = open, `NULL` rain
-  = any; `blanket_id NULL` = no blanket.
+  = any; with `rain = true` also `rain_min_mm <= rain_mm < rain_max_mm` (`NULL` = open);
+  `blanket_id NULL` = no blanket.
 
 ## Training logic (`internal/training`)
 
@@ -417,7 +418,7 @@ hourly `timeline`. `will_rain = maxProb >= 50 % || sum >= 0.5 mm`
 it stores snapshots for today and tomorrow in `weather_snapshots` (append-only, `raw` holds
 station and summary). `weather.Store.Latest(ctx, stableID, day)` returns the newest one.
 
-**Recommendation** (`blanketplan`): `Recommend(rules, Forecast{NightMinC, WillRain})` returns
+**Recommendation** (`blanketplan`): `Recommend(rules, Forecast{NightMinC, WillRain, RainMM})` returns
 the first matching rule by position (semantics in "Testing" below); `Changed(prev, next)`
 tells whether the blanket differs (for change notifications). `LoadRules(ctx, pool,
 stableID, horseID)` reads a horse's rules.

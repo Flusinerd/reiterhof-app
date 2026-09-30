@@ -155,6 +155,17 @@ test("rule texts", () => {
   assert.equal(ruleCondition({ temp_min: null, temp_max: 0, rain: true }), "unter 0 °C, bei Regen");
   assert.equal(ruleCondition({ temp_min: 5, temp_max: 12, rain: false }), "5 bis unter 12 °C, ohne Regen");
   assert.equal(ruleCondition({ temp_min: null, temp_max: null, rain: null }), "Jede Temperatur");
+  const rain = { temp_min: null, temp_max: 5, rain: true };
+  assert.equal(ruleCondition({ ...rain, rain_min_mm: null, rain_max_mm: null }), "unter 5 °C, bei Regen");
+  assert.equal(ruleCondition({ ...rain, rain_min_mm: null, rain_max_mm: 2 }), "unter 5 °C, bei leichtem Regen");
+  assert.equal(ruleCondition({ ...rain, rain_min_mm: 2, rain_max_mm: 8 }), "unter 5 °C, bei mäßigem Regen");
+  assert.equal(ruleCondition({ ...rain, rain_min_mm: 8, rain_max_mm: null }), "unter 5 °C, bei starkem Regen");
+  assert.equal(ruleCondition({ ...rain, rain_min_mm: 3, rain_max_mm: null }), "unter 5 °C, bei Regen ab 3 mm");
+  assert.equal(ruleCondition({ ...rain, rain_min_mm: 0.5, rain_max_mm: 4 }), "unter 5 °C, bei Regen 0,5 bis unter 4 mm");
+  assert.equal(ruleCondition({ ...rain, rain_min_mm: null, rain_max_mm: 1 }), "unter 5 °C, bei Regen unter 1 mm");
+  assert.equal(rainIntensity(1.9), "leichter Regen");
+  assert.equal(rainIntensity(2), "mäßiger Regen");
+  assert.equal(rainIntensity(8), "starker Regen");
   assert.equal(ruleBlanketName({ blanket_id: "b1" }, [blanket]), "Decke 100 g");
   assert.equal(ruleBlanketName({ blanket_id: null }, [blanket]), "Keine Decke");
   assert.equal(ruleBlanketName({ blanket_id: "gone" }, [blanket]), "Keine Decke");

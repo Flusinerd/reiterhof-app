@@ -38,7 +38,8 @@ in), so taking the blankets off does not mark the horse done for the coming one.
 ### Recommendation
 
 `blanketplan.Recommend(rules, forecast)`: the first rule by position that matches (`temp_min
-<= night min < temp_max`, `NULL` = open, `rain NULL` = any) wins. Result shape (`recommendation`):
+<= night min < temp_max`, `NULL` = open, `rain NULL` = any; a rain rule can also require an amount,
+`rain_min_mm <= rain_mm < rain_max_mm` over the cover window, JAN-84) wins. Result shape (`recommendation`):
 
 ```json
 {"status": "blanket|none|no_rule|no_weather", "rule_index": 3, "blanket": {...} , "note": "Wunsch des Besitzers"}
@@ -72,9 +73,9 @@ Blanket JSON: `{id, horse_id, name, fill_g, color, location, photo_path, photo_u
 | `POST /horses/{id}/blankets` | owner, admin | `{name*, fill_g (0-2000), color, location, photo_path}`, `201`. `photo_path` must come from `POST /files` (`files.Belongs`) |
 | `PATCH /horses/{id}/blankets/{blanketId}` | owner, admin | absent = unchanged, `""` clears color, location, photo |
 | `DELETE /horses/{id}/blankets/{blanketId}` | owner, admin | `204`; `409 in_use` while a rule names the blanket. The photo file is kept |
-| `GET /horses/{id}/blanket-rules` | member | `{rules:[{id, position, temp_min, temp_max, rain, blanket_id, note}]}` |
+| `GET /horses/{id}/blanket-rules` | member | `{rules:[{id, position, temp_min, temp_max, rain, rain_min_mm, rain_max_mm, blanket_id, note}]}` |
 | `PUT /horses/{id}/cover-window` | owner, admin | `{cover_start, cover_end}`, see "Cover window" |
-| `PUT /horses/{id}/blanket-rules` | owner, admin | `{rules:[{temp_min?, temp_max?, rain?, blanket_id?, note?}]}` full replace in one transaction; array order = priority (positions 1..n). Validation (`400`): max 30 rules, temperatures in -60..60, `temp_min < temp_max`, `blanket_id` is a blanket of this horse, note up to 200 characters. `[]` removes all rules |
+| `PUT /horses/{id}/blanket-rules` | owner, admin | `{rules:[{temp_min?, temp_max?, rain?, rain_min_mm?, rain_max_mm?, blanket_id?, note?}]}` full replace in one transaction; array order = priority (positions 1..n). Validation (`400`): max 30 rules, temperatures in -60..60, `temp_min < temp_max`, rain amounts only with `rain: true`, in 0..500 mm and `rain_min_mm < rain_max_mm`, `blanket_id` is a blanket of this horse, note up to 200 characters. `[]` removes all rules |
 | `GET /horses/{id}/blanket-plan` | member | `{horse, day, weather, recommendation, rules, blankets, helper_note, state, can_manage, cover_start, cover_end}` (`weather` null without snapshot; `state` = newest state tonight) |
 | `POST /horses/{id}/blanket-state` | member | `{action: covered\|uncovered\|checked, covered_with?}` -> `{state, closed_requests}` |
 | `GET /horses/{id}/blanket-states?days=14` | member | `{today, states}` newest first, 1..90 days (default 14) |
@@ -203,7 +204,9 @@ set before any forecast existed and snapshots of other days are ignored.
   compact rows (tap to correct). Realtime refresh.
 - Deckenplan (`/horses/{id}/blanket-plan`): "Heute Nacht" hero, card "Deckenzeitraum" (`components/cover-window-section.tsx`, quarter-hour steps), rule list with the active rule
   highlighted, blanket grid with photos, helper note, history. Owners and admins edit rules
-  (sheet with reorder, warning for rules that can never apply), blankets (sheet with photo
+  (sheet with reorder, warning for rules that can never apply; with "Regen" a second choice
+  "Wie stark?": Egal, Leicht (under 2 mm), Mäßig (2 to under 8 mm), Stark (from 8 mm), the steps of
+  the weather card, or Genau with own "Ab (mm)" / "Unter (mm)"), blankets (sheet with photo
   upload through `lib/upload.ts`) and the helper note.
 - Verlauf (`/blankets/history/{horseId}`): the last 60 days.
 - Start screen: greeting, night temperature with the recommendations for my horses (owned and

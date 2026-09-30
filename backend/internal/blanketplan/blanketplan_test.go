@@ -72,6 +72,42 @@ func TestRecommend(t *testing.T) {
 	}
 }
 
+func TestRecommendRainAmount(t *testing.T) {
+	// Steps of the app: light below 2 mm, moderate 2 to 8 mm, heavy from 8 mm.
+	rules := []blanketplan.Rule{
+		{Position: 1, Rain: b(true), RainMinMM: f(8), BlanketID: s("heavy")},
+		{Position: 2, Rain: b(true), RainMinMM: f(2), RainMaxMM: f(8), BlanketID: s("moderate")},
+		{Position: 3, Rain: b(true), RainMaxMM: f(2), BlanketID: s("light")},
+		{Position: 4, Note: "none"},
+	}
+	tests := []struct {
+		name string
+		rain bool
+		mm   float64
+		want string
+	}{
+		{"dry", false, 0, ""},
+		{"dry with a little rain", false, 0.3, ""},
+		{"likely rain without amount", true, 0, "light"},
+		{"1.9 mm", true, 1.9, "light"},
+		{"exactly 2 mm", true, 2, "moderate"},
+		{"7.9 mm", true, 7.9, "moderate"},
+		{"exactly 8 mm", true, 8, "heavy"},
+		{"30 mm", true, 30, "heavy"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := blanketplan.Recommend(rules, blanketplan.Forecast{NightMinC: 5, WillRain: tt.rain, RainMM: tt.mm})
+			if !ok {
+				t.Fatal("no rule matched")
+			}
+			if id(got) != tt.want {
+				t.Errorf("blanket = %q, want %q", id(got), tt.want)
+			}
+		})
+	}
+}
+
 func TestRecommendNoMatchAndOrder(t *testing.T) {
 	if _, ok := blanketplan.Recommend(nil, blanketplan.Forecast{}); ok {
 		t.Error("empty rules matched")

@@ -74,6 +74,8 @@ type Rule struct {
 	TempMin   *float64 `json:"temp_min"`
 	TempMax   *float64 `json:"temp_max"`
 	Rain      *bool    `json:"rain"`
+	RainMinMM *float64 `json:"rain_min_mm"`
+	RainMaxMM *float64 `json:"rain_max_mm"`
 	BlanketID *string  `json:"blanket_id"`
 	Note      string   `json:"note"`
 }
@@ -183,12 +185,7 @@ func recommend(rules []Rule, blankets []Blanket, w *Weather) Recommendation {
 	if w == nil {
 		return Recommendation{Status: StatusNoWeather}
 	}
-	plan := make([]blanketplan.Rule, len(rules))
-	for i, r := range rules {
-		plan[i] = blanketplan.Rule{Position: r.Position, TempMin: r.TempMin, TempMax: r.TempMax, Rain: r.Rain,
-			BlanketID: r.BlanketID, Note: r.Note}
-	}
-	rule, ok := blanketplan.Recommend(plan, blanketplan.Forecast{NightMinC: w.NightMinC, WillRain: w.WillRain})
+	rule, ok := blanketplan.Recommend(planRules(rules), w.forecast())
 	if !ok {
 		return Recommendation{Status: StatusNoRule}
 	}
@@ -208,6 +205,21 @@ func recommend(rules []Rule, blankets []Blanket, w *Weather) Recommendation {
 		}
 	}
 	return rec
+}
+
+// planRules converts the API rules for blanketplan.
+func planRules(rules []Rule) []blanketplan.Rule {
+	plan := make([]blanketplan.Rule, len(rules))
+	for i, r := range rules {
+		plan[i] = blanketplan.Rule{Position: r.Position, TempMin: r.TempMin, TempMax: r.TempMax, Rain: r.Rain,
+			RainMinMM: r.RainMinMM, RainMaxMM: r.RainMaxMM, BlanketID: r.BlanketID, Note: r.Note}
+	}
+	return plan
+}
+
+// forecast is the input of blanketplan.Recommend.
+func (w Weather) forecast() blanketplan.Forecast {
+	return blanketplan.Forecast{NightMinC: w.NightMinC, WillRain: w.WillRain, RainMM: w.RainMM}
 }
 
 // stableInfo reads the time zone and reminder time of a stable.
@@ -346,7 +358,7 @@ func (s *Service) loadNight(ctx context.Context, stableID, horseID string) (*nig
 	}
 
 	ruleRows, err := s.Pool.Query(ctx, `
-		SELECT id::text, horse_id::text, position, temp_min::float8, temp_max::float8, rain, blanket_id::text, COALESCE(note, '')
+		SELECT id::text, horse_id::text, position, temp_min::float8, temp_max::float8, rain, rain_min_mm::float8, rain_max_mm::float8, blanket_id::text, COALESCE(note, '')
 		FROM blanket_rules WHERE stable_id = $1 AND ($2::uuid IS NULL OR horse_id = $2::uuid)
 		ORDER BY position`, stableID, only)
 	if err != nil {
@@ -355,7 +367,7 @@ func (s *Service) loadNight(ctx context.Context, stableID, horseID string) (*nig
 	for ruleRows.Next() {
 		var r Rule
 		var hid string
-		if err := ruleRows.Scan(&r.ID, &hid, &r.Position, &r.TempMin, &r.TempMax, &r.Rain, &r.BlanketID, &r.Note); err != nil {
+		if err := ruleRows.Scan(&r.ID, &hid, &r.Position, &r.TempMin, &r.TempMax, &r.Rain, &r.RainMinMM, &r.RainMaxMM, &r.BlanketID, &r.Note); err != nil {
 			ruleRows.Close()
 			return nil, err
 		}

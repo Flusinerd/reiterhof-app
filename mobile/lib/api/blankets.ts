@@ -26,6 +26,8 @@ export type RuleInput = {
   temp_min: number | null;
   temp_max: number | null;
   rain: boolean | null;
+  rain_min_mm: number | null;
+  rain_max_mm: number | null;
   blanket_id: string | null;
   note: string;
 };

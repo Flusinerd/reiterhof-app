@@ -51,6 +51,7 @@ const (
 	maxNoteLen     = 200
 	maxFillG       = 2000
 	tempLimit      = 60.0
+	rainLimitMM    = 500.0
 	defaultDays    = 14
 	maxDays        = 90
 )
@@ -162,6 +163,10 @@ func text(v *string, max int) (string, bool) {
 
 func validTemp(v *float64) bool {
 	return v == nil || (!math.IsNaN(*v) && !math.IsInf(*v, 0) && *v >= -tempLimit && *v <= tempLimit)
+}
+
+func validRainMM(v *float64) bool {
+	return v == nil || (!math.IsNaN(*v) && !math.IsInf(*v, 0) && *v >= 0 && *v <= rainLimitMM)
 }
 
 var errNotFound = errors.New("not found")

@@ -166,6 +166,8 @@ func TestRulesValidationAndReplace(t *testing.T) {
 			TempMin   *float64 `json:"temp_min"`
 			TempMax   *float64 `json:"temp_max"`
 			Rain      *bool    `json:"rain"`
+			RainMinMM *float64 `json:"rain_min_mm"`
+			RainMaxMM *float64 `json:"rain_max_mm"`
 			BlanketID *string  `json:"blanket_id"`
 			Note      string   `json:"note"`
 		}
@@ -180,16 +182,22 @@ func TestRulesValidationAndReplace(t *testing.T) {
 	e.do(seed.UserAnna, "PUT", path, m{"rules": []m{good}}).errCode(t, 403, "forbidden")
 
 	bad := map[string]any{
-		"missing rules":     m{},
-		"null rules":        m{"rules": nil},
-		"min above max":     m{"rules": []m{{"temp_min": 5, "temp_max": 0}}},
-		"min equals max":    m{"rules": []m{{"temp_min": 5, "temp_max": 5}}},
-		"temp out of range": m{"rules": []m{{"temp_min": -100}}},
-		"foreign blanket":   m{"rules": []m{{"blanket_id": seed.BlanketBalu150}}},
-		"unknown blanket":   m{"rules": []m{{"blanket_id": "00000000-0000-4000-8000-0000000009ff"}}},
-		"blanket garbage":   m{"rules": []m{{"blanket_id": "abc"}}},
-		"long note":         m{"rules": []m{{"note": strings.Repeat("n", 201)}}},
-		"unknown field":     m{"rules": []m{{"temp": 5}}},
+		"missing rules":         m{},
+		"null rules":            m{"rules": nil},
+		"min above max":         m{"rules": []m{{"temp_min": 5, "temp_max": 0}}},
+		"min equals max":        m{"rules": []m{{"temp_min": 5, "temp_max": 5}}},
+		"temp out of range":     m{"rules": []m{{"temp_min": -100}}},
+		"foreign blanket":       m{"rules": []m{{"blanket_id": seed.BlanketBalu150}}},
+		"unknown blanket":       m{"rules": []m{{"blanket_id": "00000000-0000-4000-8000-0000000009ff"}}},
+		"blanket garbage":       m{"rules": []m{{"blanket_id": "abc"}}},
+		"long note":             m{"rules": []m{{"note": strings.Repeat("n", 201)}}},
+		"unknown field":         m{"rules": []m{{"temp": 5}}},
+		"amount without rain":   m{"rules": []m{{"rain_min_mm": 2}}},
+		"amount when dry":       m{"rules": []m{{"rain": false, "rain_max_mm": 2}}},
+		"negative amount":       m{"rules": []m{{"rain": true, "rain_min_mm": -1}}},
+		"amount too large":      m{"rules": []m{{"rain": true, "rain_min_mm": 501}}},
+		"amount min above max":  m{"rules": []m{{"rain": true, "rain_min_mm": 8, "rain_max_mm": 2}}},
+		"amount min equals max": m{"rules": []m{{"rain": true, "rain_min_mm": 2, "rain_max_mm": 2}}},
 	}
 	tooMany := make([]m, 31)
 	for i := range tooMany {
@@ -218,6 +226,37 @@ func TestRulesValidationAndReplace(t *testing.T) {
 		*got.Rules[0].TempMax != 0 || got.Rules[1].Rain == nil || !*got.Rules[1].Rain || got.Rules[2].BlanketID != nil || got.Rules[2].Note != "Keine Decke" {
 		t.Fatalf("replaced = %+v", got.Rules)
 	}
+	if got.Rules[1].RainMinMM != nil || got.Rules[1].RainMaxMM != nil {
+		t.Errorf("rain rule without amount = %+v", got.Rules[1])
+	}
+
+	// Rain strength: heavy rain (from 8 mm) gets the rain blanket, any other rain none.
+	strength := []m{
+		{"rain": true, "rain_min_mm": 8, "blanket_id": seed.BlanketLunaRain},
+		{"rain": true, "rain_min_mm": 0.5, "rain_max_mm": 8, "note": "Leichter Regen"},
+		{"note": "Keine Decke"},
+	}
+	e.do(seed.UserJan, "PUT", path, m{"rules": strength}).status(t, 200).into(t, &got)
+	if got.Rules[0].RainMinMM == nil || *got.Rules[0].RainMinMM != 8 || got.Rules[0].RainMaxMM != nil ||
+		got.Rules[1].RainMinMM == nil || *got.Rules[1].RainMinMM != 0.5 || got.Rules[1].RainMaxMM == nil || *got.Rules[1].RainMaxMM != 8 {
+		t.Fatalf("rain strength rules = %+v", got.Rules)
+	}
+	var amountPlan struct {
+		Recommendation recJSON `json:"recommendation"`
+	}
+	planPath := "/api/v1/horses/" + seed.HorseLuna + "/blanket-plan"
+	e.snapshot("2026-09-30", berlinAt(2026, 9, 30, 6, 0), 3, true) // 1.5 mm
+	e.do(seed.UserJan, "GET", planPath, nil).status(t, 200).into(t, &amountPlan)
+	if r := amountPlan.Recommendation; r.RuleIndex == nil || *r.RuleIndex != 1 || r.Blanket != nil {
+		t.Errorf("1.5 mm = %+v", r)
+	}
+	e.exec(`UPDATE weather_snapshots SET rain_mm = 12 WHERE stable_id = $1 AND valid_for = '2026-09-30'`, seed.StableB)
+	e.do(seed.UserJan, "GET", planPath, nil).status(t, 200).into(t, &amountPlan)
+	if r := amountPlan.Recommendation; r.RuleIndex == nil || *r.RuleIndex != 0 || r.Blanket == nil || r.Blanket.ID != seed.BlanketLunaRain {
+		t.Errorf("12 mm = %+v", r)
+	}
+	e.exec(`DELETE FROM weather_snapshots WHERE stable_id = $1`, seed.StableB)
+
 	// The owner of another horse (Jonas, Balu) may not change Luna's rules; an admin may.
 	e.do(seed.UserJonas, "PUT", path, m{"rules": []m{}}).errCode(t, 403, "forbidden")
 	// Now Luna 100 g is unused, so it can be deleted.

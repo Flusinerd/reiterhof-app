@@ -387,12 +387,7 @@ func (s *Service) weatherChangeStable(ctx context.Context, st stableRow) error {
 
 // ruleFor evaluates the rules; no match counts as "no blanket".
 func ruleFor(rules []Rule, w Weather) blanketplan.Rule {
-	plan := make([]blanketplan.Rule, len(rules))
-	for i, r := range rules {
-		plan[i] = blanketplan.Rule{Position: r.Position, TempMin: r.TempMin, TempMax: r.TempMax, Rain: r.Rain,
-			BlanketID: r.BlanketID, Note: r.Note}
-	}
-	rule, _ := blanketplan.Recommend(plan, blanketplan.Forecast{NightMinC: w.NightMinC, WillRain: w.WillRain})
+	rule, _ := blanketplan.Recommend(planRules(rules), w.forecast())
 	return rule
 }
 

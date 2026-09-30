@@ -15,6 +15,8 @@ type ruleInput struct {
 	TempMin   *float64 `json:"temp_min"`
 	TempMax   *float64 `json:"temp_max"`
 	Rain      *bool    `json:"rain"`
+	RainMinMM *float64 `json:"rain_min_mm"`
+	RainMaxMM *float64 `json:"rain_max_mm"`
 	BlanketID *string  `json:"blanket_id"`
 	Note      *string  `json:"note"`
 }
@@ -25,7 +27,7 @@ type rulesInput struct {
 
 func loadRules(ctx context.Context, q querier, stableID, horseID string) ([]Rule, error) {
 	rows, err := q.Query(ctx, `
-		SELECT id::text, position, temp_min::float8, temp_max::float8, rain, blanket_id::text, COALESCE(note, '')
+		SELECT id::text, position, temp_min::float8, temp_max::float8, rain, rain_min_mm::float8, rain_max_mm::float8, blanket_id::text, COALESCE(note, '')
 		FROM blanket_rules WHERE stable_id = $1 AND horse_id = $2 ORDER BY position`, stableID, horseID)
 	if err != nil {
 		return nil, err
@@ -34,7 +36,7 @@ func loadRules(ctx context.Context, q querier, stableID, horseID string) ([]Rule
 	out := []Rule{}
 	for rows.Next() {
 		var r Rule
-		if err := rows.Scan(&r.ID, &r.Position, &r.TempMin, &r.TempMax, &r.Rain, &r.BlanketID, &r.Note); err != nil {
+		if err := rows.Scan(&r.ID, &r.Position, &r.TempMin, &r.TempMax, &r.Rain, &r.RainMinMM, &r.RainMaxMM, &r.BlanketID, &r.Note); err != nil {
 			return nil, err
 		}
 		out = append(out, r)
@@ -105,6 +107,20 @@ func (h *handler) putRules(w http.ResponseWriter, r *http.Request) {
 			invalid(w, fmt.Sprintf("rules[%d]: temp_min must be lower than temp_max", i))
 			return
 		}
+		if rule.RainMinMM != nil || rule.RainMaxMM != nil {
+			if rule.Rain == nil || !*rule.Rain {
+				invalid(w, fmt.Sprintf("rules[%d]: rain_min_mm and rain_max_mm need rain = true", i))
+				return
+			}
+			if !validRainMM(rule.RainMinMM) || !validRainMM(rule.RainMaxMM) {
+				invalid(w, fmt.Sprintf("rules[%d]: rain amounts must be between 0 and %g mm", i, rainLimitMM))
+				return
+			}
+			if rule.RainMinMM != nil && rule.RainMaxMM != nil && *rule.RainMinMM >= *rule.RainMaxMM {
+				invalid(w, fmt.Sprintf("rules[%d]: rain_min_mm must be lower than rain_max_mm", i))
+				return
+			}
+		}
 		if _, ok := text(rule.Note, maxNoteLen); !ok {
 			invalid(w, fmt.Sprintf("rules[%d]: note is too long (%d characters)", i, maxNoteLen))
 			return
@@ -122,9 +138,10 @@ func (h *handler) putRules(w http.ResponseWriter, r *http.Request) {
 		}
 		for i, rule := range in.Rules {
 			if _, err := tx.Exec(r.Context(), `
-				INSERT INTO blanket_rules (stable_id, horse_id, position, temp_min, temp_max, rain, blanket_id, note)
-				VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-				user.StableID, horseID, i+1, rule.TempMin, rule.TempMax, rule.Rain, rule.BlanketID, nullable(rule.Note)); err != nil {
+				INSERT INTO blanket_rules (stable_id, horse_id, position, temp_min, temp_max, rain, rain_min_mm, rain_max_mm, blanket_id, note)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+				user.StableID, horseID, i+1, rule.TempMin, rule.TempMax, rule.Rain, rule.RainMinMM, rule.RainMaxMM,
+				rule.BlanketID, nullable(rule.Note)); err != nil {
 				return err
 			}
 		}
