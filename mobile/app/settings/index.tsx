@@ -1,10 +1,11 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { router, type Href } from "expo-router";
-import { BellOff, ChevronRight, LogOut, ShieldCheck } from "lucide-react-native";
+import { BellOff, ChevronRight, LogOut, MapPin, Pencil, ShieldCheck, type LucideIcon } from "lucide-react-native";
 import { useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, Pressable, View } from "react-native";
 
 import { useConsentPrompt } from "@/components/consent-prompt";
+import { InviteCard } from "@/components/invite-card";
 import { ReminderTimeCard } from "@/components/reminder-time-card";
 import { WebPushCard } from "@/components/web-push-card";
 import {
@@ -13,26 +14,25 @@ import {
   Divider,
   Icon,
   PageHeader,
-  PressableCard,
   Screen,
   Section,
   Switch,
   Text,
-  ToggleGroup,
-  ToggleGroupItem,
 } from "@/components/ui";
-import { api, errorMessage, type PresenceVisibility } from "@/lib/api";
+import { errorMessage } from "@/lib/api";
 import { reminderKeys, remindersApi, useNotificationSettings } from "@/lib/api/reminders";
-import { ME_KEY, useAuth } from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
 import { useHasConsent } from "@/lib/consent";
-import { VISIBILITY_OPTIONS, visibilityDescription } from "@/lib/presence-format";
 import type { NotificationSettings } from "@/lib/reminders";
 import { colors } from "@/lib/theme";
 
-/** Settings (JAN-70): notifications per kind, the stable's reminder time, presence, privacy, account. */
+/**
+ * Settings (JAN-70): notifications per kind with the stable's reminder time, inviting (admins only), then the
+ * account (name, presence, privacy, sign-out).
+ */
 export default function Settings() {
   const queryClient = useQueryClient();
-  const { user, signOut } = useAuth();
+  const { user, hasStable, signOut } = useAuth();
   const settings = useNotificationSettings();
   const pushConsent = useHasConsent("push");
   const prompt = useConsentPrompt();
@@ -58,13 +58,6 @@ export default function Settings() {
     onSettled: () => queryClient.invalidateQueries({ queryKey: reminderKeys.notifications }),
   });
 
-  const changeVisibility = useMutation({
-    mutationFn: (visibility: PresenceVisibility) => api.updateMe({ presence_visibility: visibility }),
-    onMutate: () => setError(null),
-    onSuccess: (updated) => queryClient.setQueryData(ME_KEY, updated),
-    onError: (e) => setError(errorMessage(e)),
-  });
-
   async function allowPush() {
     await prompt.ensure("push");
     void queryClient.invalidateQueries({ queryKey: reminderKeys.notifications });
@@ -78,8 +71,6 @@ export default function Settings() {
       setSigningOut(false);
     }
   }
-
-  const visibility = (user?.presence_visibility ?? "all") as PresenceVisibility;
 
   return (
     <Screen back>
@@ -131,40 +122,64 @@ export default function Settings() {
             ))
           )}
         </Card>
-      </Section>
-
-      <Section title="Stallgasse">
         <ReminderTimeCard />
       </Section>
 
-      <Section title="Anwesenheit" description="Wer sieht mich?">
-        <ToggleGroup type="single" value={visibility} onValueChange={(v) => changeVisibility.mutate(v as PresenceVisibility)}>
-          {VISIBILITY_OPTIONS.map((o) => (
-            <ToggleGroupItem key={o.value} value={o.value} label={o.label} disabled={changeVisibility.isPending} />
-          ))}
-        </ToggleGroup>
-        <Text variant="secondary">{visibilityDescription(visibility)}</Text>
-      </Section>
-
-      <Section title="Datenschutz">
-        <PressableCard
-          padded={false}
-          className="min-h-touch flex-row items-center gap-3 px-5 py-4"
-          onPress={() => router.push("/settings/privacy" as Href)}
-        >
-          <Icon as={ShieldCheck} size={20} className="text-muted" />
-          <View className="flex-1">
-            <Text variant="bodyStrong">Datenschutz</Text>
-            <Text variant="secondary">Erlaubnisse, Datenexport, Konto löschen</Text>
-          </View>
-          <Icon as={ChevronRight} size={20} className="text-muted" />
-        </PressableCard>
-      </Section>
+      {user?.is_admin ? (
+        <Section title="Stallgasse">
+          <InviteCard />
+        </Section>
+      ) : null}
 
       <Section title="Konto">
+        <Card padded={false}>
+          <LinkRow
+            icon={Pencil}
+            title="Name"
+            description={user?.name ?? "Ändern"}
+            onPress={() => router.push("/(auth)/name" as Href)}
+          />
+          <Divider />
+          {hasStable ? (
+            <>
+              <LinkRow
+                icon={MapPin}
+                title="Anwesenheit"
+                description="Automatisch erkennen, Sichtbarkeit"
+                onPress={() => router.push("/presence" as Href)}
+              />
+              <Divider />
+            </>
+          ) : null}
+          <LinkRow
+            icon={ShieldCheck}
+            title="Datenschutz"
+            description="Erlaubnisse, Datenexport, Konto löschen"
+            onPress={() => router.push("/settings/privacy" as Href)}
+          />
+        </Card>
         <Button label="Abmelden" icon={LogOut} variant="outline" fullWidth loading={signingOut} onPress={() => void leave()} />
       </Section>
       {prompt.sheet}
     </Screen>
+  );
+}
+
+/** A row in the account card that opens another screen. */
+function LinkRow({ icon, title, description, onPress }: { icon: LucideIcon; title: string; description: string; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${title}. ${description}`}
+      className="min-h-touch flex-row items-center gap-3 px-5 py-4"
+      onPress={onPress}
+    >
+      <Icon as={icon} size={20} className="text-muted" />
+      <View className="flex-1">
+        <Text variant="bodyStrong">{title}</Text>
+        <Text variant="secondary">{description}</Text>
+      </View>
+      <Icon as={ChevronRight} size={20} className="text-muted" />
+    </Pressable>
   );
 }

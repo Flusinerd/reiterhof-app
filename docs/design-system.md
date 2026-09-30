@@ -107,8 +107,10 @@ All exported from `@/components/ui` (barrel) or individually from `@/components/
 ### Layout
 
 - **`Screen`**: root of every screen. Props: `scroll` (default true), `back` (sub page: shows `BackButton`, pads bottom safe area),
-  `edges` (default `["top"]`), `contentClassName`, `refreshControl`, `className`. Children are spaced 24 px apart.
-  Tab screens use the default; sub pages (no tab bar) use `back`. Screens without a session
+  `menu` (default true), `edges` (default `["top"]`), `contentClassName`, `refreshControl`, `className`. Children are spaced 24 px apart.
+  Tab screens use the default; sub pages (no tab bar) use `back`. A top bar holds the `BackButton` (left) and the app menu
+  (right, `components/app-menu.tsx`: "Bin da" / "Ich gehe", Erinnerungen, Einstellungen). The root layout provides the menu
+  through `ScreenMenuContext` while someone with a stable is signed in; `menu={false}` hides it (running ride tracking). Screens without a session
   (sign-in, join) use `contentClassName="flex-grow pt-8"` and push their footer down with `mt-auto`.
 - **`PageHeader`**: the head of every screen, on the page background. Props: `eyebrow`, `title` (Fraunces 32),
   `action` (element right of the title, e.g. an icon `Button` or an `Avatar`), `value` + `valueSize` (`sm|md|lg`) + `unit`

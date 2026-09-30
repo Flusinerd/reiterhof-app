@@ -1,15 +1,12 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
-import { LogIn, LogOut, Settings, ShieldCheck } from "lucide-react-native";
-import { useState } from "react";
+import { LogIn, LogOut } from "lucide-react-native";
 import { RefreshControl, View } from "react-native";
 
 import { useConsentPrompt } from "@/components/consent-prompt";
+import { usePresenceCheckIn } from "@/components/presence-check-in";
 import { Avatar, Button, Card, Divider, PageHeader, Screen, Section, Switch, Text, ToggleGroup, ToggleGroupItem } from "@/components/ui";
 import { colors } from "@/lib/theme";
-import { errorMessage, api, type PresenceVisibility } from "@/lib/api";
-import { PRESENCE_EVENT, PRESENCE_KEY, presenceApi } from "@/lib/api/presence";
-import { ME_KEY, useAuth } from "@/lib/auth";
+import { errorMessage, type PresenceVisibility } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { failureMessage } from "@/lib/geofence-core";
 import { useGeofence } from "@/lib/geofence";
 import { isWeb } from "@/lib/platform";
@@ -22,46 +19,15 @@ import {
   VISIBILITY_OPTIONS,
   visibilityDescription,
 } from "@/lib/presence-format";
-import { useInvalidateOnEvents } from "@/lib/realtime";
 
 export default function PresenceScreen() {
-  const { me, user } = useAuth();
-  const router = useRouter();
+  const { me } = useAuth();
   const consent = useConsentPrompt();
-  const queryClient = useQueryClient();
   const timeZone = me?.stable?.timezone ?? "Europe/Berlin";
-  const [actionError, setActionError] = useState<string | null>(null);
-
-  const overview = useQuery({ queryKey: PRESENCE_KEY, queryFn: presenceApi.overview });
-  useInvalidateOnEvents({ [PRESENCE_EVENT]: [PRESENCE_KEY] });
-
-  const toggleVisit = useMutation({
-    mutationFn: (arrive: boolean) => (arrive ? presenceApi.checkIn("manual") : presenceApi.checkOut()),
-    onMutate: () => setActionError(null),
-    onError: (err) => setActionError(errorMessage(err)),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: PRESENCE_KEY }),
-  });
-
-  const changeVisibility = useMutation({
-    mutationFn: (visibility: PresenceVisibility) => api.updateMe({ presence_visibility: visibility }),
-    onMutate: () => setActionError(null),
-    onSuccess: (updated) => queryClient.setQueryData(ME_KEY, updated),
-    onError: (err) => setActionError(errorMessage(err)),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: PRESENCE_KEY }),
-  });
+  const presence = usePresenceCheckIn();
+  const { overview, visibility, confirmPresenceSharing } = presence;
 
   const geofence = useGeofence(me?.stable);
-
-  // Being seen at the stable needs the presence consent (JAN-19). Declining keeps the person hidden.
-  async function confirmPresenceSharing(): Promise<void> {
-    if (visibility === "hidden") return;
-    if (!(await consent.ensure("presence_sharing"))) changeVisibility.mutate("hidden");
-  }
-
-  async function arriveOrLeave(arrive: boolean) {
-    if (arrive) await confirmPresenceSharing();
-    toggleVisit.mutate(arrive);
-  }
 
   // The geofence needs the location consent first; the server refuses geofence check-ins without it.
   async function toggleGeofence(on: boolean) {
@@ -74,7 +40,6 @@ export default function PresenceScreen() {
 
   const data = overview.data;
   const open = data?.me.open_visit ?? null;
-  const visibility = (user?.presence_visibility ?? data?.me.visibility ?? "all") as PresenceVisibility;
   const today = localDate(new Date(), timeZone);
 
   let heroDescription: string | undefined;
@@ -107,13 +72,13 @@ export default function PresenceScreen() {
           variant={open ? "secondary" : "primary"}
           size="lg"
           fullWidth
-          loading={toggleVisit.isPending}
+          loading={presence.toggling}
           disabled={overview.isPending}
-          onPress={() => void arriveOrLeave(!open)}
+          onPress={() => void presence.arriveOrLeave(!open)}
         />
-        {actionError ? (
+        {presence.error ? (
           <Text variant="bodySm" tone="danger" accessibilityRole="alert">
-            {actionError}
+            {presence.error}
           </Text>
         ) : null}
       </PageHeader>
@@ -203,21 +168,18 @@ export default function PresenceScreen() {
           <ToggleGroup
             type="single"
             value={visibility}
-            onValueChange={(v) => changeVisibility.mutate(v as PresenceVisibility)}
+            onValueChange={(v) => presence.changeVisibility(v as PresenceVisibility)}
           >
             {VISIBILITY_OPTIONS.map((o) => (
-              <ToggleGroupItem key={o.value} value={o.value} label={o.label} disabled={changeVisibility.isPending} />
+              <ToggleGroupItem key={o.value} value={o.value} label={o.label} disabled={presence.changingVisibility} />
             ))}
           </ToggleGroup>
           <Text variant="secondary">{visibilityDescription(visibility)}</Text>
         </View>
         </Card>
-        <View className="flex-row flex-wrap gap-2">
-          <Button label="Alle Einstellungen" icon={Settings} variant="ghost" size="sm" onPress={() => router.push("/settings")} />
-          <Button label="Datenschutz" icon={ShieldCheck} variant="ghost" size="sm" onPress={() => router.push("/settings/privacy")} />
-        </View>
       </Section>
       {consent.sheet}
+      {presence.sheet}
     </Screen>
   );
 }

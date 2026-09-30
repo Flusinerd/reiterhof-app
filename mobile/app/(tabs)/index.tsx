@@ -1,8 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { router, type Href } from "expo-router";
-import { Bell, Settings } from "lucide-react-native";
 import { useMemo } from "react";
-import { RefreshControl, View } from "react-native";
+import { RefreshControl } from "react-native";
 
 import { PresenceTile } from "@/components/presence-tile";
 import { StartBlanketsTile } from "@/components/start-blankets-tile";
@@ -50,24 +49,6 @@ export default function Home() {
     >
       <PageHeader
         title={greeting(new Date().getHours(), user?.name ?? "")}
-        action={
-          <View className="-mt-1 flex-row gap-1">
-            <Button
-              size="icon"
-              variant="ghost"
-              icon={Bell}
-              accessibilityLabel="Erinnerungen"
-              onPress={() => router.push("/reminders" as Href)}
-            />
-            <Button
-              size="icon"
-              variant="ghost"
-              icon={Settings}
-              accessibilityLabel="Einstellungen"
-              onPress={() => router.push("/settings" as Href)}
-            />
-          </View>
-        }
         value={data ? nightTempShort(weather) : "–"}
         valueSize="lg"
         unit={nightUnit(weather)}

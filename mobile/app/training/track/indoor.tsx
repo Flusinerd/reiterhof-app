@@ -125,7 +125,7 @@ function IndoorRun({
   }
 
   return (
-    <Screen>
+    <Screen menu={false}>
       <Stack.Screen options={{ gestureEnabled: false }} />
       <LivePanel eyebrow={`${label}${t.paused ? " · pausiert" : ""}`} value={formatClock(seconds)}>
         {t.paused ? (

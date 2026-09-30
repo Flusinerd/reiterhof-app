@@ -419,7 +419,7 @@ func TestStoreAndService(t *testing.T) {
 	want, _ := weather.Summarize(hours, loc, day, weather.DefaultWindow)
 	if snap.ValidFor != "2026-10-24" || snap.NightMinC != want.NightMinC || snap.RainProb != 70 ||
 		!near(snap.RainMM, want.RainMM) || snap.WindKmh != want.WindKmh || !snap.WillRain ||
-		!snap.FetchedAt.Equal(now) || snap.StationID != "10410" || snap.RawSummary.Hours != 16 {
+		!snap.FetchedAt.Equal(now) || snap.StationID != "10410" || snap.RawSummary.Hours != want.Hours {
 		t.Errorf("snapshot %+v, want summary %+v", snap, want)
 	}
 	if _, err := store.Latest(ctx, seed.StableB, day.AddDate(0, 0, 1)); err != nil {

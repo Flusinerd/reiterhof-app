@@ -45,6 +45,8 @@ export type User = {
   presence_visibility: PresenceVisibility;
   is_admin: boolean;
   stable_id: string | null;
+  /** False while the name is only the part of the email before the "@" (the app asks for it). */
+  name_confirmed: boolean;
 };
 
 export type Stable = {
