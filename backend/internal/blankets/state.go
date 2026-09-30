@@ -31,9 +31,12 @@ func (h horseInfo) ref() horseRef {
 // --------------------------------------------------------------------- plan
 
 type planResponse struct {
-	Horse          horseRef       `json:"horse"`
-	Day            string         `json:"day"`
-	Weather        *Weather       `json:"weather"`
+	Horse   horseRef `json:"horse"`
+	Day     string   `json:"day"`
+	Weather *Weather `json:"weather"`
+	// CoverStart and CoverEnd are the horse's cover window ("HH:MM"); the weather is summarised over it.
+	CoverStart     string         `json:"cover_start"`
+	CoverEnd       string         `json:"cover_end"`
 	Recommendation Recommendation `json:"recommendation"`
 	Rules          []Rule         `json:"rules"`
 	Blankets       []Blanket      `json:"blankets"`
@@ -68,7 +71,8 @@ func (h *handler) plan(w http.ResponseWriter, r *http.Request) {
 		blankets = []Blanket{}
 	}
 	httpx.WriteJSON(w, http.StatusOK, planResponse{
-		Horse: hn.Horse.ref(), Day: n.Day, Weather: n.Weather, Recommendation: hn.Rec,
+		Horse: hn.Horse.ref(), Day: n.Day, Weather: hn.Weather, Recommendation: hn.Rec,
+		CoverStart: hn.Horse.CoverStart, CoverEnd: hn.Horse.CoverEnd,
 		Rules: rules, Blankets: blankets, HelperNote: hn.Horse.HelperNote, State: hn.State, CanManage: can,
 	})
 }

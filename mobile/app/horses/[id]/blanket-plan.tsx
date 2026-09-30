@@ -8,6 +8,7 @@ import { BlanketEditSheet } from "@/components/blanket-edit-sheet";
 import { BlanketHistory } from "@/components/blanket-history";
 import { BlanketPhoto } from "@/components/blanket-photo";
 import { BlanketRulesSheet } from "@/components/blanket-rules-sheet";
+import { CoverWindowSection } from "@/components/cover-window-section";
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
 import { Badge, Button, Card, Icon, Input, PageHeader, Screen, Section, Sheet, Text } from "@/components/ui";
 import { WeatherCard } from "@/components/weather-card";
@@ -99,6 +100,8 @@ export default function BlanketPlan() {
       </PageHeader>
 
       {p.weather ? <WeatherCard weather={p.weather} timeZone={timeZone} /> : null}
+
+      <CoverWindowSection horseId={id} start={p.cover_start} end={p.cover_end} canManage={canManage} />
 
       <Section
         title="Regeln"

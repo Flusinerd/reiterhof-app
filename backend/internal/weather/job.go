@@ -64,7 +64,7 @@ func (s *Service) refreshStable(ctx context.Context, store *Store, cache map[str
 	var errs []error
 	for i := 0; i < 2; i++ {
 		day := now.In(loc).AddDate(0, 0, i)
-		sum, err := Summarize(hours, loc, day)
+		sum, err := Summarize(hours, loc, day, DefaultWindow)
 		if errors.Is(err, ErrNoData) {
 			// Tomorrow can lie beyond a short forecast; not an error worth failing for.
 			s.log().Debug("no forecast for day", "stable", st.ID, "day", day.Format("2006-01-02"))
@@ -74,6 +74,7 @@ func (s *Service) refreshStable(ctx context.Context, store *Store, cache map[str
 			errs = append(errs, err)
 			continue
 		}
+		sum.Forecast = Span(hours, loc, day)
 		if err := store.Save(ctx, st.ID, station.ID, now, sum); err != nil {
 			errs = append(errs, err)
 			continue

@@ -84,3 +84,35 @@ func (s *Store) Latest(ctx context.Context, stableID string, day time.Time) (Sna
 	}
 	return snap, nil
 }
+
+// ForDay returns all snapshots of the stable-local day, oldest first.
+func (s *Store) ForDay(ctx context.Context, stableID string, day time.Time) ([]Snapshot, error) {
+	rows, err := s.Pool.Query(ctx, `
+		SELECT stable_id::text, fetched_at, valid_for,
+		       night_min_c::float8, rain_probability, rain_mm::float8, wind_kmh::float8, will_rain, raw
+		FROM weather_snapshots
+		WHERE stable_id = $1 AND valid_for = $2::date AND night_min_c IS NOT NULL
+		ORDER BY fetched_at, created_at`, stableID, day.Format("2006-01-02"))
+	if err != nil {
+		return nil, fmt.Errorf("weather: snapshots of the day: %w", err)
+	}
+	defer rows.Close()
+	var out []Snapshot
+	for rows.Next() {
+		var (
+			snap    Snapshot
+			rawJSON []byte
+			valid   time.Time
+		)
+		if err := rows.Scan(&snap.StableID, &snap.FetchedAt, &valid, &snap.NightMinC, &snap.RainProb, &snap.RainMM, &snap.WindKmh, &snap.WillRain, &rawJSON); err != nil {
+			return nil, fmt.Errorf("weather: scan snapshot: %w", err)
+		}
+		snap.ValidFor = valid.Format("2006-01-02")
+		var r raw
+		if err := json.Unmarshal(rawJSON, &r); err == nil {
+			snap.StationID, snap.RawSummary = r.Station, r.Summary
+		}
+		out = append(out, snap)
+	}
+	return out, rows.Err()
+}

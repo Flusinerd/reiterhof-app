@@ -4,6 +4,7 @@
 
 import { ApiError, errorMessage } from "./api-core.ts";
 import { formatClock } from "./presence-format.ts";
+import { formatMinutes, minutesOf } from "./reminders.ts";
 
 export type StateAction = "covered" | "uncovered" | "checked";
 
@@ -40,8 +41,8 @@ export type WeatherHour = {
 };
 
 /**
- * Forecast for the time the horse is covered: from the evening (18:00) until about 12:30 the
- * next day. `window_start` is the zero time and `timeline` empty for snapshots stored before
+ * Forecast for the time the horse is covered: from the evening until the next morning (the
+ * stable's cover window, 18:00 to 12:30 by default). `window_start` is the zero time and `timeline` empty for snapshots stored before
  * the details existed (`hasWeatherDetails`).
  */
 export type Weather = {
@@ -123,6 +124,9 @@ export type Plan = {
   helper_note: string | null;
   state: BlanketState | null;
   can_manage: boolean;
+  /** The horse's cover window ("HH:MM", Deckenzeitraum); the weather is summarised over it. */
+  cover_start: string;
+  cover_end: string;
 };
 
 // --- texts ---------------------------------------------------------------------------------
@@ -174,7 +178,7 @@ export function hasWeatherDetails(weather: Weather): boolean {
   return weather.timeline.length > 0;
 }
 
-/** "18:00 bis 12:30 Uhr" in the stable's time zone. */
+/** "18:00 bis 12:30 Uhr" (the cover window) in the stable's time zone. */
 export function windowLabel(weather: Weather, timeZone: string): string {
   if (!hasWeatherDetails(weather)) return "über Nacht";
   return `${formatClock(weather.window_start, timeZone)} bis ${formatClock(weather.window_end, timeZone)} Uhr`;
@@ -367,8 +371,38 @@ export function blanketErrorMessage(err: unknown): string {
     if (err.status === 403) return "Nur Besitzerin, Besitzer oder Admins dürfen das ändern.";
     if (err.code === "in_use") return "Die Decke wird in einer Regel verwendet.";
     if (err.code === "file_too_large") return "Foto zu groß (max. 20 MB).";
+    if (err.code === "validation_failed" && /cover_/.test(err.message)) {
+      return "Beginn zwischen 15:00 und 23:00 Uhr, Ende zwischen 04:00 und 15:00 Uhr wählen.";
+    }
   }
   return errorMessage(err);
+}
+
+// --- cover window --------------------------------------------------------------------------
+
+export const COVER_START_MIN = "15:00";
+export const COVER_START_MAX = "23:00";
+export const COVER_END_MIN = "04:00";
+export const COVER_END_MAX = "15:00";
+const COVER_STEP_MINUTES = 15;
+
+export type CoverWindowField = "start" | "end";
+
+const COVER_LIMITS: Record<CoverWindowField, [string, string]> = {
+  start: [COVER_START_MIN, COVER_START_MAX],
+  end: [COVER_END_MIN, COVER_END_MAX],
+};
+
+/** Moves one end of the cover window by `steps` quarter hours and keeps it inside the allowed range. */
+export function stepCoverTime(field: CoverWindowField, hhmm: string, steps: number): string {
+  const [min, max] = COVER_LIMITS[field].map((t) => minutesOf(t)!) as [number, number];
+  const step = COVER_STEP_MINUTES;
+  const current = minutesOf(hhmm) ?? min;
+  let next: number;
+  if (current % step === 0) next = current + steps * step;
+  else if (steps > 0) next = Math.ceil(current / step) * step + (steps - 1) * step;
+  else next = Math.floor(current / step) * step + (steps + 1) * step;
+  return formatMinutes(Math.min(max, Math.max(min, next)));
 }
 
 // --- start screen ----------------------------------------------------------------------------

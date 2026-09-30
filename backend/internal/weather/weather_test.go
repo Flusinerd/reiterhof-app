@@ -126,7 +126,7 @@ func TestSummarizeFixture(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Sat 24 Oct 18:00 CEST = 16:00Z until Sun 25 Oct 12:30 CET = 11:30Z.
-	sum, err := weather.Summarize(hours, loc, time.Date(2026, 10, 24, 9, 0, 0, 0, loc))
+	sum, err := weather.Summarize(hours, loc, time.Date(2026, 10, 24, 9, 0, 0, 0, loc), weather.DefaultWindow)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,7 +161,7 @@ func TestSummarizeFixture(t *testing.T) {
 	}
 
 	// Beyond the forecast horizon there is no data.
-	if _, err := weather.Summarize(hours, loc, time.Date(2026, 11, 20, 0, 0, 0, 0, loc)); !errors.Is(err, weather.ErrNoData) {
+	if _, err := weather.Summarize(hours, loc, time.Date(2026, 11, 20, 0, 0, 0, 0, loc), weather.DefaultWindow); !errors.Is(err, weather.ErrNoData) {
 		t.Errorf("far future: err %v", err)
 	}
 }
@@ -192,7 +192,7 @@ func TestSummarizeDST(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			hs := hoursFrom(tt.day.Add(-48*time.Hour), tt.day.Add(72*time.Hour), 4)
-			sum, err := weather.Summarize(hs, loc, tt.day)
+			sum, err := weather.Summarize(hs, loc, tt.day, weather.DefaultWindow)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -229,7 +229,7 @@ func TestSummarizeWindowEdges(t *testing.T) {
 			hs[i].RainProb, hs[i].RainMM = f(90), f(3) // precipitation of the hour before the window
 		}
 	}
-	sum, err := weather.Summarize(hs, loc, day)
+	sum, err := weather.Summarize(hs, loc, day, weather.DefaultWindow)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -260,7 +260,7 @@ func TestSummarizeRainDetails(t *testing.T) {
 			hs[i].TempC = f(11)
 		}
 	}
-	sum, err := weather.Summarize(hs, loc, day)
+	sum, err := weather.Summarize(hs, loc, day, weather.DefaultWindow)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -281,7 +281,7 @@ func TestSummarizeRainDetails(t *testing.T) {
 		t.Errorf("point 22:00: %+v", p)
 	}
 
-	dry, err := weather.Summarize(hoursFrom(at(24, 15, 0), at(25, 15, 0), 5), loc, day)
+	dry, err := weather.Summarize(hoursFrom(at(24, 15, 0), at(25, 15, 0), 5), loc, day, weather.DefaultWindow)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -312,7 +312,7 @@ func TestWillRainThresholds(t *testing.T) {
 				hs[i].RainProb, hs[i].RainMM = f(tt.prob), f(tt.mm)
 			}
 		}
-		sum, err := weather.Summarize(hs, loc, day)
+		sum, err := weather.Summarize(hs, loc, day, weather.DefaultWindow)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -328,7 +328,7 @@ func TestWillRainThresholds(t *testing.T) {
 			hs[i].RainMM = f(0.2)
 		}
 	}
-	sum, _ := weather.Summarize(hs, loc, day)
+	sum, _ := weather.Summarize(hs, loc, day, weather.DefaultWindow)
 	if !sum.WillRain {
 		t.Errorf("0.6 mm summed should count as rain: %+v", sum)
 	}
@@ -416,7 +416,7 @@ func TestStoreAndService(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want, _ := weather.Summarize(hours, loc, day)
+	want, _ := weather.Summarize(hours, loc, day, weather.DefaultWindow)
 	if snap.ValidFor != "2026-10-24" || snap.NightMinC != want.NightMinC || snap.RainProb != 70 ||
 		!near(snap.RainMM, want.RainMM) || snap.WindKmh != want.WindKmh || !snap.WillRain ||
 		!snap.FetchedAt.Equal(now) || snap.StationID != "10410" || snap.RawSummary.Hours != 16 {
@@ -445,5 +445,41 @@ func TestStoreAndService(t *testing.T) {
 	svc.Fetcher = &fakeFetcher{err: errors.New("dwd down")}
 	if err := svc.Refresh(ctx); err == nil {
 		t.Error("expected error when the fetch fails")
+	}
+}
+
+// A stable can set its own covered window; the summary follows it.
+func TestSummarizeCustomWindow(t *testing.T) {
+	loc := berlin(t)
+	day := time.Date(2026, 10, 24, 0, 0, 0, 0, loc)
+	at := func(d, h, m int) time.Time { return time.Date(2026, 10, d, h, m, 0, 0, loc) }
+	hs := hoursFrom(at(24, 12, 0), at(25, 16, 0), 5)
+	for i := range hs {
+		switch {
+		case hs[i].Time.Equal(at(24, 16, 0)):
+			hs[i].TempC = f(-1) // inside the custom window only
+		case hs[i].Time.Equal(at(25, 12, 0)):
+			hs[i].TempC = f(-3) // after the custom end, inside the default one
+		case hs[i].Time.Equal(at(25, 8, 0)):
+			hs[i].RainMM, hs[i].RainProb = f(1), f(70)
+		}
+	}
+	win := weather.Window{StartMinutes: 16 * 60, EndMinutes: 8*60 + 30}
+	sum, err := weather.Summarize(hs, loc, day, win)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !sum.WindowStart.Equal(at(24, 16, 0)) || !sum.WindowEnd.Equal(at(25, 8, 30)) {
+		t.Errorf("window %v to %v", sum.WindowStart, sum.WindowEnd)
+	}
+	if sum.NightMinC != -1 {
+		t.Errorf("night min %v, want -1 (the step at 12:00 lies outside)", sum.NightMinC)
+	}
+	// The hour 07:00-08:00 is fully inside, so the rain counts.
+	if !sum.WillRain || !near(sum.RainMM, 1) {
+		t.Errorf("rain %+v", sum)
+	}
+	if def, _ := weather.Summarize(hs, loc, day, weather.DefaultWindow); def.NightMinC != -3 {
+		t.Errorf("default window min %v, want -3", def.NightMinC)
 	}
 }

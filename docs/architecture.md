@@ -397,11 +397,16 @@ no third-party weather API. The KMZ (zip with one KML) has hourly steps for ~10 
 the Dorsten stable (51.66, 6.96) that is Essen-Bredeney, id `10410`. Override with
 `REITERHOF_WEATHER_STATION` (any MOSMIX id) or extend the list.
 
-**Forecast window** (`weather.Summarize`): from 18:00 stable-local on the day until 12:30 the
-next day, i.e. from covering in the evening until the horses come in and are uncovered
-(wall-clock, so DST nights are one hour longer or shorter). Temperature and wind use the hourly
+**Forecast window** (`weather.Summarize`, `weather.Window`): the stored snapshot
+uses the default window, 18:00 stable-local on the day until 12:30 the next day, i.e. from covering in
+the evening until the horses come in and are uncovered (wall-clock, so DST nights are one hour longer
+or shorter). Every horse has its own window (`horses.cover_start`, `horses.cover_end`, defaults 18:00
+and 12:30, see `docs/domains/blankets.md`), so the snapshot also keeps the raw hourly forecast
+(`summary.forecast`, 15:00 on the day to 15:00 the next day, `weather.Span`) and the blanket code
+summarises it again per horse. Older snapshots without `forecast` keep the default window for all
+horses. Temperature and wind use the hourly
 steps in the window; precipitation is per hour ending at the step and an hour counts with its
-share inside the window (12:00 to 13:00 counts half). Result: `night_min_c` (lowest temperature
+share inside the window (with the default window 12:00 to 13:00 counts half). Result: `night_min_c` (lowest temperature
 of the window), `temp_max_c`, max rain probability, rain sum `rain_mm`, `rain_peak_mm` (most in
 one hour), `rain_hours` (hours with at least 0.1 mm), `rain_from`/`rain_until`, max wind and an
 hourly `timeline`. `will_rain = maxProb >= 50 % || sum >= 0.5 mm`

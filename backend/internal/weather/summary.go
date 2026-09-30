@@ -19,14 +19,17 @@ const (
 // counts as a rainy hour (rain_hours, rain_from, rain_until).
 const RainHourThresholdMM = 0.1
 
-// Covered window in stable-local wall-clock time: WindowStartHour on the given
-// day to WindowEndHour:WindowEndMinute on the next day. The horses are covered
-// in the evening and uncovered at about 12:30 when they come in from the paddock.
-const (
-	WindowStartHour = 18
-	WindowEndHour   = 12
-	WindowEndMinute = 30
-)
+// Window is the covered window in stable-local wall-clock minutes since midnight: Start on
+// the given day to End on the next day. The horses are covered in the evening and uncovered
+// in the morning when they come in from the paddock. Every horse has its own window
+// (horses.cover_start, horses.cover_end); DefaultWindow is what the stored snapshot uses.
+type Window struct {
+	StartMinutes int
+	EndMinutes   int
+}
+
+// DefaultWindow is 18:00 to 12:30, the default of a horse.
+var DefaultWindow = Window{StartMinutes: 18 * 60, EndMinutes: 12*60 + 30}
 
 // ErrNoData is returned when the forecast has no temperature in the window.
 var ErrNoData = errors.New("weather: no forecast data for the covered window")
@@ -43,7 +46,7 @@ type HourPoint struct {
 }
 
 // Summary is the forecast summary for one stable-local day (the window that
-// starts on Day at 18:00 and ends the next day at 12:30). Snapshots written
+// starts on Day and ends the next day, see Window). Snapshots written
 // before the detail fields existed lack them (zero values).
 type Summary struct {
 	Day             string      `json:"day"` // stable-local date, YYYY-MM-DD
@@ -61,20 +64,45 @@ type Summary struct {
 	WillRain        bool        `json:"will_rain"`
 	Hours           int         `json:"hours"` // temperature steps that went into the summary
 	Timeline        []HourPoint `json:"timeline,omitempty"`
+	// Forecast is the raw hourly forecast from ForecastFrom to ForecastTo, so the summary can be
+	// computed again for the window of a single horse. Absent in older snapshots.
+	Forecast []Hour `json:"forecast,omitempty"`
 }
 
-// Summarize reduces the hourly forecast to the window that starts on day
+// Every window of a horse starts in [ForecastFrom, ...) and ends before ForecastTo (stable-local
+// hours of the day and of the next day), see the limits of the cover window in the API.
+const (
+	ForecastFromHour = 15
+	ForecastToHour   = 15
+)
+
+// Span returns the hourly steps that any allowed cover window of the day can need: from
+// ForecastFromHour on the day until ForecastToHour on the next day (both inclusive).
+func Span(hours []Hour, loc *time.Location, day time.Time) []Hour {
+	y, m, d := day.In(loc).Date()
+	from := time.Date(y, m, d, ForecastFromHour, 0, 0, 0, loc)
+	to := time.Date(y, m, d+1, ForecastToHour, 0, 0, 0, loc)
+	var out []Hour
+	for _, h := range hours {
+		if !h.Time.Before(from) && !h.Time.After(to) {
+			out = append(out, h)
+		}
+	}
+	return out
+}
+
+// Summarize reduces the hourly forecast to the window win that starts on day
 // (only the calendar date of day in loc's view is used, via day.In(loc)).
 //
-// The window is 18:00 local on that day until 12:30 local on the next day,
+// The window runs from win.Start local on that day until win.End local on the next day,
 // computed as wall-clock times so the DST changeover nights are one hour longer
 // or shorter. Temperature and wind use steps in [start, end]. Precipitation
 // values describe the hour that ends at the step, so an hour counts with the
-// share that lies inside the window (the hour 12:00 to 13:00 counts half).
-func Summarize(hours []Hour, loc *time.Location, day time.Time) (Summary, error) {
+// share that lies inside the window (with the default window the hour 12:00 to 13:00 counts half).
+func Summarize(hours []Hour, loc *time.Location, day time.Time, win Window) (Summary, error) {
 	y, m, d := day.In(loc).Date()
-	start := time.Date(y, m, d, WindowStartHour, 0, 0, 0, loc)
-	end := time.Date(y, m, d+1, WindowEndHour, WindowEndMinute, 0, 0, loc)
+	start := time.Date(y, m, d, 0, win.StartMinutes, 0, 0, loc)
+	end := time.Date(y, m, d+1, 0, win.EndMinutes, 0, 0, loc)
 
 	s := Summary{Day: start.Format("2006-01-02"), WindowStart: start, WindowEnd: end}
 	minC, maxC := math.Inf(1), math.Inf(-1)

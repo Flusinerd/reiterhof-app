@@ -13,7 +13,7 @@ import { formatClock } from "@/lib/presence-format";
 const BAR_HEIGHT = 44;
 
 /**
- * Forecast for the time a horse is covered (evening until about 12:30): temperature range,
+ * Forecast for the time a horse is covered (the stable's cover window): temperature range,
  * rain amount and timing, wind, plus an hourly strip with temperature and rain per hour.
  */
 export function WeatherCard({ weather, timeZone }: { weather: Weather; timeZone: string }) {

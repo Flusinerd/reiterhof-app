@@ -9,6 +9,7 @@ import (
 	"github.com/Flusinerd/reiterhof-app/backend/internal/blankets"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/realtime"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/seed"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/weather"
 )
 
 func TestNightDay(t *testing.T) {
@@ -575,5 +576,66 @@ func TestStateClosesBlanketRequests(t *testing.T) {
 	e.do(seed.UserTom, "POST", "/api/v1/horses/"+seed.HorseBalu+"/blanket-state", m{"action": "checked"}).status(t, 200)
 	if st, fb := status(baluToday); st != "done" || fb != "Keine Decke nötig (Tom)" {
 		t.Errorf("Balu today: %s %q", st, fb)
+	}
+}
+
+// Every horse has its own cover window; the forecast of its plan follows it.
+func TestCoverWindowPerHorse(t *testing.T) {
+	e := newEnv(t)
+	loc := berlinAt(2026, 9, 30, 12, 0).Location()
+	day := time.Date(2026, 9, 30, 0, 0, 0, 0, loc)
+
+	// Warm in the evening and at night, cold at 11:00 the next morning.
+	var hours []weather.Hour
+	for t0 := berlinAt(2026, 9, 30, 12, 0); !t0.After(berlinAt(2026, 10, 1, 16, 0)); t0 = t0.Add(time.Hour) {
+		temp := 8.0
+		if t0.Equal(berlinAt(2026, 10, 1, 11, 0)) {
+			temp = -5
+		}
+		hours = append(hours, weather.Hour{Time: t0, TempC: &temp})
+	}
+	sum, err := weather.Summarize(hours, loc, day, weather.DefaultWindow)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum.Forecast = weather.Span(hours, loc, day)
+	if err := (&weather.Store{Pool: e.pool}).Save(context.Background(), seed.StableB, "10410", berlinAt(2026, 9, 30, 10, 0), sum); err != nil {
+		t.Fatal(err)
+	}
+
+	path := "/api/v1/horses/" + seed.HorseLuna + "/blanket-plan"
+	type planJSON struct {
+		CoverStart string `json:"cover_start"`
+		CoverEnd   string `json:"cover_end"`
+		Weather    *struct {
+			NightMinC float64 `json:"night_min_c"`
+		}
+	}
+	var p planJSON
+	e.do(seed.UserMia, "GET", path, nil).status(t, 200).into(t, &p)
+	if p.CoverStart != "18:00" || p.CoverEnd != "12:30" || p.Weather == nil || p.Weather.NightMinC != -5 {
+		t.Fatalf("default plan = %+v", p)
+	}
+
+	put := "/api/v1/horses/" + seed.HorseLuna + "/cover-window"
+	ok := m{"cover_start": "17:00", "cover_end": "09:00"}
+	e.do(seed.UserMia, "PUT", put, ok).errCode(t, 403, "forbidden")
+	e.do("", "PUT", put, ok).errCode(t, 401, "unauthorized")
+	for _, bad := range []m{
+		{}, {"cover_start": "17:00"}, {"cover_start": "14:45", "cover_end": "09:00"}, {"cover_start": "23:15", "cover_end": "09:00"},
+		{"cover_start": "17:00", "cover_end": "03:45"}, {"cover_start": "17:00", "cover_end": "15:15"}, {"cover_start": "5:00", "cover_end": "09:00"},
+	} {
+		e.do(seed.UserJan, "PUT", put, bad).errCode(t, 400, "validation_failed")
+	}
+	e.do(seed.UserJan, "PUT", put, ok).status(t, 200)
+
+	e.do(seed.UserMia, "GET", path, nil).status(t, 200).into(t, &p)
+	if p.CoverStart != "17:00" || p.CoverEnd != "09:00" || p.Weather == nil || p.Weather.NightMinC != 8 {
+		t.Fatalf("plan with the new window = %+v", p)
+	}
+	// Another horse keeps the default window.
+	e.do(seed.UserMia, "GET", "/api/v1/horses/"+seed.HorseBalu+"/blanket-plan", nil).status(t, 200).into(t, &p)
+	if p.CoverEnd != "12:30" || p.Weather == nil || p.Weather.NightMinC != -5 {
+		t.Fatalf("other horse = %+v", p)
 	}
 }

@@ -21,11 +21,11 @@ import (
 // For the accumulated values (RainMM, RainProb) the step covers the hour that
 // ends at Time.
 type Hour struct {
-	Time     time.Time
-	TempC    *float64 // TTT, air temperature 2 m, converted from Kelvin
-	RainProb *float64 // R101 (fallback wwP), probability of precipitation > 0.1 mm in the hour, percent
-	RainMM   *float64 // RR1c, precipitation in the hour, mm (kg/m2)
-	WindKmh  *float64 // FF, mean wind speed, converted from m/s
+	Time     time.Time `json:"time"`
+	TempC    *float64  `json:"temp_c,omitempty"`    // TTT, air temperature 2 m, converted from Kelvin
+	RainProb *float64  `json:"rain_prob,omitempty"` // R101 (fallback wwP), probability of precipitation > 0.1 mm in the hour, percent
+	RainMM   *float64  `json:"rain_mm,omitempty"`   // RR1c, precipitation in the hour, mm (kg/m2)
+	WindKmh  *float64  `json:"wind_kmh,omitempty"`  // FF, mean wind speed, converted from m/s
 }
 
 // MOSMIX element names used by the parser.

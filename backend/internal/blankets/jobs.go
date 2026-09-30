@@ -10,6 +10,7 @@ import (
 	"github.com/Flusinerd/reiterhof-app/backend/internal/blanketplan"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/push"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/scheduler"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/weather"
 )
 
 const (
@@ -322,35 +323,14 @@ func (s *Service) CheckWeatherChange(ctx context.Context) error {
 	return errors.Join(errs...)
 }
 
-type snapshotView struct {
-	fetchedAt time.Time
-	w         Weather
-}
-
 func (s *Service) weatherChangeStable(ctx context.Context, st stableRow) error {
 	day := NightDay(s.now(), st.loc)
-	rows, err := s.Pool.Query(ctx, `
-		SELECT fetched_at, night_min_c::float8, will_rain, COALESCE(rain_probability, 0),
-		       COALESCE(rain_mm, 0)::float8, COALESCE(wind_kmh, 0)::float8
-		FROM weather_snapshots
-		WHERE stable_id = $1 AND valid_for = $2::date AND night_min_c IS NOT NULL
-		ORDER BY fetched_at, created_at`, st.id, day)
+	d, err := time.ParseInLocation("2006-01-02", day, st.loc)
 	if err != nil {
 		return err
 	}
-	var snaps []snapshotView
-	for rows.Next() {
-		var v snapshotView
-		v.w = Weather{}
-		if err := rows.Scan(&v.fetchedAt, &v.w.NightMinC, &v.w.WillRain, &v.w.RainProbability, &v.w.RainMM, &v.w.WindKmh); err != nil {
-			rows.Close()
-			return err
-		}
-		v.w.FetchedAt = v.fetchedAt
-		snaps = append(snaps, v)
-	}
-	rows.Close()
-	if err := rows.Err(); err != nil {
+	snaps, err := (&weather.Store{Pool: s.Pool}).ForDay(ctx, st.id, d)
+	if err != nil {
 		return err
 	}
 	if len(snaps) < 2 {
@@ -371,18 +351,20 @@ func (s *Service) weatherChangeStable(ctx context.Context, st stableRow) error {
 		if hn.State == nil {
 			continue
 		}
-		// The forecast the state was based on: the newest snapshot fetched before it.
-		var base *snapshotView
+		// The forecast the state was based on: the newest snapshot fetched before it. Both
+		// forecasts are summarised over the cover window of the horse.
+		var base *weather.Snapshot
 		for i := range snaps {
-			if !snaps[i].fetchedAt.After(hn.State.ChangedAt) {
+			if !snaps[i].FetchedAt.After(hn.State.ChangedAt) {
 				base = &snaps[i]
 			}
 		}
-		if base == nil || base.fetchedAt.Equal(latest.fetchedAt) {
+		if base == nil || base.FetchedAt.Equal(latest.FetchedAt) {
 			continue
 		}
-		prev := ruleFor(hn.Rules, base.w)
-		next := ruleFor(hn.Rules, latest.w)
+		win := windowOf(hn.Horse.CoverStart, hn.Horse.CoverEnd)
+		prev := ruleFor(hn.Rules, *weatherOf(*base, st.loc, day, win))
+		next := ruleFor(hn.Rules, *weatherOf(latest, st.loc, day, win))
 		if !blanketplan.Changed(prev, next) {
 			continue
 		}

@@ -140,17 +140,21 @@ type State struct {
 }
 
 type horseInfo struct {
-	ID         string
-	Name       string
-	Box        *string
-	ColorKey   *string
-	HelperNote *string
-	OwnerID    *string
+	// CoverStart and CoverEnd are the horse's cover window ("HH:MM", horses.cover_start/cover_end).
+	CoverStart, CoverEnd string
+	ID                   string
+	Name                 string
+	Box                  *string
+	ColorKey             *string
+	HelperNote           *string
+	OwnerID              *string
 }
 
 // horseNight is everything about one horse for the current night.
 type horseNight struct {
-	Horse    horseInfo
+	Horse horseInfo
+	// Weather is the forecast over the horse's cover window (nil without a snapshot).
+	Weather  *Weather
 	Rules    []Rule
 	Blankets []Blanket
 	State    *State
@@ -220,8 +224,8 @@ func (s *Service) stableInfo(ctx context.Context, q querier, stableID string) (*
 	return loc, reminder, nil
 }
 
-// loadWeather returns the newest snapshot for the day, or nil when there is none.
-func (s *Service) loadWeather(ctx context.Context, stableID, day string) (*Weather, error) {
+// loadSnapshot returns the newest snapshot for the day, or nil when there is none.
+func (s *Service) loadSnapshot(ctx context.Context, stableID, day string) (*weather.Snapshot, error) {
 	d, err := time.Parse("2006-01-02", day)
 	if err != nil {
 		return nil, err
@@ -233,18 +237,46 @@ func (s *Service) loadWeather(ctx context.Context, stableID, day string) (*Weath
 	if err != nil {
 		return nil, err
 	}
+	return &snap, nil
+}
+
+// weatherOf turns a snapshot into the forecast of the window win. Snapshots that carry the
+// hourly forecast are summarised again for the window; older ones (or a window without data)
+// keep the stored summary of the default window.
+func weatherOf(snap weather.Snapshot, loc *time.Location, day string, win weather.Window) *Weather {
 	raw := snap.RawSummary
 	w := &Weather{NightMinC: snap.NightMinC, WillRain: snap.WillRain, RainProbability: snap.RainProb,
 		RainMM: snap.RainMM, WindKmh: snap.WindKmh, FetchedAt: snap.FetchedAt,
 		WindowStart: raw.WindowStart, WindowEnd: raw.WindowEnd, TempMaxC: raw.TempMaxC,
 		RainPeakMM: raw.RainPeakMM, RainHours: raw.RainHours, Timeline: raw.Timeline}
+	if len(raw.Forecast) > 0 {
+		if d, err := time.ParseInLocation("2006-01-02", day, loc); err == nil {
+			if sum, err := weather.Summarize(raw.Forecast, loc, d, win); err == nil {
+				raw = sum
+				w = &Weather{NightMinC: sum.NightMinC, WillRain: sum.WillRain, RainProbability: sum.RainProbability,
+					RainMM: sum.RainMM, WindKmh: sum.WindKmh, FetchedAt: snap.FetchedAt,
+					WindowStart: sum.WindowStart, WindowEnd: sum.WindowEnd, TempMaxC: sum.TempMaxC,
+					RainPeakMM: sum.RainPeakMM, RainHours: sum.RainHours, Timeline: sum.Timeline}
+			}
+		}
+	}
 	if w.Timeline == nil {
 		w.Timeline = []weather.HourPoint{}
 	}
 	if !raw.RainFrom.IsZero() {
 		w.RainFrom, w.RainUntil = &raw.RainFrom, &raw.RainUntil
 	}
-	return w, nil
+	return w
+}
+
+// windowOf converts the "HH:MM" cover times of a horse; bad values fall back to the default.
+func windowOf(start, end string) weather.Window {
+	st, err1 := time.Parse("15:04", start)
+	en, err2 := time.Parse("15:04", end)
+	if err1 != nil || err2 != nil {
+		return weather.DefaultWindow
+	}
+	return weather.Window{StartMinutes: st.Hour()*60 + st.Minute(), EndMinutes: en.Hour()*60 + en.Minute()}
 }
 
 // loadNight loads the horses of a stable (or only horseID when not empty) with rules,
@@ -255,8 +287,12 @@ func (s *Service) loadNight(ctx context.Context, stableID, horseID string) (*nig
 		return nil, fmt.Errorf("stable: %w", err)
 	}
 	n := &night{StableID: stableID, Loc: loc, ReminderTime: reminder, Day: NightDay(s.now(), loc)}
-	if n.Weather, err = s.loadWeather(ctx, stableID, n.Day); err != nil {
+	snap, err := s.loadSnapshot(ctx, stableID, n.Day)
+	if err != nil {
 		return nil, fmt.Errorf("weather: %w", err)
+	}
+	if snap != nil {
+		n.Weather = weatherOf(*snap, loc, n.Day, weather.DefaultWindow)
 	}
 	var only *string
 	if horseID != "" {
@@ -264,7 +300,8 @@ func (s *Service) loadNight(ctx context.Context, stableID, horseID string) (*nig
 	}
 
 	rows, err := s.Pool.Query(ctx, `
-		SELECT id::text, name, box, color_key, helper_note, owner_id::text
+		SELECT id::text, name, box, color_key, helper_note, owner_id::text,
+		       to_char(cover_start, 'HH24:MI'), to_char(cover_end, 'HH24:MI')
 		FROM horses WHERE stable_id = $1 AND ($2::uuid IS NULL OR id = $2::uuid)
 		ORDER BY name, id`, stableID, only)
 	if err != nil {
@@ -273,7 +310,7 @@ func (s *Service) loadNight(ctx context.Context, stableID, horseID string) (*nig
 	idx := map[string]int{}
 	for rows.Next() {
 		var h horseInfo
-		if err := rows.Scan(&h.ID, &h.Name, &h.Box, &h.ColorKey, &h.HelperNote, &h.OwnerID); err != nil {
+		if err := rows.Scan(&h.ID, &h.Name, &h.Box, &h.ColorKey, &h.HelperNote, &h.OwnerID, &h.CoverStart, &h.CoverEnd); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -355,7 +392,10 @@ func (s *Service) loadNight(ctx context.Context, stableID, horseID string) (*nig
 
 	for i := range n.Horses {
 		h := &n.Horses[i]
-		h.Rec = recommend(h.Rules, h.Blankets, n.Weather)
+		if snap != nil {
+			h.Weather = weatherOf(*snap, loc, n.Day, windowOf(h.Horse.CoverStart, h.Horse.CoverEnd))
+		}
+		h.Rec = recommend(h.Rules, h.Blankets, h.Weather)
 	}
 	return n, nil
 }

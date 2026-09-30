@@ -20,6 +20,7 @@ import {
   recommendationDetail,
   recommendationTitle,
   reminderHint,
+  stepCoverTime,
   ruleBlanketName,
   ruleCondition,
   hasWeatherDetails,
@@ -268,4 +269,17 @@ test("weather details", () => {
   ]);
   const dry = weatherFacts({ ...w, rain_mm: 0, rain_from: null, rain_until: null }, "Europe/Berlin");
   assert.deepEqual(dry.map((f) => f.label), ["Temperatur", "Regen", "Regenwahrscheinlichkeit", "Wind"]);
+});
+
+test("stepCoverTime keeps start and end in their ranges", () => {
+  assert.equal(stepCoverTime("start", "18:00", 1), "18:15");
+  assert.equal(stepCoverTime("start", "18:00", -4), "17:00");
+  assert.equal(stepCoverTime("start", "15:00", -1), "15:00");
+  assert.equal(stepCoverTime("start", "23:00", 1), "23:00");
+  assert.equal(stepCoverTime("end", "12:30", 1), "12:45");
+  assert.equal(stepCoverTime("end", "12:30", -2), "12:00");
+  assert.equal(stepCoverTime("end", "15:00", 1), "15:00");
+  assert.equal(stepCoverTime("end", "04:00", -1), "04:00");
+  assert.equal(stepCoverTime("end", "12:40", -1), "12:30");
+  assert.equal(stepCoverTime("end", "garbage", 1), "04:15");
 });

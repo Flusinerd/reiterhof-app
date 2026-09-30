@@ -82,6 +82,12 @@ export const blanketsApi = {
   removeBlanket: (horseId: string, id: string) => del(`${horsePath(horseId)}/blankets/${id}`),
   saveRules: (horseId: string, rules: RuleInput[]) =>
     put<{ rules: Rule[] }>(`${horsePath(horseId)}/blanket-rules`, { rules }),
+  /** Owner or admin. Start 15:00 to 23:00, end 04:00 to 15:00, both "HH:MM". */
+  saveCoverWindow: (horseId: string, coverStart: string, coverEnd: string) =>
+    put<{ cover_start: string; cover_end: string }>(`${horsePath(horseId)}/cover-window`, {
+      cover_start: coverStart,
+      cover_end: coverEnd,
+    }),
 };
 
 export const blanketKeys = {

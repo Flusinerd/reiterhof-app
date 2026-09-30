@@ -33,7 +33,7 @@ because the past night is settled by then. One exception (`blankets.StateDay`):
 "uncovered" recorded before **15:00** (`blankets.UncoverUntilHour`) still belongs to the past
 night (the horses are out from 08:30 to 12:30 and the blankets come off when they are brought
 in), so taking the blankets off does not mark the horse done for the coming one. Covering or checking in the morning already counts for the coming night. The forecast of a day is the newest snapshot with
-`valid_for = day` (the summary of the time the horse is covered, 18:00 to 12:30 the next day, see `docs/architecture.md`).
+`valid_for = day` (the summary of the time the horse is covered, the horse's cover window, 18:00 to 12:30 the next day by default, see `docs/architecture.md`).
 
 ### Recommendation
 
@@ -50,6 +50,17 @@ in), so taking the blankets off does not mark the horse done for the coming one.
 - `no_weather`: no snapshot for the night yet (graceful, no error). `rule_index` is null.
 - `rule_index` is the 0-based index into the `rules` array; `note` is the owner's wish (rule note).
 
+### Cover window (Deckenzeitraum)
+
+Every horse has its own window in which it is covered: `horses.cover_start` and `horses.cover_end` (`time`,
+defaults 18:00 and 12:30, migration `0160`). The weather of a horse (its plan, the recommendation, the weather
+change push) is the forecast summarised over that window (`blankets.weatherOf`, from the hourly forecast kept in
+the snapshot). The weather of `GET /blankets/today` (hero) stays the default window. Owners and admins change it
+with `PUT /horses/{id}/cover-window` `{cover_start, cover_end}` ("HH:MM"): start 15:00 to 23:00, end 04:00 to 15:00
+(after the day rollover, not past `UncoverUntilHour`), else `400 validation_failed`; riders and members get `403`.
+`GET blanket-plan` returns `cover_start` and `cover_end`. The change applies on the next read (no refetch needed);
+`blanket_plan.changed` is published.
+
 ## API (`/api/v1`, all `auth.RequireStable`)
 
 Blanket JSON: `{id, horse_id, name, fill_g, color, location, photo_path, photo_url}`;
@@ -62,8 +73,9 @@ Blanket JSON: `{id, horse_id, name, fill_g, color, location, photo_path, photo_u
 | `PATCH /horses/{id}/blankets/{blanketId}` | owner, admin | absent = unchanged, `""` clears color, location, photo |
 | `DELETE /horses/{id}/blankets/{blanketId}` | owner, admin | `204`; `409 in_use` while a rule names the blanket. The photo file is kept |
 | `GET /horses/{id}/blanket-rules` | member | `{rules:[{id, position, temp_min, temp_max, rain, blanket_id, note}]}` |
+| `PUT /horses/{id}/cover-window` | owner, admin | `{cover_start, cover_end}`, see "Cover window" |
 | `PUT /horses/{id}/blanket-rules` | owner, admin | `{rules:[{temp_min?, temp_max?, rain?, blanket_id?, note?}]}` full replace in one transaction; array order = priority (positions 1..n). Validation (`400`): max 30 rules, temperatures in -60..60, `temp_min < temp_max`, `blanket_id` is a blanket of this horse, note up to 200 characters. `[]` removes all rules |
-| `GET /horses/{id}/blanket-plan` | member | `{horse, day, weather, recommendation, rules, blankets, helper_note, state, can_manage}` (`weather` null without snapshot; `state` = newest state tonight) |
+| `GET /horses/{id}/blanket-plan` | member | `{horse, day, weather, recommendation, rules, blankets, helper_note, state, can_manage, cover_start, cover_end}` (`weather` null without snapshot; `state` = newest state tonight) |
 | `POST /horses/{id}/blanket-state` | member | `{action: covered\|uncovered\|checked, covered_with?}` -> `{state, closed_requests}` |
 | `GET /horses/{id}/blanket-states?days=14` | member | `{today, states}` newest first, 1..90 days (default 14) |
 | `GET /blankets/today` | member | overview below |
@@ -184,12 +196,12 @@ set before any forecast existed and snapshots of other days are ignored.
 
 - Weather card (`components/weather-card.tsx`, on the tab and the plan): temperature range, rain
   amount with intensity word, rain timing, peak per hour, probability, wind and an hourly strip
-  for the window (18:00 to 12:30). Snapshots without details show the facts only.
+  for the cover window (default 18:00 to 12:30, set per horse by owners and admins in the plan). Snapshots without details show the facts only.
 - Tab "Decken": hero with date, night line ("Heute Nacht 3 bis 9 °C, 4,8 mm Regen"), progress "4/7" and
   "Erinnerung um 20:30"; open horses as large cards (avatar, recommendation with blanket photo
   and location, owner wish, buttons "Eingedeckt"/"Abgedeckt" or "Geprüft"), done horses as
   compact rows (tap to correct). Realtime refresh.
-- Deckenplan (`/horses/{id}/blanket-plan`): "Heute Nacht" hero, rule list with the active rule
+- Deckenplan (`/horses/{id}/blanket-plan`): "Heute Nacht" hero, card "Deckenzeitraum" (`components/cover-window-section.tsx`, quarter-hour steps), rule list with the active rule
   highlighted, blanket grid with photos, helper note, history. Owners and admins edit rules
   (sheet with reorder, warning for rules that can never apply), blankets (sheet with photo
   upload through `lib/upload.ts`) and the helper note.
