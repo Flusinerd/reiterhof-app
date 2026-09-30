@@ -61,7 +61,6 @@ export function WeatherCard({ weather, timeZone }: { weather: Weather; timeZone:
           </View>
         </ScrollView>
       ) : null}
-      {details ? <Text variant="caption">Temperatur in °C, Balken = Regen pro Stunde in mm</Text> : null}
     </Card>
   );
 }
