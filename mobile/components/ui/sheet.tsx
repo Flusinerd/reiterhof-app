@@ -5,6 +5,7 @@ import {
   Easing,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   View,
   useWindowDimensions,
@@ -32,6 +33,7 @@ export type SheetProps = {
 /**
  * Bottom sheet: dimmed backdrop, slides up, closes on backdrop tap, close button
  * and the Android back button. Radius 20 on top, 1 px border, no shadow.
+ * At most 90 % of the window high; longer content scrolls below the fixed header.
  *
  * @example
  * <Sheet open={open} onOpenChange={setOpen} title="Neue Anfrage">
@@ -94,11 +96,12 @@ export function Sheet({ open, onOpenChange, title, description, children, classN
           }}
         >
           <View
-            className="max-h-[90%] rounded-t-card border border-b-0 border-border bg-card px-6 pt-3"
-            style={{ paddingBottom: Math.max(insets.bottom, 16) + 8 }}
+            className="rounded-t-card border border-b-0 border-border bg-card pt-3"
+            // A number, not a percentage: the animated parent has no height of its own.
+            style={{ maxHeight: Math.min(height * 0.9, height - insets.top - 16) }}
           >
             <View className="mb-4 h-1 w-10 self-center rounded-pill bg-border" />
-            <View className="mb-4 flex-row items-start justify-between gap-4">
+            <View className="mb-4 flex-row items-start justify-between gap-4 px-6">
               <View className="flex-1 gap-1">
                 {title ? (
                   <Text variant="title" accessibilityRole="header">
@@ -116,7 +119,13 @@ export function Sheet({ open, onOpenChange, title, description, children, classN
                 <Icon as={X} size={20} className="text-foreground" />
               </Pressable>
             </View>
-            <View className={cn("gap-4", className)}>{children}</View>
+            <ScrollView
+              style={{ flexGrow: 0, flexShrink: 1 }}
+              contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) + 8 }}
+              keyboardShouldPersistTaps="handled"
+            >
+              <View className={cn("gap-4 px-6", className)}>{children}</View>
+            </ScrollView>
           </View>
         </Animated.View>
       </View>
