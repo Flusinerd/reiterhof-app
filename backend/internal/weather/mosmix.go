@@ -54,6 +54,25 @@ type forecast struct {
 	Value   string `xml:"value"`
 }
 
+// charsetReader lets the decoder read the ISO-8859-1 declared by the DWD files.
+// Latin-1 maps every byte to the code point of the same value, so no table is needed.
+func charsetReader(label string, input io.Reader) (io.Reader, error) {
+	switch strings.ToLower(label) {
+	case "iso-8859-1", "iso8859-1", "latin1", "latin-1":
+		b, err := io.ReadAll(input)
+		if err != nil {
+			return nil, err
+		}
+		var sb strings.Builder
+		sb.Grow(len(b))
+		for _, c := range b {
+			sb.WriteRune(rune(c))
+		}
+		return strings.NewReader(sb.String()), nil
+	}
+	return nil, fmt.Errorf("unsupported charset %q", label)
+}
+
 // ParseMOSMIX parses a MOSMIX_L single-station KMZ (zip with one .kml) or a
 // plain KML document and returns the hourly values in time order.
 func ParseMOSMIX(data []byte) ([]Hour, error) {
@@ -65,7 +84,9 @@ func ParseMOSMIX(data []byte) ([]Hour, error) {
 		data = kml
 	}
 	var doc kmlDoc
-	if err := xml.Unmarshal(data, &doc); err != nil {
+	dec := xml.NewDecoder(bytes.NewReader(data))
+	dec.CharsetReader = charsetReader
+	if err := dec.Decode(&doc); err != nil {
 		return nil, fmt.Errorf("weather: parse kml: %w", err)
 	}
 	if len(doc.Steps) == 0 {

@@ -87,6 +87,25 @@ func TestParseMOSMIX(t *testing.T) {
 	}
 }
 
+// The real DWD files declare ISO-8859-1 and carry Latin-1 station names.
+func TestParseMOSMIXLatin1(t *testing.T) {
+	data := bytes.Replace(fixtureKML(t), []byte(`encoding="UTF-8"`), []byte(`encoding="ISO-8859-1"`), 1)
+	data = bytes.Replace(data, []byte("<kml:name>10410</kml:name>"),
+		[]byte("<kml:name>10410</kml:name>\n   <kml:description>M\xdcNSTER</kml:description>"), 1)
+	hours, err := weather.ParseMOSMIX(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hours) != 72 {
+		t.Fatalf("got %d hours, want 72", len(hours))
+	}
+
+	other := bytes.Replace(fixtureKML(t), []byte(`encoding="UTF-8"`), []byte(`encoding="KOI8-R"`), 1)
+	if _, err := weather.ParseMOSMIX(other); err == nil {
+		t.Error("unknown charset: expected error")
+	}
+}
+
 func TestParseMOSMIXErrors(t *testing.T) {
 	for name, data := range map[string]string{
 		"garbage":      "not xml",
