@@ -40,6 +40,7 @@ Configuration (environment):
 | `REITERHOF_WEATHER_ENABLED` | `true` | run the hourly DWD weather job |
 | `REITERHOF_WEATHER_STATION` | unset | force one MOSMIX station id for all stables; unset = nearest per stable |
 | `REITERHOF_EXPO_ACCESS_TOKEN` | unset | optional Expo access token for the push API (`push.NewClientFromEnv`) |
+| `REITERHOF_VAPID_PUBLIC_KEY`, `_PRIVATE_KEY`, `_SUBJECT` | unset | VAPID identity for Web Push (base64url P-256 keys, `mailto:`/`https:` subject); unset = web push off (`cmd/vapidkeys` generates a pair) |
 | `REITERHOF_PUBLIC_URL`, `REITERHOF_SMTP_*`, `REITERHOF_*_CLIENT_IDS`, `REITERHOF_DEV_LOGIN` | unset | authentication, see [Authentication and roles](#authentication-and-roles) |
 
 ## Adding a domain package
@@ -254,6 +255,8 @@ real `*push.Notifier`). In tests pass `Notify: push.NewNotifier(pool, fake, nil)
   `/horses/<id>/reha`, `/horses/<id>/blanket-plan`, `/blankets`). Add the ids the screen needs
   (`horse_id`, ...) next to it. `push.Notifier` adds `data.kind`. Health and reha pushes also
   keep the older key `route` with the same value.
+- Web Push (PWA, JAN-74) runs next to Expo push in the same `Notifier` with the same filters:
+  [domains/push-web.md](domains/push-web.md).
 - Mobile: `mobile/lib/push.ts` `registerForPush()` asks for permission and returns
   `{ token, platform }` (needs `expo.extra.eas.projectId` in `app.json` and a real
   device; it does not throw). `useDeviceSetup` (`lib/use-push-registration.ts`) sends the token
@@ -426,4 +429,5 @@ In tests call `files.SetDir(t.TempDir())`. The app uses `mobile/lib/upload.ts` (
 - [Training](domains/training.md): profile, "Was heute?", sessions, week view and exercise library (`internal/trainingapi`, M6).
 - [Session tracking](domains/tracking.md): GPS rides, indoor sessions with gait detection, exercise library screens; `internal/trainingapi` stores the track and raw gait windows (M7).
 - [Reha plan](domains/reha.md): phases, "Heute erlaubt", checkup reminders and the rule text of exercise requests (`internal/reha`, M7).
+- [Web Push (PWA)](domains/push-web.md): VAPID, `web_push_subscriptions`, encrypted sender, service worker, iOS home screen requirement (`internal/push`, `internal/devices`, JAN-74).
 - [Reminders and settings](domains/reminders.md): reminder center, notification switches per push kind, the stable's reminder time, evening training plan push, notification tap handling (`internal/reminders`, M8).

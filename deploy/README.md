@@ -85,6 +85,24 @@ sudo nano /etc/reiterhof/api.env      # Vorlage: deploy/api.env.example
 Die Datenbank-URL ist bereits eingetragen. Weitere Werte kommen hinzu, sobald die API sie
 kennt. Passwörter nie ins Repository committen.
 
+### Web-Push (PWA auf dem iPhone)
+
+Damit die Web-App Mitteilungen zustellen kann (iOS 16.4 oder neuer, Seite über Safari zum
+Home-Bildschirm hinzugefügt), braucht die API ein VAPID-Schlüsselpaar. Ohne Schlüssel ist Web-Push
+aus (`GET /api/v1/push/web/public-key` antwortet `503 not_configured`), die native App ist nicht betroffen.
+
+1. Paar einmalig erzeugen, auf einem Rechner mit Go im Repository:
+   `cd backend && go run ./cmd/vapidkeys -subject mailto:du@example.org`
+2. Die drei ausgegebenen Zeilen in `/etc/reiterhof/api.env` eintragen (`REITERHOF_VAPID_PUBLIC_KEY`,
+   `REITERHOF_VAPID_PRIVATE_KEY`, `REITERHOF_VAPID_SUBJECT`; Vorlage in `deploy/api.env.example`).
+   Der Betreff ist die Kontaktadresse (`mailto:` oder `https://`), an die sich Apple und Google bei
+   Problemen wenden.
+3. `sudo systemctl restart reiterhof-api`. Beim Start steht im Journal, ob Web-Push aktiv ist.
+
+Den privaten Schlüssel nicht ins Repository committen und nicht mehr austauschen: Alle bestehenden
+Browser-Abos würden ungültig, und jede Person müsste Mitteilungen neu aktivieren. Details:
+[`docs/domains/push-web.md`](../docs/domains/push-web.md).
+
 ## 5. Erstes Deployment
 
 Im GitHub-Repository unter *Settings > Secrets and variables > Actions* (am besten als
