@@ -18,6 +18,7 @@ import (
 	"github.com/Flusinerd/reiterhof-app/backend/internal/presence"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/push"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/realtime"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/requests"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/scheduler"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/weather"
 	"github.com/Flusinerd/reiterhof-app/backend/migrations"
@@ -66,13 +67,26 @@ func main() {
 		})
 	}
 
+	deps := httpapi.Deps{
+		Pool: pool, Config: cfg, Log: log, Now: time.Now,
+		Notify: push.NewNotifier(pool, push.NewClientFromEnv(), log),
+		Events: hub,
+	}
+	// Requests publish their changes after commit; Register reads this hook.
+	requests.DefaultPublish = func(ctx context.Context, e requests.Event) {
+		data := map[string]any{"id": e.RequestID, "kind": e.Kind}
+		if err := realtime.Publish(ctx, pool, e.StableID, "request.changed", data); err != nil {
+			log.Warn("publish request event", "err", err)
+		}
+	}
+	requestJobs := &scheduler.Scheduler{Log: log}
+	for _, job := range requests.NewService(deps).Jobs() {
+		requestJobs.Go(ctx, &jobs, job)
+	}
+
 	srv := &http.Server{
-		Addr: cfg.Addr,
-		Handler: httpapi.NewHandler(httpapi.Deps{
-			Pool: pool, Config: cfg, Log: log, Now: time.Now,
-			Notify: push.NewNotifier(pool, push.NewClientFromEnv(), log),
-			Events: hub,
-		}),
+		Addr:              cfg.Addr,
+		Handler:           httpapi.NewHandler(deps),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

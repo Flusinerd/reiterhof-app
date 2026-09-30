@@ -143,11 +143,31 @@ func TestNotifyUsers(t *testing.T) {
 
 	// A different kind is not disabled for ben.
 	fake.Reset()
-	if err := n.NotifyUsers(ctx, f.stableA, []string{f.ben}, KindNewRequest, "t", "b", nil); err != nil {
+	if err := n.NotifyUsers(ctx, f.stableA, []string{f.ben}, KindHelper, "t", "b", nil); err != nil {
 		t.Fatal(err)
 	}
 	if got := fake.Sent(); len(got) != 1 || got[0].To != "ben-1" {
 		t.Errorf("sent = %+v", got)
+	}
+
+	// Opt-in kind: nothing without an enabling row, then only for the user who enabled it.
+	fake.Reset()
+	if err := n.NotifyUsers(ctx, f.stableA, []string{f.anna, f.ben}, KindNewRequest, "t", "b", nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := fake.Sent(); len(got) != 0 {
+		t.Errorf("opt-in kind sent without opt-in: %+v", got)
+	}
+	if _, err := f.pool.Exec(ctx,
+		`INSERT INTO reminder_settings (stable_id, user_id, kind, enabled) VALUES ($1,$2,$3,true), ($1,$4,$3,false)`,
+		f.stableA, f.ben, KindNewRequest, f.anna); err != nil {
+		t.Fatal(err)
+	}
+	if err := n.NotifyUsers(ctx, f.stableA, []string{f.anna, f.ben}, KindNewRequest, "t", "b", nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := fake.Sent(); len(got) != 1 || got[0].To != "ben-1" {
+		t.Errorf("opt-in sent = %+v", got)
 	}
 
 	if err := n.NotifyUsers(ctx, f.stableA, []string{f.anna}, "bogus", "t", "b", nil); err == nil {

@@ -22,7 +22,8 @@
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": false
         }
-      ]
+      ],
+      ["expo-calendar", { "calendarPermission": "Reiterhof trägt Termine deiner Anfragen in deinen Kalender ein." }]
     ],
     "experiments": { "typedRoutes": true },
     "android": {

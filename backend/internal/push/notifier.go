@@ -26,7 +26,8 @@ func NewNotifier(pool *pgxpool.Pool, sender Sender, log *slog.Logger) *Notifier 
 
 // NotifyUsers pushes a notification of the given kind to all devices of userIDs
 // within stableID. Users who disabled the kind in reminder_settings are skipped
-// (no row means enabled). Tokens Expo reports as invalid are deleted. Delivery
+// (no row means enabled), except for opt-in kinds (see OptIn): those are only
+// sent to users with a reminder_settings row that enables them. Tokens Expo reports as invalid are deleted. Delivery
 // problems other than invalid tokens are returned.
 func (n *Notifier) NotifyUsers(ctx context.Context, stableID string, userIDs []string, kind, title, body string, data map[string]any) error {
 	if !ValidKind(kind) {
@@ -40,11 +41,17 @@ func (n *Notifier) NotifyUsers(ctx context.Context, stableID string, userIDs []s
 		FROM push_tokens t
 		WHERE t.stable_id = $1
 		  AND t.user_id = ANY($2::uuid[])
-		  AND NOT EXISTS (
-		      SELECT 1 FROM reminder_settings s
-		      WHERE s.stable_id = t.stable_id AND s.user_id = t.user_id
-		        AND s.kind = $3 AND NOT s.enabled)
-		ORDER BY t.created_at, t.token`, stableID, userIDs, kind)
+		  AND CASE WHEN $4::boolean
+		      THEN EXISTS (
+		          SELECT 1 FROM reminder_settings s
+		          WHERE s.stable_id = t.stable_id AND s.user_id = t.user_id
+		            AND s.kind = $3 AND s.enabled)
+		      ELSE NOT EXISTS (
+		          SELECT 1 FROM reminder_settings s
+		          WHERE s.stable_id = t.stable_id AND s.user_id = t.user_id
+		            AND s.kind = $3 AND NOT s.enabled)
+		      END
+		ORDER BY t.created_at, t.token`, stableID, userIDs, kind, OptIn(kind))
 	if err != nil {
 		return fmt.Errorf("push: load tokens: %w", err)
 	}
