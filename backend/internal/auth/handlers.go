@@ -346,16 +346,18 @@ func (s *Service) signInWithIdentity(ctx context.Context, provider string, c Cla
 }
 
 // userIDForEmail returns the user with that email, creating it (without stable) if needed.
-// name is only used for a new user; empty falls back to the part before the "@".
+// name is only used for a new user; empty falls back to the part before the "@" and leaves
+// name_confirmed false, so the app asks for the name.
 func (s *Service) userIDForEmail(ctx context.Context, q DB, email, name string) (string, error) {
-	if name == "" {
+	confirmed := name != ""
+	if !confirmed {
 		name, _, _ = strings.Cut(email, "@")
 	}
 	var id string
 	// The no-op update makes RETURNING work for the existing row; the unique index on
 	// email makes concurrent sign-ups safe.
-	err := q.QueryRow(ctx, `INSERT INTO users (name, email) VALUES ($1, $2)
-		ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email RETURNING id`, name, email).Scan(&id)
+	err := q.QueryRow(ctx, `INSERT INTO users (name, email, name_confirmed) VALUES ($1, $2, $3)
+		ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email RETURNING id`, name, email, confirmed).Scan(&id)
 	return id, err
 }
 
@@ -419,6 +421,8 @@ type userView struct {
 	PresenceVisibility string  `json:"presence_visibility"`
 	IsAdmin            bool    `json:"is_admin"`
 	StableID           *string `json:"stable_id"`
+	// NameConfirmed is false while the name is only the email fallback; the app asks for it.
+	NameConfirmed bool `json:"name_confirmed"`
 }
 
 type stableView struct {
@@ -446,10 +450,10 @@ type meView struct {
 
 func (s *Service) loadMe(ctx context.Context, userID string) (meView, error) {
 	var v meView
-	err := s.deps.Pool.QueryRow(ctx, `SELECT id, name, email, phone, avatar_color, presence_visibility, is_admin, stable_id
+	err := s.deps.Pool.QueryRow(ctx, `SELECT id, name, email, phone, avatar_color, presence_visibility, is_admin, stable_id, name_confirmed
 		FROM users WHERE id = $1`, userID).
 		Scan(&v.User.ID, &v.User.Name, &v.User.Email, &v.User.Phone, &v.User.AvatarColor,
-			&v.User.PresenceVisibility, &v.User.IsAdmin, &v.User.StableID)
+			&v.User.PresenceVisibility, &v.User.IsAdmin, &v.User.StableID, &v.User.NameConfirmed)
 	if err != nil {
 		return v, err
 	}
@@ -543,6 +547,7 @@ func (s *Service) patchMe(w http.ResponseWriter, r *http.Request) {
 	// Phone and avatar_color: "" clears, absent leaves unchanged (COALESCE with a NULLIF flag).
 	_, err := s.deps.Pool.Exec(r.Context(), `UPDATE users SET
 		name = COALESCE($2, name),
+		name_confirmed = name_confirmed OR $2::text IS NOT NULL,
 		phone = CASE WHEN $3::boolean THEN NULLIF($4, '') ELSE phone END,
 		avatar_color = CASE WHEN $5::boolean THEN NULLIF($6, '') ELSE avatar_color END,
 		presence_visibility = COALESCE($7, presence_visibility)

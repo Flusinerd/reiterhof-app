@@ -1,10 +1,11 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { router, type Href } from "expo-router";
-import { BellOff, ChevronRight, LogOut, ShieldCheck } from "lucide-react-native";
+import { BellOff, ChevronRight, LogOut, Pencil, ShieldCheck } from "lucide-react-native";
 import { useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 
 import { useConsentPrompt } from "@/components/consent-prompt";
+import { InviteCard } from "@/components/invite-card";
 import { ReminderTimeCard } from "@/components/reminder-time-card";
 import { WebPushCard } from "@/components/web-push-card";
 import {
@@ -28,7 +29,7 @@ import { useHasConsent } from "@/lib/consent";
 import { VISIBILITY_OPTIONS, visibilityDescription } from "@/lib/presence-format";
 import type { NotificationSettings } from "@/lib/reminders";
 
-/** Settings (JAN-70): notifications per kind, the stable's reminder time, presence, privacy, account. */
+/** Settings (JAN-70): notifications, inviting (admins), the stable's reminder time, presence, privacy, account. */
 export default function Settings() {
   const queryClient = useQueryClient();
   const { user, signOut } = useAuth();
@@ -132,6 +133,7 @@ export default function Settings() {
       </Card>
 
       <SectionLabel>Stallgasse</SectionLabel>
+      {user?.is_admin ? <InviteCard /> : null}
       <ReminderTimeCard />
 
       <SectionLabel>Anwesenheit</SectionLabel>
@@ -161,9 +163,18 @@ export default function Settings() {
 
       <SectionLabel>Konto</SectionLabel>
       <Card className="gap-3">
-        <View>
-          <Text variant="bodyStrong">{user?.name ?? ""}</Text>
-          <Text variant="secondary">{user?.email ?? ""}</Text>
+        <View className="flex-row items-center gap-3">
+          <View className="flex-1">
+            <Text variant="bodyStrong">{user?.name ?? ""}</Text>
+            <Text variant="secondary">{user?.email ?? ""}</Text>
+          </View>
+          <Button
+            variant="ghost"
+            size="icon"
+            icon={Pencil}
+            accessibilityLabel="Name ändern"
+            onPress={() => router.push("/(auth)/name" as Href)}
+          />
         </View>
         <Button label="Abmelden" icon={LogOut} variant="outline" fullWidth loading={signingOut} onPress={() => void leave()} />
       </Card>
