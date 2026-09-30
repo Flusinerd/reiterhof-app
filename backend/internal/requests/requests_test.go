@@ -151,9 +151,9 @@ func showHelperBody(needed int) m {
 		"type": "show_helper", "horse_id": seed.HorseFanta, "date": "2026-10-02", "time_from": "08:30",
 		"location": "Reitanlage Haltern", "helpers_needed": needed,
 		"payload": m{
-			"show_name": "Herbstturnier", "ride_along": true,
-			"classes": []m{{"name": "E-Dressur", "time": "09:30"}},
-			"tasks":   []string{"hold_horse", "film"},
+			"show_name": "Herbstturnier",
+			"classes":   []m{{"name": "E-Dressur", "time": "09:30"}},
+			"tasks":     []string{"hold_horse", "film"},
 		},
 	}
 }

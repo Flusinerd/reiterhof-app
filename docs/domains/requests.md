@@ -30,7 +30,7 @@ Unknown fields are rejected. The server stores the canonical form.
 
 | Type | Payload | Notes |
 | --- | --- | --- |
-| `show_helper` | `{show_name, classes:[{name,time?}], tasks[], ride_along}` | `tasks` subset of `hold_horse, warm_up, film, fetch_number, load_trailer`; copied to `tasks` |
+| `show_helper` | `{show_name, classes:[{name,time?}], tasks[]}` | `tasks` subset of `hold_horse, warm_up, film, fetch_number, load_trailer`; copied to `tasks` |
 | `ride_share` | `{destination, departure_time HH:MM, seats_free 1..8}` | `helpers_needed = seats_free`; `time_from` defaults to the departure |
 | `exercise` | `{mode: lunge\|ride, rules_note?}` | horse required; `rules_note` (max 800) gets the horse's reha rule as first line, filled by the server, see [reha.md](reha.md) |
 | `feed_or_turnout` | `{what: feed\|turnout\|bring_in}` | horse required; `date_end` allowed (range) |

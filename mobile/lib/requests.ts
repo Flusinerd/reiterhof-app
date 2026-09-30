@@ -61,7 +61,6 @@ export type ShowHelperPayload = {
   show_name: string;
   classes: ShowClass[];
   tasks: string[];
-  ride_along: boolean;
 };
 
 export type RideSharePayload = { destination: string; departure_time: string; seats_free: number };
@@ -222,6 +221,33 @@ export function addDays(date: string, days: number): string {
   if (!p) return date;
   const d = new Date(Date.UTC(p.year, p.month - 1, p.day + days));
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+}
+
+const MONTHS_LONG = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+
+/** "Oktober 2026" for a 1-based month. */
+export function monthTitle(year: number, month: number): string {
+  return `${MONTHS_LONG[month - 1]} ${year}`;
+}
+
+/** Shifts a year/month (1-based) by whole months. */
+export function addMonths(year: number, month: number, delta: number): { year: number; month: number } {
+  const index = year * 12 + (month - 1) + delta;
+  return { year: Math.floor(index / 12), month: (index % 12) + 1 };
+}
+
+/** Weeks of a month, Monday first; days outside the month are null. */
+export function monthGrid(year: number, month: number): (string | null)[][] {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const first = new Date(Date.UTC(year, month - 1, 1));
+  const lead = (first.getUTCDay() + 6) % 7;
+  const length = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const cells: (string | null)[] = [
+    ...Array<null>(lead).fill(null),
+    ...Array.from({ length }, (_, i) => `${year}-${pad(month)}-${pad(i + 1)}`),
+  ];
+  while (cells.length % 7 !== 0) cells.push(null);
+  return Array.from({ length: cells.length / 7 }, (_, w) => cells.slice(w * 7, w * 7 + 7));
 }
 
 /** "Heute", "Morgen" or the weekday and date. */
@@ -471,7 +497,6 @@ export function payloadDetails(r: Pick<HelpRequest, "type" | "payload">): { labe
       if (classes.length > 0) {
         rows.push({ label: "Prüfungen", value: classes.map((c) => (c.time ? `${c.name} (${c.time})` : c.name)).join(", ") });
       }
-      if (p.ride_along === true) rows.push({ label: "Mitfahrgelegenheit", value: "Platz im Hänger" });
       break;
     }
     case "ride_share":

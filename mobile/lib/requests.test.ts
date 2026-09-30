@@ -4,12 +4,15 @@ import { test } from "node:test";
 import {
   acceptLabel,
   addDays,
+  addMonths,
   buildRule,
   CREATABLE_TYPES,
   describeRule,
   eventRange,
   filterParams,
   formatDay,
+  monthGrid,
+  monthTitle,
   formatInstant,
   formatWhen,
   helperCountText,
@@ -182,12 +185,11 @@ test("payload details are shown in German", () => {
   assert.deepEqual(
     payloadDetails({
       type: "show_helper",
-      payload: { show_name: "Herbstturnier", classes: [{ name: "E-Dressur", time: "09:30" }, { name: "A-Springen" }], ride_along: true },
+      payload: { show_name: "Herbstturnier", classes: [{ name: "E-Dressur", time: "09:30" }, { name: "A-Springen" }] },
     }),
     [
       { label: "Turnier", value: "Herbstturnier" },
       { label: "Prüfungen", value: "E-Dressur (09:30), A-Springen" },
-      { label: "Mitfahrgelegenheit", value: "Platz im Hänger" },
     ],
   );
   assert.deepEqual(payloadDetails({ type: "ride_share", payload: { destination: "Haltern", departure_time: "07:15", seats_free: 2 } }), [
@@ -222,4 +224,19 @@ test("titles and task chips", () => {
   assert.equal(taskLabel("exercise", "hold_horse"), "hold_horse");
   assert.deepEqual(taskChips({ type: "show_helper", tasks: ["film", "fetch_number"] }), ["Filmen", "Startnummer holen"]);
   assert.deepEqual(taskChips({ type: "other", tasks: ["Heu holen"] }), ["Heu holen"]);
+});
+
+test("monthGrid lays out weeks Monday first", () => {
+  const grid = monthGrid(2026, 10);
+  assert.equal(grid.length, 5);
+  assert.deepEqual(grid[0], [null, null, null, "2026-10-01", "2026-10-02", "2026-10-03", "2026-10-04"]);
+  assert.deepEqual(grid[4], ["2026-10-26", "2026-10-27", "2026-10-28", "2026-10-29", "2026-10-30", "2026-10-31", null]);
+  assert.equal(monthGrid(2026, 2).flat().filter(Boolean).length, 28);
+  assert.equal(monthGrid(2024, 2).flat().filter(Boolean).length, 29);
+});
+
+test("addMonths and monthTitle wrap over year borders", () => {
+  assert.deepEqual(addMonths(2026, 12, 1), { year: 2027, month: 1 });
+  assert.deepEqual(addMonths(2026, 1, -1), { year: 2025, month: 12 });
+  assert.equal(monthTitle(2026, 10), "Oktober 2026");
 });

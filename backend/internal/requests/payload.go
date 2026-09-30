@@ -51,10 +51,9 @@ var showTasks = map[string]bool{
 
 // ShowHelperPayload is the payload of type show_helper ("Turniertrottel").
 type ShowHelperPayload struct {
-	ShowName  string      `json:"show_name"`
-	Classes   []ShowClass `json:"classes"`
-	Tasks     []string    `json:"tasks"`
-	RideAlong bool        `json:"ride_along"`
+	ShowName string      `json:"show_name"`
+	Classes  []ShowClass `json:"classes"`
+	Tasks    []string    `json:"tasks"`
 }
 
 // ShowClass is one class (Prüfung) the rider starts in.

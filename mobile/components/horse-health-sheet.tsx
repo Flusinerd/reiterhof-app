@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { View } from "react-native";
 
-import { Button, Input, Pill, Sheet, Text } from "@/components/ui";
+import { Button, Input, Pill, Sheet, Text, TimeField } from "@/components/ui";
 import type { HealthInput, HealthItem } from "@/lib/api/horses";
 import {
   formatDate,
@@ -96,12 +96,12 @@ export function HorseHealthSheet({ open, onOpenChange, item, saving, error, onSa
       {kind === "medication" ? (
         <View className="gap-2">
           <Text variant="secondary">Tägliche Erinnerung um</Text>
-          <Input
+          <TimeField
             value={dailyTime}
-            onChangeText={setDailyTime}
+            onChange={setDailyTime}
             accessibilityLabel="Uhrzeit der täglichen Erinnerung"
-            placeholder="HH:MM, z. B. 08:00"
-            keyboardType="numbers-and-punctuation"
+            placeholder="z. B. 08:00"
+            clearable
           />
         </View>
       ) : (
