@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { LogIn, LogOut, ShieldCheck } from "lucide-react-native";
+import { LogIn, LogOut, Settings, ShieldCheck } from "lucide-react-native";
 import { useState } from "react";
 import { RefreshControl, View } from "react-native";
 
@@ -151,6 +151,13 @@ export default function PresenceScreen() {
           <Text variant="secondary">{visibilityDescription(visibility)}</Text>
         </View>
         <Divider />
+        <Button
+          label="Alle Einstellungen"
+          icon={Settings}
+          variant="outline"
+          fullWidth
+          onPress={() => router.push("/settings")}
+        />
         <Button
           label="Datenschutz und Einwilligungen"
           icon={ShieldCheck}

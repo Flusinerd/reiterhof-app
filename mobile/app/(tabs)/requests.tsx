@@ -1,11 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { CalendarDays, Plus } from "lucide-react-native";
+import { Bell, CalendarDays, Plus } from "lucide-react-native";
 import { useState } from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
 
 import { RequestCard } from "@/components/request-card";
-import { Button, Card, Hero, Pill, Screen, SectionLabel, Switch, Text } from "@/components/ui";
+import { Button, Card, Hero, Pill, Screen, SectionLabel, Text } from "@/components/ui";
 import { requestKeys, requestsApi } from "@/lib/api/requests";
 import { colors } from "@/lib/theme";
 import { REQUEST_FILTERS, filterParams, toIsoDate, type RequestFilter } from "@/lib/requests";
@@ -27,7 +27,6 @@ export default function Requests() {
 
   const params = filterParams(filter, toIsoDate(new Date()));
   const list = useQuery({ queryKey: requestKeys.list(params), queryFn: () => requestsApi.list(params) });
-  const notify = useQuery({ queryKey: requestKeys.notify, queryFn: requestsApi.getNotify });
   const thanks = useQuery({ queryKey: requestKeys.thanks, queryFn: requestsApi.myThanks });
 
   const accept = useMutation({
@@ -41,12 +40,6 @@ export default function Requests() {
       setAcceptingId(null);
       void queryClient.invalidateQueries({ queryKey: requestKeys.all });
     },
-  });
-
-  const setNotify = useMutation({
-    mutationFn: (on: boolean) => requestsApi.setNotify(on),
-    onSuccess: (data) => queryClient.setQueryData(requestKeys.notify, data),
-    onError: (e) => setError(requestErrorMessage(e)),
   });
 
   const open = list.data?.open_count ?? 0;
@@ -131,12 +124,13 @@ export default function Requests() {
 
       <SectionLabel>Benachrichtigungen</SectionLabel>
       <Card className="gap-2">
-        <Switch
-          label="Bei neuen Anfragen benachrichtigen"
-          description="Standardmäßig aus. Erinnerungen für Anfragen, bei denen du hilfst, bekommst du immer."
-          value={notify.data?.new_request ?? false}
-          disabled={notify.isPending || setNotify.isPending}
-          onValueChange={(on) => setNotify.mutate(on)}
+        <Text variant="body">Ob dich neue Anfragen und Erinnerungen benachrichtigen, stellst du in den Einstellungen ein.</Text>
+        <Button
+          label="Benachrichtigungen einstellen"
+          icon={Bell}
+          variant="outline"
+          fullWidth
+          onPress={() => router.push("/settings")}
         />
         {thanks.data && thanks.data.count > 0 ? (
           <Text variant="secondary">

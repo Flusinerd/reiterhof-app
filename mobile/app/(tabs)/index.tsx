@@ -1,5 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { router, type Href } from "expo-router";
+import { Bell, Settings } from "lucide-react-native";
 import { useMemo } from "react";
 import { RefreshControl, View } from "react-native";
 
@@ -47,6 +48,23 @@ export default function Home() {
         />
       }
     >
+      <View className="-mb-3 flex-row justify-end gap-2">
+        <Button
+          size="icon"
+          variant="ghost"
+          icon={Bell}
+          accessibilityLabel="Erinnerungen"
+          onPress={() => router.push("/reminders" as Href)}
+        />
+        <Button
+          size="icon"
+          variant="ghost"
+          icon={Settings}
+          accessibilityLabel="Einstellungen"
+          onPress={() => router.push("/settings" as Href)}
+        />
+      </View>
+
       <Hero
         eyebrow="Heute Nacht"
         title={greeting(new Date().getHours(), user?.name ?? "")}
