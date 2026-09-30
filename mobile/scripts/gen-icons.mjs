@@ -1,6 +1,5 @@
-// Generates the Stallfunk logo and the app icons: a horseshoe, open to the top, with two radio
-// waves rising out of the opening ("Stall" + "Funk"). Cream shoe and golden waves on the primary
-// green. No font and no image library needed (pure JS, PNG through node:zlib).
+// Generates the Stallfunk logo and the app icons: a classic horseshoe, open to the top, with a
+// radio sign in its bow ("Stall" + "Funk"). Cream shoe and golden sign on the primary green. No font and no image library needed (pure JS, PNG through node:zlib).
 //
 //   node scripts/gen-icons.mjs
 //
@@ -14,9 +13,9 @@
 //   assets/logo-256.png                             logo inside the app (sign-in screen)
 //   ../backend/internal/auth/mail-logo.png          88 x 88, inline logo of the mails (44 px, 2x)
 //
-// The mark is a list of shapes (arcs with round or butt caps, rectangles, disks) in a unit box centered on
-// (0,0), y pointing down; later shapes paint over earlier ones. Every pixel is supersampled
-// 4 x 4 for smooth edges.
+// The mark is a list of shapes (an even-odd SVG path, arcs with round or butt caps, rectangles,
+// disks) centered on (0,0), y pointing down; later shapes paint over earlier ones. Every pixel
+// is supersampled 4 x 4 for smooth edges.
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { deflateSync } from "node:zlib";
@@ -32,41 +31,176 @@ const GOLD = "#fbbf24"; // gait-trot, the warm highlight on dark green
 
 const rad = (deg) => (deg * Math.PI) / 180;
 
-// Horseshoe: a U of a half circle (center (0, SHOE_Y), radius SHOE_R) and two straight legs of
-// length LEG up to the heels. The waves rise from a dot between the legs.
-const SHOE_Y = 0.2;
-const SHOE_R = 0.46;
-const SHOE_W = 0.24;
-const LEG = 0.34;
-const WAVE_Y = SHOE_Y - 0.12; // center of the dot and the waves
-const leg = (x) => ({
-  kind: "rect",
-  x0: x - SHOE_W / 2,
-  x1: x + SHOE_W / 2,
-  y0: SHOE_Y - LEG,
-  y1: SHOE_Y + 0.01, // overlaps the bend, so the SVG shows no seam
-  color: CREAM,
-});
-const hole = (x, y) => ({ kind: "disk", cx: x, cy: y, r: 0.032, color: GREEN });
-const onArc = (deg) => [SHOE_R * Math.cos(rad(deg)), SHOE_Y + SHOE_R * Math.sin(rad(deg))];
+// Horseshoe: a classic shoe (outline and nail holes as one even-odd SVG path, open to the top,
+// viewBox 116.9 x 122.88) in cream. The golden radio sign (dot and two waves) sits in its bow.
+// All coordinates of the mark are in the units of that viewBox, centered on (0,0).
+const SHOE_W = 116.9;
+const SHOE_H = 122.88;
+const SHOE_PATH =
+  "M25,80.18A33.31,33.31,0,0,0,36.67,94.3a38.86,38.86,0,0,0,43.44.09A33.37,33.37,0,0,0,92,80.18c5.83-13.42,4.56-36.7-1.84-50-1.67-3.46-3.81-6.34-7.25-12.4C80.1,13,78.79,8.63,83.73,4.59A22,22,0,0,1,97.47,0c4.67.14,7.54,3.4,9.14,7.61,1.07,2.78,2.25,8.35,1.5,11.35-.37,1.53-1.16,2-1.65,3-.72,1.46.09,2.95,1.18,5.07,16.4,32,11,69.78-15.88,86.81-17.14,10.86-41.64,11.89-60,3.55C-.75,102.61-8.4,61.46,9.27,27c1.08-2.12,1.89-3.61,1.17-5.07-.49-1-1.27-1.42-1.65-3-.74-3,.44-8.57,1.5-11.35C11.89,3.41,14.76.15,19.43,0A22,22,0,0,1,33.17,4.59c4.94,4,3.63,8.36.87,13.23-3.43,6.06-5.57,8.94-7.25,12.4-6.4,13.26-7.66,36.54-1.84,50ZM21.87,12.29a3.3,3.3,0,1,1-3.3,3.3,3.29,3.29,0,0,1,3.3-3.3Zm36.58,94.77a3.66,3.66,0,1,1-3.65,3.66,3.65,3.65,0,0,1,3.65-3.66Zm41-19.31a3.66,3.66,0,1,1-3.65,3.65,3.65,3.65,0,0,1,3.65-3.65Zm-81.9,0a3.66,3.66,0,1,1-3.65,3.65,3.66,3.66,0,0,1,3.65-3.65Zm88.76-26.1a3.65,3.65,0,1,1-3.66,3.65,3.65,3.65,0,0,1,3.66-3.65Zm-95.61,0A3.65,3.65,0,1,1,7,65.3a3.65,3.65,0,0,1,3.66-3.65Zm91.87-26.11a3.66,3.66,0,1,1-3.66,3.66,3.66,3.66,0,0,1,3.66-3.66Zm-88.13,0a3.66,3.66,0,1,1-3.66,3.66,3.66,3.66,0,0,1,3.66-3.66ZM95,12.29a3.3,3.3,0,1,1-3.3,3.3,3.29,3.29,0,0,1,3.3-3.3Z";
+const WAVE_X = SHOE_W / 2; // dot and wave center (viewBox units)
+const WAVE_Y = 80;
 const shapes = [
-  { kind: "arc", cx: 0, cy: SHOE_Y, r: SHOE_R, w: SHOE_W, from: rad(0), to: rad(180), cap: "butt", color: CREAM },
-  leg(-SHOE_R),
-  leg(SHOE_R),
-  // nail holes: two on each leg, one on each side of the bend
-  ...[-SHOE_R, SHOE_R].flatMap((x) => [hole(x, SHOE_Y - LEG + 0.1), hole(x, SHOE_Y - 0.02)]),
-  hole(...onArc(45)),
-  hole(...onArc(135)),
-  // radio waves out of the opening
-  { kind: "disk", cx: 0, cy: WAVE_Y, r: 0.085, color: GOLD },
-  { kind: "arc", cx: 0, cy: WAVE_Y, r: 0.26, w: 0.095, from: rad(-135), to: rad(-45), cap: "round", color: GOLD },
-  { kind: "arc", cx: 0, cy: WAVE_Y, r: 0.46, w: 0.095, from: rad(-128), to: rad(-52), cap: "round", color: GOLD },
+  { kind: "path", rings: flattenPath(SHOE_PATH, -SHOE_W / 2, -SHOE_H / 2), color: CREAM },
+  { kind: "disk", cx: 0, cy: WAVE_Y - SHOE_H / 2, r: 5.6, color: GOLD },
+  ...[18, 31].map((r) => ({
+    kind: "arc",
+    cx: WAVE_X - SHOE_W / 2,
+    cy: WAVE_Y - SHOE_H / 2,
+    r,
+    w: 6.6,
+    from: rad(-136),
+    to: rad(-44),
+    cap: "round",
+    color: GOLD,
+  })),
 ];
-// Extent of the mark: from the top of the outer wave to the bottom of the shoe.
-const MARK_TOP = WAVE_Y - 0.46 - 0.05;
-const MARK_BOTTOM = SHOE_Y + SHOE_R + SHOE_W / 2;
-const MARK_HEIGHT = MARK_BOTTOM - MARK_TOP;
-const MARK_MID = (MARK_TOP + MARK_BOTTOM) / 2;
+const MARK_HEIGHT = SHOE_H;
+const MARK_MID = 0;
+
+// --- SVG path flattening (M L H V C S Q T A Z, absolute and relative) ---------------------------
+
+/** Flattens an SVG path into closed polygons (rings), shifted by (dx, dy). */
+function flattenPath(d, dx, dy) {
+  const tokens = d.match(/[MmLlHhVvCcSsQqTtAaZz]|-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/g);
+  const rings = [];
+  let ring = [];
+  let i = 0;
+  let cmd = "";
+  let [x, y, sx, sy] = [0, 0, 0, 0];
+  let [lcx, lcy] = [0, 0]; // last control point (for S/T)
+  const num = () => parseFloat(tokens[i++]);
+  const push = (px, py) => ring.push([px + dx, py + dy]);
+  const cubic = (x1, y1, x2, y2, ex, ey) => {
+    for (let k = 1; k <= 16; k++) {
+      const t = k / 16;
+      const u = 1 - t;
+      push(
+        u * u * u * x + 3 * u * u * t * x1 + 3 * u * t * t * x2 + t * t * t * ex,
+        u * u * u * y + 3 * u * u * t * y1 + 3 * u * t * t * y2 + t * t * t * ey,
+      );
+    }
+    [lcx, lcy, x, y] = [x2, y2, ex, ey];
+  };
+  // Endpoint to center parameterization (SVG 1.1, appendix F.6.5).
+  const arc = (rx, ry, phiDeg, large, sweep, ex, ey) => {
+    const phi = rad(phiDeg);
+    const [cos, sin] = [Math.cos(phi), Math.sin(phi)];
+    const x1p = (cos * (x - ex)) / 2 + (sin * (y - ey)) / 2;
+    const y1p = (-sin * (x - ex)) / 2 + (cos * (y - ey)) / 2;
+    rx = Math.abs(rx);
+    ry = Math.abs(ry);
+    const lambda = (x1p * x1p) / (rx * rx) + (y1p * y1p) / (ry * ry);
+    if (lambda > 1) [rx, ry] = [rx * Math.sqrt(lambda), ry * Math.sqrt(lambda)];
+    const num2 = rx * rx * ry * ry - rx * rx * y1p * y1p - ry * ry * x1p * x1p;
+    const den = rx * rx * y1p * y1p + ry * ry * x1p * x1p;
+    const coef = (large === sweep ? -1 : 1) * Math.sqrt(Math.max(0, num2 / den));
+    const cxp = (coef * rx * y1p) / ry;
+    const cyp = (-coef * ry * x1p) / rx;
+    const cx = cos * cxp - sin * cyp + (x + ex) / 2;
+    const cy = sin * cxp + cos * cyp + (y + ey) / 2;
+    const ang = (ux, uy, vx, vy) => Math.atan2(ux * vy - uy * vx, ux * vx + uy * vy);
+    const t1 = ang(1, 0, (x1p - cxp) / rx, (y1p - cyp) / ry);
+    let dt = ang((x1p - cxp) / rx, (y1p - cyp) / ry, (-x1p - cxp) / rx, (-y1p - cyp) / ry);
+    if (!sweep && dt > 0) dt -= 2 * Math.PI;
+    if (sweep && dt < 0) dt += 2 * Math.PI;
+    const n = Math.max(4, Math.ceil(Math.abs(dt) / rad(6)));
+    for (let k = 1; k <= n; k++) {
+      const t = t1 + (dt * k) / n;
+      push(cx + rx * Math.cos(t) * cos - ry * Math.sin(t) * sin, cy + rx * Math.cos(t) * sin + ry * Math.sin(t) * cos);
+    }
+    [x, y, lcx, lcy] = [ex, ey, ex, ey];
+  };
+  while (i < tokens.length) {
+    if (/[a-zA-Z]/.test(tokens[i])) cmd = tokens[i++];
+    const rel = cmd === cmd.toLowerCase();
+    const ox = rel ? x : 0;
+    const oy = rel ? y : 0;
+    switch (cmd.toUpperCase()) {
+      case "M":
+        if (ring.length) rings.push(ring);
+        ring = [];
+        x = ox + num();
+        y = oy + num();
+        [sx, sy, lcx, lcy] = [x, y, x, y];
+        push(x, y);
+        cmd = rel ? "l" : "L"; // further pairs are line-tos
+        break;
+      case "L":
+        x = ox + num();
+        y = oy + num();
+        [lcx, lcy] = [x, y];
+        push(x, y);
+        break;
+      case "H":
+        x = ox + num();
+        [lcx, lcy] = [x, y];
+        push(x, y);
+        break;
+      case "V":
+        y = oy + num();
+        [lcx, lcy] = [x, y];
+        push(x, y);
+        break;
+      case "C": {
+        const [x1, y1, x2, y2, ex, ey] = [ox + num(), oy + num(), ox + num(), oy + num(), ox + num(), oy + num()];
+        cubic(x1, y1, x2, y2, ex, ey);
+        break;
+      }
+      case "S": {
+        const [x2, y2, ex, ey] = [ox + num(), oy + num(), ox + num(), oy + num()];
+        cubic(2 * x - lcx, 2 * y - lcy, x2, y2, ex, ey);
+        break;
+      }
+      case "Q": {
+        const [qx, qy, ex, ey] = [ox + num(), oy + num(), ox + num(), oy + num()];
+        cubic(x + (2 / 3) * (qx - x), y + (2 / 3) * (qy - y), ex + (2 / 3) * (qx - ex), ey + (2 / 3) * (qy - ey), ex, ey);
+        [lcx, lcy] = [qx, qy];
+        break;
+      }
+      case "T": {
+        const [qx, qy] = [2 * x - lcx, 2 * y - lcy];
+        const [ex, ey] = [ox + num(), oy + num()];
+        cubic(x + (2 / 3) * (qx - x), y + (2 / 3) * (qy - y), ex + (2 / 3) * (qx - ex), ey + (2 / 3) * (qy - ey), ex, ey);
+        [lcx, lcy] = [qx, qy];
+        break;
+      }
+      case "A": {
+        const [rx, ry, phi, large, sweep] = [num(), num(), num(), num(), num()];
+        arc(rx, ry, phi, large, sweep, ox + num(), oy + num());
+        break;
+      }
+      case "Z":
+        [x, y] = [sx, sy];
+        if (ring.length) rings.push(ring);
+        ring = [];
+        break;
+      default:
+        throw new Error(`unsupported path command ${cmd}`);
+    }
+  }
+  if (ring.length) rings.push(ring);
+  return rings;
+}
+
+/** Even-odd test against all rings; the crossings of one row are cached (rows repeat per pixel). */
+function insidePath(shape, x, y) {
+  if (shape.rowY !== y) {
+    const xs = [];
+    for (const pts of shape.rings) {
+      for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+        const [xi, yi] = pts[i];
+        const [xj, yj] = pts[j];
+        if (yi > y !== yj > y) xs.push(((xj - xi) * (y - yi)) / (yj - yi) + xi);
+      }
+    }
+    shape.rowY = y;
+    shape.rowXs = xs;
+  }
+  let inside = false;
+  for (const cx of shape.rowXs) if (x < cx) inside = !inside;
+  return inside;
+}
 
 function angleIn(a, from, to) {
   while (a < from) a += 2 * Math.PI;
@@ -78,6 +212,7 @@ function covers(shape, x, y) {
   const dx = x - shape.cx;
   const dy = y - shape.cy;
   const d = Math.hypot(dx, dy);
+  if (shape.kind === "path") return insidePath(shape, x, y);
   if (shape.kind === "rect") return x >= shape.x0 && x <= shape.x1 && y >= shape.y0 && y <= shape.y1;
   if (shape.kind === "disk") return d <= shape.r;
   if (angleIn(Math.atan2(dy, dx), shape.from, shape.to)) return Math.abs(d - shape.r) <= shape.w / 2;
@@ -132,6 +267,14 @@ function svg() {
   const S = (u) => +(u * scale).toFixed(2);
   const parts = [`<rect width="${size}" height="${size}" rx="112" fill="${GREEN}"/>`];
   for (const s of shapes) {
+    if (s.kind === "path") {
+      // the original path, moved and scaled like the unit coordinates
+      parts.push(
+        `<path transform="translate(${X(-SHOE_W / 2)} ${Y(-SHOE_H / 2)}) scale(${+scale.toFixed(4)})" ` +
+          `fill="${s.color}" fill-rule="evenodd" d="${SHOE_PATH}"/>`,
+      );
+      continue;
+    }
     if (s.kind === "rect") {
       parts.push(
         `<rect x="${X(s.x0)}" y="${Y(s.y0)}" width="${S(s.x1 - s.x0)}" height="${S(s.y1 - s.y0)}" fill="${s.color}"/>`,
