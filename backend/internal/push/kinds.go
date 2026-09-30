@@ -37,3 +37,9 @@ func ValidKind(kind string) bool {
 	}
 	return false
 }
+
+// OptIn reports whether users must enable the kind themselves. Every other kind
+// is on by default and can be switched off; an opt-in kind is off until the user
+// has a reminder_settings row with enabled = true. Currently only KindNewRequest
+// (a push to the whole stable for every new request would be noise by default).
+func OptIn(kind string) bool { return kind == KindNewRequest }
