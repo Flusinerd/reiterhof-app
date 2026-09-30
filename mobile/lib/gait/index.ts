@@ -1,0 +1,13 @@
+export { DEFAULT_CALIBRATION, asymmetryScore, classifyWindow } from "./classify.ts";
+export { learnCalibration } from "./calibration.ts";
+export type { LabeledSegment } from "./calibration.ts";
+export { GaitStream, analyzeWindows, majorityVote } from "./detector.ts";
+export type { DetectorOptions } from "./detector.ts";
+export { FEATURE_ORDER, correctRecords, exportWindows, toJsonLines } from "./export.ts";
+export type { WindowRecord } from "./export.ts";
+export { extractFeatures } from "./features.ts";
+export { fuseWithSpeed, gaitFromSpeed, speedConfidence } from "./fusion.ts";
+export { gaitShares } from "./shares.ts";
+export type { GaitShare, GaitShares, ShareOptions } from "./shares.ts";
+export { GAITS } from "./types.ts";
+export type { Calibration, Classification, Features, Gait, GaitWindow, GpsFix, Sample } from "./types.ts";
