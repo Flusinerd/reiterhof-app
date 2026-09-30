@@ -17,6 +17,7 @@ import (
 	"github.com/Flusinerd/reiterhof-app/backend/internal/health"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/httpapi"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/presence"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/privacy"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/push"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/realtime"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/requests"
@@ -51,6 +52,7 @@ func main() {
 		hub.Run(ctx)
 	}()
 	(&scheduler.Scheduler{Log: log}).Go(ctx, &jobs, presence.StaleJob(pool, log, time.Now))
+	(&scheduler.Scheduler{Log: log}).Go(ctx, &jobs, privacy.Job(pool, log, time.Now))
 	if cfg.WeatherEnabled {
 		weatherSvc := &weather.Service{
 			Pool:      pool,

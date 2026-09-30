@@ -14,6 +14,7 @@ import (
 
 	"github.com/Flusinerd/reiterhof-app/backend/internal/auth"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/httpx"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/privacy"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/realtime"
 )
 
@@ -79,6 +80,19 @@ func (h *handler) checkIn(w http.ResponseWriter, r *http.Request) {
 	if in.Source != SourceManual && in.Source != SourceGeofence {
 		httpx.WriteError(w, http.StatusBadRequest, "validation_failed", "source must be manual or geofence")
 		return
+	}
+	// Geofence check-ins come from background location; without the consent (JAN-19) the
+	// server refuses them even if a device still has the geofence running.
+	if in.Source == SourceGeofence {
+		ok, err := privacy.Has(r.Context(), h.deps.Pool, user.ID, privacy.KindLocationGeofence)
+		if err != nil {
+			h.internal(w, "consent", err)
+			return
+		}
+		if !ok {
+			httpx.WriteError(w, http.StatusForbidden, "consent_required", "geofence check-in needs the location consent")
+			return
+		}
 	}
 	v, _, err := CheckIn(r.Context(), h.deps.Pool, user.StableID, user.ID, in.Source, h.deps.Now())
 	if err != nil {
