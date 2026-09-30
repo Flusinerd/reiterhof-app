@@ -7,6 +7,7 @@ import { useConsentPrompt } from "@/components/consent-prompt";
 import { TrackingMap } from "@/components/tracking-map";
 import { GaitChip, GaitLegend, StatTile, TrackingControls, useLeaveGuard } from "@/components/tracking-parts";
 import { Button, Card, Hero, Screen, SectionLabel, Text } from "@/components/ui";
+import { isWeb } from "@/lib/platform";
 import { formatClock, isActivity, activityLabel } from "@/lib/training";
 import { formatDistance, formatElevation, formatSpeed } from "@/lib/tracking-format";
 import { startFailureText, type StartResult } from "@/lib/tracking-location";
@@ -107,9 +108,17 @@ function GpsRun({
         <Card className="gap-2">
           <Text variant="bodyStrong">Ortung und Gangarten</Text>
           <Text variant="secondary">
-            Stallfunk nutzt dafür deinen Standort, auch wenn der Bildschirm aus ist. Die Gangart erkennt das Telefon an
-            der Bewegung; trage es am besten in der Jackentasche oder am Körper.
+            {isWeb
+              ? "Stallfunk nutzt dafür deinen Standort, solange die Seite geöffnet ist. "
+              : "Stallfunk nutzt dafür deinen Standort, auch wenn der Bildschirm aus ist. "}
+            Die Gangart erkennt das Telefon an der Bewegung; trage es am besten in der Jackentasche oder am Körper.
           </Text>
+          {isWeb ? (
+            <Text variant="secondary" tone="accent">
+              Bildschirm während der Aufzeichnung anlassen. Sperrt das Telefon den Bildschirm, hält die Aufzeichnung an.
+              Mit der App aus dem App Store geht es auch bei gesperrtem Bildschirm.
+            </Text>
+          ) : null}
         </Card>
         {declined ? (
           <Text variant="secondary" tone="danger" accessibilityRole="alert">
@@ -153,7 +162,11 @@ function GpsRun({
       {t.points.length === 0 && !t.paused ? (
         <Text variant="secondary">Warte auf das GPS-Signal. Draußen mit freier Sicht geht es am schnellsten.</Text>
       ) : null}
-      {noBackground ? (
+      {isWeb ? (
+        <Text variant="secondary" tone="accent">
+          Bildschirm während der Aufzeichnung anlassen.
+        </Text>
+      ) : noBackground ? (
         <Text variant="secondary" tone="accent">
           Ohne die Erlaubnis „Immer“ für den Standort wird nur aufgezeichnet, solange die App geöffnet bleibt.
         </Text>

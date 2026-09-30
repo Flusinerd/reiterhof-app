@@ -1,5 +1,3 @@
-import { Accelerometer } from "expo-sensors";
-import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState } from "react-native";
 
@@ -36,6 +34,13 @@ import {
   type TrackState,
 } from "./tracking";
 import { setFixListener, startTracking, stopTracking, type StartResult } from "./tracking-location";
+import {
+  isAccelerometerAvailable,
+  keepScreenAwake,
+  releaseScreenAwake,
+  requestMotionAccess,
+  subscribeAccelerometer,
+} from "./tracking-sensors";
 import { restoreSnapshot, SNAPSHOT_VERSION, type Snapshot } from "./tracking-persist";
 import { clearSnapshot, loadSnapshot, saveFinishExtras, saveSnapshot, takePendingFixes } from "./tracking-store";
 
@@ -115,19 +120,20 @@ export function useTrackingSession(options: TrackingOptions): TrackingSession {
   const allWindows = useCallback(() => [...archived.current, ...stream.current.windows], []);
 
   // --- accelerometer ---------------------------------------------------------------------------
-  const startSensor = useCallback(async () => {
+  // `motion` is the pending motion permission. On web (iOS Safari) it has to be requested inside the
+  // tap that starts the session, before any other await, so `begin` and `resume` pass it in.
+  const startSensor = useCallback(async (motion: Promise<boolean> = requestMotionAccess()) => {
     sensorSub.current?.remove();
     sensorSub.current = null;
     try {
-      const available = await Accelerometer.isAvailableAsync();
+      const available = (await motion) && (await isAccelerometerAvailable());
       setSensorAvailable(available);
       if (!available) return;
-      Accelerometer.setUpdateInterval(20); // 50 Hz
-      sensorSub.current = Accelerometer.addListener(({ x, y, z }) => {
+      sensorSub.current = subscribeAccelerometer(({ x, y, z }) => {
         if (isPaused(stateRef.current)) return;
         const done = stream.current.push({ t: Date.now(), x, y, z });
         if (done.length > 0) setWindowCount(archived.current.length + stream.current.windows.length);
-      });
+      }, 20); // 50 Hz
     } catch {
       setSensorAvailable(false);
     }
@@ -163,9 +169,9 @@ export function useTrackingSession(options: TrackingOptions): TrackingSession {
   }, []);
 
   useEffect(() => {
-    void activateKeepAwakeAsync(KEEP_AWAKE_TAG).catch(() => undefined);
+    void keepScreenAwake(KEEP_AWAKE_TAG).catch(() => undefined);
     return () => {
-      void deactivateKeepAwake(KEEP_AWAKE_TAG).catch(() => undefined);
+      void releaseScreenAwake(KEEP_AWAKE_TAG).catch(() => undefined);
     };
   }, []);
 
@@ -207,6 +213,7 @@ export function useTrackingSession(options: TrackingOptions): TrackingSession {
 
   // --- actions ------------------------------------------------------------------------------------------
   const begin = useCallback(async (): Promise<StartResult> => {
+    const motion = requestMotionAccess(); // first, while the tap that started the session is still fresh
     let result: StartResult = { ok: true, background: false };
     if (mode === "gps") result = await startTracking();
     if (result.ok) {
@@ -217,7 +224,7 @@ export function useTrackingSession(options: TrackingOptions): TrackingSession {
         stream.current = new GaitStream();
       }
       begun.current = true;
-      await startSensor();
+      await startSensor(motion);
       persist();
     }
     return result;
@@ -231,6 +238,7 @@ export function useTrackingSession(options: TrackingOptions): TrackingSession {
   }, [mode, persist, setState, stopSensor]);
 
   const doResume = useCallback(async (): Promise<StartResult | null> => {
+    const motion = requestMotionAccess();
     let result: StartResult | null = null;
     if (mode === "gps") {
       result = await startTracking();
@@ -238,7 +246,7 @@ export function useTrackingSession(options: TrackingOptions): TrackingSession {
     }
     restartStream();
     setState((s) => resume(s, Date.now()));
-    await startSensor();
+    await startSensor(motion);
     begun.current = true;
     persist();
     return result;
