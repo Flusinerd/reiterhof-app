@@ -50,10 +50,10 @@ export function WebPushCard() {
           {webPushReasonMessage(reason)}
         </Text>
       ) : (
-        <Text variant="secondary">Erlaube Mitteilungen in diesem Browser, damit Erinnerungen und Alarme bei dir ankommen.</Text>
+        <Text variant="secondary">Erinnerungen und Alarme brauchen die Erlaubnis dieses Browsers.</Text>
       )}
       {state.kind === "enable" ? (
-        <Button label="Mitteilungen aktivieren" variant="outline" loading={busy} onPress={() => void enable()} />
+        <Button label="Aktivieren" variant="outline" loading={busy} onPress={() => void enable()} />
       ) : null}
     </Card>
   );

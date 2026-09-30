@@ -21,7 +21,7 @@ export function PresenceTile() {
   const summary = !data
     ? "Wird geladen ..."
     : total === 0
-      ? "Gerade ist niemand im Stall"
+      ? "Niemand im Stall"
       : total === 1
         ? "1 Person im Stall"
         : `${total} Personen im Stall`;

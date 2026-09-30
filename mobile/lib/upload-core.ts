@@ -9,16 +9,16 @@ export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 export function uploadErrorMessage(err: unknown): string {
   if (err instanceof ApiError) {
     if (err.status === 413 || err.code === "file_too_large" || err.code === "body_too_large") {
-      return "Die Datei ist zu groß (höchstens 20 MB).";
+      return "Datei zu groß (höchstens 20 MB).";
     }
     if (err.status === 415 || err.code === "unsupported_type") {
-      return "Erlaubt sind Fotos (JPEG, PNG, HEIC, WebP) und PDF-Dateien.";
+      return "Erlaubt sind Fotos (JPEG, PNG, HEIC, WebP) und PDFs.";
     }
     if (err.code === "network") {
-      return "Keine Verbindung zum Server. Bitte prüfe deine Internetverbindung.";
+      return "Keine Verbindung. Versuch es gleich noch mal.";
     }
   }
-  return "Der Upload hat nicht geklappt. Bitte versuche es erneut.";
+  return "Upload fehlgeschlagen. Versuch es noch mal.";
 }
 
 /** Absolute URL for a path returned by the API ("/api/v1/files/..."). */

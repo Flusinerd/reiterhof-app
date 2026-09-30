@@ -63,11 +63,11 @@ export default function PrivacySettings() {
 
   function confirmDelete() {
     Alert.alert(
-      "Konto endgültig löschen?",
-      "Dein Name, deine E-Mail-Adresse und deine Anwesenheiten werden gelöscht. Einträge, die für die Pferde wichtig bleiben, bleiben ohne deinen Namen erhalten. Das kann nicht rückgängig gemacht werden.",
+      "Konto löschen?",
+      "Name, E-Mail-Adresse und Anwesenheiten werden gelöscht. Einträge, die für die Pferde wichtig sind, bleiben ohne deinen Namen erhalten. Das lässt sich nicht rückgängig machen.",
       [
         { text: "Abbrechen", style: "cancel" },
-        { text: "Konto löschen", style: "destructive", onPress: () => void deleteAccount() },
+        { text: "Löschen", style: "destructive", onPress: () => void deleteAccount() },
       ],
     );
   }
@@ -87,11 +87,7 @@ export default function PrivacySettings() {
 
   return (
     <Screen back>
-      <Hero
-        eyebrow="Einstellungen"
-        title="Datenschutz"
-        description="Hier entscheidest du, was die App von dir nutzen darf. Du kannst jede Erlaubnis jederzeit zurücknehmen."
-      />
+      <Hero title="Datenschutz" description="Jede Erlaubnis kannst du jederzeit zurücknehmen." />
 
       {error ? (
         <Text variant="bodySm" tone="danger" accessibilityRole="alert">
@@ -124,7 +120,7 @@ export default function PrivacySettings() {
                 onValueChange={(on) => void toggle(item.kind, on)}
               />
               {item.granted && !item.up_to_date ? (
-                <Text variant="caption">Der Datenschutztext hat sich geändert. Schalte kurz aus und wieder ein, um zuzustimmen.</Text>
+                <Text variant="caption">Datenschutztext geändert. Zum Zustimmen aus- und wieder einschalten.</Text>
               ) : null}
             </View>
           ))
@@ -133,8 +129,8 @@ export default function PrivacySettings() {
 
       <SectionLabel>Deine Daten</SectionLabel>
       <Card className="gap-3">
-        <Text variant="body">Lade alle Daten herunter, die die App über dich gespeichert hat. Du bekommst eine Datei im JSON-Format.</Text>
-        <Button label="Meine Daten herunterladen" icon={Download} variant="outline" fullWidth loading={exporting} onPress={() => void exportData()} />
+        <Text variant="body">Alle über dich gespeicherten Daten als JSON-Datei.</Text>
+        <Button label="Daten exportieren" icon={Download} variant="outline" fullWidth loading={exporting} onPress={() => void exportData()} />
       </Card>
 
       <SectionLabel>Rechtliches</SectionLabel>
@@ -153,7 +149,7 @@ export default function PrivacySettings() {
       <SectionLabel>Konto</SectionLabel>
       <Card className="gap-3">
         <Text variant="body">
-          Beim Löschen werden dein Name, deine E-Mail-Adresse und deine Anwesenheiten entfernt. Besitzt du noch Pferde, übergib sie vorher an ein anderes Mitglied.
+          Löscht Name, E-Mail-Adresse und Anwesenheiten. Übergib deine Pferde vorher an ein anderes Mitglied.
         </Text>
         <Button label="Konto löschen" icon={Trash2} variant="danger" fullWidth loading={deleting} onPress={confirmDelete} />
       </Card>

@@ -35,30 +35,30 @@ export function errorMessage(err: unknown): string {
   if (err instanceof ApiError) {
     switch (err.code) {
       case "network":
-        return "Keine Verbindung zum Server. Bitte prüfe deine Internetverbindung.";
+        return "Keine Verbindung. Versuch es gleich noch mal.";
       case "rate_limited":
-        return "Zu viele Versuche. Bitte warte kurz und versuche es später erneut.";
+        return "Zu viele Versuche. Warte kurz.";
       case "invalid_token":
-        return "Der Link ist ungültig, abgelaufen oder wurde schon verwendet. Fordere einen neuen an.";
+        return "Link ungültig, abgelaufen oder schon benutzt. Fordere einen neuen an.";
       case "invalid_code":
-        return "Der Code ist ungültig, abgelaufen oder aufgebraucht.";
+        return "Code ungültig, abgelaufen oder aufgebraucht.";
       case "already_in_stable":
-        return "Du gehörst bereits zu einem Stall.";
+        return "Du bist schon in einem Stall.";
       case "email_not_verified":
-        return "Die E-Mail-Adresse deines Kontos ist nicht bestätigt.";
+        return "E-Mail-Adresse nicht bestätigt.";
       case "not_configured":
         return "Diese Anmeldung ist noch nicht eingerichtet.";
       case "consent_required":
-        return "Dafür fehlt deine Einwilligung. Du kannst sie unter Einstellungen und Datenschutz erteilen.";
+        return "Dafür fehlt deine Einwilligung. Erteile sie unter Einstellungen > Datenschutz.";
       case "validation_failed":
-        return "Bitte prüfe deine Eingabe.";
+        return "Bitte Eingabe prüfen.";
       case "unauthorized":
         return "Bitte melde dich an.";
       default:
-        return "Etwas ist schiefgelaufen. Bitte versuche es erneut.";
+        return "Etwas ist schiefgelaufen. Versuch es noch mal.";
     }
   }
-  return "Etwas ist schiefgelaufen. Bitte versuche es erneut.";
+  return "Etwas ist schiefgelaufen. Versuch es noch mal.";
 }
 
 export type ClientOptions = {

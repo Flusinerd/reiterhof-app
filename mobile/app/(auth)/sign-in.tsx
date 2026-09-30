@@ -17,7 +17,7 @@ export default function SignIn() {
   async function sendLink() {
     const normalized = normalizeEmail(email);
     if (!normalized) {
-      setError("Bitte gib eine gültige E-Mail-Adresse ein.");
+      setError("Ungültige E-Mail-Adresse.");
       return;
     }
     setError(null);
@@ -39,13 +39,9 @@ export default function SignIn() {
         accessibilityLabel="Stallfunk"
         style={{ width: 64, height: 64, borderRadius: 16 }}
       />
-      <Hero
-        eyebrow="Stallfunk"
-        title="Willkommen"
-        description="Melde dich ohne Passwort an. Wir schicken dir einen Code und einen Link per E-Mail."
-      />
+      <Hero title="Anmelden" description="Ohne Passwort, per Code aus der E-Mail." />
 
-      <SectionLabel>Mit E-Mail</SectionLabel>
+      <SectionLabel>E-Mail</SectionLabel>
       <Card className="gap-3">
         <Input
           value={email}
@@ -60,7 +56,7 @@ export default function SignIn() {
           returnKeyType="send"
           onSubmitEditing={sendLink}
         />
-        <Button label="Link senden" fullWidth loading={busy} onPress={sendLink} />
+        <Button label="Code senden" fullWidth loading={busy} onPress={sendLink} />
       </Card>
 
       <SectionLabel>Oder</SectionLabel>

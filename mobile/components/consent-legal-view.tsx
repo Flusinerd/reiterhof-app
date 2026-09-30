@@ -64,7 +64,7 @@ export function LegalScreen({ markdown, eyebrow, version }: { markdown: string; 
   const rest = first?.type === "heading" ? blocks.slice(1) : blocks;
   return (
     <Screen back>
-      <Hero eyebrow={eyebrow} title={title} description={`Textversion ${version}`} />
+      <Hero title={title} description={`Version ${version}`} />
       <Card className="gap-3">
         {rest.map((block, i) => (
           <BlockView key={i} block={block} />

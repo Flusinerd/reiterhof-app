@@ -82,11 +82,7 @@ export default function Settings() {
 
   return (
     <Screen back>
-      <Hero
-        eyebrow="Stallfunk"
-        title="Einstellungen"
-        description="Was dich erinnert, wann der Stall ans Decken denkt und wer dich im Stall sieht."
-      />
+      <Hero title="Einstellungen" />
 
       {error ? (
         <Text variant="bodySm" tone="danger" accessibilityRole="alert">
@@ -100,13 +96,13 @@ export default function Settings() {
           <View className="flex-row items-center gap-3">
             <Icon as={BellOff} size={20} className="text-accent-text" />
             <Text variant="bodyStrong" className="flex-1">
-              Mitteilungen sind ausgeschaltet
+              Mitteilungen sind aus
             </Text>
           </View>
           <Text variant="secondary">
-            Ohne deine Erlaubnis schickt die App keine Mitteilungen, egal was du unten einstellst. Die Erinnerungen findest du trotzdem in der Übersicht.
+            Ohne deine Erlaubnis kommen keine Mitteilungen, egal was du unten einstellst. Erinnerungen siehst du trotzdem in der Übersicht.
           </Text>
-          <Button label="Mitteilungen erlauben" variant="outline" onPress={() => void allowPush()} />
+          <Button label="Erlauben" variant="outline" onPress={() => void allowPush()} />
         </Card>
       ) : null}
       <WebPushCard />
@@ -157,8 +153,8 @@ export default function Settings() {
       >
         <Icon as={ShieldCheck} size={20} className="text-muted" />
         <View className="flex-1">
-          <Text variant="bodyStrong">Datenschutz und Einwilligungen</Text>
-          <Text variant="secondary">Erlaubnisse, Datenexport und Konto löschen</Text>
+          <Text variant="bodyStrong">Datenschutz</Text>
+          <Text variant="secondary">Erlaubnisse, Datenexport, Konto löschen</Text>
         </View>
         <Icon as={ChevronRight} size={20} className="text-muted" />
       </PressableCard>

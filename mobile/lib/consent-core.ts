@@ -44,58 +44,58 @@ export type ConsentCopy = {
 export const CONSENT_COPY: Record<ConsentKind, ConsentCopy> = {
   location_geofence: {
     label: "Automatisch im Stall anmelden",
-    title: "Standort für „Automatisch erkennen“ nutzen?",
-    summary: "Die App meldet dich an und ab, wenn du den Stall erreichst oder verlässt.",
+    title: "Automatisch im Stall anmelden?",
+    summary: "Die App meldet dich an und ab, wenn du im Stall ankommst oder gehst.",
     points: [
-      "Dein Handy überwacht einen Bereich um den Stall, auch wenn die App geschlossen ist (Standort „Immer“).",
+      "Dein Handy überwacht einen Bereich um den Stall, auch bei geschlossener App (Standort „Immer“).",
       "Dein Standort bleibt auf dem Handy. Der Server erfährt nur „angekommen“ und „gegangen“.",
       "Du kannst das jederzeit ausschalten.",
     ],
-    declined: "Ohne Erlaubnis meldest du dich von Hand mit „Bin da“ an.",
+    declined: "Ohne Erlaubnis meldest du dich mit „Bin da“ selbst an.",
     accept: "Erlauben",
   },
   location_tracking: {
     label: "Strecke beim Reiten aufzeichnen",
     title: "Deine Strecke beim Reiten aufzeichnen?",
-    summary: "Die App misst Strecke und Gangarten, während du reitest.",
+    summary: "Die App misst Strecke und Gangarten beim Reiten.",
     points: [
-      "Nur solange du die Aufzeichnung startest, werden Positionspunkte gespeichert.",
-      "Sie gehören zur Trainingseinheit. Sehen können sie der Besitzer, die Reitbeteiligungen des Pferdes und Admins.",
-      "Die Positionspunkte werden nach 12 Monaten gelöscht. Dauer und Strecke bleiben.",
+      "Positionspunkte werden nur gespeichert, solange die Aufzeichnung läuft.",
+      "Sie gehören zur Einheit. Sehen können sie Besitzer, Reitbeteiligungen des Pferdes und Admins.",
+      "Nach 12 Monaten werden sie gelöscht. Dauer und Strecke bleiben.",
     ],
-    declined: "Ohne Erlaubnis kannst du Einheiten weiterhin von Hand eintragen.",
+    declined: "Ohne Erlaubnis trägst du Einheiten von Hand ein.",
     accept: "Erlauben",
   },
   presence_sharing: {
     label: "Anwesenheit zeigen",
     title: "Zeigen, wenn du im Stall bist?",
-    summary: "Andere sehen, ob du da bist und wann du zuletzt da warst.",
+    summary: "Andere sehen, ob und wann du im Stall bist.",
     points: [
-      "Was genau andere sehen, bestimmst du mit „Wer sieht mich?“: alle Angaben, nur den Tag oder nichts.",
+      "Was andere sehen, bestimmst du mit „Wer sieht mich?“: alles, nur den Tag oder nichts.",
       "Besuche werden nach 12 Monaten gelöscht.",
     ],
-    declined: "Ohne Erlaubnis bleibst du für andere unsichtbar.",
+    declined: "Ohne Erlaubnis bist du für andere unsichtbar.",
     accept: "Erlauben",
   },
   photos: {
     label: "Fotos und Kamera",
     title: "Kamera und Fotos nutzen?",
-    summary: "Du kannst Fotos aufnehmen oder auswählen, zum Beispiel für Pferdeakte und Auffälligkeiten.",
+    summary: "Fotos aufnehmen oder auswählen, z. B. für Pferdeakte und Auffälligkeiten.",
     points: [
-      "Hochgeladene Fotos liegen auf dem Server in Deutschland und sind für Mitglieder deines Stalls abrufbar. Dokumente sehen nur Besitzer, Reitbeteiligungen und Admins.",
-      "Fotos können Metadaten wie den Aufnahmeort enthalten. Fotografiere keine Personen ohne ihr Einverständnis.",
+      "Fotos liegen auf einem Server in Deutschland und sind für Mitglieder deines Stalls abrufbar. Dokumente sehen nur Besitzer, Reitbeteiligungen und Admins.",
+      "Fotos können Metadaten wie den Aufnahmeort enthalten. Fotografiere niemanden ohne Einverständnis.",
     ],
-    declined: "Ohne Erlaubnis kannst du keine Fotos oder Dokumente hochladen.",
+    declined: "Ohne Erlaubnis keine Foto- oder Dokument-Uploads.",
     accept: "Erlauben",
   },
   push: {
     label: "Benachrichtigungen",
     title: "Benachrichtigungen erhalten?",
-    summary: "Die App erinnert dich an Termine, neue Anfragen und Deckenwechsel.",
+    summary: "Erinnerungen an Termine, neue Anfragen und Deckenwechsel.",
     points: [
-      "Dein Handy sendet dafür einen Geräte-Schlüssel (Push-Token) an den Server.",
-      "Nachrichten laufen über die Push-Dienste von Expo, Apple und Google (in der Web-App über den Push-Dienst deines Browsers).",
-      "Einzelne Erinnerungen kannst du später abschalten.",
+      "Dein Handy sendet einen Geräte-Schlüssel (Push-Token) an den Server.",
+      "Nachrichten laufen über die Push-Dienste von Expo, Apple und Google (in der Web-App über deinen Browser).",
+      "Einzelne Erinnerungen kannst du abschalten.",
     ],
     declined: "Ohne Erlaubnis bekommst du keine Benachrichtigungen.",
     accept: "Erlauben",
@@ -135,9 +135,9 @@ export function orderedConsents(items: readonly ConsentItem[] | undefined): Cons
 export function deleteBlockedMessage(code: string): string | null {
   switch (code) {
     case "owns_horses":
-      return "Du bist noch als Besitzer eines Pferdes eingetragen. Übergib das Pferd an ein anderes Mitglied (ein Admin kann den Besitzer ändern) oder lass es löschen. Danach kannst du dein Konto löschen.";
+      return "Du bist noch Besitzer eines Pferdes. Übergib es an ein anderes Mitglied (Admins können den Besitzer ändern) oder lass es löschen.";
     case "last_admin":
-      return "Du bist der letzte Admin deines Stalls. Ernenne zuerst einen anderen Admin, danach kannst du dein Konto löschen.";
+      return "Du bist der letzte Admin. Ernenne zuerst einen anderen Admin.";
     default:
       return null;
   }
@@ -146,7 +146,7 @@ export function deleteBlockedMessage(code: string): string | null {
 /** German text for a refused consent change; null for other codes. */
 export function consentErrorMessage(code: string): string | null {
   return code === "version_mismatch"
-    ? "Der Datenschutztext wurde geändert. Bitte aktualisiere die App und versuche es erneut."
+    ? "Datenschutztext geändert. Aktualisiere die App und versuch es noch mal."
     : null;
 }
 

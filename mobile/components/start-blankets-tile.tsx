@@ -46,7 +46,7 @@ export function StartBlanketsTile({ today, mineIds }: { today: Today | undefined
         {openMine.length > 0 ? (
           <View className="flex-row flex-wrap gap-2">
             {openMine.map((h) => (
-              <Badge key={h.horse.id} variant="accent" label={`${h.horse.name} ist noch offen`} />
+              <Badge key={h.horse.id} variant="accent" label={`${h.horse.name} offen`} />
             ))}
           </View>
         ) : null}
