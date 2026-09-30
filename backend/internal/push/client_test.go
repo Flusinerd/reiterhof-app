@@ -187,10 +187,10 @@ func TestFakeSender(t *testing.T) {
 }
 
 func TestValidKind(t *testing.T) {
-	if len(Kinds()) != 9 {
+	if len(Kinds()) != 10 {
 		t.Errorf("kinds = %d", len(Kinds()))
 	}
-	if !ValidKind(KindNewRequest) || ValidKind("nope") {
+	if !ValidKind(KindNewRequest) || !ValidKind(KindObservation) || ValidKind("nope") {
 		t.Error("ValidKind wrong")
 	}
 }

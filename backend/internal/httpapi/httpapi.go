@@ -13,6 +13,7 @@ import (
 	"github.com/Flusinerd/reiterhof-app/backend/internal/health"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/horses"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/httpx"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/observations"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/presence"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/realtime"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/requests"
@@ -33,6 +34,7 @@ var registrations = []func(mux *http.ServeMux, deps Deps){
 	files.Register,
 	health.Register,
 	horses.Register,
+	observations.Register,
 	trainingapi.Register,
 }
 

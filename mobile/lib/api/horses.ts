@@ -86,6 +86,8 @@ export type HealthItem = {
   daily_time: string | null;
   /** Negative when overdue. */
   days_until_due: number | null;
+  /** Other horses with the same kind of appointment due about now (JAN-54); absent if none. */
+  bundle?: { kind: string; count: number; horses: { id: string; name: string }[] };
 };
 
 export type HealthResponse = {

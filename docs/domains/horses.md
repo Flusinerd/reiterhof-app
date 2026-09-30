@@ -48,7 +48,7 @@ A rider may only do what is on the list. Owners and admins always may everything
 | `ride` | may ride the horse (from the seed data) |
 | `groom` | may groom and care for the horse (from the seed data) |
 | `log_sessions` | may log training sessions |
-| `report_observations` | may report observations (Auffälligkeiten) |
+| `report_observations` | may report observations (Auffälligkeiten); not enforced, every member may report, see [observations.md](observations.md) |
 | `take_week_slots` | may take slots in the week plan |
 | `hack_alone` | may hack out alone |
 | `shows` | may ride the horse at shows |
@@ -121,8 +121,8 @@ Shared storage for photos and documents; see also "Files" in `architecture.md`.
 ## App
 
 - Tab "Pferde": hero with the number of horses, "Meine Pferde", "Ich reite", then the rest, button "Pferd anlegen".
-- Horse record `/horses/[id]`: header, emergency card preview, four health tiles, "Auffälligkeiten" (placeholder
-  `components/horse-observations.tsx`, the extension point for the observations feature), riders with rule
+- Horse record `/horses/[id]`: header, emergency card preview, four health tiles, "Auffälligkeiten" (`components/horse-observations.tsx`,
+  see [observations.md](observations.md)), riders with rule
   toggles (owner/admin), documents, links "Trainingsprofil", "Deckenplan", "Reha"
   (`horseRoutes` in `lib/horse-format.ts`).
 - Sub screens: `emergency` (tap to call), `health` (due list, add/edit sheet, "Erledigt"), `documents`

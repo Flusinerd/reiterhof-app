@@ -57,6 +57,9 @@ type Item struct {
 	DailyTime    *string `json:"daily_time"` // HH:MM, for daily medication
 	// DaysUntilDue is negative when overdue; null without a due date.
 	DaysUntilDue *int `json:"days_until_due"`
+	// Bundle is set by GET /horses/{id}/health for vet, vaccination and dentist items due within
+	// 14 days when other horses have the same kind due about then (JAN-54); absent otherwise.
+	Bundle *Bundle `json:"bundle,omitempty"`
 }
 
 // Response is the body of GET /horses/{id}/health.
@@ -185,6 +188,10 @@ func (h *handler) list(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := rows.Err(); err != nil {
 		h.fail(w, "list", err)
+		return
+	}
+	if err := h.annotateBundles(r.Context(), user.StableID, horseID, today, resp.Items); err != nil {
+		h.fail(w, "bundles", err)
 		return
 	}
 	for i := range resp.Items {

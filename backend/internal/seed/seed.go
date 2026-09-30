@@ -27,6 +27,9 @@ func Run(ctx context.Context, pool *pgxpool.Pool) error {
 	if err := insertTraining(ctx, tx, time.Now()); err != nil {
 		return err
 	}
+	if err := insertObservations(ctx, tx, time.Now()); err != nil {
+		return err
+	}
 	return tx.Commit(ctx)
 }
 

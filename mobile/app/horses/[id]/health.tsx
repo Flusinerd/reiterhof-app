@@ -1,11 +1,11 @@
 import { router, useLocalSearchParams, type Href } from "expo-router";
-import { Check, HandHelping, Plus } from "lucide-react-native";
+import { Check, HandHelping, Layers, Plus } from "lucide-react-native";
 import { useState } from "react";
 import { Alert, View } from "react-native";
 
 import { HorseHealthSheet } from "@/components/horse-health-sheet";
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
-import { Badge, Button, Card, Hero, PressableCard, Screen, SectionLabel, Text } from "@/components/ui";
+import { Badge, Button, Card, Hero, Icon, PressableCard, Screen, SectionLabel, Text } from "@/components/ui";
 import { errorMessage } from "@/lib/api";
 import { horsesApi, useHealth, useHorse, useHorseMutation, type HealthInput, type HealthItem } from "@/lib/api/horses";
 import {
@@ -15,6 +15,7 @@ import {
   formatDate,
   healthKindLabel,
 } from "@/lib/horse-format";
+import { bundleText, horseNamesText } from "@/lib/observations";
 
 const badgeVariant = { none: "neutral", overdue: "danger", soon: "accent", ok: "primary" } as const;
 
@@ -121,6 +122,17 @@ export default function Health() {
                   ) : null}
                 </View>
                 {item.note ? <Text variant="bodySm">{item.note}</Text> : null}
+                {item.bundle ? (
+                  <View className="flex-row items-start gap-3 rounded-tile bg-info-soft p-3">
+                    <Icon as={Layers} size={20} className="text-info" />
+                    <View className="flex-1 gap-1">
+                      <Text variant="bodySm" tone="info">
+                        {bundleText(item.bundle.count)}
+                      </Text>
+                      <Text variant="caption">{horseNamesText(item.bundle.horses.map((x) => x.name))}</Text>
+                    </View>
+                  </View>
+                ) : null}
                 {canManage || item.kind === "farrier" ? (
                   <View className="flex-row flex-wrap gap-2">
                     {canManage && (item.due_date || item.interval_days) ? (
