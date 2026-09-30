@@ -24,6 +24,9 @@ func Run(ctx context.Context, pool *pgxpool.Pool) error {
 	if err := insertHorseCare(ctx, tx); err != nil {
 		return err
 	}
+	if err := insertBlankets(ctx, tx); err != nil {
+		return err
+	}
 	if err := insertTraining(ctx, tx, time.Now()); err != nil {
 		return err
 	}

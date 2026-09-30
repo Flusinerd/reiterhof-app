@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Flusinerd/reiterhof-app/backend/internal/auth"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/blankets"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/devices"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/files"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/health"
@@ -29,6 +30,7 @@ type Deps = httpx.Deps
 // Add one line per domain, e.g. horses.Register.
 var registrations = []func(mux *http.ServeMux, deps Deps){
 	auth.Register,
+	blankets.Register,
 	devices.Register,
 	presence.Register,
 	privacy.Register,
