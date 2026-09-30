@@ -107,5 +107,7 @@ export function createClient(options: ClientOptions) {
     post: <T>(path: string, body?: unknown) => request<T>("POST", path, body ?? {}),
     patch: <T>(path: string, body: unknown) => request<T>("PATCH", path, body),
     put: <T>(path: string, body: unknown) => request<T>("PUT", path, body),
+    /** DELETE with an optional JSON body (e.g. `DELETE /me/web-push-subscriptions`). */
+    delete: <T>(path: string, body?: unknown) => request<T>("DELETE", path, body),
   };
 }

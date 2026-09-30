@@ -1,12 +1,14 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useCallback, useRef, useState, type ReactElement } from "react";
-import { View } from "react-native";
+import { Platform, View } from "react-native";
 
 import { Button, Sheet, Text } from "@/components/ui";
 import { CONSENTS_KEY, privacyApi } from "@/lib/api/privacy";
 import { ApiError, errorMessage } from "@/lib/api";
 import { CONSENT_COPY, consentErrorMessage, needsPrompt, type ConsentKind } from "@/lib/consent-core";
+import { enableWebPush } from "@/lib/webpush";
+import { isBlockingReason, webPushReasonMessage } from "@/lib/webpush-core";
 
 export type ConsentSheetProps = {
   /** The consent to explain; `null` keeps the sheet closed. */
@@ -40,6 +42,15 @@ export function ConsentSheet({ kind, onDone }: ConsentSheetProps) {
     setBusy(true);
     setError(null);
     try {
+      if (kind === "push" && Platform.OS === "web") {
+        // The browser permission prompt needs this tap (iOS insists), so ask before anything is awaited.
+        // Without support (iOS tab not yet on the home screen) no consent is recorded: "Erlauben" cannot work yet.
+        const result = await enableWebPush();
+        if (!result.ok && isBlockingReason(result.reason)) {
+          setError(webPushReasonMessage(result.reason));
+          return;
+        }
+      }
       await privacyApi.setConsent(kind, true);
       await queryClient.invalidateQueries({ queryKey: CONSENTS_KEY });
       finish(true);
