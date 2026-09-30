@@ -45,6 +45,7 @@ type Service struct {
 	google  *Verifier
 	apple   *Verifier
 	limiter *limiter
+	codeKey []byte // HMAC key for stored login codes
 }
 
 // NewService builds the service; missing options default from deps.Config.Auth.
@@ -54,6 +55,7 @@ func NewService(deps httpx.Deps, opts Options) *Service {
 	}
 	s := &Service{deps: deps, mailer: opts.Mailer, google: opts.Google, apple: opts.Apple, limiter: newLimiter()}
 	cfg := deps.Config.Auth
+	s.codeKey = loginCodeKey(cfg.LoginCodeKey, deps.Log)
 	if s.mailer == nil {
 		s.mailer = NewMailer(cfg, deps.Log)
 	}
@@ -75,6 +77,7 @@ func Register(mux *http.ServeMux, deps httpx.Deps) {
 func (s *Service) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/auth/magic-link", s.magicLink)
 	mux.HandleFunc("POST /api/v1/auth/verify", s.verify)
+	mux.HandleFunc("POST /api/v1/auth/verify-code", s.verifyCode)
 	mux.HandleFunc("POST /api/v1/auth/google", s.social("google"))
 	mux.HandleFunc("POST /api/v1/auth/apple", s.social("apple"))
 	mux.HandleFunc("POST /api/v1/auth/dev-login", s.devLogin)
@@ -150,26 +153,50 @@ func (s *Service) magicLink(w http.ResponseWriter, r *http.Request) {
 	// Housekeeping: drop long-dead tokens and sessions.
 	_, _ = s.deps.Pool.Exec(r.Context(), `DELETE FROM login_tokens WHERE expires_at < $1`, now.Add(-24*time.Hour))
 	_, _ = s.deps.Pool.Exec(r.Context(), `DELETE FROM auth_sessions WHERE expires_at < $1`, now)
-	if _, err := s.deps.Pool.Exec(r.Context(),
-		`INSERT INTO login_tokens (token_hash, email, expires_at) VALUES ($1, $2, $3)`,
-		hash, email, now.Add(loginTokenTTL)); err != nil {
+	code, err := newLoginCode()
+	if err != nil {
+		s.internal(w, "generate login code", err)
+		return
+	}
+	if err := s.storeLoginAttempt(r.Context(), email, hash, hashLoginCode(s.codeKey, email, code), now); err != nil {
 		s.internal(w, "store login token", err)
 		return
 	}
 	appURL := appScheme + "://auth/verify?token=" + url.QueryEscape(token)
-	body := "Hallo!\n\nTippe auf diesen Link, um dich bei Stallfunk anzumelden:\n\n" + appURL + "\n"
+	body := "Hallo!\n\nDein Anmeldecode für Stallfunk:\n\n" + formatLoginCode(code) + "\n\n" +
+		"Gib ihn in der App ein. Oder tippe auf diesen Link, um dich direkt anzumelden:\n\n" + appURL + "\n"
 	if base := s.deps.Config.Auth.PublicURL; base != "" {
 		body += "\nFalls sich die App nicht öffnet, nutze diesen Link auf dem Gerät mit der App:\n\n" +
 			base + "/auth/verify?token=" + url.QueryEscape(token) + "\n"
 	}
-	body += "\nDer Link ist 15 Minuten gültig und nur einmal verwendbar. Wenn du dich nicht anmelden wolltest, ignoriere diese E-Mail.\n"
-	if err := s.mailer.Send(r.Context(), Message{To: email, Subject: "Dein Anmeldelink für Stallfunk", Body: body}); err != nil {
+	body += "\nCode und Link sind 15 Minuten gültig und nur einmal verwendbar. Wenn du dich nicht anmelden wolltest, ignoriere diese E-Mail.\n"
+	if err := s.mailer.Send(r.Context(), Message{To: email, Subject: "Dein Anmeldecode für Stallfunk: " + code, Body: body}); err != nil {
 		// Still 204: the response must not depend on delivery or on the address.
 		if s.deps.Log != nil {
 			s.deps.Log.Error("auth: send login mail", "err", err)
 		}
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// storeLoginAttempt records a new login attempt (link hash plus code hash) and revokes the
+// codes of older attempts for the same email, so only the newest mail's code works. The
+// older links stay valid until they expire.
+func (s *Service) storeLoginAttempt(ctx context.Context, email string, tokenHash, codeHash []byte, now time.Time) error {
+	tx, err := s.deps.Pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck // rollback after commit is a no-op
+	if _, err := tx.Exec(ctx, `UPDATE login_tokens SET code_hash = NULL WHERE email = $1 AND code_hash IS NOT NULL`, email); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx,
+		`INSERT INTO login_tokens (token_hash, email, code_hash, expires_at) VALUES ($1, $2, $3, $4)`,
+		tokenHash, email, codeHash, now.Add(loginTokenTTL)); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 func (s *Service) verify(w http.ResponseWriter, r *http.Request) {

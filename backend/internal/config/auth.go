@@ -19,6 +19,10 @@ type Auth struct {
 	// AppleClientIDs are the accepted "aud" values of Apple ID tokens
 	// (REITERHOF_APPLE_CLIENT_IDS, comma separated; the iOS bundle ID for native sign-in).
 	AppleClientIDs []string
+	// LoginCodeKey is the secret key (REITERHOF_LOGIN_CODE_KEY) for the HMAC that protects the
+	// stored 6-digit login codes. Without it a random key is generated per process start, so
+	// codes requested before a restart stop working (the links keep working).
+	LoginCodeKey string
 	// SMTP settings for the magic-link mail. With SMTPHost empty the link is only logged.
 	SMTPHost     string // REITERHOF_SMTP_HOST
 	SMTPPort     int    // REITERHOF_SMTP_PORT, default 587
@@ -37,6 +41,7 @@ func authFromEnv() Auth {
 		DevLogin:        os.Getenv("REITERHOF_DEV_LOGIN") == "true",
 		GoogleClientIDs: splitList(os.Getenv("REITERHOF_GOOGLE_CLIENT_IDS")),
 		AppleClientIDs:  splitList(os.Getenv("REITERHOF_APPLE_CLIENT_IDS")),
+		LoginCodeKey:    os.Getenv("REITERHOF_LOGIN_CODE_KEY"),
 		SMTPHost:        os.Getenv("REITERHOF_SMTP_HOST"),
 		SMTPPort:        port,
 		SMTPUser:        os.Getenv("REITERHOF_SMTP_USER"),
