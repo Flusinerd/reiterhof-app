@@ -147,8 +147,10 @@ stable's timezone, so DST weeks still have seven days.
   days the model left out come from the rules.
 - **Response:** `{horse_id, start, end, source: ai|rules, ai_status, owner_is_me, days: [{date, weekday, activity
   (or rest), label, minutes, intensity, intensity_label, reason, note, source, replaced, user}]}`. `ai_status`:
-  `used`, `not_configured`, `no_consent`, `owner_under_16`, `limit` (HTTP 429: free credits or rate limit), `failed` (error, timeout
-  40 s, unusable answer), `nothing_to_plan`. Failures are logged without content and fall back to the rules.
+  `used`, `not_configured`, `no_consent`, `owner_under_16`, `limit` (HTTP 429: free credits, rate or capacity limit; the client retries once after
+  `Retry-After`, at most 5 s), `failed` (error, timeout 40 s, unusable answer), `nothing_to_plan`. Failures fall back to
+  the rules and are logged without content: status plus Mistral's error type, code and (for 401/402/403/429/5xx)
+  its own message, e.g. `journalctl -u reiterhof-api | grep "week plan"`.
 - **App:** "Woche planen" in `app/training/week.tsx` (only with `can_edit`), `components/training-plan-sheet.tsx`
   shows the days with the badge "KI-Vorschlag" or "Regel"; "Übernehmen" stores each day with
   `PUT /week/{day}` (`planned` with activity and the claimed user, or `rest`; a rest day proposed for a claimed day

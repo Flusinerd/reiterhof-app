@@ -16,6 +16,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -103,35 +104,25 @@ func (c *Client) CompleteJSON(ctx context.Context, system, user string) (string,
 	if err != nil {
 		return "", err
 	}
-	url := c.URL
-	if url == "" {
-		url = DefaultURL
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	raw, err := c.post(ctx, body)
 	if err != nil {
-		return "", err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Authorization", "Bearer "+c.APIKey)
-	hc := c.HTTPClient
-	if hc == nil {
-		hc = &http.Client{Timeout: 30 * time.Second}
-	}
-	resp, err := hc.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("mistral: request failed: %w", err)
-	}
-	defer resp.Body.Close()
-	raw, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if err != nil {
-		return "", fmt.Errorf("mistral: read answer: %w", err)
-	}
-	switch {
-	case resp.StatusCode == http.StatusTooManyRequests:
-		return "", ErrLimit
-	case resp.StatusCode != http.StatusOK:
-		return "", fmt.Errorf("mistral: HTTP %d", resp.StatusCode)
+		var apiErr *APIError
+		if !errors.As(err, &apiErr) || apiErr.Status != http.StatusTooManyRequests {
+			return "", err
+		}
+		// 429 is often a short capacity or rate limit of the free tier: wait and try once more.
+		wait := apiErr.RetryAfter
+		if wait <= 0 || wait > maxRetryWait {
+			wait = defaultRetryWait
+		}
+		select {
+		case <-ctx.Done():
+			return "", err
+		case <-time.After(wait):
+		}
+		if raw, err = c.post(ctx, body); err != nil {
+			return "", err
+		}
 	}
 	var out struct {
 		Choices []struct {
@@ -153,6 +144,103 @@ func (c *Client) CompleteJSON(ctx context.Context, system, user string) (string,
 		return "", errors.New("mistral: empty answer")
 	}
 	return text, nil
+}
+
+// Retry after HTTP 429.
+const (
+	defaultRetryWait = 2 * time.Second
+	maxRetryWait     = 5 * time.Second
+)
+
+// APIError is a non-200 answer of the API. Type, Code and Message come from Mistral's error
+// body; Message is kept only for statuses whose text Mistral writes itself (401, 402, 403,
+// 429, 5xx), not for validation errors (400, 422), which could quote the request.
+type APIError struct {
+	Status     int
+	Type       string
+	Code       string
+	Message    string
+	RetryAfter time.Duration
+}
+
+func (e *APIError) Error() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "mistral: HTTP %d", e.Status)
+	if e.Type != "" || e.Code != "" {
+		fmt.Fprintf(&b, " (type %q, code %q)", e.Type, e.Code)
+	}
+	if e.Message != "" {
+		b.WriteString(": " + e.Message)
+	}
+	return b.String()
+}
+
+// Is makes errors.Is(err, ErrLimit) true for HTTP 429.
+func (e *APIError) Is(target error) bool {
+	return target == ErrLimit && e.Status == http.StatusTooManyRequests
+}
+
+// post sends one request and returns the body of a 200 answer or an *APIError.
+func (c *Client) post(ctx context.Context, body []byte) ([]byte, error) {
+	url := c.URL
+	if url == "" {
+		url = DefaultURL
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Authorization", "Bearer "+c.APIKey)
+	hc := c.HTTPClient
+	if hc == nil {
+		hc = &http.Client{Timeout: 30 * time.Second}
+	}
+	resp, err := hc.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("mistral: request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return nil, fmt.Errorf("mistral: read answer: %w", err)
+	}
+	if resp.StatusCode == http.StatusOK {
+		return raw, nil
+	}
+	e := &APIError{Status: resp.StatusCode}
+	if secs, err := strconv.Atoi(resp.Header.Get("Retry-After")); err == nil && secs > 0 {
+		e.RetryAfter = time.Duration(secs) * time.Second
+	}
+	var eb struct {
+		Type    string          `json:"type"`
+		Code    json.RawMessage `json:"code"`
+		Message json.RawMessage `json:"message"`
+	}
+	if json.Unmarshal(raw, &eb) == nil {
+		e.Type = clip(eb.Type, 60)
+		e.Code = clip(strings.Trim(string(eb.Code), `"`), 20)
+		if e.Code == "null" {
+			e.Code = ""
+		}
+		switch s := resp.StatusCode; {
+		case s == 401, s == 402, s == 403, s == 429, s >= 500:
+			var msg string
+			if json.Unmarshal(eb.Message, &msg) == nil {
+				e.Message = clip(msg, 200)
+			}
+		}
+	}
+	return nil, e
+}
+
+func clip(s string, n int) string {
+	s = strings.Join(strings.Fields(s), " ")
+	if r := []rune(s); len(r) > n {
+		return string(r[:n]) + "…"
+	}
+	return s
 }
 
 // contentText reads message.content, which is a string or a list of chunks.
