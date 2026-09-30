@@ -5,6 +5,7 @@ export { Button, type ButtonProps, type ButtonSize, type ButtonVariant } from ".
 export { Card, Divider, PressableCard, type CardProps, type PressableCardProps } from "./card";
 export { Hero, type HeroProps } from "./hero";
 export { Icon, type IconProps } from "./icon";
+export { Input, type InputProps } from "./input";
 export { Pill, type PillProps } from "./pill";
 export { Screen, type ScreenProps } from "./screen";
 export { SectionLabel, type SectionLabelProps } from "./section-label";
