@@ -236,10 +236,12 @@ func TestSlowClientIsDropped(t *testing.T) {
 		got <- n
 	}()
 	// Nobody reads `slow`; publish more than its buffer holds.
-	for i := 0; i < 100; i++ {
+	// Paced, so that the reading client keeps up while the other overflows its buffer.
+	for i := 0; i < 50; i++ {
 		if err := realtime.Publish(context.Background(), s.pool, seed.StableB, "n.changed", nil); err != nil {
 			t.Fatal(err)
 		}
+		time.Sleep(5 * time.Millisecond)
 	}
 	deadline := time.After(5 * time.Second)
 	for s.hub.Clients() != 1 {
@@ -254,7 +256,7 @@ func TestSlowClientIsDropped(t *testing.T) {
 	for range slow {
 		n++
 	}
-	if n == 0 || n >= 100 {
+	if n == 0 || n >= 50 {
 		t.Errorf("slow client got %d events", n)
 	}
 	cancelFast()
