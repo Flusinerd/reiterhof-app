@@ -102,7 +102,7 @@ func (s *Service) verifyCode(w http.ResponseWriter, r *http.Request) {
 	invalid := func() {
 		httpx.WriteError(w, http.StatusUnauthorized, "invalid_code", "code is invalid, expired or already used")
 	}
-	email, okEmail := normalizeEmail(in.Email)
+	email, okEmail := NormalizeEmail(in.Email)
 	code, okCode := normalizeLoginCode(in.Code)
 	if !okEmail || !okCode {
 		invalid()
