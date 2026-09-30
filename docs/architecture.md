@@ -133,3 +133,21 @@ is obtained in one place at the top of each handler, and take `stable_id` from i
 - Blanket rules semantics (seed and evaluation): rules are evaluated by `position`,
   the first match wins; `temp_min <= temp < temp_max`, `NULL` bound = open, `NULL` rain
   = any; `blanket_id NULL` = no blanket.
+
+## Training logic (`internal/training`)
+
+Pure packages (no HTTP, no DB, no clock; "today" is always an input):
+
+- `training`: shared types (`Activity`, `Profile`, `RiderRules`, `Session`, `Intensity`, ...).
+- `training/load` (JAN-62): `Score(minutes, activity, canterShare)` = minutes x intensity
+  factor (table in the package doc), `Classify` (light < 30, medium 30-60, intense > 60),
+  `DayLoad`, `WeekLoad` (7 segments) and `Assess` (one German sentence vs. the rhythm).
+- `training/recommend` (JAN-56): `Recommend(Input) Result`, the rule-based "Was heute?".
+  Profile/rider rules hide activities (`Hidden` with a German reason), then overrides
+  apply in order (active reha phase, rest day after a show, nothing left to choose),
+  hard filters (pause/reha = light only, show today/tomorrow = light only, frozen ground
+  = no jumping) and finally a weighted score (variety, recent load, show distance,
+  weather/ground, available time, status). All weights are named `Weight*` constants;
+  ties are broken by the canonical activity order. The top 3 are returned, each with a
+  German one-sentence reason (the strongest factor). Full description in the package doc.
+- German reason texts are UI text and live in these packages; everything else is English.
