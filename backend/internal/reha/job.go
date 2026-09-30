@@ -124,9 +124,9 @@ func (s *Reminders) send(ctx context.Context, stableID string, loc *time.Locatio
 		when = fmt.Sprintf("in %d Tagen", days)
 	}
 	title := "Reha-Kontrolle: " + c.horseName
-	body := fmt.Sprintf("Kontrolltermin %s (%s).", when, c.date.Format("02.01.2006"))
+	body := fmt.Sprintf("Kontrolle %s (%s).", when, c.date.Format("02.01.2006"))
 	if c.vet != "" {
-		body = fmt.Sprintf("Kontrolltermin bei %s %s (%s).", c.vet, when, c.date.Format("02.01.2006"))
+		body = fmt.Sprintf("Kontrolle bei %s %s (%s).", c.vet, when, c.date.Format("02.01.2006"))
 	}
 
 	recipients, err := s.recipients(ctx, stableID, c.horseID)

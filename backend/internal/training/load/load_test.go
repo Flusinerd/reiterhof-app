@@ -109,8 +109,8 @@ func TestAssess(t *testing.T) {
 	}{
 		{"good mix", week(20, 40, 0, 70, 35), "4 von 5 Einheiten, gute Mischung"},
 		{"three intense", week(70, 80, 0, 90), "Schon 3 intensive Tage – morgen eher locker"},
-		{"too many", week(20, 40, 20, 40, 20, 40), "6 von 5 Einheiten – das reicht für diese Woche"},
-		{"monotone", week(40, 40, 40, 40), "4 von 5 Einheiten, etwas mehr Abwechslung täte gut"},
+		{"too many", week(20, 40, 20, 40, 20, 40), "6 von 5 Einheiten – genug für diese Woche"},
+		{"monotone", week(40, 40, 40, 40), "4 von 5 Einheiten – mehr Abwechslung wäre gut"},
 		{"few", week(20, 0, 40), "2 von 5 Einheiten, noch Luft nach oben"},
 		{"empty", week(), "0 von 5 Einheiten, noch Luft nach oben"},
 	}

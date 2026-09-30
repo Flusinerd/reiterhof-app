@@ -46,7 +46,7 @@ func TestLoginCodeMail(t *testing.T) {
 	if m := codeSubjectRe.FindStringSubmatch(msg.Subject); m == nil || m[1] != code {
 		t.Fatalf("subject %q does not carry code %s", msg.Subject, code)
 	}
-	if !strings.HasPrefix(msg.Subject, "Dein Anmeldecode für Stallfunk: ") {
+	if !strings.HasPrefix(msg.Subject, "Dein Stallfunk-Code: ") {
 		t.Fatalf("subject = %q", msg.Subject)
 	}
 	// Code on its own line, then the links, and the validity hint.

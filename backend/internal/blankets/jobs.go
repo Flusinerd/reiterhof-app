@@ -189,7 +189,7 @@ func (s *Service) lastPersonStable(ctx context.Context, st stableRow) error {
 	case 1:
 		return s.remind(ctx, st.id, sourceNight, st.id, due, push.KindLastPerson,
 			"Letzte Person im Stall",
-			"Du bist gerade allein im Stall. Noch ohne Deckenstatus: "+horseNames(open)+".",
+			"Noch ohne Deckenstatus: "+horseNames(open)+".",
 			present[0], map[string]any{"screen": "/blankets"})
 	case 0:
 		byOwner := map[string][]openHorse{}
@@ -207,8 +207,8 @@ func (s *Service) lastPersonStable(ctx context.Context, st stableRow) error {
 		for _, owner := range owners {
 			hs := byOwner[owner]
 			errs = append(errs, s.remind(ctx, st.id, sourceNight, st.id, due, push.KindLastPerson,
-				"Niemand mehr im Stall",
-				"Niemand ist im Stall und "+horseNames(hs)+" hat noch keinen Deckenstatus.",
+				"Stall leer",
+				horseNames(hs)+": noch ohne Deckenstatus.",
 				owner, map[string]any{"screen": "/blankets"}))
 		}
 		return errors.Join(errs...)
@@ -250,7 +250,7 @@ func (s *Service) onCheckOut(ctx context.Context, stableID, userID string) error
 		return err
 	}
 	return s.remind(ctx, stableID, sourceCheckout, stableID, due, push.KindLastPerson,
-		"Du bist die letzte Person im Stall",
+		"Letzte Person im Stall",
 		"Noch ohne Deckenstatus: "+horseNames(open)+".",
 		userID, map[string]any{"screen": "/blankets"})
 }
@@ -391,7 +391,7 @@ func (s *Service) weatherChangeStable(ctx context.Context, st stableRow) error {
 			errs = append(errs, err)
 			continue
 		}
-		title := "Wetter hat sich geändert"
+		title := "Wetter geändert"
 		body := fmt.Sprintf("%s: jetzt %s statt %s.", hn.Horse.Name, describe(next, hn.Blankets), describe(prev, hn.Blankets))
 		data := map[string]any{"horse_id": hn.Horse.ID, "screen": "/horses/" + hn.Horse.ID + "/blanket-plan"}
 		for _, uid := range recipients {

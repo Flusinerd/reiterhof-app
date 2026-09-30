@@ -515,7 +515,7 @@ func TestNewRequestPushIsOptIn(t *testing.T) {
 		t.Fatalf("pushes = %+v, want only tom", sent)
 	}
 	if sent[0].Data["kind"] != "new_request" || sent[0].Data["request_id"] != r.ID ||
-		!strings.HasPrefix(sent[0].Title, "Neue Anfrage: Turniertrottel") || !strings.Contains(sent[0].Body, "Anna sucht Hilfe · Fr, 2. Okt · 08:30") {
+		!strings.HasPrefix(sent[0].Title, "Turniertrottel") || !strings.Contains(sent[0].Body, "Anna sucht Hilfe · Fr, 2. Okt · 08:30") {
 		t.Errorf("push = %+v", sent[0])
 	}
 }
@@ -652,7 +652,7 @@ func TestHelperReminders(t *testing.T) {
 	m0 := msgs[0]
 	if m0.Data["kind"] != "helper" || !strings.HasPrefix(m0.Title, "Erinnerung: Turniertrottel · Herbstturnier: Fanta") ||
 		!strings.Contains(m0.Body, "Fr, 2. Okt · 08:30 · Reitanlage Haltern") ||
-		!strings.Contains(m0.Body, "Checkliste: Pferd halten, Filmen") {
+		!strings.Contains(m0.Body, " · Checkliste: Pferd halten, Filmen") {
 		t.Errorf("reminder = %+v", m0)
 	}
 	// Marked as sent: no duplicates, also not with a later helper who joins after the reminder time.

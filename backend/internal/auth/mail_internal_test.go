@@ -58,7 +58,7 @@ func readParts(t *testing.T, contentType string, body io.Reader) (map[string]str
 func TestBuildMessageBranded(t *testing.T) {
 	from := &mail.Address{Name: "Stallfunk", Address: "login@stallfunk.de"}
 	to := &mail.Address{Address: "jan@example.org"}
-	msg, err := loginMail("jan@example.org", "012345", "tok_EN-1", "https://api.example.org").Message(to.Address, "Dein Anmeldecode für Stallfunk: 012345")
+	msg, err := loginMail("jan@example.org", "012345", "tok_EN-1", "https://api.example.org").Message(to.Address, "Dein Stallfunk-Code: 012345")
 	if err != nil {
 		t.Fatal(err)
 	}

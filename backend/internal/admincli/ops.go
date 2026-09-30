@@ -64,10 +64,10 @@ func runMailTest(ctx context.Context, e *Env, args []string) error {
 	}
 	host, _ := os.Hostname()
 	msg, err := auth.MailContent{
-		Preheader: "Die E-Mail-Einstellungen von Stallfunk funktionieren.",
+		Preheader: "Der Mailversand funktioniert.",
 		Heading:   "Testnachricht",
 		Intro: []string{
-			"Diese E-Mail kommt von stallfunk-admin. Wenn du sie liest, funktionieren die SMTP-Einstellungen der Stallfunk-API.",
+			"Testmail von stallfunk-admin. Wenn du sie liest, funktioniert der Mailversand.",
 		},
 		Note: "Gesendet am " + e.now().UTC().Format("2006-01-02 15:04:05") + " UTC von " + host + ".",
 	}.Message(rcpt, "Stallfunk: Testnachricht")

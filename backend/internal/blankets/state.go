@@ -260,7 +260,7 @@ func feedbackText(action, blanketName, who string) string {
 	case ActionUncovered:
 		s = "Abgedeckt"
 	default:
-		s = "Geprüft, keine Decke nötig"
+		s = "Keine Decke nötig"
 	}
 	if who != "" {
 		s += " (" + who + ")"

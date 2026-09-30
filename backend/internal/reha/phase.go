@@ -290,7 +290,7 @@ func (a Allowed) RuleText() string {
 }
 
 // NoUnitText is the rule text of an active plan that has no unit on the day.
-const NoUnitText = "Reha-Plan aktiv: für diesen Tag ist keine Einheit vorgesehen"
+const NoUnitText = "Reha-Plan: keine Einheit an diesem Tag"
 
 func clip(s string, n int) string {
 	s = strings.Join(strings.Fields(s), " ")

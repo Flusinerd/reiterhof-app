@@ -131,7 +131,7 @@ func TestListComputedItems(t *testing.T) {
 	}
 
 	today := groups["today"]
-	if it := today[0]; it.Kind != "health_due" || it.Body != "Impfung ist seit 2 Tagen überfällig (28.09.2026)." ||
+	if it := today[0]; it.Kind != "health_due" || it.Body != "Impfung: seit 2 Tagen überfällig (28.09.2026)." ||
 		!it.AllDay || !it.Computed || it.Dismissible || it.Screen != "/horses/"+seed.HorseLuna+"/health" {
 		t.Errorf("overdue item = %+v", it)
 	}
@@ -148,14 +148,14 @@ func TestListComputedItems(t *testing.T) {
 		!it.DueAt.Equal(berlinAt(2026, time.October, 1, 14, 0)) || it.AllDay {
 		t.Errorf("request item = %+v", it)
 	}
-	if it := week[1]; it.Kind != "reha_checkup" || it.Body != "Kontrolltermin bei Dr. Weber am 02.10.2026." ||
+	if it := week[1]; it.Kind != "reha_checkup" || it.Body != "Kontrolle bei Dr. Weber am 02.10.2026." ||
 		it.Screen != "/horses/"+seed.HorseLuna+"/reha" || !it.AllDay {
 		t.Errorf("reha item = %+v", it)
 	}
 	if it := week[2]; it.Body != "Fanta: Halle, Luna: Longe" {
 		t.Errorf("training item of Saturday = %+v", it)
 	}
-	if it := week[3]; it.Body != "Hufschmied ist in 3 Tagen fällig (03.10.2026)." {
+	if it := week[3]; it.Body != "Hufschmied: in 3 Tagen (03.10.2026)." {
 		t.Errorf("health item = %+v", it)
 	}
 

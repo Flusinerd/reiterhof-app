@@ -13,7 +13,7 @@ import (
 )
 
 // autoUncoverFeedback is stored as payload.feedback of blanket requests that the job closes.
-const autoUncoverFeedback = "Automatisch abgedeckt (Hof)"
+const autoUncoverFeedback = "Automatisch abgedeckt"
 
 type autoUncoverStable struct {
 	id    string

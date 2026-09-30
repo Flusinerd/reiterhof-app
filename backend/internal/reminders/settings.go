@@ -27,14 +27,14 @@ type KindInfo struct {
 
 // catalog lists every push kind in display order. A test checks that it covers push.Kinds().
 var catalog = []struct{ kind, label, description string }{
-	{push.KindLastPerson, "Decken: letzte Person", "Erinnerung am Abend, wenn noch Pferde ohne Decken-Eintrag sind und du die Letzte oder der Letzte im Stall bist."},
-	{push.KindWeatherChange, "Decken: Wetteränderung", "Hinweis, wenn sich die Decken-Empfehlung für eines deiner Pferde ändert."},
-	{push.KindMedication, "Medikamente", "Erinnerung zur Uhrzeit, zu der ein Pferd von dir sein Medikament bekommt."},
-	{push.KindHealthDue, "Fällige Termine", "Hufschmied, Impfung, Wurmkur und Co. für deine Pferde, eine Woche und einen Tag vorher."},
-	{push.KindRehaCheckup, "Reha-Kontrolle", "Kontrolltermin beim Tierarzt, zwei Tage vorher und am Tag selbst."},
-	{push.KindHelper, "Anfragen: Erinnerung und Änderungen", "Erinnerung, wenn du bei einer Anfrage hilfst, und Meldungen zu deinen Anfragen (jemand hilft mit, Änderungen, Absagen)."},
-	{push.KindNewRequest, "Anfragen: neue Anfragen", "Eine Meldung, sobald jemand im Stall eine neue Anfrage stellt. Standardmäßig aus."},
-	{push.KindTrainingPlan, "Trainingsplan am Vorabend", "Am Abend vorher: welche Pferde du morgen laut Wochenplan bewegst."},
+	{push.KindLastPerson, "Decken: letzte Person", "Abends, wenn du die letzte Person im Stall bist und Pferde noch ohne Deckenstatus sind."},
+	{push.KindWeatherChange, "Decken: Wetteränderung", "Wenn sich die Decken-Empfehlung für eines deiner Pferde ändert."},
+	{push.KindMedication, "Medikamente", "Zur Uhrzeit, zu der ein Pferd von dir sein Medikament bekommt."},
+	{push.KindHealthDue, "Fällige Termine", "Hufschmied, Impfung, Wurmkur und Co., eine Woche und einen Tag vorher."},
+	{push.KindRehaCheckup, "Reha-Kontrolle", "Kontrolle beim Tierarzt, zwei Tage vorher und am Tag selbst."},
+	{push.KindHelper, "Anfragen: Erinnerung und Änderungen", "Erinnerung, wenn du hilfst, und Meldungen zu deinen Anfragen (Hilfe, Änderung, Absage)."},
+	{push.KindNewRequest, "Anfragen: neue Anfragen", "Sobald jemand eine neue Anfrage stellt. Standardmäßig aus."},
+	{push.KindTrainingPlan, "Trainingsplan am Vorabend", "Am Vorabend: welche Pferde du morgen laut Wochenplan bewegst."},
 	{push.KindUrgentObservation, "Auffälligkeiten: dringend", "Wenn bei einem Pferd etwas Dringendes auffällt und du im Stall bist."},
 	{push.KindObservation, "Auffälligkeiten: Hinweise", "Neue Auffälligkeiten, die nicht dringend sind."},
 }

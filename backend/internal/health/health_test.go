@@ -339,9 +339,9 @@ func TestDueReminders(t *testing.T) {
 			if len(c.users) != 1 || c.users[0] != seed.UserJonas {
 				t.Errorf("Balu recipients = %v", c.users)
 			}
-		case c.title == "Fällig: Luna" && c.body == "Hufschmied ist in 7 Tagen fällig (08.10.2026).":
+		case c.title == "Fällig: Luna" && c.body == "Hufschmied: in 7 Tagen (08.10.2026).":
 			sawWeek = true
-		case c.title == "Fällig: Luna" && c.body == "Influenza ist morgen fällig (02.10.2026).":
+		case c.title == "Fällig: Luna" && c.body == "Influenza: morgen (02.10.2026).":
 			sawTomorrow = true
 		default:
 			t.Errorf("unexpected %q %q", c.title, c.body)
@@ -385,7 +385,7 @@ func TestDueReminders(t *testing.T) {
 	if err := job.Run(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if c := rec.take(); len(c) != 1 || c[0].body != "Zahnarzt ist morgen fällig (05.10.2026)." {
+	if c := rec.take(); len(c) != 1 || c[0].body != "Zahnarzt: morgen (05.10.2026)." {
 		t.Fatalf("dentist tomorrow: %+v", c)
 	}
 }
@@ -439,7 +439,7 @@ func TestDoneCreatesNewReminderCycle(t *testing.T) {
 	if err := job.Run(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if c := rec.take(); len(c) != 1 || c[0].body != "Hufschmied ist in 7 Tagen fällig (15.10.2026)." {
+	if c := rec.take(); len(c) != 1 || c[0].body != "Hufschmied: in 7 Tagen (15.10.2026)." {
 		t.Fatalf("second cycle: %+v", c)
 	}
 }

@@ -571,7 +571,7 @@ func TestExerciseRequestsCarryTheRule(t *testing.T) {
 		t.Errorf("member request: %q", got)
 	}
 	// After the plan there is no unit; a rest day says so.
-	if got := note(create(seed.UserAnna, fanta, "2026-06-01", "")); got != "Reha-Plan aktiv: für diesen Tag ist keine Einheit vorgesehen" {
+	if got := note(create(seed.UserAnna, fanta, "2026-06-01", "")); got != "Reha-Plan: keine Einheit an diesem Tag" {
 		t.Errorf("after the plan: %q", got)
 	}
 	if got := note(create(seed.UserAnna, fanta, "2026-03-25", "Reha: erfunden")); strings.Contains(got, "erfunden") {

@@ -358,7 +358,7 @@ func (b *builder) healthItems(ctx context.Context) error {
 			it.Kind = push.KindHealthDue
 			it.ID = "c:health_due:" + id + ":" + pgDate(d)
 			it.Title = "Fällig: " + horse
-			it.Body = fmt.Sprintf("%s %s (%s).", label, dueText(daysBetween(b.w.today, d)), d.Format("02.01.2006"))
+			it.Body = fmt.Sprintf("%s: %s (%s).", label, dueText(daysBetween(b.w.today, d)), d.Format("02.01.2006"))
 			it.DueAt, it.AllDay = d, true
 			if b.stored[it.Kind+":"+id] {
 				continue
@@ -376,19 +376,19 @@ func daysBetween(a, b time.Time) int {
 	return int(ub.Sub(ua).Hours() / 24)
 }
 
-// dueText: "ist heute fällig", "ist in 3 Tagen fällig", "ist seit 2 Tagen überfällig".
+// dueText: "heute", "in 3 Tagen", "seit 2 Tagen überfällig".
 func dueText(days int) string {
 	switch {
 	case days < -1:
-		return fmt.Sprintf("ist seit %d Tagen überfällig", -days)
+		return fmt.Sprintf("seit %d Tagen überfällig", -days)
 	case days == -1:
-		return "ist seit gestern überfällig"
+		return "seit gestern überfällig"
 	case days == 0:
-		return "ist heute fällig"
+		return "heute"
 	case days == 1:
-		return "ist morgen fällig"
+		return "morgen"
 	}
-	return fmt.Sprintf("ist in %d Tagen fällig", days)
+	return fmt.Sprintf("in %d Tagen", days)
 }
 
 // rehaItems lists vet checkups of active reha plans of the user's horses within the window.
@@ -414,9 +414,9 @@ func (b *builder) rehaItems(ctx context.Context) error {
 			continue
 		}
 		d := b.w.localDate(date)
-		body := fmt.Sprintf("Kontrolltermin am %s.", d.Format("02.01.2006"))
+		body := fmt.Sprintf("Kontrolle am %s.", d.Format("02.01.2006"))
 		if vet != "" {
-			body = fmt.Sprintf("Kontrolltermin bei %s am %s.", vet, d.Format("02.01.2006"))
+			body = fmt.Sprintf("Kontrolle bei %s am %s.", vet, d.Format("02.01.2006"))
 		}
 		b.items = append(b.items, Item{
 			ID: "c:reha_checkup:" + id + ":" + pgDate(d), Kind: push.KindRehaCheckup,

@@ -144,11 +144,11 @@ func Assess(week [7]Segment, r training.Rhythm) string {
 	case intense >= 3:
 		return fmt.Sprintf("Schon %d intensive Tage – morgen eher locker", intense)
 	case done > target:
-		return fmt.Sprintf("%d von %d Einheiten – das reicht für diese Woche", done, target)
+		return fmt.Sprintf("%d von %d Einheiten – genug für diese Woche", done, target)
 	case done >= minS && done > 0 && len(levels) >= 2:
 		return fmt.Sprintf("%d von %d Einheiten, gute Mischung", done, target)
 	case done >= minS && done > 0:
-		return fmt.Sprintf("%d von %d Einheiten, etwas mehr Abwechslung täte gut", done, target)
+		return fmt.Sprintf("%d von %d Einheiten – mehr Abwechslung wäre gut", done, target)
 	}
 	return fmt.Sprintf("%d von %d Einheiten, noch Luft nach oben", done, target)
 }

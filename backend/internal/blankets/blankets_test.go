@@ -573,7 +573,7 @@ func TestStateClosesBlanketRequests(t *testing.T) {
 		t.Errorf("second tap closed %v", res.Closed)
 	}
 	e.do(seed.UserTom, "POST", "/api/v1/horses/"+seed.HorseBalu+"/blanket-state", m{"action": "checked"}).status(t, 200)
-	if st, fb := status(baluToday); st != "done" || fb != "Geprüft, keine Decke nötig (Tom)" {
+	if st, fb := status(baluToday); st != "done" || fb != "Keine Decke nötig (Tom)" {
 		t.Errorf("Balu today: %s %q", st, fb)
 	}
 }
