@@ -106,6 +106,12 @@ func domainSessions(rows []sessionRow, loc *time.Location) []training.Session {
 		if s.Feel != nil {
 			ts.Feel = *s.Feel
 		}
+		if s.ExerciseID != nil {
+			ts.ExerciseID = *s.ExerciseID
+		}
+		if s.Focus != nil {
+			ts.FocusRating = *s.Focus
+		}
 		out = append(out, ts)
 	}
 	return out

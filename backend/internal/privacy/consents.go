@@ -18,7 +18,7 @@ import (
 // TextVersion identifies the current wording of the privacy text and the consent
 // explanations (docs/legal/datenschutz.md, mobile/lib/legal). A grant records it. Change it
 // together with the texts; then users have to confirm again ("up_to_date": false).
-const TextVersion = "2026-09-30.2"
+const TextVersion = "2026-09-30.3"
 
 // Consent kinds (consents.kind).
 const (

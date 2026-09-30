@@ -14,6 +14,7 @@ const day = (over: Partial<PlanDay> = {}): PlanDay => ({
   reason: "Nach dem Ausritt gestern passt die Halle.",
   source: "ai",
   user: null,
+  exercise: null,
   ...over,
 });
 
@@ -35,6 +36,10 @@ test("applying keeps a claimed person and plans rest days without one", () => {
   assert.equal(planApplyBody(day({ user: { id: "u1", name: "Mia" } }))?.user_id, "u1");
   const rest = planApplyBody(day({ activity: "rest", minutes: 0, source: "rules", reason: "Ruhetag nach dem Turnier." }));
   assert.deepEqual(rest, { status: "rest", note: "Plan: Ruhetag · Ruhetag nach dem Turnier." });
+  const withContent = planApplyBody(day({ focus: "Übergänge Schritt-Trab", exercise: { id: "ex1", title: "Übergänge" } }));
+  assert.equal(withContent?.focus, "Übergänge Schritt-Trab");
+  assert.equal(withContent?.exercise_id, "ex1");
+  assert.equal("focus" in planApplyBody(day())!, false);
   // A rest day must not remove somebody's claim.
   assert.equal(planApplyBody(day({ activity: "rest", minutes: 0, user: { id: "u1", name: "Mia" } })), null);
 });

@@ -173,12 +173,8 @@ func (h *handler) today(w http.ResponseWriter, r *http.Request) {
 // conditions returns today's weather (the latest snapshot, nil when there is none) and the
 // ground condition of the stable ("" when unknown).
 func (h *handler) conditions(ctx context.Context, stableID string, today time.Time) (*recommend.Weather, string, error) {
-	var wx *recommend.Weather
-	snap, err := (&weather.Store{Pool: h.deps.Pool}).Latest(ctx, stableID, today)
-	switch {
-	case err == nil:
-		wx = &recommend.Weather{Rain: snap.WillRain, TempC: snap.NightMinC}
-	case !errors.Is(err, weather.ErrNotFound):
+	wx, err := h.forecast(ctx, stableID, today)
+	if err != nil {
 		return nil, "", err
 	}
 	ground, err := stables.GetGroundCondition(ctx, h.deps.Pool, stableID)
@@ -186,6 +182,19 @@ func (h *handler) conditions(ctx context.Context, stableID string, today time.Ti
 		return nil, "", err
 	}
 	return wx, ground.Condition, nil
+}
+
+// forecast returns the weather of a stable-local day from the latest snapshot, nil when there
+// is none.
+func (h *handler) forecast(ctx context.Context, stableID string, day time.Time) (*recommend.Weather, error) {
+	snap, err := (&weather.Store{Pool: h.deps.Pool}).Latest(ctx, stableID, day)
+	switch {
+	case errors.Is(err, weather.ErrNotFound):
+		return nil, nil
+	case err != nil:
+		return nil, err
+	}
+	return &recommend.Weather{Rain: snap.WillRain, TempC: snap.NightMinC}, nil
 }
 
 // weekDots builds the last seven days (today last): trained when a session exists, rest

@@ -1,6 +1,6 @@
 # Datenschutzerklärung
 
-**Textversion:** 2026-09-30.2
+**Textversion:** 2026-09-30.3
 
 ## 1. Wer ist verantwortlich?
 
@@ -145,11 +145,11 @@ Auf deinem Gerät speichert die App nur, was sie zum Funktionieren braucht: den 
 
 Besitzer und Admins können sich für ein Pferd einen Vorschlag für die offenen Tage der Woche machen lassen („Woche planen“). Hat der Besitzer des Pferdes „KI-Vorschläge für den Wochenplan“ erlaubt und angegeben, mindestens 16 Jahre alt zu sein, fragt unser Server dafür ein Sprachmodell der Mistral AI SAS (Paris, Frankreich). Sonst kommt der Vorschlag nur aus den festen Regeln der App, und es wird nichts an Mistral gesendet.
 
-Gesendet werden nur Trainingsdaten des Pferdes: Disziplin, Trainingsstatus (fit, Reha, Pause), der gewünschte Rhythmus, die freigegebenen Aktivitäten, die Trainingseinheiten der letzten 14 Tage (vor wie vielen Tagen, Aktivität, Minuten, Belastung, Galopp-Anteil, wie sich das Pferd angefühlt hat), in wie vielen Tagen Turniere sind, die Vorgaben eines Reha-Plans je Tag (Aktivität und Minuten), Wetter und Boden von heute und welche Tage der Woche schon vergeben sind.
+Gesendet werden nur Trainingsdaten des Pferdes: Disziplin, Ausbildungsstufe (nur als Stufe Anfänger, mittel oder fortgeschritten, abgeleitet aus der Klasse im Profil), Alter in Jahren, Trainingsstatus (fit, Reha, Pause), der gewünschte Rhythmus, die freigegebenen Aktivitäten, die Trainingseinheiten der letzten 14 Tage (vor wie vielen Tagen, Aktivität, Minuten, Belastung, Galopp-Anteil, wie sich das Pferd angefühlt hat, welche Übung geübt wurde und wie gut sie klappte), in wie vielen Tagen Turniere sind, die Vorgaben eines Reha-Plans je Tag (Aktivität und Minuten), Wetter von heute und morgen, der Boden von heute und welche Tage der Woche schon vergeben sind. Dazu kommen Titel, Stufe und Ziele der passenden Übungen aus der allgemeinen Übungsbibliothek der App, damit die KI eine Übung vorschlagen kann.
 
-Nicht gesendet werden Namen von Personen oder Pferden, Kennungen, Notizen und andere Freitexte (auch keine Turniernamen, Diagnosen oder Reha-Bedingungen), Kalenderdaten und Standortdaten. Wer eine Einheit geritten hat, erfährt Mistral nicht.
+Nicht gesendet werden Namen von Personen oder Pferden, Kennungen, Notizen und andere Freitexte (auch keine Turniernamen, Diagnosen, Reha-Bedingungen, die Angabe zum Ausbildungsstand im Wortlaut oder eigene Übungen des Stalls), Kalenderdaten und Standortdaten. Wer eine Einheit geritten hat, erfährt Mistral nicht.
 
-Die festen Regeln der App prüfen jeden Vorschlag (Profil, Reha-Plan, Ruhetag nach dem Turnier, Rhythmus) und ersetzen, was nicht passt. Gespeichert wird der Vorschlag erst, wenn du ihn übernimmst; im Wochenplan steht dann „KI-Vorschlag“ dabei.
+Die festen Regeln der App prüfen jeden Vorschlag (Profil, Reha-Plan, Ruhetag nach dem Turnier, Rhythmus) und ersetzen, was nicht passt. Der Vorschlag nennt je Tag Aktivität, Dauer, einen Schwerpunkt und eine Übung. Gespeichert wird er erst, wenn du ihn übernimmst; im Wochenplan steht dann „KI-Vorschlag“ dabei.
 
 Mistral verarbeitet die Anfragen als Auftragsverarbeiter in unserem Auftrag; der Vertrag zur Auftragsverarbeitung nach Art. 28 DSGVO ist Teil der Geschäftsbedingungen von Mistral. In unserem Konto bei Mistral ist ausgeschaltet, dass Anfragen zum Training der Modelle genutzt werden, und wir verwenden keine Modelle, bei denen Mistral trotzdem trainiert („Labs“). Für eine automatische Missbrauchskontrolle speichert Mistral Anfrage und Antwort 30 Tage und ist dafür selbst verantwortlich (Datenschutzerklärung von Mistral unter legal.mistral.ai); danach werden sie gelöscht. Unser Server speichert weder die Anfrage noch die Antwort. Die Anfragen werden in Rechenzentren im Europäischen Wirtschaftsraum verarbeitet (Frankreich, Schweden, Norwegen, Niederlande, Belgien). Zugriffe aus Ländern außerhalb der EU sind über den Netzwerkdienst Cloudflare, über Sicherheitsdienstleister und über verbundene Unternehmen von Mistral möglich (unter anderem in den USA, im Vereinigten Königreich, in der Schweiz und in Singapur). Sie stützen sich auf Angemessenheitsbeschlüsse der EU-Kommission (für die USA das EU-US Data Privacy Framework, soweit der Empfänger zertifiziert ist) oder auf die Standardvertragsklauseln der EU-Kommission.
 

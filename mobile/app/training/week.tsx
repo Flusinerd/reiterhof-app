@@ -1,5 +1,5 @@
-import { useLocalSearchParams } from "expo-router";
-import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react-native";
+import { useLocalSearchParams, useRouter, type Href } from "expo-router";
+import { BookOpen, ChevronLeft, ChevronRight, Sparkles } from "lucide-react-native";
 import { useState } from "react";
 import { ActivityIndicator, RefreshControl, View } from "react-native";
 
@@ -145,6 +145,7 @@ export default function TrainingWeek() {
 }
 
 function DayRow({ day, busy, onTake }: { day: WeekDay; busy: boolean; onTake: () => void }) {
+  const router = useRouter();
   const label = dayStatusLabel(day.status, day.user, day.is_me, day.rest_reason);
   const open = day.status === "open" || (day.status === "today" && !day.user);
   return (
@@ -168,6 +169,17 @@ function DayRow({ day, busy, onTake }: { day: WeekDay; busy: boolean; onTake: ()
                 {day.minutes > 0 ? ` · ${day.minutes} Min.` : ""}
               </Text>
             </View>
+          ) : null}
+          {day.focus ? <Text variant="caption">Schwerpunkt: {day.focus}</Text> : null}
+          {day.exercise ? (
+            <Button
+              label={`Übung: ${day.exercise.title}`}
+              variant="ghost"
+              size="sm"
+              icon={BookOpen}
+              className="self-start px-0"
+              onPress={() => router.push(`/training/exercises/${day.exercise!.id}` as Href)}
+            />
           ) : null}
           {day.note && day.status !== "done" ? (
             <Text variant="caption" numberOfLines={2}>

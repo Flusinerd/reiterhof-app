@@ -8,7 +8,10 @@
 // timezone.
 package training
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 // Activity is a kind of training session. Values match the API/DB strings.
 type Activity string
@@ -165,6 +168,60 @@ type Session struct {
 	Load        float64   `json:"load"` // see load.Score
 	// Feel is how the horse felt (fresh, loose, tired, tense), empty if not logged.
 	Feel string `json:"feel,omitempty"`
+	// ExerciseID is the library exercise practised, FocusRating how it went (1 Schwer,
+	// 2 Besser, 3 Sitzt); both empty when not logged.
+	ExerciseID  string `json:"exercise_id,omitempty"`
+	FocusRating int    `json:"focus_rating,omitempty"`
+}
+
+// ExerciseLibrary returns the discipline of the exercise library that fits an activity:
+// hall and arena use the dressage library (the jumping library for jumping horses), jumping,
+// groundwork and lunge their own; hack, walker and rest have none ("").
+func ExerciseLibrary(a Activity, horseDiscipline string) string {
+	switch a {
+	case ActivityJumping:
+		return "jumping"
+	case ActivityGroundwork:
+		return "groundwork"
+	case ActivityLunge:
+		return "lunge"
+	case ActivityHall, ActivityArena:
+		if horseDiscipline == "jumping" {
+			return "jumping"
+		}
+		return "dressage"
+	}
+	return ""
+}
+
+// Training levels of the exercise library.
+const (
+	LevelBeginner     = "beginner"     // basic training, class E and A
+	LevelIntermediate = "intermediate" // A* to L*
+	LevelAdvanced     = "advanced"     // L** and above
+)
+
+// LevelClass maps the free-text level of a training profile to a library level. It only
+// understands the German class system (E, A, A*, L, L**, M, S, optionally after "Klasse")
+// and a few plain words; anything else gives "".
+func LevelClass(level string) string {
+	f := strings.Fields(strings.ToUpper(strings.TrimSpace(level)))
+	if len(f) == 0 {
+		return ""
+	}
+	tok := f[0]
+	if (tok == "KLASSE" || tok == "KL." || tok == "KL") && len(f) > 1 {
+		tok = f[1]
+	}
+	switch tok {
+	case "E", "A", "BASIS", "ANFÄNGER", "EINSTEIGER":
+		return LevelBeginner
+	case "A*", "A**", "L", "L*", "FORTGESCHRITTEN":
+		return LevelIntermediate
+	case "L**", "M", "M*", "M**", "S", "S*", "S**", "S***", "PROFI":
+		return LevelAdvanced
+	}
+	return ""
 }
 
 // Day normalises t to midnight UTC of its own calendar date.

@@ -1,4 +1,4 @@
-// Pure helpers of the week plan (JAN-89): POST /api/v1/horses/{id}/week/plan returns a proposal
+// Pure helpers of the week plan (JAN-89, JAN-92): POST /api/v1/horses/{id}/week/plan returns a proposal
 // for the open days; the app applies the days with PUT /week/{day}. See docs/domains/training.md.
 
 import type { Activity } from "./training.ts";
@@ -29,6 +29,10 @@ export type PlanDay = {
   replaced?: string;
   /** Somebody already claimed the day without an activity; applying keeps them. */
   user: { id: string; name: string; color_key?: string } | null;
+  /** Content of the unit in a few words (only from the model). */
+  focus?: string;
+  /** Library exercise for the unit; null for hack, walker and rest. */
+  exercise: { id: string; title: string } | null;
 };
 
 export type PlanResponse = {
@@ -49,6 +53,8 @@ export type PlanApplyBody = {
   /** Keeps whoever claimed the day; "" = nobody. */
   user_id?: string;
   note: string;
+  focus?: string;
+  exercise_id?: string;
 };
 
 /** The server allows at most 500 characters per note. */
@@ -68,7 +74,10 @@ export function planDayNote(day: PlanDay): string {
  */
 export function planApplyBody(day: PlanDay): PlanApplyBody | null {
   if (day.activity === "rest") return day.user ? null : { status: "rest", note: planDayNote(day) };
-  return { status: "planned", activity: day.activity, user_id: day.user?.id ?? "", note: planDayNote(day) };
+  const body: PlanApplyBody = { status: "planned", activity: day.activity, user_id: day.user?.id ?? "", note: planDayNote(day) };
+  if (day.focus) body.focus = day.focus;
+  if (day.exercise) body.exercise_id = day.exercise.id;
+  return body;
 }
 
 /** Hint above the plan; null when the model planned (the rows carry their labels). */

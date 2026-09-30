@@ -2,6 +2,7 @@ package trainingapi_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
@@ -168,5 +169,101 @@ func TestPlanWeekModelFailureFallsBackToRules(t *testing.T) {
 		if got["ai_status"] != tc.want || got["source"] != "rules" || len(list(got["days"])) != 3 {
 			t.Errorf("%s: plan = %v", tc.want, got)
 		}
+	}
+}
+
+// exerciseKeyOf finds the key of a library exercise in the prompt sent to the model.
+func exerciseKeyOf(t *testing.T, prompt, title string) string {
+	t.Helper()
+	var msg struct {
+		Exercises []struct{ Key, Title, Library string }
+	}
+	if err := json.Unmarshal([]byte(prompt), &msg); err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range msg.Exercises {
+		if e.Title == title {
+			return e.Key
+		}
+	}
+	t.Fatalf("exercise %q not in prompt", title)
+	return ""
+}
+
+func TestPlanWeekFocusExerciseAndPromptData(t *testing.T) {
+	e := planWeekFixture(t)
+	e.grantAI(seed.UserJan)
+	e.exec(`UPDATE horses SET birth_year = 2014 WHERE id = $1`, luna)
+	e.exec(`INSERT INTO exercises (id, stable_id, discipline, level, title) VALUES (gen_random_uuid(), $1, 'dressage', 'beginner', 'Anna ihre Spezialübung')`, seed.StableB)
+	chat := &fakeChat{answer: `{"days":[]}`}
+	e.withChat(chat)
+	e.call(seed.UserJan, http.MethodPost, planPath, "", http.StatusOK)
+
+	var msg struct {
+		Age       int    `json:"horse_age_years"`
+		Level     string `json:"level"`
+		Exercises []struct{ Library string }
+	}
+	if err := json.Unmarshal([]byte(chat.user), &msg); err != nil {
+		t.Fatal(err)
+	}
+	// Level "L" of the fixture profile goes out as a library level, the age in years;
+	// only global exercises of the libraries that fit the allowed activities (hall: dressage).
+	if msg.Age != 12 || msg.Level != "intermediate" || len(msg.Exercises) == 0 {
+		t.Fatalf("prompt = %s", chat.user)
+	}
+	for _, ex := range msg.Exercises {
+		if ex.Library != "dressage" {
+			t.Errorf("exercise of library %q sent", ex.Library)
+		}
+	}
+	if strings.Contains(chat.user, "Spezialübung") || strings.Contains(chat.user, "L bei") {
+		t.Errorf("own-stable exercise or free text in the prompt: %s", chat.user)
+	}
+
+	key := exerciseKeyOf(t, chat.user, "Übergänge")
+	chat.answer = `{"days":[{"day":"mi","activity":"hall","minutes":45,"focus":"Übergänge Schritt-Trab","exercise":"` + key + `","reason":"Nach dem Ausritt gestern ruhige Arbeit in der Halle."}]}`
+	got := e.call(seed.UserJan, http.MethodPost, planPath, "", http.StatusOK)
+	wed := planDays(got)["2026-03-25"]
+	if wed["source"] != "ai" || wed["focus"] != "Übergänge Schritt-Trab" || obj(wed["exercise"])["title"] != "Übergänge" {
+		t.Fatalf("wednesday = %v", wed)
+	}
+	// Days from the rules carry the next exercise of their library, but no focus.
+	if sat := planDays(got)["2026-03-28"]; sat["source"] != "rules" || sat["focus"] != nil {
+		t.Errorf("saturday = %v", sat)
+	}
+}
+
+func TestWeekSlotFocusAndExerciseSurviveAClaim(t *testing.T) {
+	e := newEnv(t)
+	day := "/api/v1/horses/" + luna + "/week/2026-03-26"
+	var exID string
+	if err := e.pool.QueryRow(context.Background(), `SELECT id::text FROM exercises WHERE stable_id IS NULL AND title = 'Übergänge'`).Scan(&exID); err != nil {
+		t.Fatal(err)
+	}
+	e.errCode(seed.UserJan, http.MethodPut, day, `{"status":"planned","user_id":"","activity":"hall","exercise_id":"00000000-0000-4000-8000-00000000ffff"}`, http.StatusBadRequest)
+	e.errCode(seed.UserJan, http.MethodPut, day, `{"status":"planned","user_id":"","focus":"`+strings.Repeat("x", 81)+`"}`, http.StatusBadRequest)
+
+	got := e.call(seed.UserJan, http.MethodPut, day,
+		`{"status":"planned","user_id":"","activity":"hall","focus":"Übergänge Schritt-Trab","exercise_id":"`+exID+`","note":"KI-Vorschlag: 45 Min."}`, http.StatusOK)
+	thu := weekDays(got)[3]
+	if thu["focus"] != "Übergänge Schritt-Trab" || obj(thu["exercise"])["id"] != exID || thu["activity"] != "hall" || thu["user"] != nil {
+		t.Fatalf("planned thursday = %v", thu)
+	}
+	// Mia takes the day with "Ich": activity, note, focus and exercise stay.
+	got = e.call(seed.UserMia, http.MethodPut, day, `{}`, http.StatusOK)
+	thu = weekDays(got)[3]
+	if obj(thu["user"])["name"] != "Mia" || thu["activity"] != "hall" || thu["focus"] != "Übergänge Schritt-Trab" ||
+		obj(thu["exercise"])["title"] != "Übergänge" || str(thu["note"]) != "KI-Vorschlag: 45 Min." {
+		t.Fatalf("claimed thursday = %v", thu)
+	}
+	// A rest day has no activity, focus or exercise.
+	got = e.call(seed.UserJan, http.MethodPut, day, `{"status":"rest"}`, http.StatusOK)
+	if thu = weekDays(got)[3]; thu["status"] != "rest" || thu["focus"] != nil || thu["exercise"] != nil {
+		t.Fatalf("rest thursday = %v", thu)
+	}
+	var focus, ex *string
+	if err := e.pool.QueryRow(context.Background(), `SELECT focus, exercise_id::text FROM week_slots WHERE horse_id = $1 AND day = '2026-03-26'`, luna).Scan(&focus, &ex); err != nil || focus != nil || ex != nil {
+		t.Fatalf("stored rest day: focus %v, exercise %v, err %v", focus, ex, err)
 	}
 }

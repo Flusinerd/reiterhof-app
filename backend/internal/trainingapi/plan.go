@@ -44,8 +44,17 @@ type planDayOut struct {
 	Source string `json:"source"`
 	// Replaced says why the model's proposal for this day was replaced by the rules.
 	Replaced string `json:"replaced,omitempty"`
+	// Focus is the content of the unit in a few words (model only); Exercise the library
+	// exercise for it (null for hack, walker and rest).
+	Focus    string       `json:"focus,omitempty"`
+	Exercise *planExerOut `json:"exercise"`
 	// User already claimed the day without an activity; applying the plan keeps them.
 	User *personOut `json:"user"`
+}
+
+type planExerOut struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
 }
 
 type planOut struct {
@@ -144,11 +153,15 @@ func (h *handler) planWeek(w http.ResponseWriter, r *http.Request) {
 	for _, e := range entries {
 		rec := e.Recommendation
 		key := e.Date.Format(dateLayout)
-		out.Days = append(out.Days, planDayOut{
+		pd := planDayOut{
 			Date: key, Weekday: training.DaysBetween(start, e.Date), Activity: rec.Activity, Label: rec.Activity.GermanName(),
 			Minutes: rec.Minutes, Intensity: intensityKey(rec.Intensity), IntensityLabel: rec.Intensity.Label(),
-			Reason: rec.Reason, Note: rec.Note, Source: e.Source, Replaced: e.Replaced, User: users[key],
-		})
+			Reason: rec.Reason, Note: rec.Note, Source: e.Source, Replaced: e.Replaced, User: users[key], Focus: e.Focus,
+		}
+		if ex := e.Exercise; ex != nil {
+			pd.Exercise = &planExerOut{ID: ex.ID, Title: ex.Title}
+		}
+		out.Days = append(out.Days, pd)
 		if e.Source == weekplan.SourceAI {
 			out.Source = weekplan.SourceAI
 		}
@@ -178,7 +191,8 @@ func (h *handler) askModel(ctx context.Context, in weekplan.Input) ([]weekplan.E
 }
 
 // planInput collects the week (as the week view shows it to an owner), the sessions of the
-// 14 days before it, the reha units, today's weather and ground.
+// 14 days before it, the reha units, the weather of today and tomorrow, today's ground, the
+// horse's age and level and the candidate exercises of the global library.
 //
 // A day is open when it is today or later and nobody planned an activity for it: status
 // open, today, or planned by someone without an activity. Done days, rest days and days
@@ -207,9 +221,28 @@ func (h *handler) planInput(ctx context.Context, a access, start, today time.Tim
 	if err != nil {
 		return weekplan.Input{}, weekOut{}, err
 	}
+	tomorrow, err := h.forecast(ctx, stableID, today.AddDate(0, 0, 1))
+	if err != nil {
+		return weekplan.Input{}, weekOut{}, err
+	}
+	var birthYear *int
+	if err := h.deps.Pool.QueryRow(ctx, `SELECT birth_year FROM horses WHERE id = $1`, a.horseID).Scan(&birthYear); err != nil {
+		return weekplan.Input{}, weekOut{}, err
+	}
+	domain := prof.domain(a.horseName)
+	exercises, err := h.planExercises(ctx, a.horseID, domain)
+	if err != nil {
+		return weekplan.Input{}, weekOut{}, err
+	}
 	in := weekplan.Input{
-		Today: today, Profile: prof.domain(a.horseName), Recent: domainSessions(rows, loc),
-		Weather: wx, Ground: recommend.Ground(ground),
+		Today: today, Profile: domain, Recent: domainSessions(rows, loc),
+		Weather: wx, Tomorrow: tomorrow, Ground: recommend.Ground(ground),
+		Level: training.LevelClass(prof.level), Exercises: exercises,
+	}
+	if birthYear != nil {
+		if age := today.Year() - *birthYear; age >= 0 && age <= 45 {
+			in.AgeYears = age
+		}
 	}
 	for _, d := range week.Days {
 		day, _ := time.Parse(dateLayout, d.Date)
@@ -231,4 +264,59 @@ func (h *handler) planInput(ctx context.Context, a access, start, today time.Tim
 		in.Days = append(in.Days, wd)
 	}
 	return in, week, nil
+}
+
+// planExercises returns the candidates for the model: the exercises of the global library
+// (stable_id NULL; own-stable exercises are free text and stay on the server) in the libraries
+// that fit the allowed activities, in progression order, with whether the horse mastered them.
+func (h *handler) planExercises(ctx context.Context, horseID string, prof training.Profile) ([]weekplan.Exercise, error) {
+	var libs []string
+	seen := map[string]bool{}
+	for _, al := range prof.Allowed {
+		if al.Mode != training.ModeOn && al.Mode != training.ModeConditional {
+			continue
+		}
+		if lib := training.ExerciseLibrary(al.Activity, prof.Discipline); lib != "" && !seen[lib] {
+			seen[lib] = true
+			libs = append(libs, lib)
+		}
+	}
+	if len(libs) == 0 {
+		return nil, nil
+	}
+	rows, err := h.deps.Pool.Query(ctx, `
+		SELECT `+exerciseCols+`,
+		       EXISTS (SELECT 1 FROM sessions s WHERE s.horse_id = $2 AND s.exercise_id = e.id AND s.focus_rating = 3)
+		FROM exercises e
+		WHERE e.stable_id IS NULL AND e.discipline = ANY ($1)
+		ORDER BY e.title`, libs, horseID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var list []exerciseOut
+	mastered := map[string]bool{}
+	for rows.Next() {
+		var e exerciseOut
+		var steps []byte
+		var done bool
+		if err := rows.Scan(&e.ID, &e.Title, &e.Discipline, &e.Level, &e.GoalTags, &e.Global, &steps, &e.NextExerciseID, &done); err != nil {
+			return nil, err
+		}
+		mastered[e.ID] = done
+		list = append(list, e)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	sortByProgression(list)
+	out := make([]weekplan.Exercise, 0, len(list))
+	for _, e := range list {
+		ex := weekplan.Exercise{ID: e.ID, Library: e.Discipline, Level: e.Level, Title: e.Title, Tags: e.GoalTags, Mastered: mastered[e.ID]}
+		if e.NextExerciseID != nil {
+			ex.NextID = *e.NextExerciseID
+		}
+		out = append(out, ex)
+	}
+	return out, nil
 }

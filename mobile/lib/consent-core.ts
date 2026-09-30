@@ -128,7 +128,7 @@ export const CONSENT_COPY: Record<ConsentKind, ConsentCopy> = {
     title: "Wochenplan von einer KI vorschlagen lassen?",
     summary: "Für deine Pferde fragt der Server beim Planen einer Woche ein Sprachmodell von Mistral AI (Frankreich).",
     points: [
-      "Gesendet werden nur Trainingsdaten: Profil, Einheiten der letzten 14 Tage, Turniertage, Reha-Vorgaben, Wetter und Boden.",
+      "Gesendet werden nur Trainingsdaten: Profil, Alter, Einheiten der letzten 14 Tage mit den geübten Übungen, Turniertage, Reha-Vorgaben, Wetter und Boden.",
       "Keine Namen von Personen oder Pferden, keine Notizen, keine Daten, aus denen man auf dich schließen könnte.",
       "Mistral nutzt die Anfragen nicht, um seine Modelle zu trainieren, speichert sie aber 30 Tage, um Missbrauch zu erkennen.",
       "Nur für Pferde von Besitzern ab 16 Jahren (Bedingungen von Mistral).",

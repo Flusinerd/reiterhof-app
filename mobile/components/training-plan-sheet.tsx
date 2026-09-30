@@ -82,6 +82,16 @@ function PlanRow({ day }: { day: PlanDay }) {
         </Text>
         <Badge variant={day.source === "ai" ? "info" : "neutral"} label={day.source === "ai" ? "KI-Vorschlag" : "Regel"} />
       </View>
+      {day.focus ? (
+        <Text variant="bodySm" className="ml-11">
+          Schwerpunkt: {day.focus}
+        </Text>
+      ) : null}
+      {day.exercise ? (
+        <Text variant="bodySm" className="ml-11">
+          Übung: {day.exercise.title}
+        </Text>
+      ) : null}
       {day.reason ? (
         <Text variant="secondary" className="ml-11">
           {day.reason}

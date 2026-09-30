@@ -25,7 +25,7 @@ without a row was never granted. `stable_id` is nullable (a person may consent b
 | `push` | push notifications | revoking deletes the user's `push_tokens` and `web_push_subscriptions`; `push.Notifier` sends only to users with a current grant (native and web alike) |
 | `ai_training` | the week plan may send the training data of the user's horses (no names, ids or free text) to the language model of Mistral AI (JAN-89) | `POST /horses/{id}/week/plan` asks the model only when the horse's **owner** has a grant and stated to be 16 or older, whoever plans; otherwise the rules plan alone (see [training.md](training.md#week-plan)) |
 
-`privacy.TextVersion` (`"2026-09-30.2"`) is the version of the privacy text; a grant stores it. Changing the texts
+`privacy.TextVersion` (`"2026-09-30.3"`) is the version of the privacy text; a grant stores it. Changing the texts
 means raising both `TextVersion` and the `**Textversion:**` line in `docs/legal/*.md` (a test checks this); existing
 grants then show `up_to_date: false` and the app asks again, but nothing is locked.
 

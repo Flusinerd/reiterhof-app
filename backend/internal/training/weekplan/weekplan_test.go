@@ -232,10 +232,103 @@ func TestParse(t *testing.T) {
 func TestSystemPromptNamesGermanWordsAndRanges(t *testing.T) {
 	for _, want := range []string{
 		"lunge = Longe", "15-30 minutes", "walker = Führanlage", "hack = Ausritt", "30-120 minutes",
-		`never use "du"`, `{"days":[`,
+		`no "du"`, `{"days":[`, "Skala der Ausbildung", "Losgelassenheit", `"exercise":"<key or null>"`,
 	} {
 		if !strings.Contains(SystemPrompt, want) {
 			t.Errorf("system prompt lacks %q", want)
 		}
+	}
+}
+
+func library() []Exercise {
+	return []Exercise{
+		{ID: "id-ueb", Library: "dressage", Level: training.LevelBeginner, Title: "Übergänge", Tags: []string{"durchlaessigkeit"}, Mastered: true, NextID: "id-mt"},
+		{ID: "id-kauen", Library: "dressage", Level: training.LevelBeginner, Title: "Zügel-aus-der-Hand-kauen-lassen", Tags: []string{"losgelassenheit"}, NextID: "id-mt"},
+		{ID: "id-mt", Library: "dressage", Level: training.LevelIntermediate, Title: "Mitteltrab", Tags: []string{"schwung"}},
+		{ID: "id-longe", Library: "lunge", Level: training.LevelBeginner, Title: "Übergänge an der Longe"},
+	}
+}
+
+func TestPromptCarriesAgeLevelTomorrowAndExercises(t *testing.T) {
+	in := week()
+	in.AgeYears, in.Level = 12, training.LevelIntermediate
+	in.Tomorrow = &recommend.Weather{Rain: true, TempC: 3.4}
+	in.Exercises = library()
+	in.Recent[0].ExerciseID, in.Recent[0].FocusRating = "id-kauen", 1
+	p := Prompt(in)
+	var msg struct {
+		Level     string           `json:"level"`
+		Age       int              `json:"horse_age_years"`
+		Tomorrow  map[string]any   `json:"tomorrow"`
+		Exercises []map[string]any `json:"exercises"`
+		History   []map[string]any `json:"history"`
+	}
+	if err := json.Unmarshal([]byte(p), &msg); err != nil {
+		t.Fatal(err)
+	}
+	if msg.Level != "intermediate" || msg.Age != 12 || msg.Tomorrow["rain"] != true || msg.Tomorrow["night_min_c"] != float64(3) {
+		t.Errorf("msg = %+v", msg)
+	}
+	if len(msg.Exercises) != 4 || msg.Exercises[0]["key"] != "E1" || msg.Exercises[0]["next"] != "E3" || msg.Exercises[0]["mastered"] != true || msg.Exercises[1]["title"] != "Zügel-aus-der-Hand-kauen-lassen" {
+		t.Errorf("exercises = %v", msg.Exercises)
+	}
+	if h := msg.History[0]; h["exercise"] != "E2" || h["rating"] != "hard" {
+		t.Errorf("history = %v", h)
+	}
+	for _, leak := range []string{"id-", "Luna"} {
+		if strings.Contains(p, leak) {
+			t.Errorf("prompt contains %q", leak)
+		}
+	}
+}
+
+func TestParseAndMergeFocusAndExercise(t *testing.T) {
+	in := week()
+	in.Exercises = library()
+	got, err := Parse(in, `{"days":[
+		{"day":"mi","activity":"hall","minutes":45,"focus":"Dehnungshaltung\n im Trab","exercise":"e2","reason":"Lockern."},
+		{"day":"do","activity":"hack","minutes":60,"focus":"Kondition","exercise":"E2","reason":"Gelände."},
+		{"day":"fr","activity":"lunge","minutes":20,"focus":"Takt","exercise":"E99","reason":"Longe."},
+		{"day":"sa","activity":"rest","minutes":0,"focus":"Pause","exercise":null,"reason":"Ruhe."}]}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p := got["2026-09-30"]; p.Focus != "Dehnungshaltung im Trab" || p.Exercise == nil || p.Exercise.ID != "id-kauen" {
+		t.Fatalf("wed = %+v", p)
+	}
+	if p := got["2026-10-02"]; p.Exercise != nil {
+		t.Errorf("unknown key must give no exercise: %+v", p)
+	}
+	es := Merge(in, got)
+	byDate := map[string]Entry{}
+	for _, e := range es {
+		byDate[e.Date.Format(dateLayout)] = e
+	}
+	if e := byDate["2026-09-30"]; e.Focus != "Dehnungshaltung im Trab" || e.Exercise == nil || e.Exercise.ID != "id-kauen" {
+		t.Errorf("wed = %+v", e)
+	}
+	// A dressage exercise does not fit a hack: dropped, the focus stays.
+	if e := byDate["2026-10-01"]; e.Exercise != nil || e.Focus != "Kondition" {
+		t.Errorf("thu = %+v", e)
+	}
+	if e := byDate["2026-10-03"]; e.Focus != "" || e.Exercise != nil || e.Recommendation.Activity != training.ActivityRest {
+		t.Errorf("sat = %+v", e)
+	}
+	// Days from the rules get the first exercise of their library the horse has not mastered.
+	if e := byDate["2026-10-04"]; e.Source != SourceRules {
+		t.Fatalf("sun = %+v", e)
+	} else if lib := training.ExerciseLibrary(e.Recommendation.Activity, "dressage"); lib == "dressage" && (e.Exercise == nil || e.Exercise.ID != "id-kauen") {
+		t.Errorf("sun rules exercise = %+v", e.Exercise)
+	}
+}
+
+func TestTomorrowWeatherReachesTheRules(t *testing.T) {
+	in := week()
+	in.Days[3].Open = true // Thursday
+	dry := Rules(in)
+	in.Tomorrow = &recommend.Weather{Rain: true, TempC: 8}
+	wet := Rules(in)
+	if wet[1].Recommendation.Activity != training.ActivityHall {
+		t.Errorf("rain tomorrow: thursday = %s (dry: %s)", wet[1].Recommendation.Activity, dry[1].Recommendation.Activity)
 	}
 }

@@ -90,6 +90,9 @@ export type WeekDay = {
   rest_reason?: string;
   show: { name: string; classes?: string; helper?: string } | null;
   can_take: boolean;
+  /** Focus and library exercise planned for the day (week plan). */
+  focus: string | null;
+  exercise: { id: string; title: string } | null;
   /** The unit the active reha plan allows that day. */
   reha: {
     plan_id: string;
@@ -190,7 +193,14 @@ export const trainingApi = {
   takeDay: (
     horse: string,
     day: string,
-    body: { status?: "planned" | "rest" | "open"; activity?: Activity; user_id?: string; note?: string },
+    body: {
+      status?: "planned" | "rest" | "open";
+      activity?: Activity;
+      user_id?: string;
+      note?: string;
+      focus?: string;
+      exercise_id?: string;
+    },
   ) => authed.put<WeekResponse>(`${base(horse)}/week/${day}`, body),
   /** Proposal for the open days of the week (JAN-89); nothing is stored. */
   planWeek: (horse: string, start?: string) =>
