@@ -13,6 +13,7 @@ import {
   type Intensity,
   type ReinSegment,
 } from "../training";
+import { planApplyBody, type PlanDay, type PlanResponse } from "../training-plan";
 
 // --- types (mirror backend/internal/trainingapi) -----------------------------------------
 
@@ -186,8 +187,14 @@ export const trainingApi = {
     authed.get<TodayResponse>(`${base(horse)}/today${minutes ? `?minutes=${minutes}` : ""}`),
   week: (horse: string, start?: string) =>
     authed.get<WeekResponse>(`${base(horse)}/week${start ? `?start=${start}` : ""}`),
-  takeDay: (horse: string, day: string, body: { status?: "planned" | "rest" | "open"; activity?: Activity }) =>
-    authed.put<WeekResponse>(`${base(horse)}/week/${day}`, body),
+  takeDay: (
+    horse: string,
+    day: string,
+    body: { status?: "planned" | "rest" | "open"; activity?: Activity; user_id?: string; note?: string },
+  ) => authed.put<WeekResponse>(`${base(horse)}/week/${day}`, body),
+  /** Proposal for the open days of the week (JAN-89); nothing is stored. */
+  planWeek: (horse: string, start?: string) =>
+    authed.post<PlanResponse>(`${base(horse)}/week/plan${start ? `?start=${start}` : ""}`, {}),
   profile: (horse: string) => authed.get<TrainingProfile>(`${base(horse)}/training-profile`),
   saveProfile: (horse: string, body: ProfileInput) => authed.put<TrainingProfile>(`${base(horse)}/training-profile`, body),
   createSession: (horse: string, body: SessionInput) => authed.post<CreatedSession>(`${base(horse)}/sessions`, body),
@@ -251,6 +258,25 @@ export function useTakeDay(horse: string) {
     mutationFn: (v: { day: string; status?: "planned" | "rest" | "open"; activity?: Activity }) =>
       trainingApi.takeDay(horse, v.day, { status: v.status, activity: v.activity }),
     onSuccess: () => invalidate(horse),
+  });
+}
+
+/** Asks the server for a week plan (model and/or rules). */
+export function usePlanWeek(horse: string) {
+  return useMutation({ mutationFn: (start?: string) => trainingApi.planWeek(horse, start) });
+}
+
+/** Stores the plan days one after another, then refreshes the week. */
+export function useApplyPlan(horse: string) {
+  const invalidate = useInvalidateTraining();
+  return useMutation({
+    mutationFn: async (days: PlanDay[]) => {
+      for (const d of days) {
+        const body = planApplyBody(d);
+        if (body) await trainingApi.takeDay(horse, d.date, body);
+      }
+    },
+    onSettled: () => invalidate(horse),
   });
 }
 
