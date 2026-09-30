@@ -108,8 +108,9 @@ the settings screen links there.
   heading per day. Tapping a row opens its `screen` (only internal whitelisted routes), the check icon "Erledigt" dismisses a stored
   reminder. Refreshes on `blanket_state.changed` and `request.changed`.
 - `/settings`: "Benachrichtigungen" (switch per kind, banner "Mitteilungen erlauben" without push consent, which opens the consent
-  sheet, then the reminder time in quarter-hour steps with Speichern, admins only; members see the time), "Konto" (links to
-  `/presence` for geofence and visibility and to `/settings/privacy`, then Abmelden). Entry points: bell and gear in the app menu
+  sheet, then the reminder time in quarter-hour steps with Speichern, admins only; members see the time), "Stallgasse" (invite
+  card, admins only), "Konto" (links to the name screen, to `/presence` for geofence and visibility and to
+  `/settings/privacy`, then Abmelden). Entry points: bell and gear in the app menu
   top right on every screen (see [design system](../design-system.md)).
 - Notification taps (`lib/notifications.ts`, `useNotificationNavigation` in the root layout): the tap while the app runs (listener) and
   the tap that started it (`getLastNotificationResponse`, cleared after handling) open `data.screen`, else `data.route` (health and reha

@@ -52,11 +52,12 @@ export default function RootLayout() {
 
 /**
  * Sends the user where they belong:
- * no session -> sign-in, session without stable -> join, otherwise the tabs.
+ * no session -> sign-in, name still the email fallback -> name, session without stable -> join,
+ * otherwise the tabs.
  * `(auth)/*` and `auth/verify` (the magic link target) are the only screens without a stable.
  */
 function AuthGate() {
-  const { status, hasStable, refresh } = useAuth();
+  const { status, hasStable, refresh, user } = useAuth();
   useDeviceSetup(); // push token registration + geofence re-arm after sign-in
   useNotificationNavigation(); // tapping a push opens its screen
   const segments = useSegments() as string[];
@@ -88,17 +89,23 @@ function AuthGate() {
     );
   }
 
+  const inName = inAuthGroup && segments[1] === "name"; // also reachable from the settings
+  const needsName = status === "signedIn" && user !== null && !user.name_confirmed;
+
   let redirect = null;
   if (status === "signedOut") {
     if (!inAuthGroup && !inVerify && !inLegal) redirect = <Redirect href="/(auth)/sign-in" />;
+  } else if (needsName) {
+    // A magic-link sign-up only knows the email: ask for the name before anything else.
+    if (!inName && !inLegal) redirect = <Redirect href="/(auth)/name" />;
   } else if (!hasStable) {
-    if (!(inAuthGroup && segments[1] === "join") && !inLegal && !inSettings) redirect = <Redirect href="/(auth)/join" />;
-  } else if (inAuthGroup || inVerify) {
+    if (!(inAuthGroup && segments[1] === "join") && !inName && !inLegal && !inSettings) redirect = <Redirect href="/(auth)/join" />;
+  } else if ((inAuthGroup && !inName) || inVerify) {
     redirect = <Redirect href="/(tabs)" />;
   }
 
-  // The app menu needs a stable: presence and reminders belong to it.
-  const menu = status === "signedIn" && hasStable ? AppMenu : null;
+  // The app menu needs a stable (presence and reminders belong to it) and a confirmed name.
+  const menu = status === "signedIn" && hasStable && !needsName ? AppMenu : null;
 
   return (
     <ScreenMenuContext.Provider value={menu}>

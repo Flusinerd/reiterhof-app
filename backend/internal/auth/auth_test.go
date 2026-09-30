@@ -114,6 +114,8 @@ type session struct {
 		Name     string  `json:"name"`
 		StableID *string `json:"stable_id"`
 		IsAdmin  bool    `json:"is_admin"`
+		// NameConfirmed is false while the name is the email fallback.
+		NameConfirmed bool `json:"name_confirmed"`
 	} `json:"user"`
 }
 
@@ -354,6 +356,34 @@ func TestSessionsAndMiddleware(t *testing.T) {
 	if rec := e.do("GET", "/probe/user", b, nil); rec.Code != 204 {
 		t.Fatalf("other session = %d", rec.Code)
 	}
+}
+
+func TestNameConfirmed(t *testing.T) {
+	e := newEnv(t, auth.Options{}, config.Auth{})
+	s := e.signIn("new.rider@example.org")
+	if s.User.Name != "new.rider" || s.User.NameConfirmed {
+		t.Fatalf("new magic-link user = %+v, want the email fallback, unconfirmed", s.User)
+	}
+	// Other profile fields do not confirm the name.
+	if rec := e.do("PATCH", "/api/v1/me", s.Token, map[string]string{"phone": "0170 1"}); rec.Code != 200 || decode[meResp](t, rec).User.NameConfirmed {
+		t.Fatalf("patch phone = %d %s", rec.Code, rec.Body)
+	}
+	rec := e.do("PATCH", "/api/v1/me", s.Token, map[string]string{"name": "Nina"})
+	if me := decode[meResp](t, rec); rec.Code != 200 || me.User.Name != "Nina" || !me.User.NameConfirmed {
+		t.Fatalf("patch name = %d %s", rec.Code, rec.Body)
+	}
+	// Seeded and admin-created users have a real name.
+	if me := decode[meResp](t, e.do("GET", "/api/v1/me", authtest.TokenAt(t, e.pool, seed.UserAnna, *e.clock), nil)); !me.User.NameConfirmed {
+		t.Fatalf("seed user unconfirmed: %+v", me.User)
+	}
+}
+
+// meResp is the part of GET/PATCH /api/v1/me the tests read.
+type meResp struct {
+	User struct {
+		Name          string `json:"name"`
+		NameConfirmed bool   `json:"name_confirmed"`
+	} `json:"user"`
 }
 
 func TestPatchMe(t *testing.T) {
