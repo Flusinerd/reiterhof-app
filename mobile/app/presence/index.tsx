@@ -11,6 +11,7 @@ import { PRESENCE_EVENT, PRESENCE_KEY, presenceApi } from "@/lib/api/presence";
 import { ME_KEY, useAuth } from "@/lib/auth";
 import { failureMessage } from "@/lib/geofence-core";
 import { useGeofence } from "@/lib/geofence";
+import { isWeb } from "@/lib/platform";
 import {
   formatClock,
   lastSeenLabel,
@@ -134,6 +135,11 @@ export default function PresenceScreen() {
             <Text variant="caption">
               Dein Standort bleibt auf dem Handy, der Server erfährt nur „angekommen“ und „gegangen“.
             </Text>
+            <Divider />
+          </>
+        ) : isWeb ? (
+          <>
+            <Text variant="caption">Automatisch ein- und auschecken gibt es nur in der App aus dem App Store.</Text>
             <Divider />
           </>
         ) : null}

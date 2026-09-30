@@ -1,5 +1,5 @@
 import * as Location from "expo-location";
-import * as SecureStore from "expo-secure-store";
+import * as storage from "./storage";
 import * as TaskManager from "expo-task-manager";
 import { useCallback, useEffect, useState } from "react";
 import { Platform } from "react-native";
@@ -65,7 +65,7 @@ export async function isGeofenceSupported(): Promise<boolean> {
 
 export async function isGeofenceEnabled(): Promise<boolean> {
   try {
-    return (await SecureStore.getItemAsync(STORAGE_KEY)) === "1";
+    return (await storage.getItem(STORAGE_KEY)) === "1";
   } catch {
     return false;
   }
@@ -73,8 +73,8 @@ export async function isGeofenceEnabled(): Promise<boolean> {
 
 async function storeEnabled(on: boolean): Promise<void> {
   try {
-    if (on) await SecureStore.setItemAsync(STORAGE_KEY, "1");
-    else await SecureStore.deleteItemAsync(STORAGE_KEY);
+    if (on) await storage.setItem(STORAGE_KEY, "1");
+    else await storage.deleteItem(STORAGE_KEY);
   } catch {
     // not persisted: the switch shows off again after a restart
   }

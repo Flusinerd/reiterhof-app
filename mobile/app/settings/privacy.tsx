@@ -1,9 +1,7 @@
 import { useRouter } from "expo-router";
 import { Download, FileText, Scale, Trash2 } from "lucide-react-native";
-import { File, Paths } from "expo-file-system";
-import * as Sharing from "expo-sharing";
 import { useState } from "react";
-import { Alert, Share, View } from "react-native";
+import { Alert, View } from "react-native";
 
 import { useConsentPrompt } from "@/components/consent-prompt";
 import { Button, Card, Divider, Hero, Icon, PressableCard, Screen, SectionLabel, Switch, Text } from "@/components/ui";
@@ -20,6 +18,7 @@ import {
   orderedConsents,
   type ConsentKind,
 } from "@/lib/consent-core";
+import { shareTextFile } from "@/lib/export-file";
 import { disableGeofence } from "@/lib/geofence";
 
 export default function PrivacySettings() {
@@ -54,14 +53,7 @@ export default function PrivacySettings() {
     try {
       const data = await privacyApi.exportData();
       const text = formatExport(data);
-      const file = new File(Paths.cache, exportFileName(new Date()));
-      file.create({ overwrite: true });
-      file.write(text);
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(file.uri, { mimeType: "application/json", dialogTitle: "Meine Stallfunk-Daten" });
-      } else {
-        await Share.share({ message: text });
-      }
+      await shareTextFile(exportFileName(new Date()), text);
     } catch (err) {
       setError(errorMessage(err));
     } finally {

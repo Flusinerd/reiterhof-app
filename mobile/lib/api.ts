@@ -1,14 +1,23 @@
 import Constants from "expo-constants";
+import { Platform } from "react-native";
 
 import { createClient } from "./api-core.ts";
-import { getToken } from "./token.ts";
+import { resolveApiUrl, type PlatformOS } from "./platform-core.ts";
+import { getToken } from "./token";
 
 export { ApiError, errorMessage } from "./api-core.ts";
 
-// Base URL of the cloud API. On the Android emulator, 10.0.2.2 points to the
-// host machine running the emulator. Override with expo.extra.apiUrl in app.json.
-export const API_URL: string =
-  (Constants.expoConfig?.extra?.apiUrl as string | undefined) ?? "http://10.0.2.2:8080";
+// Base URL of the cloud API. Native: expo.extra.apiUrl from app.json (on the Android emulator,
+// 10.0.2.2 points to the host machine). Web (PWA): the origin of the page, because the host
+// that serves the app also proxies /api. STALLFUNK_API_URL (through app.config.js) or
+// EXPO_PUBLIC_API_URL override it at build time, e.g. for local development.
+// The realtime stream, file URLs and ICS links are built from this value as well.
+export const API_URL: string = resolveApiUrl({
+  os: Platform.OS as PlatformOS,
+  configUrl: Constants.expoConfig?.extra?.apiUrl,
+  override: Constants.expoConfig?.extra?.apiUrlOverride || process.env.EXPO_PUBLIC_API_URL,
+  origin: typeof window !== "undefined" ? window.location?.origin : undefined,
+});
 
 let unauthorizedHandler: (() => void) | null = null;
 
