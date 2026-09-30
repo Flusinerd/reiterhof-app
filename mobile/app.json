@@ -6,10 +6,38 @@
     "scheme": "reiterhof",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "plugins": ["expo-router", "expo-notifications", "expo-secure-store", "expo-apple-authentication", "expo-web-browser"],
+    "plugins": [
+      "expo-router",
+      "expo-notifications",
+      "expo-secure-store",
+      "expo-apple-authentication",
+      "expo-web-browser",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Reiterhof erkennt im Hintergrund, wann du im Stall ankommst oder ihn verlässt, und meldet dich dann automatisch an oder ab.",
+          "locationAlwaysPermission": "Reiterhof erkennt im Hintergrund, wann du im Stall ankommst oder ihn verlässt, und meldet dich dann automatisch an oder ab.",
+          "locationWhenInUsePermission": "Reiterhof nutzt deinen Standort, um zu erkennen, ob du im Stall bist.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": false
+        }
+      ]
+    ],
     "experiments": { "typedRoutes": true },
-    "android": { "package": "org.datenlotse.reiterhof" },
-    "ios": { "bundleIdentifier": "org.datenlotse.reiterhof", "usesAppleSignIn": true },
+    "android": {
+      "package": "org.datenlotse.reiterhof",
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION", "ACCESS_BACKGROUND_LOCATION"]
+    },
+    "ios": {
+      "bundleIdentifier": "org.datenlotse.reiterhof",
+      "usesAppleSignIn": true,
+      "infoPlist": {
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Reiterhof erkennt im Hintergrund, wann du im Stall ankommst oder ihn verlässt, und meldet dich dann automatisch an oder ab.",
+        "NSLocationAlwaysUsageDescription": "Reiterhof erkennt im Hintergrund, wann du im Stall ankommst oder ihn verlässt, und meldet dich dann automatisch an oder ab.",
+        "NSLocationWhenInUseUsageDescription": "Reiterhof nutzt deinen Standort, um zu erkennen, ob du im Stall bist."
+      }
+    },
     "extra": {
       "apiUrl": "http://10.0.2.2:8080",
       "googleWebClientId": "",
