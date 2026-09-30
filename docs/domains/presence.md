@@ -61,6 +61,12 @@ person's visits in the last 8 weeks, rounded to the hour ("kommt meist gegen 19 
 set when the person has at least 4 visits in that window and visibility `all`, and only in
 `recent`.
 
+## Check-out hook
+
+`presence.AfterCheckOut` (package variable, nil = no-op) is called by `POST /presence/check-out`
+after a visit was closed (not by the stale job). `cmd/api` sets it to the blanket reminder for the
+last person leaving, see [blankets](blankets.md#check-out-hook).
+
 ## Stale visits
 
 People forget to check out, and the phone can miss a geofence exit. The scheduler job

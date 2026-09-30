@@ -113,6 +113,13 @@ The mobile app adds events with the system calendar screen (`expo-calendar`, no 
 needed) and falls back to the share sheet. The ICS URLs need the bearer token, so they cannot be
 subscribed to from other calendar apps yet.
 
+## Blanket requests close automatically
+
+When someone records the blanket state of a horse ([blankets](blankets.md#requests-close-automatically-jan-39)),
+`requests.CompleteBlanketRequests` marks the open or assigned `blanket` requests of that horse whose
+date range covers the blanket night as `done` and adds `payload.feedback` (German text with the
+blanket and the person). Other types, horses and days are not touched.
+
 ## Realtime extension point
 
 `requests.DefaultPublish` (package variable) or `Service.Publish` receives an `Event{StableID,
