@@ -56,6 +56,7 @@ export type TodayEntry = {
   /** App route to open, "" = none. */
   screen: string;
   horseId?: string;
+  horseName?: string;
 };
 
 export type TodayView = {
@@ -94,6 +95,7 @@ function trainingEntry(plan: HorsePlan, day: PlanDay, when: "today" | "tomorrow"
       mine: true,
       screen: `/training/week?horse=${plan.horseId}`,
       horseId: plan.horseId,
+      horseName: plan.horseName,
     };
   }
   if (!day.activity || day.status === "rest" || day.status === "empty") return null;
@@ -112,6 +114,7 @@ function trainingEntry(plan: HorsePlan, day: PlanDay, when: "today" | "tomorrow"
     mine: doer && !done,
     screen: `/training?horse=${plan.horseId}`,
     horseId: plan.horseId,
+    horseName: plan.horseName,
   };
 }
 
@@ -139,6 +142,7 @@ function blanketEntry(h: TodayHorse, reminderTime: string): TodayEntry | null {
     mine: !h.done,
     screen: "/blankets/round",
     horseId: h.horse.id,
+    horseName: h.horse.name,
   };
 }
 

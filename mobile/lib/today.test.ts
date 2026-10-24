@@ -98,6 +98,7 @@ test("without training the blanket at the reminder time is next; overdue items a
   );
   assert.equal(view.next?.kind, "blanket");
   assert.equal(nextEyebrow(view.next!), "Als Nächstes · 20:30");
+  assert.equal(view.next?.horseName, "Luna");
   assert.equal(nextAction(view.next!), "Runde starten");
   assert.equal(view.next?.screen, "/blankets/round");
   assert.equal(view.today.length, 1, "training_plan reminders are left out");

@@ -12,11 +12,10 @@ function open(screen: string) {
 
 /** The one next task, on the raised surface with its single primary action. */
 export function NextTask({ entry, horseColor }: { entry: TodayEntry; horseColor?: string }) {
-  const horseName = entry.title.split(" · ")[0];
   return (
     <View className="gap-4 rounded-card border border-border bg-raised p-5">
       <View className="flex-row items-center gap-4">
-        {entry.horseId ? <Avatar name={horseName} colorKey={horseColor} size="lg" /> : null}
+        {entry.horseName ? <Avatar name={entry.horseName} colorKey={horseColor} size="lg" /> : null}
         <View className="flex-1 gap-1">
           <Text variant="eyebrow" tone={entry.tone === "danger" ? "danger" : "brass"}>
             {nextEyebrow(entry)}
