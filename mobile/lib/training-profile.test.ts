@@ -16,6 +16,8 @@ import {
   ridersSummary,
   setupDraft,
   setupStepError,
+  showTestsFromClasses,
+  showTestsText,
   showsSummary,
   structureSummary,
   toggleActivity,
@@ -67,7 +69,8 @@ test("draft round-trips into the PUT body", () => {
     mode: "conditional",
     note: "Nur mit Begleitung",
   });
-  assert.deepEqual(r.input.shows, [{ date: "2026-05-17", name: "Turnier", classes: "Dressur L" }]);
+  // The free-text classes of older app versions become classes (Prüfungen).
+  assert.deepEqual(r.input.shows, [{ date: "2026-05-17", name: "Turnier", tests: [{ name: "Dressur L" }] }]);
   assert.equal(r.input.season_end, "2026-10-31");
   assert.equal(r.input.rhythm.rest_after_show, true);
   assert.deepEqual(r.input.rider_rules[0]?.allowed_activities, ["hall"]);
@@ -87,8 +90,12 @@ test("validation messages are German", () => {
   assert.match(bad({ sessionsMin: "7", restDaysMin: "1", sessionsMax: "7" }), /passen nicht/);
   assert.match(bad({ maxMinutes: "300" }), /240/);
   assert.match(bad({ seasonEnd: "31.10." }), /Saisonende/);
-  assert.match(bad({ shows: [{ date: "morgen", name: "T", classes: "", helper: "" }] }), /Turnierdatum/);
-  assert.match(bad({ shows: [{ date: "2026-05-17", name: " ", classes: "", helper: "" }] }), /Namen/);
+  assert.match(bad({ shows: [{ date: "morgen", name: "T", time: "", tests: [], helper: "" }] }), /Turnierdatum/);
+  assert.match(bad({ shows: [{ date: "2026-05-17", name: " ", time: "", tests: [], helper: "" }] }), /Namen/);
+  const show = { date: "2026-05-17", name: "T", time: "", tests: [], helper: "" };
+  assert.match(bad({ shows: [{ ...show, time: "8 Uhr" }] }), /Turnierbeginn/);
+  assert.match(bad({ shows: [{ ...show, tests: [{ name: "", time: "10:30" }] }] }), /Prüfung braucht einen Namen/);
+  assert.match(bad({ shows: [{ ...show, tests: [{ name: "A-Dressur", time: "25:00" }] }] }), /Uhrzeit der Prüfung/);
   assert.match(
     bad({ modes: { ...base.modes, hall: { mode: "conditional", note: " " } } }),
     /Bedingung/,
@@ -178,8 +185,8 @@ test("validateSection messages equal the draftToInput messages for the same faul
     { section: "rhythm", patch: { maxMinutes: "300" }, message: /240/ },
     { section: "activities", patch: { modes: { ...base.modes, hall: { mode: "conditional", note: " " } } }, message: /Bedingung/ },
     { section: "shows", patch: { seasonEnd: "31.10." }, message: /Saisonende/ },
-    { section: "shows", patch: { shows: [{ date: "morgen", name: "T", classes: "", helper: "" }] }, message: /Turnierdatum/ },
-    { section: "shows", patch: { shows: [{ date: "2026-05-17", name: " ", classes: "", helper: "" }] }, message: /Namen/ },
+    { section: "shows", patch: { shows: [{ date: "morgen", name: "T", time: "", tests: [], helper: "" }] }, message: /Turnierdatum/ },
+    { section: "shows", patch: { shows: [{ date: "2026-05-17", name: " ", time: "", tests: [], helper: "" }] }, message: /Namen/ },
     { section: "structure", patch: { days: ["jumping", "", "", "", "", "", ""] }, message: /Springen ist im Profil ausgeschaltet/ },
     { section: "structure", patch: { days: ["rest", "rest", "rest", "", "", "", ""] }, message: /3 Ruhetage, erlaubt sind höchstens 2/ },
     { section: "structure", patch: { quotaDemanding: "zwei" }, message: /Wochenziele: nur ganze Zahlen/ },
@@ -216,7 +223,7 @@ test("draftToInput reports the first fault in the old order: rhythm, condition, 
     ...base,
     sessionsMin: "0",
     modes: { ...base.modes, hall: { mode: "conditional" as const, note: "" } },
-    shows: [{ date: "x", name: "", classes: "", helper: "" }],
+    shows: [{ date: "x", name: "", time: "", tests: [], helper: "" }],
     days: ["jumping", "", "", "", "", "", ""] as ProfileDraft["days"],
   };
   assert.match(errorOf(draftToInput(faulty))!, /Einheiten pro Woche/);
@@ -325,7 +332,7 @@ test("applyDisciplineDefaults sets the defaults and keeps level, status, shows, 
     level: "L",
     status: "reha",
     seasonEnd: "2026-10-31",
-    shows: [{ date: "2026-05-17", name: "Turnier", classes: "", helper: "" }],
+    shows: [{ date: "2026-05-17", name: "Turnier", time: "", tests: [], helper: "" }],
     riders: [{ userId: "u1", name: "Mia", activities: ["hall"], maxIntensity: "any", mayHackAlone: false, mayRideShows: false }],
     days: ["rest", "", "", "", "", "", ""],
     quotaDemanding: "2",
@@ -417,7 +424,7 @@ test("structureSummary", () => {
 });
 
 test("showsSummary", () => {
-  const show = (date: string) => ({ date, name: "T", classes: "", helper: "" });
+  const show = (date: string) => ({ date, name: "T", time: "", tests: [], helper: "" });
   assert.equal(showsSummary([], "2026-09-30"), "Keine Turniere");
   assert.equal(showsSummary([show("2026-05-17")], "2026-09-30"), "1 Turnier · 17.05.");
   assert.equal(showsSummary([show("")], "2026-09-30"), "1 Turnier");
@@ -449,4 +456,47 @@ test("max minutes options", () => {
   assert.equal(MAX_MINUTES_OPTIONS[0]?.label, "30 Min.");
   assert.equal(MAX_MINUTES_OPTIONS[4]?.label, "120 Min.");
   assert.equal(MAX_MINUTES_OPTIONS[5]?.label, "Unbegrenzt");
+});
+
+test("show time and classes round-trip; empty class rows are dropped", () => {
+  const d = draftFromProfile({
+    ...profile,
+    shows: [
+      { date: "2026-05-17", time: "08:30", name: "Turnier", tests: [{ name: "A-Dressur", time: "09:15" }, { name: "L-Dressur" }] },
+    ],
+  });
+  assert.deepEqual(d.shows[0], {
+    date: "2026-05-17",
+    time: "08:30",
+    name: "Turnier",
+    tests: [
+      { name: "A-Dressur", time: "09:15" },
+      { name: "L-Dressur", time: "" },
+    ],
+    helper: "",
+  });
+  d.shows[0]!.tests.push({ name: " ", time: "" });
+  const r = draftToInput(d);
+  assert.ok(r.ok);
+  if (!r.ok) return;
+  assert.deepEqual(r.input.shows, [
+    { date: "2026-05-17", time: "08:30", name: "Turnier", tests: [{ name: "A-Dressur", time: "09:15" }, { name: "L-Dressur" }] },
+  ]);
+});
+
+test("showTestsFromClasses splits the free text of older versions", () => {
+  assert.deepEqual(showTestsFromClasses("A-Dressur, L-Dressur; E-Springen"), [
+    { name: "A-Dressur", time: "" },
+    { name: "L-Dressur", time: "" },
+    { name: "E-Springen", time: "" },
+  ]);
+  assert.deepEqual(showTestsFromClasses(" "), []);
+  assert.deepEqual(showTestsFromClasses(undefined), []);
+});
+
+test("showTestsText", () => {
+  assert.deepEqual(showTestsText([{ name: "A-Dressur", time: "09:15" }, { name: "L-Dressur" }]), [
+    "09:15 A-Dressur",
+    "L-Dressur",
+  ]);
 });

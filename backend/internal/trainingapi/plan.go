@@ -248,7 +248,7 @@ func (h *handler) planWeek(w http.ResponseWriter, r *http.Request) {
 // day is the only open one (a planned or claimed day is opened, its user stays in the
 // response), the draft of the other open days becomes context (a planned activity with its
 // minutes, or a rest day) and the rejected activities go to the day. The day must be in the
-// week, not over, not done and not the fixed rest day after a show. Every error is a
+// week, not over, not done, not a show day and not the fixed rest day after a show. Every error is a
 // validation error with a message for the client.
 func applyDayOverrides(in *weekplan.Input, week weekOut, today, day time.Time, req planRequest) error {
 	idx := -1
@@ -261,7 +261,7 @@ func applyDayOverrides(in *weekplan.Input, week weekOut, today, day time.Time, r
 		return errors.New("day cannot be planned")
 	}
 	if wd := week.Days[idx]; day.Before(today) || wd.Status == dayDone || wd.Status == dayEmpty ||
-		(wd.Status == dayRest && wd.RestReason == "after_show") {
+		(wd.Status == dayRest && wd.RestReason == "after_show") || wd.Show != nil {
 		return errors.New("day cannot be planned")
 	}
 
@@ -395,7 +395,8 @@ func (h *handler) planInput(ctx context.Context, a access, start, today time.Tim
 		day, _ := time.Parse(dateLayout, d.Date)
 		wd := weekplan.Day{Date: day, Rest: d.Status == dayRest}
 		switch {
-		case day.Before(today) || d.Status == dayDone || d.Status == dayRest || d.Status == dayEmpty:
+		case day.Before(today) || d.Status == dayDone || d.Status == dayRest || d.Status == dayEmpty || d.Show != nil:
+			// A show day is context: the show is the work of the day, no unit or exercise.
 		case d.Activity != nil:
 			wd.Planned = *d.Activity
 		default:

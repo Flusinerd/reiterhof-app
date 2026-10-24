@@ -144,11 +144,17 @@ func (h *handler) today(w http.ResponseWriter, r *http.Request) {
 	if plan != nil {
 		out.Reha = &plan.out
 	}
+	// On a show day the show is the work of the day: no library exercise on top.
+	showToday := isShowDay(in.Profile.Shows, today)
 	for _, rec := range res.Recommendations {
 		ro := recommendationOut{
 			Activity: rec.Activity, Label: rec.Activity.GermanName(), Minutes: rec.Minutes,
 			Intensity: intensityKey(rec.Intensity), IntensityLabel: rec.Intensity.Label(),
 			Reason: rec.Reason, Note: rec.Note,
+		}
+		if showToday {
+			out.Recommendations = append(out.Recommendations, ro)
+			continue
 		}
 		if ro.Exercise, err = h.suggestExercise(ctx, stableID, a.horseID, exerciseDiscipline(rec.Activity, prof.discipline)); err != nil {
 			h.fail(w, r, err)
@@ -217,6 +223,16 @@ func weekDots(today time.Time, sessions []training.Session, prof storedProfile, 
 		dots = append(dots, d)
 	}
 	return dots
+}
+
+// isShowDay reports whether a show takes place on day.
+func isShowDay(shows []training.Show, day time.Time) bool {
+	for _, s := range shows {
+		if training.DaysBetween(s.Date, day) == 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // restAfterShow reports whether day is the mandatory rest day after a show.

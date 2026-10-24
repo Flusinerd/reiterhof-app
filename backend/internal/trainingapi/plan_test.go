@@ -65,8 +65,9 @@ func TestPlanWeekWithRules(t *testing.T) {
 		t.Fatalf("plan = %v", got)
 	}
 	days := planDays(got)
-	// Wednesday (today), Friday and Saturday are open; Thursday is Mia's, Sunday the rest day after the show.
-	if len(days) != 3 || days["2026-03-25"] == nil || days["2026-03-27"] == nil || days["2026-03-28"] == nil {
+	// Wednesday (today) and Friday are open; Thursday is Mia's, Saturday the show day (no unit, no exercise),
+	// Sunday the rest day after the show.
+	if len(days) != 2 || days["2026-03-25"] == nil || days["2026-03-27"] == nil || days["2026-03-28"] != nil {
 		t.Fatalf("days = %v", got["days"])
 	}
 	for date, d := range days {
@@ -119,8 +120,8 @@ func TestPlanWeekWithModel(t *testing.T) {
 	if fri := days["2026-03-27"]; fri["source"] != "rules" || fri["activity"] != "rest" || !strings.Contains(str(fri["replaced"]), "Turnier ist morgen") {
 		t.Errorf("friday = %v", fri)
 	}
-	if sat := days["2026-03-28"]; sat["source"] != "rules" || sat["replaced"] != nil {
-		t.Errorf("saturday = %v", sat)
+	if sat := days["2026-03-28"]; sat != nil {
+		t.Errorf("the show day was planned: %v", sat)
 	}
 	if days["2026-03-26"] != nil {
 		t.Error("the model planned Mia's Thursday")
@@ -169,7 +170,7 @@ func TestPlanWeekModelFailureFallsBackToRules(t *testing.T) {
 	} {
 		e.withChat(tc.chat)
 		got := e.call(seed.UserJan, http.MethodPost, planPath, "", http.StatusOK)
-		if got["ai_status"] != tc.want || got["source"] != "rules" || len(list(got["days"])) != 3 {
+		if got["ai_status"] != tc.want || got["source"] != "rules" || len(list(got["days"])) != 2 {
 			t.Errorf("%s: plan = %v", tc.want, got)
 		}
 	}
@@ -232,8 +233,8 @@ func TestPlanWeekFocusExerciseAndPromptData(t *testing.T) {
 		t.Fatalf("wednesday = %v", wed)
 	}
 	// Days from the rules carry the next exercise of their library, but no focus.
-	if sat := planDays(got)["2026-03-28"]; sat["source"] != "rules" || sat["focus"] != nil {
-		t.Errorf("saturday = %v", sat)
+	if fri := planDays(got)["2026-03-27"]; fri["source"] != "rules" || fri["focus"] != nil {
+		t.Errorf("friday = %v", fri)
 	}
 }
 
@@ -257,7 +258,7 @@ func TestPlanSingleDay(t *testing.T) {
 	}
 	// An empty body, {} and a draft or exclude without day keep planning the whole week.
 	for _, body := range []string{"", `{}`, `{"draft":[{"date":"2026-03-27","activity":"hall","minutes":60}],"exclude":["hall"]}`} {
-		if got := e.call(seed.UserJan, http.MethodPost, planPath, body, http.StatusOK); len(list(got["days"])) != 3 {
+		if got := e.call(seed.UserJan, http.MethodPost, planPath, body, http.StatusOK); len(list(got["days"])) != 2 {
 			t.Errorf("body %q: days = %v", body, got["days"])
 		}
 		if got := e.call(seed.UserJan, http.MethodPost, at(wed), body, http.StatusOK); len(list(got["days"])) != 1 {
@@ -306,8 +307,8 @@ func TestPlanSingleDay(t *testing.T) {
 		t.Errorf("thursday = %v", got["days"])
 	}
 
-	// Days that cannot be planned: over, done, the rest day after the show, outside the week.
-	for _, day := range []string{"2026-03-24", "2026-03-23", "2026-03-29", "2026-04-02", "2026-03-16"} {
+	// Days that cannot be planned: over, done, the show day, the rest day after the show, outside the week.
+	for _, day := range []string{"2026-03-24", "2026-03-23", sat, "2026-03-29", "2026-04-02", "2026-03-16"} {
 		out := e.call(seed.UserJan, http.MethodPost, at(day), `{}`, http.StatusBadRequest)
 		if er := obj(out["error"]); er["code"] != "validation_failed" || er["message"] != "day cannot be planned" {
 			t.Errorf("%s: error = %v", day, out)

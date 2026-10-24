@@ -56,9 +56,11 @@ func insertTraining(ctx context.Context, tx pgx.Tx, now time.Time) error {
 
 	// --- profiles (fill rows that are still empty, keep local edits) ------------------
 	rhythm, _ := json.Marshal(training.DefaultRhythm())
-	lunaShows, _ := json.Marshal([]map[string]string{
-		{"date": date(-9), "name": "Turnier Dorsten", "classes": "Dressur A"},
-		{"date": date(3), "name": "Turnier", "classes": "Dressur L, Dressurreiter L", "helper": "Anna hilft beim Fertigmachen"},
+	type showTest = map[string]string
+	lunaShows, _ := json.Marshal([]map[string]any{
+		{"date": date(-9), "name": "Turnier Dorsten", "tests": []showTest{{"name": "Dressur A"}}},
+		{"date": date(3), "time": "08:00", "name": "Turnier", "helper": "Anna hilft beim Fertigmachen",
+			"tests": []showTest{{"name": "Dressur L", "time": "09:30"}, {"name": "Dressurreiter L", "time": "13:15"}}},
 	})
 	noShows := []byte("[]")
 	profiles := []profileSeed{

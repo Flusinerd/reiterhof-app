@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -20,13 +21,32 @@ import (
 var disciplines = []string{"dressage", "jumping", "eventing", "leisure", "western", "young_horse"}
 
 // showDTO is a show as stored in training_profiles.shows: the pure training.Show plus
-// optional info for the week view.
+// optional info for the week view: the start time, the classes the horse starts in
+// (Prüfungen) and the helper. Classes is the free text of older clients; the app now sends
+// Tests and leaves it empty.
 type showDTO struct {
-	Date    string `json:"date"` // YYYY-MM-DD
-	Name    string `json:"name"`
-	Classes string `json:"classes,omitempty"`
-	Helper  string `json:"helper,omitempty"`
+	Date    string        `json:"date"`           // YYYY-MM-DD
+	Time    string        `json:"time,omitempty"` // HH:MM, stable-local start
+	Name    string        `json:"name"`
+	Tests   []showTestDTO `json:"tests,omitempty"`
+	Classes string        `json:"classes,omitempty"`
+	Helper  string        `json:"helper,omitempty"`
 }
+
+// showTestDTO is one class (Prüfung) of a show, e.g. "A-Dressur" at 10:30.
+type showTestDTO struct {
+	Name string `json:"name"`
+	Time string `json:"time,omitempty"` // HH:MM
+}
+
+// Limits of the classes of one show.
+const (
+	maxShowTests    = 20
+	maxShowTestName = 80
+)
+
+// clockRe matches HH:MM (00:00-23:59).
+var clockRe = regexp.MustCompile(`^([01][0-9]|2[0-3]):[0-5][0-9]$`)
 
 // rbRule is one entry of training_profiles.rb_rules (key: rider user id).
 type rbRule struct {
@@ -404,9 +424,25 @@ func validateProfile(in profileIn, riders []string) (validProfile, error) {
 		if len([]rune(s.Classes)) > 200 || len([]rune(s.Helper)) > 200 {
 			return v, errors.New("show classes and helper are too long (max 200 characters)")
 		}
+		if s.Time != "" && !clockRe.MatchString(s.Time) {
+			return v, errors.New("show time must be HH:MM")
+		}
+		if len(s.Tests) > maxShowTests {
+			return v, fmt.Errorf("too many classes per show (max %d)", maxShowTests)
+		}
+		for i := range s.Tests {
+			t := &s.Tests[i]
+			t.Name = strings.TrimSpace(t.Name)
+			if t.Name == "" || len([]rune(t.Name)) > maxShowTestName {
+				return v, fmt.Errorf("show class name is required (max %d characters)", maxShowTestName)
+			}
+			if t.Time != "" && !clockRe.MatchString(t.Time) {
+				return v, errors.New("show class time must be HH:MM")
+			}
+		}
 		v.shows = append(v.shows, s)
 	}
-	slices.SortStableFunc(v.shows, func(x, y showDTO) int { return strings.Compare(x.Date, y.Date) })
+	slices.SortStableFunc(v.shows, func(x, y showDTO) int { return strings.Compare(x.Date+x.Time, y.Date+y.Time) })
 
 	if in.SeasonEnd != nil && *in.SeasonEnd != "" {
 		d, err := time.Parse(dateLayout, *in.SeasonEnd)
