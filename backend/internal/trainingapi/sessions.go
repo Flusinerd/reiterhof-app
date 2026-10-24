@@ -110,6 +110,9 @@ func domainSessions(rows []sessionRow, loc *time.Location) []training.Session {
 		if s.Feel != nil {
 			ts.Feel = *s.Feel
 		}
+		if s.Feeling != nil {
+			ts.Feeling = *s.Feeling
+		}
 		if s.ExerciseID != nil {
 			ts.ExerciseID = *s.ExerciseID
 		}

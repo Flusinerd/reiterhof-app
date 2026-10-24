@@ -223,6 +223,8 @@ type Session struct {
 	Load        float64   `json:"load"` // see load.Score
 	// Feel is how the horse felt (fresh, loose, tired, tense), empty if not logged.
 	Feel string `json:"feel,omitempty"`
+	// Feeling is how the session felt to the rider (hard, good, easy; "Wie war's?"), empty if not logged.
+	Feeling string `json:"feeling,omitempty"`
 	// ExerciseID is the library exercise practised, FocusRating how it went (1 Schwer,
 	// 2 Besser, 3 Sitzt); both empty when not logged.
 	ExerciseID  string `json:"exercise_id,omitempty"`

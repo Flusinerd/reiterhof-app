@@ -63,7 +63,7 @@ INPUT (JSON)
 - status: fit, reha (rehabilitation after an injury) or pause (training break).
 - rhythm: sessions_min-sessions_max sessions and rest_days_min-rest_days_max rest days per week (Monday to Sunday, done and planned days count), max_minutes per session (0 = no limit), rest_after_show.
 - activities: the only activities allowed for this horse. "conditional": allowed under a condition the owner knows.
-- history: sessions of the last 14 days. days_ago 1 = yesterday. load = minutes x intensity; a day above 60 was demanding. feel: how the horse felt (fresh, loose, tired, tense). exercise and rating: the library exercise practised and how it went (hard, better, solid).
+- history: sessions of the last 14 days. days_ago 1 = yesterday. load = minutes x intensity; a day above 60 was demanding. feel: how the horse felt (fresh, loose, tired, tense). feeling: how the session felt to the rider (hard, good, easy). exercise and rating: the library exercise practised and how it went (hard, better, solid).
 - shows_in_days: competitions relative to today (0 = today, negative = past).
 - today, tomorrow: rain, night_min_c (coldest temperature of the night) and, for today, the ground (dry, wet, muddy, frozen).
 - exercises: candidates from the exercise library: key, library (dressage, jumping, groundwork, lunge), level, German title, tags (aims of the training scale), mastered (went solid before), next (key of the follow-up exercise).
@@ -141,6 +141,7 @@ func Prompt(in Input) string {
 		Load        float64           `json:"load"`
 		CanterShare float64           `json:"canter_share,omitempty"`
 		Feel        string            `json:"feel,omitempty"`
+		Feeling     string            `json:"feeling,omitempty"`
 		Exercise    string            `json:"exercise,omitempty"`
 		Rating      string            `json:"rating,omitempty"`
 	}
@@ -256,7 +257,7 @@ func Prompt(in Input) string {
 		}
 		si := sessionIn{
 			DaysAgo: ago, Activity: s.Activity, Minutes: s.Minutes, Load: round1(s.Load),
-			CanterShare: round1(s.CanterShare), Feel: feel(s.Feel),
+			CanterShare: round1(s.CanterShare), Feel: feel(s.Feel), Feeling: feeling(s.Feeling),
 		}
 		if k, ok := keys[s.ExerciseID]; ok {
 			si.Exercise, si.Rating = k, ratingWords[s.FocusRating]
@@ -328,6 +329,15 @@ func previousAverage(recent []training.Session, monday time.Time) float64 {
 func feel(s string) string {
 	switch s {
 	case "fresh", "loose", "tired", "tense":
+		return s
+	}
+	return ""
+}
+
+// feeling passes only the known values of "Wie war's?" (hard, good, easy).
+func feeling(s string) string {
+	switch s {
+	case "hard", "good", "easy":
 		return s
 	}
 	return ""

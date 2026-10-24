@@ -33,7 +33,7 @@ func week() Input {
 			Shows: []training.Show{{Date: day(10), Name: "Turnier bei Familie Muster"}},
 		},
 		Recent: []training.Session{
-			{Day: day(-2), Activity: training.ActivityHall, Minutes: 45, Load: 36, Feel: "tired"},
+			{Day: day(-2), Activity: training.ActivityHall, Minutes: 45, Load: 36, Feel: "tired", Feeling: "hard"},
 			{Day: day(-1), Activity: training.ActivityHack, Minutes: 60, Load: 60, CanterShare: 0.25},
 		},
 	}
@@ -183,7 +183,7 @@ func TestPromptHasNoIdentifyingData(t *testing.T) {
 	if msg.Discipline != "dressage" || len(msg.Activities) != 7 || msg.Activities[0]["conditional"] != true {
 		t.Errorf("profile = %+v", msg)
 	}
-	if len(msg.History) != 2 || msg.History[0]["days_ago"] != float64(2) || msg.History[0]["feel"] != "tired" {
+	if len(msg.History) != 2 || msg.History[0]["days_ago"] != float64(2) || msg.History[0]["feel"] != "tired" || msg.History[0]["feeling"] != "hard" {
 		t.Errorf("history = %v", msg.History)
 	}
 	if len(msg.ShowsInDays) != 1 || msg.ShowsInDays[0] != 10 {
