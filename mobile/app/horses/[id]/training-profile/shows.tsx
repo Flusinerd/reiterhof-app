@@ -3,18 +3,21 @@ import { Plus, Trash2 } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 
-import { Button, Card, DateField, Input, PageHeader, Screen, Section, Text } from "@/components/ui";
+import { Button, Card, DateField, Input, PageHeader, Screen, Section, Text, TimeField } from "@/components/ui";
 import { trainingError, useProfile, useSaveProfile, type ProfileInput } from "@/lib/api/training";
 import { horseRoutes } from "@/lib/horse-format";
 import {
   draftFromProfile,
   draftToInput,
+  MAX_SHOW_TEST_NAME,
+  MAX_SHOW_TESTS,
   validateSection,
   type ProfileDraft,
   type ShowDraft,
+  type ShowTestDraft,
 } from "@/lib/training-profile";
 
-/** Editor of the shows and the end of the season (JAN-99). */
+/** Editor of the shows (date, start, classes, helper) and the end of the season (JAN-99). */
 export default function ShowsEditor() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -66,6 +69,8 @@ export default function ShowsEditor() {
     setDraft((d) => (d ? { ...d, ...p } : d));
   };
   const patchShow = (i: number, p: Partial<ShowDraft>) => patch({ shows: draft.shows.map((s, j) => (j === i ? { ...s, ...p } : s)) });
+  const patchTest = (i: number, k: number, p: Partial<ShowTestDraft>) =>
+    patchShow(i, { tests: draft.shows[i]!.tests.map((t, j) => (j === k ? { ...t, ...p } : t)) });
 
   const submit = () => {
     // The picker leaves a date empty until one is chosen; the section validator words that as a format error.
@@ -108,13 +113,58 @@ export default function ShowsEditor() {
             maxLength={80}
             onChangeText={(name) => patchShow(i, { name })}
           />
-          <Input
-            accessibilityLabel={`Klassen, Turnier ${i + 1}`}
-            placeholder="Klassen (optional)"
-            value={s.classes}
-            maxLength={200}
-            onChangeText={(classes) => patchShow(i, { classes })}
-          />
+          <View className="gap-2">
+            <Text variant="secondary">Beginn (optional)</Text>
+            <TimeField
+              accessibilityLabel={`Beginn, Turnier ${i + 1}`}
+              placeholder="z. B. 08:30"
+              clearable
+              minuteInterval={5}
+              value={s.time}
+              onChange={(time) => patchShow(i, { time })}
+            />
+          </View>
+          <View className="gap-2">
+            <Text variant="secondary">Prüfungen</Text>
+            {s.tests.map((t, k) => (
+              <View key={k} className="flex-row items-center gap-2">
+                <Input
+                  className="flex-1"
+                  accessibilityLabel={`Prüfung ${k + 1}, Turnier ${i + 1}`}
+                  placeholder="z. B. A-Dressur"
+                  value={t.name}
+                  maxLength={MAX_SHOW_TEST_NAME}
+                  onChangeText={(name) => patchTest(i, k, { name })}
+                />
+                <TimeField
+                  className="w-32"
+                  accessibilityLabel={`Uhrzeit Prüfung ${k + 1}, Turnier ${i + 1}`}
+                  placeholder="10:30"
+                  clearable
+                  minuteInterval={5}
+                  value={t.time}
+                  onChange={(time) => patchTest(i, k, { time })}
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  icon={Trash2}
+                  accessibilityLabel={`Prüfung ${k + 1}, Turnier ${i + 1} entfernen`}
+                  onPress={() => patchShow(i, { tests: s.tests.filter((_, j) => j !== k) })}
+                />
+              </View>
+            ))}
+            {s.tests.length < MAX_SHOW_TESTS ? (
+              <Button
+                label="Prüfung hinzufügen"
+                icon={Plus}
+                variant="outline"
+                size="sm"
+                className="self-start"
+                onPress={() => patchShow(i, { tests: [...s.tests, { name: "", time: "" }] })}
+              />
+            ) : null}
+          </View>
           <Input
             accessibilityLabel={`Helfer, Turnier ${i + 1}`}
             placeholder="Helfer (optional)"
@@ -137,7 +187,7 @@ export default function ShowsEditor() {
         variant="outline"
         icon={Plus}
         fullWidth
-        onPress={() => patch({ shows: [...draft.shows, { date: "", name: "", classes: "", helper: "" }] })}
+        onPress={() => patch({ shows: [...draft.shows, { date: "", time: "", name: "", tests: [], helper: "" }] })}
       />
 
       <Section title="Saisonende">

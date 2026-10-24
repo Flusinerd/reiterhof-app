@@ -9,7 +9,38 @@ import {
   type ActivityMode,
 } from "./training.ts";
 
-export type ShowDraft = { date: string; name: string; classes: string; helper: string };
+/** One class (Prüfung) of a show, e.g. "A-Dressur" at "10:30"; the time may be "". */
+export type ShowTestDraft = { name: string; time: string };
+
+/** A show in the editor: date, optional start time ("HH:MM" or ""), name, classes and helper. */
+export type ShowDraft = { date: string; time: string; name: string; tests: ShowTestDraft[]; helper: string };
+
+/** Limits of the classes of one show (same as the API). */
+export const MAX_SHOW_TESTS = 20;
+export const MAX_SHOW_TEST_NAME = 80;
+
+/** Matches "HH:MM" from 00:00 to 23:59. */
+export function isValidClock(value: string): boolean {
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+}
+
+/**
+ * Classes of a show stored by older app versions as one free text ("A-Dressur, L-Dressur"):
+ * one class per entry separated by comma, semicolon or line break, without times.
+ */
+export function showTestsFromClasses(classes: string | undefined): ShowTestDraft[] {
+  return (classes ?? "")
+    .split(/[,;\n]/)
+    .map((c) => c.trim().slice(0, MAX_SHOW_TEST_NAME))
+    .filter((c) => c !== "")
+    .slice(0, MAX_SHOW_TESTS)
+    .map((name) => ({ name, time: "" }));
+}
+
+/** One line per class for the week view: "09:15 A-Dressur", or just "L-Dressur" without a time. */
+export function showTestsText(tests: readonly { name: string; time?: string }[]): string[] {
+  return tests.map((t) => (t.time ? `${t.time} ${t.name}` : t.name));
+}
 
 /** Kinds of a day in the owner's week structure (JAN-93); "" leaves the day to the planner. */
 export type DayKind = "" | "rest" | "recovery" | "light" | "normal" | "demanding";
@@ -81,7 +112,15 @@ export type ProfileLike = {
   discipline: string;
   level: string;
   allowed_activities: { activity: Activity; mode: ActivityMode; note?: string }[];
-  shows: { date: string; name: string; classes?: string; helper?: string }[];
+  shows: {
+    date: string;
+    time?: string;
+    name: string;
+    tests?: { name: string; time?: string }[];
+    /** Free text of older app versions; read only, replaced by tests on the next save. */
+    classes?: string;
+    helper?: string;
+  }[];
   season_end: string | null;
   rhythm: {
     sessions_min: number;
@@ -115,7 +154,15 @@ export function draftFromProfile(p: ProfileLike): ProfileDraft {
     discipline: p.discipline || "dressage",
     level: p.level,
     modes,
-    shows: p.shows.map((s) => ({ date: s.date, name: s.name, classes: s.classes ?? "", helper: s.helper ?? "" })),
+    shows: p.shows.map((s) => ({
+      date: s.date,
+      time: s.time ?? "",
+      name: s.name,
+      tests: s.tests?.length
+        ? s.tests.map((t) => ({ name: t.name, time: t.time ?? "" }))
+        : showTestsFromClasses(s.classes),
+      helper: s.helper ?? "",
+    })),
     seasonEnd: p.season_end ?? "",
     sessionsMin: String(p.rhythm.sessions_min),
     sessionsMax: String(p.rhythm.sessions_max),
@@ -207,10 +254,23 @@ function buildShows(d: ProfileDraft): Built<{ shows: ProfileLike["shows"]; seaso
   for (const s of d.shows) {
     if (!isValidDate(s.date.trim())) return fail("Turnierdatum als JJJJ-MM-TT, z. B. 2026-05-17.");
     if (!s.name.trim()) return fail("Jedes Turnier braucht einen Namen.");
+    const time = s.time.trim();
+    if (time && !isValidClock(time)) return fail("Turnierbeginn als HH:MM, z. B. 08:30.");
+    // Rows left completely empty are dropped; a time without a name is an error.
+    const tests = s.tests
+      .map((t) => ({ name: t.name.trim(), time: t.time.trim() }))
+      .filter((t) => t.name !== "" || t.time !== "");
+    if (tests.length > MAX_SHOW_TESTS) return fail(`Höchstens ${MAX_SHOW_TESTS} Prüfungen pro Turnier.`);
+    for (const t of tests) {
+      if (!t.name) return fail("Jede Prüfung braucht einen Namen.");
+      if (t.name.length > MAX_SHOW_TEST_NAME) return fail(`Prüfungsname höchstens ${MAX_SHOW_TEST_NAME} Zeichen.`);
+      if (t.time && !isValidClock(t.time)) return fail("Uhrzeit der Prüfung als HH:MM, z. B. 10:30.");
+    }
     shows.push({
       date: s.date.trim(),
+      ...(time ? { time } : {}),
       name: s.name.trim(),
-      ...(s.classes.trim() ? { classes: s.classes.trim() } : {}),
+      ...(tests.length ? { tests: tests.map((t) => (t.time ? t : { name: t.name })) } : {}),
       ...(s.helper.trim() ? { helper: s.helper.trim() } : {}),
     });
   }

@@ -65,9 +65,11 @@ const (
 )
 
 type showOut struct {
-	Name    string `json:"name"`
-	Classes string `json:"classes,omitempty"`
-	Helper  string `json:"helper,omitempty"`
+	Name    string        `json:"name"`
+	Time    string        `json:"time,omitempty"`
+	Tests   []showTestDTO `json:"tests"`
+	Classes string        `json:"classes,omitempty"`
+	Helper  string        `json:"helper,omitempty"`
 }
 
 type weekDayOut struct {
@@ -203,7 +205,7 @@ func (h *handler) buildWeek(ctx context.Context, a access, start time.Time, loc 
 		key := day.Format(dateLayout)
 		d := weekDayOut{Date: key, Weekday: i, IsToday: day.Equal(today)}
 		if sh, ok := shows[key]; ok {
-			d.Show = &showOut{Name: sh.Name, Classes: sh.Classes, Helper: sh.Helper}
+			d.Show = &showOut{Name: sh.Name, Time: sh.Time, Tests: nonNil(sh.Tests), Classes: sh.Classes, Helper: sh.Helper}
 		}
 		if rehaPlan != nil {
 			if al := rehaPlan.AllowedOn(day); al != nil {
@@ -260,9 +262,17 @@ func (h *handler) buildWeek(ctx context.Context, a access, start time.Time, loc 
 		case hasSlot && slot.Status == "rest":
 			d.Status, d.RestReason = dayRest, "planned"
 			d.User, d.Activity, d.Label, d.Focus, d.Exercise = nil, nil, "", nil, nil
+		}
+		if d.Show != nil && d.Status == "" {
+			// The show is the work of the day: a unit, focus or exercise planned before the show
+			// was entered does not apply. Who goes to the show (the claim) and the note stay.
+			d.Activity, d.Label, d.Focus, d.Exercise = nil, "", nil, nil
+		}
+		switch {
+		case d.Status != "":
 		case d.IsToday:
 			d.Status = dayToday
-		case hasSlot && (slot.UserID != nil || slot.Activity != nil) && day.After(today):
+		case hasSlot && (d.User != nil || d.Activity != nil) && day.After(today):
 			d.Status = dayPlanned
 		case day.After(today):
 			d.Status = dayOpen
@@ -356,6 +366,17 @@ func (h *handler) putWeekDay(w http.ResponseWriter, r *http.Request) {
 	}
 	loc := h.location(ctx, stableID)
 	today := training.Day(h.deps.Now().In(loc))
+	if in.Status == "planned" && (in.Activity != "" || focusIn != "" || exerciseIn != "") {
+		prof, err := h.loadProfile(ctx, stableID, a.horseID)
+		if err != nil {
+			h.fail(w, r, err)
+			return
+		}
+		if isShowDay(prof.domain("").Shows, day) {
+			invalid(w, "a show day has no training unit")
+			return
+		}
+	}
 
 	userID := a.user.ID
 	if in.UserID != nil {

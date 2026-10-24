@@ -91,7 +91,16 @@ export type WeekDay = {
   minutes: number;
   note: string | null;
   rest_reason?: string;
-  show: { name: string; classes?: string; helper?: string } | null;
+  show: {
+    name: string;
+    /** Start of the show, "HH:MM". */
+    time?: string;
+    /** Classes (Prüfungen) the horse starts in. */
+    tests: { name: string; time?: string }[];
+    /** Free text of older app versions. */
+    classes?: string;
+    helper?: string;
+  } | null;
   can_take: boolean;
   /** Focus and library exercise planned for the day (week plan). */
   focus: string | null;
@@ -143,7 +152,14 @@ export type CreatedSession = {
   next_progression: { id: string; title: string; discipline: string; level: string } | null;
 };
 
-export type ProfileShow = { date: string; name: string; classes?: string; helper?: string };
+export type ProfileShow = {
+  date: string;
+  time?: string;
+  name: string;
+  tests?: { name: string; time?: string }[];
+  classes?: string;
+  helper?: string;
+};
 
 export type RiderRule = {
   user_id: string;

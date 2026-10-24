@@ -68,8 +68,11 @@ Errors use the standard envelope (`validation_failed`, `forbidden`, `not_found`,
 
 `discipline` is one of `dressage, jumping, eventing, leisure, western, young_horse` (required).
 `allowed_activities` entries are `{activity, mode: on|off|conditional, note}`; conditional needs a
-note; activities missing from the list count as off. `shows` are `{date, name, classes?, helper?}`
-(`classes` and `helper` feed the week view). `rhythm`: 1-7 sessions, 0-6 rest days, `max_minutes`
+note; activities missing from the list count as off. `shows` are `{date, time?, name, tests?, helper?}`:
+`time` is the start (`HH:MM`), `tests` the classes (Prüfungen) the horse starts in, at most 20 `{name, time?}`
+(name 1-80 characters, time `HH:MM`). Older app versions sent the classes as one free text `classes` (max 200);
+the API still accepts and returns it, the app turns it into `tests` (split at `,`/`;`) and saves only `tests`.
+Shows are sorted by date and time. Time, classes and helper feed the week view. `rhythm`: 1-7 sessions, 0-6 rest days, `max_minutes`
 0-240 (0 = no limit), `rest_after_show`. Missing rhythm keys keep the defaults of
 `training.DefaultRhythm()` (4-5 sessions, 1-2 rest days, 60 minutes, rest day after a show); when
 decoding a stored profile the API always starts from that default. `status` is `fit|reha|pause`.
@@ -115,7 +118,9 @@ rhythm, fixed days and goals, shows, rider rules when there are any). Each row o
 (`training-profile/activities`, `rhythm`, `structure`, `shows`, `riders`; discipline and level in a sheet). An editor
 works on a copy of the profile, checks only its own section (`validateSection`) and saves the whole profile with
 "Speichern"; there is no auto-save because the `PUT` replaces the profile and half-typed values must not land.
-Dates of shows and the end of the season are picked with `DateField` (no typing of `YYYY-MM-DD`). A rider sees a
+Dates of shows and the end of the season are picked with `DateField` (no typing of `YYYY-MM-DD`), the start of a
+show and the time of each class (Prüfung, "Prüfung hinzufügen") with `TimeField`. The week view shows the start
+("ab 08:30 Uhr") and one line per class ("09:30 Dressur L"); a show day cannot be edited there (only claimed). A rider sees a
 read-only text and the own rider rules ("Meine Regeln").
 
 ### Today
@@ -133,7 +138,8 @@ known (weather snapshot, ground not dry, next show within 14 days, active reha p
 Each recommendation may carry `exercise` (with steps): for hall and arena the dressage
 library (jumping library for jumping horses), for jumping, groundwork and lunge the matching library. It is
 the first exercise, easiest first along the progression, that the horse has not mastered yet
-(no session with focus rating "Sitzt" for it).
+(no session with focus rating "Sitzt" for it). On the day of a show there is no exercise: the show is the
+work of the day.
 
 Dots (`week`): the last seven days, today last; `kind` is `trained` (a session or done slot),
 `rest` (planned rest day or the mandatory rest day after a show) or `nothing`; `intensity` is the
@@ -185,7 +191,10 @@ canter share is `gait_shares.canter`. Saving marks the week slot of that day (st
 
 Each day has a `status`: `done` (a session exists), `today`, `planned` (someone claimed a future
 day), `open` ("Niemand eingetragen"), `empty` (past, nothing) or `rest` (`rest_reason`:
-`after_show` fixed, `planned`). Show days carry `show {name, classes, helper}`; days covered by an active reha plan carry `reha {plan_id, phase,
+`after_show` fixed, `planned`). Show days carry `show {name, time, tests, classes, helper}`. A show day that
+is not done has no training unit: the week leaves out activity, focus and exercise of its slot (they come back
+when the show is removed), the claim (who goes to the show) and the note stay, and `PUT /week/{day}` with an
+`activity`, `focus` or `exercise_id` for that day answers `400 validation_failed`; days covered by an active reha plan carry `reha {plan_id, phase,
 activity, activity_label, rest, minutes, done}`. `segments` are the 7
 load levels and `assessment` is the German sentence from `load.Assess`. Hidden sessions (riders) still
 count for status and load but reveal neither user nor activity. Days are calendar days in the
@@ -197,8 +206,8 @@ stable's timezone, so DST weeks still have seven days.
 `trainingapi/plan.go`, the logic the pure package `training/weekplan`; the Mistral client is `internal/mistral`.
 
 - **Open days:** today or later and no activity planned: status `open`, `today`, or `planned` by someone without an
-  activity (the proposal keeps that person, `user`). Done days, rest days (planned or after a show) and days with a
-  planned activity are context; a planned activity counts as a session for the following days.
+  activity (the proposal keeps that person, `user`). Done days, show days, rest days (planned or after a show) and
+  days with a planned activity are context; a planned activity counts as a session for the following days.
 - **Rules:** `weekplan.Rules` asks `recommend.Recommend` day by day with the sessions of the 14 days before plus the
   units planned so far, so variety, recent load and the weekly maximum apply across the week. Weather and ground are
   only known for today. The active reha plan gives each day its unit.
@@ -241,7 +250,7 @@ stable's timezone, so DST weeks still have seven days.
   its own message, e.g. `journalctl -u reiterhof-api | grep "week plan"`.
 - **Single day (JAN-95):** with `day=YYYY-MM-DD` exactly that day is open and the answer has one entry in `days`; all
   other days are context, so the week rules (variety, load, quotas) still hold. The day must be in the week, not over,
-  not `done` and not the rest day after a show, else `400 validation_failed` "day cannot be planned"; a day somebody
+  not `done`, not a show day and not the rest day after a show, else `400 validation_failed` "day cannot be planned"; a day somebody
   planned or claimed is allowed (`user` stays). The optional body carries the draft the owner sees for the other days
   (`draft`: at most 7 entries, dates in the week, an activity or `"rest"`, `minutes` 0-600; it only applies to days that
   would be open, closed days stay as they are) and `exclude`, the activities rejected for the day. They become

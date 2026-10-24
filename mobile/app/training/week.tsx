@@ -40,6 +40,7 @@ import {
   type PlanDay,
   type PlanResponse,
 } from "@/lib/training-plan";
+import { showTestsText } from "@/lib/training-profile";
 
 type PlanMeta = Omit<PlanResponse, "days">;
 type Draft = { meta: PlanMeta; days: PlanDay[] };
@@ -284,9 +285,12 @@ export default function TrainingWeek() {
   );
 }
 
-/** Stored days the owner can still change: planned, claimed or open, and not in the past. */
+/**
+ * Stored days the owner can still change: planned, claimed or open, and not in the past. A show day
+ * has no training unit (the show is the work of the day); who goes there is claimed with "Ich".
+ */
 function canEditStoredDay(day: WeekDay, today: string): boolean {
-  if (day.date < today) return false;
+  if (day.date < today || day.show) return false;
   if (day.status === "done" || day.status === "empty") return false;
   if (day.status === "rest") return day.rest_reason === "planned";
   return day.status === "planned" || day.status === "today" || day.status === "open";
@@ -533,8 +537,16 @@ function DayRow({
             <Text variant="bodyStrong" className="flex-1">
               {day.show.name}
             </Text>
+            {day.show.time ? <Text variant="secondary">ab {day.show.time} Uhr</Text> : null}
           </View>
-          {day.show.classes ? <Text variant="secondary">Klassen: {day.show.classes}</Text> : null}
+          {showTestsText(day.show.tests ?? []).map((line, i) => (
+            <Text key={i} variant="secondary">
+              {line}
+            </Text>
+          ))}
+          {!day.show.tests?.length && day.show.classes ? (
+            <Text variant="secondary">Prüfungen: {day.show.classes}</Text>
+          ) : null}
           {day.show.helper ? <Text variant="secondary">Helfer: {day.show.helper}</Text> : null}
         </View>
       ) : null}
