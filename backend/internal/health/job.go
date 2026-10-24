@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"slices"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -12,21 +13,15 @@ import (
 	"github.com/Flusinerd/reiterhof-app/backend/internal/push"
 )
 
-const (
-	// DueReminderHour is the stable-local hour from which due-date reminders go out.
-	DueReminderHour = 8
-	// MedicationWindow is how long after daily_time a missed medication reminder is
-	// still sent (e.g. after a restart). Later ones are skipped, not sent late.
-	MedicationWindow = 3 * time.Hour
-)
-
-// DueOffsets are the days before the due date on which owner and riders are notified.
-var DueOffsets = []int{7, 1}
+// MedicationWindow is how long after daily_time a missed medication reminder is
+// still sent (e.g. after a restart). Later ones are skipped, not sent late.
+const MedicationWindow = 3 * time.Hour
 
 // Reminders sends the health reminders (JAN-12).
 //
-//   - kind health_due: for items with a due date and no daily_time, 7 days and 1 day
-//     before the due date, from 08:00 stable-local time on.
+//   - kind health_due: for items with a due date and no daily_time, on the item's
+//     remind_days before the due date (default 7 and 1), from its remind_time (default
+//     08:00, stable-local) until the end of that day.
 //   - kind medication: for items with a daily_time, every day from that time on
 //     (stable-local), for up to MedicationWindow.
 //
@@ -84,6 +79,8 @@ type dueItem struct {
 	id, horseID, horseName, kind, label string
 	dueDate                             time.Time
 	dailyTime                           *string
+	remindDays                          []int32
+	remindHour, remindMinute            int
 }
 
 func (s *Reminders) runStable(ctx context.Context, stableID string, loc *time.Location) error {
@@ -91,7 +88,8 @@ func (s *Reminders) runStable(ctx context.Context, stableID string, loc *time.Lo
 	y, m, d := now.Date()
 	today := time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
 
-	rows, err := s.Pool.Query(ctx, `SELECT i.id, i.horse_id, h.name, i.kind, i.label, i.due_date, to_char(i.daily_time, 'HH24:MI')
+	rows, err := s.Pool.Query(ctx, `SELECT i.id, i.horse_id, h.name, i.kind, i.label, i.due_date, to_char(i.daily_time, 'HH24:MI'),
+			i.remind_days, extract(hour FROM i.remind_time)::int, extract(minute FROM i.remind_time)::int
 		FROM health_items i JOIN horses h ON h.id = i.horse_id
 		WHERE i.stable_id = $1 AND (i.due_date IS NOT NULL OR i.daily_time IS NOT NULL)`, stableID)
 	if err != nil {
@@ -101,7 +99,8 @@ func (s *Reminders) runStable(ctx context.Context, stableID string, loc *time.Lo
 	for rows.Next() {
 		var it dueItem
 		var due *time.Time
-		if err := rows.Scan(&it.id, &it.horseID, &it.horseName, &it.kind, &it.label, &due, &it.dailyTime); err != nil {
+		if err := rows.Scan(&it.id, &it.horseID, &it.horseName, &it.kind, &it.label, &due, &it.dailyTime,
+			&it.remindDays, &it.remindHour, &it.remindMinute); err != nil {
 			rows.Close()
 			return err
 		}
@@ -118,11 +117,10 @@ func (s *Reminders) runStable(ctx context.Context, stableID string, loc *time.Lo
 	var first error
 	for _, it := range items {
 		var err error
-		switch {
-		case it.dailyTime != nil:
+		if it.dailyTime != nil {
 			err = s.medication(ctx, stableID, loc, now, it)
-		case now.Hour() >= DueReminderHour:
-			err = s.dueDate(ctx, stableID, loc, today, it)
+		} else {
+			err = s.dueDate(ctx, stableID, loc, now, today, it)
 		}
 		if err != nil && first == nil {
 			first = err
@@ -131,19 +129,25 @@ func (s *Reminders) runStable(ctx context.Context, stableID string, loc *time.Lo
 	return first
 }
 
-func (s *Reminders) dueDate(ctx context.Context, stableID string, loc *time.Location, today time.Time, it dueItem) error {
+func (s *Reminders) dueDate(ctx context.Context, stableID string, loc *time.Location, now, today time.Time, it dueItem) error {
 	if it.dueDate.IsZero() {
 		return nil
 	}
 	days := int(it.dueDate.Sub(today).Hours() / 24)
-	if !containsInt(DueOffsets, days) {
+	if days < 0 || !slices.Contains(it.remindDays, int32(days)) {
 		return nil
 	}
 	// The scheduled time is what makes the claim unique: the same due date and offset is
 	// the same reminder, a new due date (after "erledigt") is a new one.
-	scheduled := time.Date(it.dueDate.Year(), it.dueDate.Month(), it.dueDate.Day()-days, DueReminderHour, 0, 0, 0, loc)
-	when := "morgen"
-	if days > 1 {
+	scheduled := time.Date(it.dueDate.Year(), it.dueDate.Month(), it.dueDate.Day()-days, it.remindHour, it.remindMinute, 0, 0, loc)
+	if now.Before(scheduled) {
+		return nil
+	}
+	when := "heute"
+	switch {
+	case days == 1:
+		when = "morgen"
+	case days > 1:
 		when = fmt.Sprintf("in %d Tagen", days)
 	}
 	title := "Fällig: " + it.horseName
@@ -222,13 +226,4 @@ func (s *Reminders) recipients(ctx context.Context, stableID, horseID string) ([
 		ids = append(ids, id)
 	}
 	return ids, rows.Err()
-}
-
-func containsInt(list []int, v int) bool {
-	for _, x := range list {
-		if x == v {
-			return true
-		}
-	}
-	return false
 }

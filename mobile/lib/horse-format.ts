@@ -130,6 +130,111 @@ export function healthKindLabel(kind: string): string {
   return HEALTH_LABELS[kind as HealthKind] ?? kind;
 }
 
+// --- health intervals and reminders --------------------------------------------------------
+
+export const INTERVAL_UNITS = ["day", "week", "month", "year"] as const;
+export type IntervalUnit = (typeof INTERVAL_UNITS)[number];
+
+/** Largest count per unit (about ten years, as in the backend). */
+export const MAX_INTERVAL_COUNT: Record<IntervalUnit, number> = { day: 3650, week: 520, month: 120, year: 10 };
+
+const UNIT_LABELS: Record<IntervalUnit, [string, string]> = {
+  day: ["Tag", "Tage"],
+  week: ["Woche", "Wochen"],
+  month: ["Monat", "Monate"],
+  year: ["Jahr", "Jahre"],
+};
+
+/** Plural label of a unit for pickers: "Tage", "Wochen", "Monate", "Jahre". */
+export function intervalUnitLabel(unit: string): string {
+  return UNIT_LABELS[unit as IntervalUnit]?.[1] ?? unit;
+}
+
+/** "1 Tag", "6 Wochen", "6 Monate", "1 Jahr". */
+export function intervalText(count: number, unit: string): string {
+  const labels = UNIT_LABELS[unit as IntervalUnit] ?? UNIT_LABELS.day;
+  return `${count} ${count === 1 ? labels[0] : labels[1]}`;
+}
+
+/** "jährlich", "halbjährlich", "alle 6 Wochen", "täglich"; "" without interval. */
+export function intervalRepeatText(count: number | null | undefined, unit: string): string {
+  if (!count) return "";
+  if (count === 1) {
+    const single: Record<string, string> = { day: "täglich", week: "wöchentlich", month: "monatlich", year: "jährlich" };
+    if (single[unit]) return single[unit];
+  }
+  if (unit === "month" && count === 6) return "halbjährlich";
+  return `alle ${intervalText(count, unit)}`;
+}
+
+export type IntervalPreset = { count: number; unit: IntervalUnit };
+
+/** Usual intervals per kind, offered as one-tap choices. */
+export const INTERVAL_PRESETS: Record<HealthKind, IntervalPreset[]> = {
+  vaccination: [
+    { count: 6, unit: "month" },
+    { count: 1, unit: "year" },
+  ],
+  farrier: [
+    { count: 6, unit: "week" },
+    { count: 8, unit: "week" },
+  ],
+  deworming: [
+    { count: 3, unit: "month" },
+    { count: 6, unit: "month" },
+  ],
+  dentist: [
+    { count: 6, unit: "month" },
+    { count: 1, unit: "year" },
+  ],
+  physio: [
+    { count: 4, unit: "week" },
+    { count: 3, unit: "month" },
+  ],
+  medication: [],
+  vet: [
+    { count: 6, unit: "month" },
+    { count: 1, unit: "year" },
+  ],
+};
+
+export function intervalPresets(kind: string): IntervalPreset[] {
+  return INTERVAL_PRESETS[kind as HealthKind] ?? [];
+}
+
+/** Days before the due date offered for reminders. */
+export const REMIND_DAY_OPTIONS = [0, 1, 3, 7, 14, 28] as const;
+
+/** At most this many reminder days per item (as in the backend). */
+export const MAX_REMIND_DAYS = 5;
+
+/** "am Tag", "1 Tag vorher", "3 Tage vorher", "1 Woche vorher", "4 Wochen vorher". */
+export function remindDayLabel(days: number): string {
+  if (days === 0) return "am Tag";
+  if (days % 7 === 0) return `${intervalText(days / 7, "week")} vorher`;
+  return `${intervalText(days, "day")} vorher`;
+}
+
+/** Options for the picker: the fixed ones plus any other value the item already has, largest first. */
+export function remindDayOptions(current: number[]): number[] {
+  return [...new Set([...REMIND_DAY_OPTIONS, ...current])].sort((a, b) => b - a);
+}
+
+/** Adds or removes a day; keeps the list unique, largest first and at most MAX_REMIND_DAYS long. */
+export function toggleRemindDay(days: number[], day: number): number[] {
+  if (days.includes(day)) return days.filter((d) => d !== day);
+  if (days.length >= MAX_REMIND_DAYS) return days;
+  return [...days, day].sort((a, b) => b - a);
+}
+
+/** "Erinnerung 1 Woche vorher und am Tag, 08:00 Uhr"; "Keine Erinnerung" without days. */
+export function remindText(days: number[], time: string): string {
+  if (days.length === 0) return "Keine Erinnerung";
+  const labels = [...days].sort((a, b) => b - a).map(remindDayLabel);
+  const list = labels.length === 1 ? labels[0] : `${labels.slice(0, -1).join(", ")} und ${labels[labels.length - 1]}`;
+  return `Erinnerung ${list}, ${time} Uhr`;
+}
+
 /** The four tiles of the horse record, in display order. */
 export const SUMMARY_KINDS = ["vaccination", "farrier", "deworming", "dentist"] as const;
 

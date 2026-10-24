@@ -69,14 +69,16 @@ Extra contacts (owner or admin): `POST /api/v1/horses/{id}/emergency-contacts {l
 | Route | Notes |
 | --- | --- |
 | `GET /api/v1/horses/{id}/health` | `{today, items, summary, can_manage}`; items ordered by due date (undated last); `summary` has the keys `vaccination, farrier, deworming, dentist`, each the item of that kind due first or `null`; every item has `days_until_due` (negative = overdue), counted from `today` in the stable's time zone; items of the kinds `vet`, `vaccination`, `dentist` that are due soon also carry `bundle {kind, count, horses[{id,name}]}` (other horses with the same kind due within 14 days, see [observations.md](observations.md#bundling-appointments-jan-54)) |
-| `POST /api/v1/horses/{id}/health-items` | `kind` (vaccination, farrier, deworming, dentist, physio, medication, vet), `label`, `due_date` (YYYY-MM-DD), `interval_days`, `note`, `daily_time` (HH:MM) |
+| `POST /api/v1/horses/{id}/health-items` | `kind` (vaccination, farrier, deworming, dentist, physio, medication, vet), `label`, `due_date` (YYYY-MM-DD), `interval_count` + `interval_unit` (`day`, `week`, `month`, `year`; at most about ten years, `0` clears), `note`, `daily_time` (HH:MM), `remind_days` (0..365 days before the due date, at most 5, default `[7, 1]`, `[]` = no reminder), `remind_time` (HH:MM, default `08:00`). The older `interval_days` is still accepted (= `interval_count` with unit `day`) and returned for day and week intervals (else `null`). |
 | `PATCH /api/v1/health-items/{id}`, `DELETE /api/v1/health-items/{id}` | owner or admin |
-| `POST /api/v1/health-items/{id}/done` | "erledigt": `due_date` moves forward by `interval_days`; if that is still not after today (very overdue), by further intervals; without a due date the interval counts from today; without interval the due date is cleared |
+| `POST /api/v1/health-items/{id}/done` | "erledigt": `due_date` moves forward by the interval; if that is still not after today (very overdue), by further intervals; without a due date the interval counts from today; without interval the due date is cleared. Months and years keep the day of the month and fall back to the last day of a shorter month (31.08. + 6 months = 28.02.), always counted from the old due date, so the day does not drift (`health.Interval.After`) |
 
 **Reminder job** (`health.Reminders`, scheduler job `health-reminders` in `cmd/api`, every 15 minutes):
 
-- `health_due`: items with a due date and no `daily_time`, 7 days and 1 day before the due date, from 08:00
-  stable-local time on. Text: "Fällig: Luna" / "Hufschmied ist in 7 Tagen fällig (08.10.2026).".
+- `health_due`: items with a due date and no `daily_time`, on each of the item's `remind_days` before the due date
+  (default 7 and 1, `0` = on the day), from its `remind_time` (default 08:00) stable-local time on until the end of that
+  day. Text: "Fällig: Luna" / "Hufschmied: in 7 Tagen (08.10.2026)." ("morgen", "heute"). Migration `0260` turned
+  `interval_days` into `interval_count` + `interval_unit` (whole years and weeks converted) and added the reminder columns.
 - `medication`: items with `daily_time`, daily from that time for up to 3 hours (a missed reminder after longer
   downtime is skipped, not sent late). `due_date` of such an item is the last day of the course.
 - Recipients: owner and all riders of the horse; users can switch a kind off in `reminder_settings`
@@ -130,7 +132,9 @@ Shared storage for photos and documents; see also "Files" in `architecture.md`.
   [reha.md](reha.md)), riders with rule
   toggles (owner/admin), documents, links "Trainingsprofil", "Deckenplan", "Reha"
   (`horseRoutes` in `lib/horse-format.ts`).
-- Sub screens: `emergency` (tap to call), `health` (due list, add/edit sheet, "Erledigt"), `documents`
+- Sub screens: `emergency` (tap to call), `health` (due list, add/edit sheet with date picker, repeat as one-tap presets
+  per kind such as "6 Monate" / "1 Jahr" or "Eigenes" with number and unit, reminder days as chips "4 Wochen vorher" …
+  "am Tag" plus the time; "Erledigt"), `documents`
   (photo/PDF upload), `edit`, and `/horses/new`.
 - Upload helper `lib/upload.ts`: `uploadFile({uri, name, mimeType, size})`, `fileSource(url)`,
   `openStoredFile(url)` (download link, then `Linking.openURL`), `uploadErrorMessage(err)`.

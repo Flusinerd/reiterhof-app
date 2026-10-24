@@ -1,15 +1,22 @@
 import { useEffect, useState } from "react";
 import { View } from "react-native";
 
-import { Button, Input, Pill, Sheet, Text, TimeField } from "@/components/ui";
+import { Button, DateField, Input, NumberStepper, Pill, Sheet, Text, TimeField } from "@/components/ui";
 import type { HealthInput, HealthItem } from "@/lib/api/horses";
 import {
-  formatDate,
   HEALTH_KINDS,
   healthKindLabel,
-  parseGermanDate,
+  INTERVAL_UNITS,
+  intervalPresets,
+  intervalText,
+  intervalUnitLabel,
+  MAX_INTERVAL_COUNT,
+  MAX_REMIND_DAYS,
   parseTime,
-  parseWholeNumber,
+  remindDayLabel,
+  remindDayOptions,
+  toggleRemindDay,
+  type IntervalUnit,
 } from "@/lib/horse-format";
 
 type Props = {
@@ -24,12 +31,28 @@ type Props = {
   onDelete?: () => void;
 };
 
-/** Add / edit sheet for a health item (due date, interval, daily medication time). */
+type Interval = { count: number; unit: IntervalUnit } | null;
+
+const DEFAULT_REMIND_DAYS = [7, 1];
+const DEFAULT_REMIND_TIME = "08:00";
+
+function itemInterval(item: HealthItem | null): Interval {
+  if (!item?.interval_count) return null;
+  const unit = (INTERVAL_UNITS as readonly string[]).includes(item.interval_unit)
+    ? (item.interval_unit as IntervalUnit)
+    : "day";
+  return { count: item.interval_count, unit };
+}
+
+/** Add / edit sheet for a health item (due date, interval, reminders, daily medication time). */
 export function HorseHealthSheet({ open, onOpenChange, item, saving, error, onSave, onDelete }: Props) {
   const [kind, setKind] = useState("farrier");
   const [label, setLabel] = useState("");
   const [due, setDue] = useState("");
-  const [interval, setInterval_] = useState("");
+  const [interval, setInterval_] = useState<Interval>(null);
+  const [customOpen, setCustomOpen] = useState(false);
+  const [remindDays, setRemindDays] = useState<number[]>(DEFAULT_REMIND_DAYS);
+  const [remindTime, setRemindTime] = useState(DEFAULT_REMIND_TIME);
   const [dailyTime, setDailyTime] = useState("");
   const [note, setNote] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
@@ -39,29 +62,41 @@ export function HorseHealthSheet({ open, onOpenChange, item, saving, error, onSa
     if (!open) return;
     setKind(item?.kind ?? "farrier");
     setLabel(item?.label ?? "");
-    setDue(formatDate(item?.due_date));
-    setInterval_(item?.interval_days ? String(item.interval_days) : "");
+    setDue(item?.due_date ?? "");
+    setInterval_(itemInterval(item));
+    setCustomOpen(false);
+    setRemindDays(item?.remind_days ?? DEFAULT_REMIND_DAYS);
+    setRemindTime(item?.remind_time ?? DEFAULT_REMIND_TIME);
     setDailyTime(item?.daily_time ?? "");
     setNote(item?.note ?? "");
     setProblem(null);
   }, [open, item]);
 
+  const medication = kind === "medication";
+  const presets = intervalPresets(kind);
+  const isPreset = (p: { count: number; unit: string }) =>
+    interval !== null && interval.count === p.count && interval.unit === p.unit;
+  const custom = interval !== null && (customOpen || !presets.some(isPreset));
+  function choose(next: Interval) {
+    setCustomOpen(false);
+    setInterval_(next);
+  }
+
   function submit() {
-    const dueIso = due.trim() === "" ? "" : parseGermanDate(due);
-    const days = interval.trim() === "" ? 0 : parseWholeNumber(interval);
     const time = dailyTime.trim() === "" ? "" : parseTime(dailyTime);
     const finalLabel = label.trim() || healthKindLabel(kind);
-    if (dueIso === null) return setProblem("Datum als TT.MM.JJJJ eingeben.");
-    if (days === null || days > 3650) return setProblem("Intervall in Tagen als Zahl eingeben.");
     if (time === null) return setProblem("Uhrzeit als HH:MM eingeben.");
     setProblem(null);
     onSave({
       kind,
       label: finalLabel,
-      due_date: dueIso,
-      interval_days: days,
+      due_date: due,
+      interval_count: medication || !interval ? 0 : interval.count,
+      interval_unit: medication || !interval ? "day" : interval.unit,
+      remind_days: remindDays,
+      remind_time: remindTime || DEFAULT_REMIND_TIME,
       note: note.trim(),
-      daily_time: kind === "medication" ? time : "",
+      daily_time: medication ? time : "",
     });
   }
 
@@ -84,16 +119,10 @@ export function HorseHealthSheet({ open, onOpenChange, item, saving, error, onSa
         placeholder={`Bezeichnung, z. B. ${healthKindLabel(kind)}`}
       />
       <View className="gap-2">
-        <Text variant="secondary">{kind === "medication" ? "Ende der Gabe (optional)" : "Fällig am"}</Text>
-        <Input
-          value={due}
-          onChangeText={setDue}
-          accessibilityLabel="Fälligkeitsdatum"
-          placeholder="TT.MM.JJJJ"
-          keyboardType="numbers-and-punctuation"
-        />
+        <Text variant="secondary">{medication ? "Ende der Gabe (optional)" : "Fällig am"}</Text>
+        <DateField value={due} onChange={setDue} accessibilityLabel="Fälligkeitsdatum" clearable />
       </View>
-      {kind === "medication" ? (
+      {medication ? (
         <View className="gap-2">
           <Text variant="secondary">Tägliche Erinnerung um</Text>
           <TimeField
@@ -105,17 +134,87 @@ export function HorseHealthSheet({ open, onOpenChange, item, saving, error, onSa
           />
         </View>
       ) : (
-        <View className="gap-2">
-          <Text variant="secondary">Wiederholung alle (Tage)</Text>
-          <Input
-            value={interval}
-            onChangeText={setInterval_}
-            accessibilityLabel="Intervall in Tagen"
-            placeholder="z. B. 42"
-            keyboardType="number-pad"
-          />
-          <Text variant="caption">Mit „Erledigt“ rückt der Termin um dieses Intervall weiter.</Text>
-        </View>
+        <>
+          <View className="gap-2">
+            <Text variant="secondary">Wiederholung</Text>
+            <View className="flex-row flex-wrap gap-2">
+              <Pill label="Einmalig" selected={interval === null} onPress={() => choose(null)} />
+              {presets.map((p) => (
+                <Pill
+                  key={`${p.count}-${p.unit}`}
+                  label={intervalText(p.count, p.unit)}
+                  selected={!custom && isPreset(p)}
+                  onPress={() => choose(p)}
+                />
+              ))}
+              <Pill
+                label="Eigenes"
+                selected={custom}
+                onPress={() => {
+                  setCustomOpen(true);
+                  setInterval_(interval ?? { count: 4, unit: "week" });
+                }}
+              />
+            </View>
+            {custom && interval ? (
+              <View className="gap-2">
+                <NumberStepper
+                  value={interval.count}
+                  min={1}
+                  max={MAX_INTERVAL_COUNT[interval.unit]}
+                  onChange={(count) => setInterval_({ ...interval, count })}
+                  accessibilityLabel="Anzahl"
+                  format={(v) => `alle ${v}`}
+                />
+                <View className="flex-row flex-wrap gap-2">
+                  {INTERVAL_UNITS.map((u) => (
+                    <Pill
+                      key={u}
+                      label={intervalUnitLabel(u)}
+                      selected={interval.unit === u}
+                      onPress={() =>
+                        setInterval_({ unit: u, count: Math.min(interval.count, MAX_INTERVAL_COUNT[u]) })
+                      }
+                    />
+                  ))}
+                </View>
+              </View>
+            ) : null}
+            <Text variant="caption">
+              {interval
+                ? `Mit „Erledigt“ rückt der Termin um ${intervalText(interval.count, interval.unit)} weiter.`
+                : "Mit „Erledigt“ ist der Termin abgeschlossen."}
+            </Text>
+          </View>
+          <View className="gap-2">
+            <Text variant="secondary">Erinnerung</Text>
+            <View className="flex-row flex-wrap gap-2">
+              {remindDayOptions(item?.remind_days ?? []).map((d) => (
+                <Pill
+                  key={d}
+                  label={remindDayLabel(d)}
+                  selected={remindDays.includes(d)}
+                  onPress={() => setRemindDays((cur) => toggleRemindDay(cur, d))}
+                />
+              ))}
+            </View>
+            <View className="flex-row items-center gap-3">
+              <Text variant="bodySm">um</Text>
+              <TimeField
+                value={remindTime}
+                onChange={setRemindTime}
+                accessibilityLabel="Uhrzeit der Erinnerung"
+                minuteInterval={15}
+                className="flex-1"
+              />
+            </View>
+            <Text variant="caption">
+              {remindDays.length === 0
+                ? "Ohne Auswahl gibt es keine Erinnerung."
+                : `Bis zu ${MAX_REMIND_DAYS} Zeitpunkte, als Mitteilung an Besitzer und Reitbeteiligungen.`}
+            </Text>
+          </View>
+        </>
       )}
       <Input value={note} onChangeText={setNote} accessibilityLabel="Notiz" placeholder="Notiz (optional)" />
       {problem || error ? (

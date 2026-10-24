@@ -92,7 +92,7 @@ func decode[T any](t *testing.T, rec *httptest.ResponseRecorder) T {
 func (e *env) addItem(horse, kind, label, due string, interval int, daily string) string {
 	e.t.Helper()
 	var id string
-	err := e.pool.QueryRow(context.Background(), `INSERT INTO health_items (stable_id, horse_id, kind, label, due_date, interval_days, daily_time)
+	err := e.pool.QueryRow(context.Background(), `INSERT INTO health_items (stable_id, horse_id, kind, label, due_date, interval_count, daily_time)
 		VALUES ($1, $2, $3, $4, NULLIF($5, '')::date, NULLIF($6, 0), NULLIF($7, '')::time) RETURNING id`,
 		seed.StableB, horse, kind, label, due, interval, daily).Scan(&id)
 	if err != nil {
@@ -109,12 +109,13 @@ func TestNextDue(t *testing.T) {
 		}
 		return &v
 	}
-	iv := func(n int) *int { return &n }
+	iv := func(n int) *health.Interval { return &health.Interval{Count: n, Unit: "day"} }
+	in := func(n int, unit string) *health.Interval { return &health.Interval{Count: n, Unit: unit} }
 	today := *d("2026-10-01")
 	cases := []struct {
 		name     string
 		prev     *time.Time
-		interval *int
+		interval *health.Interval
 		want     string
 	}{
 		{"on time", d("2026-10-03"), iv(42), "2026-11-14"},
@@ -123,6 +124,13 @@ func TestNextDue(t *testing.T) {
 		{"overdue by several intervals", d("2026-05-01"), iv(90), "2026-10-28"},
 		{"no previous date counts from today", nil, iv(28), "2026-10-29"},
 		{"no interval clears", d("2026-10-03"), nil, ""},
+		{"weeks", d("2026-10-03"), in(6, "week"), "2026-11-14"},
+		{"half a year keeps the day", d("2026-10-03"), in(6, "month"), "2027-04-03"},
+		{"month end falls back to the last day", d("2026-08-31"), in(6, "month"), "2027-02-28"},
+		{"overdue months count from the old date, no drift", d("2026-01-31"), in(1, "month"), "2026-10-31"},
+		{"year", d("2026-10-03"), in(1, "year"), "2027-10-03"},
+		{"leap day", d("2024-02-29"), in(1, "year"), "2027-02-28"},
+		{"months from today", nil, in(6, "month"), "2027-04-01"},
 	}
 	for _, c := range cases {
 		got := health.NextDue(c.prev, c.interval, today)
@@ -193,7 +201,8 @@ func TestCRUDPermissions(t *testing.T) {
 	rec := e.call(seed.UserAnna, "POST", create, body)
 	e.expect(rec, 201)
 	it := decode[health.Item](t, rec)
-	if it.ID == "" || it.Kind != "farrier" || *it.DueDate != "2026-10-10" || *it.IntervalDays != 42 || *it.DaysUntilDue != 9 {
+	if it.ID == "" || it.Kind != "farrier" || *it.DueDate != "2026-10-10" || *it.IntervalDays != 42 || *it.DaysUntilDue != 9 ||
+		*it.IntervalCount != 42 || it.IntervalUnit != "day" || len(it.RemindDays) != 2 || it.RemindTime != "08:00" {
 		t.Fatalf("created = %+v", it)
 	}
 	e.expect(e.call(seed.UserJan, "POST", create, map[string]any{"kind": "medication", "label": "Pergolid", "daily_time": "08:30"}), 201) // admin
@@ -224,6 +233,34 @@ func TestCRUDPermissions(t *testing.T) {
 		t.Errorf("patched = %+v", it)
 	}
 	e.expect(e.call(seed.UserAnna, "PATCH", item, map[string]any{}), 200)
+
+	// Interval with a unit and reminder settings.
+	rec = e.call(seed.UserAnna, "PATCH", item, map[string]any{"interval_count": 6, "interval_unit": "month",
+		"remind_days": []int{1, 14, 1, 0}, "remind_time": "18:30"})
+	e.expect(rec, 200)
+	it = decode[health.Item](t, rec)
+	if *it.IntervalCount != 6 || it.IntervalUnit != "month" || it.IntervalDays != nil ||
+		len(it.RemindDays) != 3 || it.RemindDays[0] != 14 || it.RemindDays[2] != 0 || it.RemindTime != "18:30" {
+		t.Errorf("patched interval/reminders = %+v", it)
+	}
+	rec = e.call(seed.UserAnna, "PATCH", item, map[string]any{"interval_unit": "week", "remind_days": []int{}})
+	e.expect(rec, 200)
+	if it = decode[health.Item](t, rec); *it.IntervalCount != 6 || *it.IntervalDays != 42 || len(it.RemindDays) != 0 {
+		t.Errorf("unit change / reminders off = %+v", it)
+	}
+	for name, b := range map[string]map[string]any{
+		"bad unit":           {"interval_count": 2, "interval_unit": "decade"},
+		"too many years":     {"interval_count": 11, "interval_unit": "year"},
+		"days and count":     {"interval_days": 7, "interval_count": 1},
+		"negative remind":    {"remind_days": []int{-1}},
+		"remind too far":     {"remind_days": []int{400}},
+		"too many reminders": {"remind_days": []int{0, 1, 2, 3, 4, 5}},
+		"bad remind time":    {"remind_time": "8 Uhr"},
+	} {
+		if rec := e.call(seed.UserAnna, "PATCH", item, b); rec.Code != 400 {
+			t.Errorf("%s: status = %d %s", name, rec.Code, rec.Body)
+		}
+	}
 
 	e.expect(e.call(seed.UserTom, "DELETE", item, nil), 403)
 	e.expect(e.call(otherUser, "DELETE", item, nil), 404)
@@ -441,6 +478,57 @@ func TestDoneCreatesNewReminderCycle(t *testing.T) {
 	}
 	if c := rec.take(); len(c) != 1 || c[0].body != "Hufschmied: in 7 Tagen (15.10.2026)." {
 		t.Fatalf("second cycle: %+v", c)
+	}
+}
+
+func TestDoneMonthInterval(t *testing.T) {
+	e := setup(t)
+	rec := e.call(seed.UserJan, "POST", "/api/v1/horses/"+seed.HorseLuna+"/health-items", map[string]any{
+		"kind": "vaccination", "label": "Influenza", "due_date": "2026-08-31", "interval_count": 6, "interval_unit": "month"})
+	e.expect(rec, 201)
+	id := decode[health.Item](t, rec).ID
+	rec = e.call(seed.UserJan, "POST", "/api/v1/health-items/"+id+"/done", nil)
+	e.expect(rec, 200)
+	if it := decode[health.Item](t, rec); *it.DueDate != "2027-02-28" {
+		t.Errorf("after done = %v", *it.DueDate)
+	}
+}
+
+func TestDueRemindersPerItemSettings(t *testing.T) {
+	e := setup(t)
+	rec := &recorder{}
+	job := newJob(e, rec)
+	ctx := context.Background()
+	custom := e.addItem(seed.HorseBalu, "vaccination", "Herpes", "2026-10-15", 0, "") // in 14 days
+	off := e.addItem(seed.HorseBalu, "farrier", "Hufschmied", "2026-10-08", 0, "")    // in 7 days, reminders off
+	if _, err := e.pool.Exec(ctx, `UPDATE health_items SET remind_days = '{14,0}', remind_time = '18:00' WHERE id = $1`, custom); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.pool.Exec(ctx, `UPDATE health_items SET remind_days = '{}' WHERE id = $1`, off); err != nil {
+		t.Fatal(err)
+	}
+	run := func(at time.Time) []call {
+		t.Helper()
+		e.now = at
+		if err := job.Run(ctx); err != nil {
+			t.Fatal(err)
+		}
+		return rec.take()
+	}
+	berlin := func(day, h, m int) time.Time {
+		return time.Date(2026, 10, day, h, m, 0, 0, time.FixedZone("CEST", 2*3600)).UTC()
+	}
+	if c := run(berlin(1, 17, 59)); len(c) != 0 {
+		t.Fatalf("before remind_time: %+v", c)
+	}
+	if c := run(berlin(1, 18, 0)); len(c) != 1 || c[0].body != "Herpes: in 14 Tagen (15.10.2026)." {
+		t.Fatalf("14 days before at 18:00: %+v", c)
+	}
+	if c := run(berlin(8, 18, 0)); len(c) != 0 {
+		t.Fatalf("7 days before is not configured, farrier is off: %+v", c)
+	}
+	if c := run(berlin(15, 18, 30)); len(c) != 1 || c[0].body != "Herpes: heute (15.10.2026)." {
+		t.Fatalf("on the day: %+v", c)
 	}
 }
 

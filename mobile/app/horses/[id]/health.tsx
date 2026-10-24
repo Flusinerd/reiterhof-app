@@ -14,6 +14,9 @@ import {
   dueLevel,
   formatDate,
   healthKindLabel,
+  intervalRepeatText,
+  joinParts,
+  remindText,
 } from "@/lib/horse-format";
 import { bundleText, horseNamesText } from "@/lib/observations";
 
@@ -22,7 +25,7 @@ const badgeVariant = { none: "neutral", overdue: "danger", soon: "accent", ok: "
 function itemSubtitle(item: HealthItem): string {
   if (item.daily_time) return `täglich um ${item.daily_time} Uhr`;
   if (!item.due_date) return "Kein Termin";
-  return `${formatDate(item.due_date)}${item.interval_days ? ` · alle ${item.interval_days} Tage` : ""}`;
+  return joinParts([formatDate(item.due_date), intervalRepeatText(item.interval_count, item.interval_unit)]);
 }
 
 /** Due list of a horse (JAN-12): vaccination, farrier, deworming, dentist, physio, medication, vet. */
@@ -116,6 +119,9 @@ export default function Health() {
                     <Text variant="secondary">{healthKindLabel(item.kind)}</Text>
                     <Text variant="bodyStrong">{item.label}</Text>
                     <Text variant="secondary">{itemSubtitle(item)}</Text>
+                    {item.due_date && !item.daily_time ? (
+                      <Text variant="caption">{remindText(item.remind_days ?? [], item.remind_time ?? "08:00")}</Text>
+                    ) : null}
                   </View>
                   {item.due_date ? (
                     <Badge variant={badgeVariant[level]} label={dueDetailText(item.days_until_due)} />
@@ -135,7 +141,7 @@ export default function Health() {
                 ) : null}
                 {canManage || item.kind === "farrier" ? (
                   <View className="flex-row flex-wrap gap-2">
-                    {canManage && (item.due_date || item.interval_days) ? (
+                    {canManage && (item.due_date || item.interval_count) ? (
                       <Button
                         label="Erledigt"
                         icon={Check}

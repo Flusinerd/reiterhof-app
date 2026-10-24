@@ -52,29 +52,30 @@ func insertHorseCare(ctx context.Context, tx pgx.Tx) error {
 	// offset: days from today until due (negative = overdue).
 	items := []struct {
 		id, horse, kind, label string
-		offset, interval       *int
+		offset, interval       *int // interval in unit
+		unit                   string
 		dailyTime              *string
 		note                   string
 	}{
-		{"00000000-0000-4000-8000-000000000801", HorseLuna, "vaccination", "Influenza und Tetanus", n(120), n(365), nil, ""},
-		{"00000000-0000-4000-8000-000000000802", HorseLuna, "farrier", "Hufschmied", n(6), n(42), nil, "Termin bei Kruse, Vormittag"},
-		{"00000000-0000-4000-8000-000000000803", HorseLuna, "deworming", "Wurmkur", n(-9), n(90), nil, "Nach Kotprobe"},
-		{"00000000-0000-4000-8000-000000000804", HorseLuna, "dentist", "Zahnkontrolle", n(200), n(365), nil, ""},
-		{"00000000-0000-4000-8000-000000000805", HorseFanta, "vaccination", "Influenza", n(20), n(180), nil, ""},
-		{"00000000-0000-4000-8000-000000000806", HorseFanta, "farrier", "Hufschmied", n(1), n(35), nil, ""},
-		{"00000000-0000-4000-8000-000000000807", HorseFanta, "medication", "Pergolid 1 mg", nil, nil, s("08:00"), "Ins Futter mischen"},
-		{"00000000-0000-4000-8000-000000000808", HorseFanta, "physio", "Physiotherapie", n(14), n(28), nil, ""},
-		{"00000000-0000-4000-8000-000000000809", HorseBalu, "farrier", "Hufschmied", n(30), n(56), nil, ""},
+		{"00000000-0000-4000-8000-000000000801", HorseLuna, "vaccination", "Influenza und Tetanus", n(120), n(1), "year", nil, ""},
+		{"00000000-0000-4000-8000-000000000802", HorseLuna, "farrier", "Hufschmied", n(6), n(6), "week", nil, "Termin bei Kruse, Vormittag"},
+		{"00000000-0000-4000-8000-000000000803", HorseLuna, "deworming", "Wurmkur", n(-9), n(3), "month", nil, "Nach Kotprobe"},
+		{"00000000-0000-4000-8000-000000000804", HorseLuna, "dentist", "Zahnkontrolle", n(200), n(1), "year", nil, ""},
+		{"00000000-0000-4000-8000-000000000805", HorseFanta, "vaccination", "Influenza", n(20), n(6), "month", nil, ""},
+		{"00000000-0000-4000-8000-000000000806", HorseFanta, "farrier", "Hufschmied", n(1), n(5), "week", nil, ""},
+		{"00000000-0000-4000-8000-000000000807", HorseFanta, "medication", "Pergolid 1 mg", nil, nil, "day", s("08:00"), "Ins Futter mischen"},
+		{"00000000-0000-4000-8000-000000000808", HorseFanta, "physio", "Physiotherapie", n(14), n(4), "week", nil, ""},
+		{"00000000-0000-4000-8000-000000000809", HorseBalu, "farrier", "Hufschmied", n(30), n(8), "week", nil, ""},
 	}
 	for _, it := range items {
 		var due any
 		if it.offset != nil {
 			due = *it.offset
 		}
-		q(`INSERT INTO health_items (id, stable_id, horse_id, kind, label, due_date, interval_days, note, daily_time)
-			VALUES ($1, $2, $3, $4, $5, CASE WHEN $6::int IS NULL THEN NULL ELSE current_date + $6::int END, $7, NULLIF($8, ''), $9::time)
+		q(`INSERT INTO health_items (id, stable_id, horse_id, kind, label, due_date, interval_count, interval_unit, note, daily_time)
+			VALUES ($1, $2, $3, $4, $5, CASE WHEN $6::int IS NULL THEN NULL ELSE current_date + $6::int END, $7, $8, NULLIF($9, ''), $10::time)
 			ON CONFLICT DO NOTHING`,
-			it.id, StableB, it.horse, it.kind, it.label, due, it.interval, it.note, it.dailyTime)
+			it.id, StableB, it.horse, it.kind, it.label, due, it.interval, it.unit, it.note, it.dailyTime)
 	}
 
 	res := tx.SendBatch(ctx, &b)

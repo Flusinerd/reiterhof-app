@@ -12,6 +12,14 @@ import {
   dueText,
   formatDate,
   healthKindLabel,
+  intervalPresets,
+  intervalRepeatText,
+  intervalText,
+  intervalUnitLabel,
+  remindDayLabel,
+  remindDayOptions,
+  remindText,
+  toggleRemindDay,
   joinParts,
   parseGermanDate,
   parseTime,
@@ -147,4 +155,36 @@ test("tel url", () => {
   assert.equal(telUrl("  "), null);
   assert.equal(telUrl("abc"), null);
   assert.equal(telUrl(null), null);
+});
+
+test("interval texts", () => {
+  assert.equal(intervalText(1, "day"), "1 Tag");
+  assert.equal(intervalText(6, "week"), "6 Wochen");
+  assert.equal(intervalText(1, "year"), "1 Jahr");
+  assert.equal(intervalUnitLabel("month"), "Monate");
+  assert.equal(intervalRepeatText(1, "year"), "jährlich");
+  assert.equal(intervalRepeatText(6, "month"), "halbjährlich");
+  assert.equal(intervalRepeatText(6, "week"), "alle 6 Wochen");
+  assert.equal(intervalRepeatText(42, "day"), "alle 42 Tage");
+  assert.equal(intervalRepeatText(null, "day"), "");
+  assert.deepEqual(intervalPresets("vaccination"), [
+    { count: 6, unit: "month" },
+    { count: 1, unit: "year" },
+  ]);
+  assert.deepEqual(intervalPresets("unknown"), []);
+});
+
+test("reminder days", () => {
+  assert.equal(remindDayLabel(0), "am Tag");
+  assert.equal(remindDayLabel(1), "1 Tag vorher");
+  assert.equal(remindDayLabel(3), "3 Tage vorher");
+  assert.equal(remindDayLabel(7), "1 Woche vorher");
+  assert.equal(remindDayLabel(28), "4 Wochen vorher");
+  assert.deepEqual(remindDayOptions([10, 7]), [28, 14, 10, 7, 3, 1, 0]);
+  assert.deepEqual(toggleRemindDay([7, 1], 14), [14, 7, 1]);
+  assert.deepEqual(toggleRemindDay([7, 1], 7), [1]);
+  assert.deepEqual(toggleRemindDay([28, 14, 7, 3, 1], 0), [28, 14, 7, 3, 1]);
+  assert.equal(remindText([], "08:00"), "Keine Erinnerung");
+  assert.equal(remindText([1, 7], "08:00"), "Erinnerung 1 Woche vorher und 1 Tag vorher, 08:00 Uhr");
+  assert.equal(remindText([0], "18:30"), "Erinnerung am Tag, 18:30 Uhr");
 });

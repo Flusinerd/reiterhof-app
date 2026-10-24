@@ -80,10 +80,18 @@ export type HealthItem = {
   label: string;
   /** YYYY-MM-DD */
   due_date: string | null;
+  /** Repeat interval: interval_count units (day, week, month, year); count null without one. */
+  interval_count: number | null;
+  interval_unit: string;
+  /** The interval in days for day and week intervals, else null (older form). */
   interval_days: number | null;
   note: string | null;
   /** HH:MM */
   daily_time: string | null;
+  /** Days before the due date a reminder goes out (0 = on the day), largest first; [] = none. */
+  remind_days: number[];
+  /** HH:MM, stable-local time of the due-date reminders. */
+  remind_time: string;
   /** Negative when overdue. */
   days_until_due: number | null;
   /** Other horses with the same kind of appointment due about now (JAN-54); absent if none. */
@@ -102,9 +110,12 @@ export type HealthInput = Partial<{
   kind: string;
   label: string;
   due_date: string;
-  interval_days: number;
+  interval_count: number;
+  interval_unit: string;
   note: string;
   daily_time: string;
+  remind_days: number[];
+  remind_time: string;
 }>;
 
 export type HorseDocument = {
