@@ -138,6 +138,24 @@ export function sentLabel(item: ReminderItem, timeZone: string): string {
   return clock ? `Gesendet ${clock} Uhr` : "Gesendet";
 }
 
+export type RowTime = { text: string; overdue: boolean };
+
+/**
+ * The left column of a reminder row, as on the "Heute" timeline: "08:00" (shown in brass), "·" for
+ * all-day items and "fällig" (shown in red) for something that was due on an earlier day and was not sent.
+ */
+export function rowTime(item: ReminderItem, timeZone: string, today: string): RowTime {
+  const overdue = !item.sent_at && localDate(item.due_at, timeZone) < today;
+  if (overdue) return { text: "fällig", overdue: true };
+  if (item.all_day) return { text: "·", overdue: false };
+  return { text: formatClock(item.due_at, timeZone) || "·", overdue: false };
+}
+
+/** Small line under a reminder: "Termin", "Anfrage · ganztägig", "Medikament · Gesendet 08:01 Uhr". */
+export function rowMeta(item: ReminderItem, timeZone: string): string {
+  return [kindLabel(item.kind), item.all_day ? "ganztägig" : "", sentLabel(item, timeZone)].filter(Boolean).join(" · ");
+}
+
 export type DaySection = { day: string; heading: string; items: ReminderItem[] };
 
 /** Splits items into consecutive day sections (sorted by the moment they are placed at). */

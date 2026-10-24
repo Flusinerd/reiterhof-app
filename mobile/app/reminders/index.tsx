@@ -5,17 +5,16 @@ import { ActivityIndicator, RefreshControl, View } from "react-native";
 
 import { ReminderHead } from "@/components/reminder-head";
 import { ReminderRow } from "@/components/reminder-row";
-import { Button, Card, Divider, Screen, Section, Text } from "@/components/ui";
+import { Button, Card, Screen, SectionTitle, Text } from "@/components/ui";
 import { BLANKET_STATE_EVENT } from "@/lib/api/blankets";
 import { reminderKeys, remindersApi, useReminders } from "@/lib/api/reminders";
 import { useInvalidateOnEvents } from "@/lib/realtime";
 import { groupByDay, reminderErrorMessage, type ReminderItem, type RemindersResponse } from "@/lib/reminders";
-import { colors } from "@/lib/theme";
+import { useColors } from "@/lib/theme";
 
-const EMPTY_TEXT = { today: "Heute steht nichts an.", week: "Diese Woche steht nichts an." } as const;
-
-/** Reminder center (JAN-69): tonight's blanket check, then today's and this week's reminders. */
+/** Reminder center (JAN-69): tonight's blanket check, then the reminders of today and of each day of the week. */
 export default function Reminders() {
+  const c = useColors();
   const queryClient = useQueryClient();
   const reminders = useReminders("week");
   useInvalidateOnEvents({
@@ -49,20 +48,29 @@ export default function Reminders() {
   const data = reminders.data;
   const timeZone = data?.timezone ?? "Europe/Berlin";
 
+  /** The rows of one day, on the page with hairlines. */
   function rows(items: ReminderItem[]) {
-    return items.map((item, i) => (
-      <View key={item.id}>
-        {i > 0 ? <Divider /> : null}
-        <ReminderRow
-          item={item}
-          timeZone={timeZone}
-          dismissing={dismissingId === item.id}
-          onOpen={(screen) => router.push(screen as Href)}
-          onDismiss={(it) => dismiss.mutate(it)}
-        />
+    return (
+      <View>
+        {items.map((item, i) => (
+          <ReminderRow
+            key={item.id}
+            item={item}
+            timeZone={timeZone}
+            today={data?.today ?? ""}
+            last={i === items.length - 1}
+            dismissing={dismissingId === item.id}
+            onOpen={(screen) => router.push(screen as Href)}
+            onDismiss={(it) => dismiss.mutate(it)}
+          />
+        ))}
       </View>
-    ));
+    );
   }
+
+  const todayItems = data?.groups.find((g) => g.key === "today")?.items ?? [];
+  const weekItems = data?.groups.find((g) => g.key === "week")?.items ?? [];
+  const weekDays = groupByDay(weekItems, timeZone, data?.today ?? "");
 
   return (
     <Screen
@@ -71,7 +79,7 @@ export default function Reminders() {
         <RefreshControl
           refreshing={reminders.isRefetching}
           onRefresh={() => void queryClient.invalidateQueries({ queryKey: reminderKeys.all })}
-          tintColor={colors.primary.DEFAULT}
+          tintColor={c.primary.DEFAULT}
         />
       }
     >
@@ -84,34 +92,36 @@ export default function Reminders() {
       ) : null}
 
       {reminders.isPending ? (
-        <ActivityIndicator color={colors.primary.DEFAULT} />
+        <ActivityIndicator color={c.primary.DEFAULT} />
       ) : reminders.isError ? (
         <Card className="gap-3">
           <Text variant="body">{reminderErrorMessage(reminders.error)}</Text>
           <Button label="Erneut versuchen" variant="outline" onPress={() => void reminders.refetch()} />
         </Card>
       ) : (
-        (data?.groups ?? []).map((group) => (
-          <Section key={group.key} title={group.label}>
-            {group.items.length === 0 ? (
-              <Text variant="body" tone="muted">
-                {EMPTY_TEXT[group.key]}
+        <>
+          <View className="gap-1">
+            <SectionTitle>Heute</SectionTitle>
+            {todayItems.length === 0 ? (
+              <Text variant="body" tone="muted" className="py-2">
+                Heute steht nichts an.
               </Text>
-            ) : group.key === "today" ? (
-              <Card padded={false}>{rows(group.items)}</Card>
             ) : (
-              // "Diese Woche": one card per day with the day as heading.
-              groupByDay(group.items, timeZone, data?.today ?? "").map((section) => (
-                <View key={section.day} className="gap-2">
-                  <Text variant="caption" className="px-1">
-                    {section.heading}
-                  </Text>
-                  <Card padded={false}>{rows(section.items)}</Card>
-                </View>
-              ))
+              rows(todayItems)
             )}
-          </Section>
-        ))
+          </View>
+          {weekDays.map((section) => (
+            <View key={section.day} className="gap-1">
+              <SectionTitle>{section.heading}</SectionTitle>
+              {rows(section.items)}
+            </View>
+          ))}
+          {weekDays.length === 0 ? (
+            <Text variant="body" tone="muted">
+              Diese Woche steht sonst nichts an.
+            </Text>
+          ) : null}
+        </>
       )}
     </Screen>
   );

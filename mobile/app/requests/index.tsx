@@ -1,15 +1,18 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { CalendarDays, Plus } from "lucide-react-native";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
 
-import { RequestCard } from "@/components/request-card";
-import { Button, Card, PageHeader, Pill, Screen, Section, Text } from "@/components/ui";
+import { RequestRow } from "@/components/request-row";
+import { Button, Card, PageHeader, Pill, Screen, SectionTitle, Text } from "@/components/ui";
 import { requestKeys, requestsApi } from "@/lib/api/requests";
-import { colors } from "@/lib/theme";
+import { useAuth } from "@/lib/auth";
 import { REQUEST_FILTERS, filterParams, toIsoDate, type RequestFilter } from "@/lib/requests";
 import { requestErrorMessage } from "@/lib/requests-errors";
+import { groupRequestsByDay } from "@/lib/stable-tab";
+import { useColors } from "@/lib/theme";
+import { useAcceptRequest } from "@/lib/use-accept-request";
 
 const EMPTY_TEXT: Record<RequestFilter, string> = {
   open: "Keine offenen Anfragen.",
@@ -18,29 +21,19 @@ const EMPTY_TEXT: Record<RequestFilter, string> = {
   done: "Noch nichts erledigt.",
 };
 
+/** All requests for help as messages grouped by day; the filters are pills, "Neu" is the one primary button. */
 export default function Requests() {
+  const c = useColors();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [filter, setFilter] = useState<RequestFilter>("open");
-  const [error, setError] = useState<string | null>(null);
-  const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  const today = useMemo(() => toIsoDate(new Date()), []);
 
-  const params = filterParams(filter, toIsoDate(new Date()));
+  const params = filterParams(filter, today);
   const list = useQuery({ queryKey: requestKeys.list(params), queryFn: () => requestsApi.list(params) });
   const thanks = useQuery({ queryKey: requestKeys.thanks, queryFn: requestsApi.myThanks });
-
-  const accept = useMutation({
-    mutationFn: (id: string) => requestsApi.accept(id),
-    onMutate: (id) => {
-      setError(null);
-      setAcceptingId(id);
-    },
-    onError: (e) => setError(requestErrorMessage(e)),
-    onSettled: () => {
-      setAcceptingId(null);
-      void queryClient.invalidateQueries({ queryKey: requestKeys.all });
-    },
-  });
+  const { accept, acceptingId, error } = useAcceptRequest();
 
   const open = list.data?.open_count ?? 0;
   const requests = list.data?.requests ?? [];
@@ -51,24 +44,32 @@ export default function Requests() {
         <RefreshControl
           refreshing={list.isRefetching}
           onRefresh={() => void queryClient.invalidateQueries({ queryKey: requestKeys.all })}
-          tintColor={colors.primary.DEFAULT}
+          tintColor={c.primary.DEFAULT}
         />
       }
     >
       <PageHeader
+        eyebrow="Bitte um Hilfe"
         title="Anfragen"
         action={
-          <Button
-            label="Neu"
-            icon={Plus}
-            size="sm"
-            onPress={() => router.push("/requests/new")}
-            accessibilityLabel="Neue Anfrage"
-          />
+          <View className="flex-row items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              icon={CalendarDays}
+              accessibilityLabel="Mein Kalender"
+              onPress={() => router.push("/requests/calendar")}
+            />
+            <Button
+              label="Neu"
+              icon={Plus}
+              size="sm"
+              onPress={() => router.push("/requests/new")}
+              accessibilityLabel="Neue Anfrage"
+            />
+          </View>
         }
-        value={list.data ? String(open) : "–"}
-        valueSize="sm"
-        unit={open === 1 ? "offene Anfrage" : "offene Anfragen"}
+        description={list.data ? `${open} ${open === 1 ? "offene Anfrage" : "offene Anfragen"}` : undefined}
       />
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-2" className="-mx-6" contentContainerStyle={{ paddingHorizontal: 24 }}>
@@ -83,41 +84,39 @@ export default function Requests() {
         </Text>
       ) : null}
 
-      <Section
-        title={REQUEST_FILTERS.find((f) => f.value === filter)?.label ?? ""}
-        action={
-          <Button
-            label="Mein Kalender"
-            icon={CalendarDays}
-            variant="ghost"
-            size="sm"
-            onPress={() => router.push("/requests/calendar")}
-          />
-        }
-      >
-        {list.isPending ? (
-          <ActivityIndicator color={colors.primary.DEFAULT} />
-        ) : list.isError ? (
-          <Card className="gap-3">
-            <Text variant="body">{requestErrorMessage(list.error)}</Text>
-            <Button label="Erneut versuchen" variant="outline" onPress={() => void list.refetch()} />
-          </Card>
-        ) : requests.length === 0 ? (
-          <Text variant="body" tone="muted">
-            {EMPTY_TEXT[filter]}
-          </Text>
-        ) : (
-          requests.map((r) => (
-            <RequestCard
-              key={r.id}
-              request={r}
-              accepting={acceptingId === r.id}
-              onOpen={() => router.push({ pathname: "/requests/[id]", params: { id: r.id } })}
-              onAccept={() => accept.mutate(r.id)}
-            />
-          ))
-        )}
-      </Section>
+      {list.isPending ? (
+        <ActivityIndicator color={c.primary.DEFAULT} />
+      ) : list.isError ? (
+        <Card className="gap-3">
+          <Text variant="body">{requestErrorMessage(list.error)}</Text>
+          <Button label="Erneut versuchen" variant="outline" onPress={() => void list.refetch()} />
+        </Card>
+      ) : requests.length === 0 ? (
+        <Text variant="body" tone="muted">
+          {EMPTY_TEXT[filter]}
+        </Text>
+      ) : (
+        groupRequestsByDay(requests, today).map((group) => (
+          <View key={group.date} className="gap-1">
+            <SectionTitle>{group.heading}</SectionTitle>
+            <View>
+              {group.items.map((r, i) => (
+                <RequestRow
+                  key={r.id}
+                  request={r}
+                  today={today}
+                  userId={user?.id}
+                  withDay={false}
+                  last={i === group.items.length - 1}
+                  accepting={acceptingId === r.id}
+                  onOpen={() => router.push({ pathname: "/requests/[id]", params: { id: r.id } })}
+                  onAccept={() => accept(r.id)}
+                />
+              ))}
+            </View>
+          </View>
+        ))
+      )}
 
       {thanks.data && thanks.data.count > 0 ? (
         <Text variant="secondary" className="text-center">

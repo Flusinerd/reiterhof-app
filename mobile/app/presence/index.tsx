@@ -3,10 +3,11 @@ import { RefreshControl, View } from "react-native";
 
 import { useConsentPrompt } from "@/components/consent-prompt";
 import { usePresenceCheckIn } from "@/components/presence-check-in";
-import { Avatar, Button, Card, Divider, PageHeader, Screen, Section, Switch, Text, ToggleGroup, ToggleGroupItem } from "@/components/ui";
-import { colors } from "@/lib/theme";
+import { Avatar, Button, PageHeader, Screen, Section, Switch, Text, ToggleGroup, ToggleGroupItem } from "@/components/ui";
+import { useColors } from "@/lib/theme";
 import { errorMessage, type PresenceVisibility } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { cn } from "@/lib/cn";
 import { failureMessage } from "@/lib/geofence-core";
 import { useGeofence } from "@/lib/geofence";
 import { isWeb } from "@/lib/platform";
@@ -19,9 +20,47 @@ import {
   VISIBILITY_OPTIONS,
   visibilityDescription,
 } from "@/lib/presence-format";
+import { herePeople, presenceSentence } from "@/lib/stable-tab";
 
+/** A line of a list with hairlines: avatar, name with a detail line, something short on the right. */
+function PersonRow({
+  name,
+  colorKey,
+  detail,
+  hint,
+  right,
+  last,
+}: {
+  name: string;
+  colorKey: string | null;
+  detail?: string;
+  hint?: string | null;
+  right?: string;
+  last: boolean;
+}) {
+  return (
+    <View className={cn("min-h-[60px] flex-row items-center gap-3 py-3", !last && "border-b border-divider")}>
+      <Avatar name={name} colorKey={colorKey} size="md" />
+      <View className="flex-1 gap-0.5">
+        <Text variant="bodyStrong" numberOfLines={1}>
+          {name}
+        </Text>
+        {detail ? <Text variant="secondary">{detail}</Text> : null}
+        {hint ? <Text variant="caption">{hint}</Text> : null}
+      </View>
+      {right ? (
+        <Text variant="bodySm" tone="brass" className="font-sans-semibold">
+          {right}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+/** Presence: who is at the stable, my own check in and out, who was here lately, and the settings. */
 export default function PresenceScreen() {
-  const { me } = useAuth();
+  const c = useColors();
+  const { me, user } = useAuth();
   const consent = useConsentPrompt();
   const timeZone = me?.stable?.timezone ?? "Europe/Berlin";
   const presence = usePresenceCheckIn();
@@ -41,10 +80,14 @@ export default function PresenceScreen() {
   const data = overview.data;
   const open = data?.me.open_visit ?? null;
   const today = localDate(new Date(), timeZone);
+  const people = herePeople(data, user);
 
   let heroDescription: string | undefined;
-  if (open) heroDescription = `Andere sehen dich ${visibility === "all" ? sinceLabel(open.arrived_at, timeZone) : "nach deiner Einstellung"}.`;
-  else if (data?.me.last_visit?.left_at) {
+  if (open) {
+    heroDescription = `Seit ${formatClock(open.arrived_at, timeZone)} Uhr im Stall. Andere sehen dich ${
+      visibility === "all" ? sinceLabel(open.arrived_at, timeZone) : "nach deiner Einstellung"
+    }.`;
+  } else if (data?.me.last_visit?.left_at) {
     heroDescription = `Zuletzt im Stall: ${lastSeenLabel(
       { last_seen_date: localDate(data.me.last_visit.left_at, timeZone), last_seen_at: data.me.last_visit.left_at },
       today,
@@ -56,16 +99,10 @@ export default function PresenceScreen() {
     <Screen
       back
       refreshControl={
-        <RefreshControl refreshing={overview.isRefetching} onRefresh={() => void overview.refetch()} tintColor={colors.primary.DEFAULT} />
+        <RefreshControl refreshing={overview.isRefetching} onRefresh={() => void overview.refetch()} tintColor={c.primary.DEFAULT} />
       }
     >
-      <PageHeader
-        title={open ? "Im Stall" : "Nicht im Stall"}
-        value={open ? formatClock(open.arrived_at, timeZone) : undefined}
-        valueSize="sm"
-        unit={open ? "Uhr" : undefined}
-        description={heroDescription}
-      >
+      <PageHeader eyebrow="Anwesenheit" title={presenceSentence(people, !!data)} description={heroDescription}>
         <Button
           label={open ? "Ich gehe" : "Bin da"}
           icon={open ? LogOut : LogIn}
@@ -83,52 +120,40 @@ export default function PresenceScreen() {
         ) : null}
       </PageHeader>
 
-      <Section title="Jetzt da">
-        {overview.isError ? (
-          <Text variant="body" tone="danger">
-            {errorMessage(overview.error)}
-          </Text>
-        ) : data && data.here.length > 0 ? (
-          <View className="flex-row flex-wrap gap-3">
-            {data.here.map((p) => (
-              <Card key={p.user_id} shape="tile" className="w-[47%] items-center gap-2 px-3 py-4">
-                <Avatar name={p.name} colorKey={p.avatar_color} size="lg" />
-                <Text variant="bodyStrong" numberOfLines={1}>
-                  {p.name}
-                </Text>
-                <Text variant="secondary">{sinceLabel(p.since, timeZone)}</Text>
-              </Card>
+      {overview.isError ? (
+        <Text variant="body" tone="danger">
+          {errorMessage(overview.error)}
+        </Text>
+      ) : data && data.here.length > 0 ? (
+        <Section title="Jetzt da">
+          <View>
+            {data.here.map((p, i) => (
+              <PersonRow
+                key={p.user_id}
+                name={p.name}
+                colorKey={p.avatar_color}
+                right={p.since ? sinceLabel(p.since, timeZone) : "heute da"}
+                last={i === data.here.length - 1}
+              />
             ))}
           </View>
-        ) : (
-          <Text variant="body" tone="muted">
-            {data ? "Sonst niemand da." : "Wird geladen ..."}
-          </Text>
-        )}
-      </Section>
+        </Section>
+      ) : null}
 
       <Section title="Zuletzt gesehen">
         {data && data.recent.length > 0 ? (
-          <Card padded={false}>
-            {data.recent.map((p, i) => {
-              const hint = usualArrivalLabel(p.usual_arrival_hour);
-              return (
-                <View key={p.user_id}>
-                  {i > 0 ? <Divider /> : null}
-                  <View className="min-h-touch flex-row items-center gap-3 px-5 py-3">
-                    <Avatar name={p.name} colorKey={p.avatar_color} size="md" />
-                    <View className="flex-1">
-                      <Text variant="bodyStrong" numberOfLines={1}>
-                        {p.name}
-                      </Text>
-                      <Text variant="secondary">{lastSeenLabel(p, today, timeZone)}</Text>
-                      {hint ? <Text variant="caption">{hint}</Text> : null}
-                    </View>
-                  </View>
-                </View>
-              );
-            })}
-          </Card>
+          <View>
+            {data.recent.map((p, i) => (
+              <PersonRow
+                key={p.user_id}
+                name={p.name}
+                colorKey={p.avatar_color}
+                detail={lastSeenLabel(p, today, timeZone)}
+                hint={usualArrivalLabel(p.usual_arrival_hour)}
+                last={i === data.recent.length - 1}
+              />
+            ))}
+          </View>
         ) : (
           <Text variant="body" tone="muted">
             {data ? "Noch keine Besuche." : "Wird geladen ..."}
@@ -137,46 +162,38 @@ export default function PresenceScreen() {
       </Section>
 
       <Section title="Einstellungen">
-        <Card className="gap-4">
-        {geofence.supported ? (
-          <>
-            <Switch
-              label="Automatisch erkennen"
-              description="Meldet dich automatisch an und ab. Nur auf diesem Gerät."
-              value={geofence.enabled}
-              disabled={geofence.busy}
-              onValueChange={(on) => void toggleGeofence(on)}
-            />
-            {geofence.failure ? (
-              <Text variant="secondary" tone="danger">
-                {failureMessage(geofence.failure)}
-              </Text>
-            ) : null}
-            <Text variant="caption">
-              Dein Standort bleibt auf dem Handy. Der Server erfährt nur Ankunft und Abgang.
+        <View className="gap-5">
+          {geofence.supported ? (
+            <View className="gap-3 border-b border-divider pb-5">
+              <Switch
+                label="Automatisch erkennen"
+                description="Meldet dich automatisch an und ab. Nur auf diesem Gerät."
+                value={geofence.enabled}
+                disabled={geofence.busy}
+                onValueChange={(on) => void toggleGeofence(on)}
+              />
+              {geofence.failure ? (
+                <Text variant="secondary" tone="danger">
+                  {failureMessage(geofence.failure)}
+                </Text>
+              ) : null}
+              <Text variant="caption">Dein Standort bleibt auf dem Handy. Der Server erfährt nur Ankunft und Abgang.</Text>
+            </View>
+          ) : isWeb ? (
+            <Text variant="caption" className="border-b border-divider pb-5">
+              Automatisches Ein- und Auschecken gibt es nur in der App.
             </Text>
-            <Divider />
-          </>
-        ) : isWeb ? (
-          <>
-            <Text variant="caption">Automatisches Ein- und Auschecken gibt es nur in der App.</Text>
-            <Divider />
-          </>
-        ) : null}
-        <View className="gap-2">
-          <Text variant="bodyStrong">Wer sieht mich?</Text>
-          <ToggleGroup
-            type="single"
-            value={visibility}
-            onValueChange={(v) => presence.changeVisibility(v as PresenceVisibility)}
-          >
-            {VISIBILITY_OPTIONS.map((o) => (
-              <ToggleGroupItem key={o.value} value={o.value} label={o.label} disabled={presence.changingVisibility} />
-            ))}
-          </ToggleGroup>
-          <Text variant="secondary">{visibilityDescription(visibility)}</Text>
+          ) : null}
+          <View className="gap-2">
+            <Text variant="eyebrow">Wer sieht mich?</Text>
+            <ToggleGroup type="single" value={visibility} onValueChange={(v) => presence.changeVisibility(v as PresenceVisibility)}>
+              {VISIBILITY_OPTIONS.map((o) => (
+                <ToggleGroupItem key={o.value} value={o.value} label={o.label} disabled={presence.changingVisibility} />
+              ))}
+            </ToggleGroup>
+            <Text variant="secondary">{visibilityDescription(visibility)}</Text>
+          </View>
         </View>
-        </Card>
       </Section>
       {consent.sheet}
       {presence.sheet}

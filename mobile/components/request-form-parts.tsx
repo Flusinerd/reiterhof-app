@@ -5,12 +5,12 @@ import { Pressable, ScrollView, View } from "react-native";
 import { Button, Pill, Text } from "@/components/ui";
 import { addDays, addMonths, monthGrid, monthTitle, parseDate, relativeDay } from "@/lib/requests";
 
-/** Label above a form control. */
+/** Label above a form control: small upper-case line, optional hint below. */
 export function FieldRow({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <View className="gap-2">
       <View className="gap-0.5">
-        <Text variant="label">{label}</Text>
+        <Text variant="eyebrow">{label}</Text>
         {hint ? <Text variant="caption">{hint}</Text> : null}
       </View>
       {children}
@@ -39,7 +39,7 @@ export function Stepper({ value, min = 1, max = 20, onChange, label }: StepperPr
         disabled={value <= min}
         onPress={() => onChange(Math.max(min, value - 1))}
       />
-      <Text variant="title" accessibilityLabel={`${label}: ${value}`} className="min-w-8 text-center">
+      <Text variant="title" tone="brass" accessibilityLabel={`${label}: ${value}`} className="min-w-8 text-center">
         {value}
       </Text>
       <Button
@@ -121,7 +121,7 @@ export function MonthCalendar({ value, min, today, onChange }: MonthCalendarProp
                 <View className={`h-9 w-9 items-center justify-center rounded-full ${selected ? "bg-primary" : d === today ? "border border-primary" : ""}`}>
                   <Text
                     variant="bodySm"
-                    className={selected ? "font-sans-semibold text-white" : disabled ? "text-muted opacity-40" : ""}
+                    className={selected ? "font-sans-semibold text-primary-foreground" : disabled ? "text-muted opacity-40" : ""}
                   >
                     {Number(d.slice(8))}
                   </Text>

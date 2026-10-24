@@ -1,40 +1,18 @@
-import {
-  Activity,
-  Bell,
-  Check,
-  CloudRain,
-  Eye,
-  HandHelping,
-  HeartPulse,
-  Pill,
-  Shirt,
-  Stethoscope,
-  TriangleAlert,
-  type LucideIcon,
-} from "lucide-react-native";
+import { Check } from "lucide-react-native";
 import { Pressable, View } from "react-native";
 
-import { Button, Icon, Text } from "@/components/ui";
+import { Button, Text } from "@/components/ui";
+import { cn } from "@/lib/cn";
 import { isInternalRoute } from "@/lib/notifications-core";
-import { kindLabel, sentLabel, timeLabel, type ReminderItem } from "@/lib/reminders";
-
-const KIND_ICONS: Record<string, LucideIcon> = {
-  last_person: Shirt,
-  weather_change: CloudRain,
-  medication: Pill,
-  health_due: Stethoscope,
-  reha_checkup: HeartPulse,
-  helper: HandHelping,
-  new_request: HandHelping,
-  training_plan: Activity,
-  urgent_observation: TriangleAlert,
-  observation: Eye,
-  weather_warning: TriangleAlert,
-};
+import { rowMeta, rowTime, type ReminderItem } from "@/lib/reminders";
 
 export type ReminderRowProps = {
   item: ReminderItem;
   timeZone: string;
+  /** The stable-local day (YYYY-MM-DD), to tell what is overdue. */
+  today: string;
+  /** No hairline below the last row of a day. */
+  last?: boolean;
   dismissing?: boolean;
   /** Called with the route when the row is tapped (only for items with an internal screen). */
   onOpen: (screen: string) => void;
@@ -42,40 +20,44 @@ export type ReminderRowProps = {
 };
 
 /**
- * One reminder: kind icon, title, text and time. Tapping opens the screen of the reminder;
- * "Erledigt" (stored reminders only) removes it from the list.
+ * One reminder as a line of the timeline, the same look as on "Heute": the time in brass (red
+ * "fällig" when overdue), title, text and kind. Tapping opens the screen of the reminder;
+ * "Erledigt" (stored reminders only) is a quiet check button on the right and removes it.
  */
-export function ReminderRow({ item, timeZone, dismissing = false, onOpen, onDismiss }: ReminderRowProps) {
+export function ReminderRow({ item, timeZone, today, last = false, dismissing = false, onOpen, onDismiss }: ReminderRowProps) {
   const target = isInternalRoute(item.screen) ? item.screen : null;
-  const meta = [timeLabel(item, timeZone), kindLabel(item.kind)].filter(Boolean).join(" · ");
-  const sent = sentLabel(item, timeZone);
+  const time = rowTime(item, timeZone, today);
 
   const content = (
     <>
-      <View className="h-10 w-10 items-center justify-center rounded-tile bg-primary-soft">
-        <Icon as={KIND_ICONS[item.kind] ?? Bell} size={20} className="text-primary" />
-      </View>
+      <Text variant="bodySm" tone={time.overdue ? "danger" : "brass"} className="w-12 font-sans-semibold">
+        {time.text}
+      </Text>
       <View className="flex-1 gap-0.5">
         <Text variant="bodyStrong">{item.title}</Text>
-        {item.body ? <Text variant="bodySm" tone="muted">{item.body}</Text> : null}
-        <Text variant="caption">{sent ? `${meta} · ${sent}` : meta}</Text>
+        {item.body ? (
+          <Text variant="bodySm" tone={time.overdue ? "danger" : "muted"}>
+            {item.body}
+          </Text>
+        ) : null}
+        <Text variant="caption">{rowMeta(item, timeZone)}</Text>
       </View>
     </>
   );
 
   return (
-    <View className="flex-row items-center gap-3 px-5 py-4">
+    <View className={cn("min-h-touch flex-row items-center gap-2", !last && "border-b border-divider")}>
       {target ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`${item.title}. ${item.body}`}
-          className="min-h-touch flex-1 flex-row items-center gap-3"
+          className="min-h-touch flex-1 flex-row gap-4 py-3 active:opacity-70"
           onPress={() => onOpen(target)}
         >
           {content}
         </Pressable>
       ) : (
-        <View className="min-h-touch flex-1 flex-row items-center gap-3">{content}</View>
+        <View className="min-h-touch flex-1 flex-row gap-4 py-3">{content}</View>
       )}
       {item.dismissible ? (
         <Button

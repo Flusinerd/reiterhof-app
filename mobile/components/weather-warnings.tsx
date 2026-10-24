@@ -1,49 +1,76 @@
 import { ChevronDown, ChevronUp, TriangleAlert } from "lucide-react-native";
 import { useState } from "react";
-import { View } from "react-native";
+import { Pressable, View } from "react-native";
 
-import { Badge, Icon, PressableCard, Text } from "@/components/ui";
+import { Icon, PressableCard, Text } from "@/components/ui";
 import { useWeatherWarnings } from "@/lib/api/weather";
 import { cn } from "@/lib/cn";
 import { severityLabel, severityTone, warningSpan, type WeatherWarning } from "@/lib/weather-warnings";
 
-const softBg = { info: "bg-info-soft", accent: "bg-accent-soft", danger: "bg-danger-soft" } as const;
-const iconColor = { info: "text-info", accent: "text-accent-text", danger: "text-danger" } as const;
+const stripe = { info: "border-info", accent: "border-accent", danger: "border-danger" } as const;
 
-function WarningCard({ warning, timeZone, compact }: { warning: WeatherWarning; timeZone: string; compact: boolean }) {
+/** The quiet strip of the "Heute" timeline. */
+function CompactWarning({ warning, timeZone }: { warning: WeatherWarning; timeZone: string }) {
   const [open, setOpen] = useState(false);
-  const tone = severityTone(warning.severity);
   const details = warning.description !== "" || warning.instruction !== "";
   return (
     <PressableCard
-      className={cn("gap-3", compact && "border-0 bg-accent-soft p-4")}
+      className="gap-3 border-0 bg-accent-soft p-4"
       accessibilityLabel={`${severityLabel(warning.severity)}: ${warning.headline}`}
       accessibilityState={{ expanded: open }}
       accessibilityHint={details ? (open ? "Details ausblenden" : "Details anzeigen") : undefined}
       onPress={() => details && setOpen((o) => !o)}
     >
       <View className="flex-row items-start gap-3">
-        {compact ? null : (
-          <View className={cn("rounded-tile p-2", softBg[tone])}>
-            <Icon as={TriangleAlert} size={20} className={iconColor[tone]} />
-          </View>
-        )}
         <View className="flex-1 gap-1">
-          {compact ? null : <Badge variant={tone} label={severityLabel(warning.severity)} />}
-          <Text variant="bodyStrong" tone={compact ? "accent" : "default"}>
+          <Text variant="bodyStrong" tone="accent">
             {warning.headline}
           </Text>
           <Text variant="secondary">{warningSpan(warning.onset, warning.expires, timeZone)}</Text>
         </View>
         {details ? <Icon as={open ? ChevronUp : ChevronDown} size={20} className="text-muted" /> : null}
       </View>
-      {open ? (
-        <View className="gap-2">
-          {warning.description ? <Text variant="bodySm">{warning.description}</Text> : null}
-          {warning.instruction ? <Text variant="caption">{warning.instruction}</Text> : null}
-        </View>
-      ) : null}
+      {open ? <WarningDetails warning={warning} /> : null}
     </PressableCard>
+  );
+}
+
+function WarningDetails({ warning }: { warning: WeatherWarning }) {
+  return (
+    <View className="gap-2">
+      {warning.description ? <Text variant="bodySm">{warning.description}</Text> : null}
+      {warning.instruction ? <Text variant="caption">{warning.instruction}</Text> : null}
+    </View>
+  );
+}
+
+/** A warning as a row with a stripe in the tone of its level, on the page: level in the eyebrow, headline, time span. */
+function WarningRow({ warning, timeZone }: { warning: WeatherWarning; timeZone: string }) {
+  const [open, setOpen] = useState(false);
+  const tone = severityTone(warning.severity);
+  const details = warning.description !== "" || warning.instruction !== "";
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${severityLabel(warning.severity)}: ${warning.headline}`}
+      accessibilityState={{ expanded: open }}
+      accessibilityHint={details ? (open ? "Details ausblenden" : "Details anzeigen") : undefined}
+      onPress={() => details && setOpen((o) => !o)}
+      className={cn("min-h-touch flex-row items-start gap-3 border-l-2 py-1 pl-4 active:opacity-70", stripe[tone])}
+    >
+      <View className="flex-1 gap-1">
+        <View className="flex-row items-center gap-1.5">
+          <Icon as={TriangleAlert} size={14} className={tone === "info" ? "text-info" : tone === "danger" ? "text-danger" : "text-accent-text"} />
+          <Text variant="eyebrow" tone={tone}>
+            {severityLabel(warning.severity)}
+          </Text>
+        </View>
+        <Text variant="bodyStrong">{warning.headline}</Text>
+        <Text variant="secondary">{warningSpan(warning.onset, warning.expires, timeZone)}</Text>
+        {open ? <WarningDetails warning={warning} /> : null}
+      </View>
+      {details ? <Icon as={open ? ChevronUp : ChevronDown} size={20} className="mt-1 text-muted" /> : null}
+    </Pressable>
   );
 }
 
@@ -58,9 +85,9 @@ export function WeatherWarnings({ timeZone, compact = false }: { timeZone: strin
   if (list.length === 0) return null;
   return (
     <View className="gap-3">
-      {list.map((w) => (
-        <WarningCard key={w.id} warning={w} timeZone={timeZone} compact={compact} />
-      ))}
+      {list.map((w) =>
+        compact ? <CompactWarning key={w.id} warning={w} timeZone={timeZone} /> : <WarningRow key={w.id} warning={w} timeZone={timeZone} />,
+      )}
       <Text variant="caption">Quelle: Deutscher Wetterdienst</Text>
     </View>
   );

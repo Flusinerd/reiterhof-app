@@ -3,9 +3,9 @@ import { router, type Href } from "expo-router";
 import { useState } from "react";
 import { RefreshControl, View } from "react-native";
 
-import { BlanketDoneRow, BlanketHorseCard } from "@/components/blanket-horse-card";
+import { BlanketDoneRow, BlanketHorseRow } from "@/components/blanket-horse-row";
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
-import { Button, Card, PageHeader, Screen, Section, Text } from "@/components/ui";
+import { Button, PageHeader, Screen, SectionTitle, Text } from "@/components/ui";
 import { WeatherCard } from "@/components/weather-card";
 import { WeatherWarnings } from "@/components/weather-warnings";
 import { errorMessage } from "@/lib/api";
@@ -21,15 +21,20 @@ import {
 } from "@/lib/blankets";
 import { horseRoutes } from "@/lib/horse-format";
 import { useInvalidateOnEvents } from "@/lib/realtime";
-import { colors } from "@/lib/theme";
+import { useColors } from "@/lib/theme";
 
 /** "Mittwoch, 30. September" */
 function dateLine(date: Date): string {
   return new Intl.DateTimeFormat("de-DE", { weekday: "long", day: "numeric", month: "long" }).format(date);
 }
 
-/** Tab "Decken" (JAN-32): who still needs a blanket decision tonight, and who is done. */
+/**
+ * Blankets of tonight (JAN-32): the head with "4/7 versorgt" and the weather line, "Runde starten"
+ * as the one primary button, the horses that still need a decision as rows with their compact state
+ * buttons, the finished ones faded below, the forecast at the end.
+ */
 export default function Blankets() {
+  const c = useColors();
   const queryClient = useQueryClient();
   const { me } = useAuth();
   const today = useToday();
@@ -65,7 +70,7 @@ export default function Blankets() {
             void queryClient.invalidateQueries({ queryKey: blanketKeys.all });
             void queryClient.invalidateQueries({ queryKey: weatherKeys.warnings });
           }}
-          tintColor={colors.primary.DEFAULT}
+          tintColor={c.primary.DEFAULT}
         />
       }
     >
@@ -92,17 +97,15 @@ export default function Blankets() {
       </PageHeader>
 
       {open.length > 0 ? (
-        <Button label="Runde starten" variant="secondary" fullWidth onPress={() => router.push("/blankets/round" as Href)} />
+        <Button label="Runde starten" fullWidth onPress={() => router.push("/blankets/round" as Href)} />
       ) : null}
 
       <WeatherWarnings timeZone={timeZone} />
 
       {error ? (
-        <Card className="border-danger bg-danger-soft">
-          <Text variant="bodySm" tone="danger" accessibilityRole="alert">
-            {error}
-          </Text>
-        </Card>
+        <Text variant="bodySm" tone="danger" accessibilityRole="alert">
+          {error}
+        </Text>
       ) : null}
 
       {!data ? (
@@ -113,20 +116,23 @@ export default function Blankets() {
         )
       ) : (
         <>
-          {data.weather ? <WeatherCard weather={data.weather} timeZone={timeZone} /> : null}
           {open.length > 0 ? (
-            <Section title="Noch offen">
-              {open.map((item) => (
-                <BlanketHorseCard
-                  key={item.horse.id}
-                  item={item}
-                  timeZone={timeZone}
-                  pending={pending?.horseId === item.horse.id ? pending.action : null}
-                  onAction={(a) => act(item.horse.id, a)}
-                  onOpenPlan={() => openPlan(item.horse.id)}
-                />
-              ))}
-            </Section>
+            <View className="gap-1">
+              <SectionTitle>Noch offen</SectionTitle>
+              <View>
+                {open.map((item, i) => (
+                  <BlanketHorseRow
+                    key={item.horse.id}
+                    item={item}
+                    timeZone={timeZone}
+                    last={i === open.length - 1}
+                    pending={pending?.horseId === item.horse.id ? pending.action : null}
+                    onAction={(a) => act(item.horse.id, a)}
+                    onOpenPlan={() => openPlan(item.horse.id)}
+                  />
+                ))}
+              </View>
+            </View>
           ) : (
             <Text variant="body" tone="muted">
               {data.horses.length === 0 ? "Noch keine Pferde" : "Alles erledigt"}
@@ -134,19 +140,25 @@ export default function Blankets() {
           )}
 
           {done.length > 0 ? (
-            <Section title="Erledigt">
-              {done.map((item) => (
-                <BlanketDoneRow
-                  key={item.horse.id}
-                  item={item}
-                  timeZone={timeZone}
-                  pending={pending?.horseId === item.horse.id ? pending.action : null}
-                  onAction={(a) => act(item.horse.id, a)}
-                  onOpenPlan={() => openPlan(item.horse.id)}
-                />
-              ))}
-            </Section>
+            <View className="gap-1">
+              <SectionTitle>Erledigt</SectionTitle>
+              <View>
+                {done.map((item, i) => (
+                  <BlanketDoneRow
+                    key={item.horse.id}
+                    item={item}
+                    timeZone={timeZone}
+                    last={i === done.length - 1}
+                    pending={pending?.horseId === item.horse.id ? pending.action : null}
+                    onAction={(a) => act(item.horse.id, a)}
+                    onOpenPlan={() => openPlan(item.horse.id)}
+                  />
+                ))}
+              </View>
+            </View>
           ) : null}
+
+          {data.weather ? <WeatherCard weather={data.weather} timeZone={timeZone} /> : null}
         </>
       )}
     </Screen>

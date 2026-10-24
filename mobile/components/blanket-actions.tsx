@@ -5,9 +5,10 @@ import { actionLabel, stateActions, type Recommendation, type StateAction } from
 
 /**
  * The buttons for a horse's day state: "Eingedeckt" / "Abgedeckt" when the plan recommends a
- * blanket, "Geprüft" when it does not. The first one is the primary action. Text only and 128 px
- * wide at least: two fit next to each other in a card on a phone, otherwise they wrap into rows
- * of their own instead of cutting the label ("Eingedeckt" used to be clipped with an icon).
+ * blanket, "Geprüft" when it does not, all three when there is no recommendation. They sit in one
+ * row and share its width (`flex-1`, 44 px high, 8 px padding): at 390 px three labels fit without
+ * clipping ("Eingedeckt" is the longest, about 80 px). The first one is the recommended action
+ * (`secondary`), the others are outlined; the primary button of the screen is "Runde starten".
  */
 export function BlanketActions({
   recommendation,
@@ -23,16 +24,17 @@ export function BlanketActions({
 }) {
   const actions = stateActions(recommendation);
   return (
-    <View className="flex-row flex-wrap gap-3">
+    <View className="flex-row gap-2">
       {actions.map((action, i) => (
         <Button
           key={action}
           label={actionLabel(action)}
-          variant={i === 0 ? "primary" : "outline"}
+          variant={i === 0 ? "secondary" : "outline"}
+          size="sm"
           loading={pending === action}
           disabled={disabled}
           onPress={() => onAction(action)}
-          className="min-w-[128px] grow basis-[128px] px-3"
+          className="flex-1 px-2"
         />
       ))}
     </View>

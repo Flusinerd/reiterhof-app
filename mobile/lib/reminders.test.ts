@@ -12,6 +12,8 @@ import {
   kindLabel,
   minutesOf,
   reminderErrorMessage,
+  rowMeta,
+  rowTime,
   sentLabel,
   stepReminderTime,
   timeLabel,
@@ -61,6 +63,16 @@ test("time labels use the stable time zone", () => {
   assert.equal(timeLabel(item({ all_day: true }), BERLIN), "ganztägig");
   assert.equal(sentLabel(item({ sent_at: "2026-09-30T06:01:00Z" }), BERLIN), "Gesendet 08:01 Uhr");
   assert.equal(sentLabel(item({ sent_at: null }), BERLIN), "");
+});
+
+test("row time and meta follow the timeline of Heute", () => {
+  assert.deepEqual(rowTime(item({ due_at: "2026-09-30T06:00:00Z" }), BERLIN, TODAY), { text: "08:00", overdue: false });
+  assert.deepEqual(rowTime(item({ due_at: "2026-09-30T00:00:00Z", all_day: true }), BERLIN, TODAY), { text: "·", overdue: false });
+  assert.deepEqual(rowTime(item({ due_at: "2026-09-28T10:00:00Z" }), BERLIN, TODAY), { text: "fällig", overdue: true });
+  assert.deepEqual(rowTime(item({ due_at: "2026-09-28T10:00:00Z", sent_at: "2026-09-30T06:00:00Z" }), BERLIN, TODAY), { text: "12:00", overdue: false });
+  assert.equal(rowMeta(item({ kind: "medication" }), BERLIN), "Medikament");
+  assert.equal(rowMeta(item({ kind: "helper", all_day: true }), BERLIN), "Anfrage · ganztägig");
+  assert.equal(rowMeta(item({ kind: "medication", sent_at: "2026-09-30T06:01:00Z" }), BERLIN), "Medikament · Gesendet 08:01 Uhr");
 });
 
 test("itemDay: sent time wins, overdue items belong to today", () => {

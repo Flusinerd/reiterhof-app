@@ -1,14 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
-import { Calendar, Check, CheckCheck, HandHeart, Heart, Repeat, Square, SquareCheck, UserMinus, X } from "lucide-react-native";
+import { Calendar, Check, CheckCheck, HandHeart, Heart, Square, SquareCheck, UserMinus, X, type LucideIcon } from "lucide-react-native";
 import { useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, View } from "react-native";
 
-import { RequestTypeIcon } from "@/components/request-type-icon";
-import { Avatar, Badge, Button, Card, Divider, Icon, PageHeader, Pill, Screen, Section, Sheet, Text } from "@/components/ui";
+import { Avatar, Badge, Button, Icon, PageHeader, Pill, Screen, Section, Sheet, Text } from "@/components/ui";
 import { requestKeys, requestsApi } from "@/lib/api/requests";
 import { useAuth } from "@/lib/auth";
-import { colors } from "@/lib/theme";
+import { cn } from "@/lib/cn";
+import { useColors } from "@/lib/theme";
 import {
   acceptLabel,
   describeRule,
@@ -29,10 +29,11 @@ import {
 import { addToDeviceCalendar } from "@/lib/requests-calendar";
 import { requestErrorMessage } from "@/lib/requests-errors";
 
-function Row({ label, value }: { label: string; value: string }) {
+/** A fact of the request: the label in the eyebrow style on the left, the value on the right, a hairline below. */
+function DetailRow({ label, value, last }: { label: string; value: string; last: boolean }) {
   return (
-    <View className="flex-row justify-between gap-4">
-      <Text variant="secondary">{label}</Text>
+    <View className={cn("min-h-touch flex-row items-center justify-between gap-4 py-3", !last && "border-b border-divider")}>
+      <Text variant="eyebrow">{label}</Text>
       <Text variant="bodySm" className="flex-1 text-right">
         {value}
       </Text>
@@ -40,7 +41,41 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
+/** A quiet action as a row: icon and label, the destructive one in red. */
+function ActionRow({
+  icon,
+  label,
+  tone = "default",
+  loading,
+  last,
+  onPress,
+}: {
+  icon: LucideIcon;
+  label: string;
+  tone?: "default" | "danger";
+  loading?: boolean;
+  last: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ busy: !!loading, disabled: !!loading }}
+      disabled={loading}
+      onPress={onPress}
+      className={cn("min-h-touch flex-row items-center gap-3 py-3 active:opacity-70", !last && "border-b border-divider", loading && "opacity-50")}
+    >
+      <Icon as={icon} size={20} className={tone === "danger" ? "text-danger" : "text-muted"} />
+      <Text variant="body" tone={tone === "danger" ? "danger" : "default"}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
 export default function RequestDetail() {
+  const c = useColors();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -83,7 +118,7 @@ export default function RequestDetail() {
   if (query.isPending) {
     return (
       <Screen back>
-        <ActivityIndicator color={colors.primary.DEFAULT} />
+        <ActivityIndicator color={c.primary.DEFAULT} />
       </Screen>
     );
   }
@@ -97,12 +132,35 @@ export default function RequestDetail() {
   }
 
   const active = r.status === "open" || r.status === "assigned";
+  const involved = r.is_creator || r.is_helper;
   const canManage = r.is_creator || !!user?.is_admin;
   const status = statusBadge(r.status);
   const chips = taskChips(r);
   const rule = describeRule(r.recurring_rule, r.date);
-  const details = payloadDetails(r);
   const busy = action.isPending;
+
+  // The facts as rows (the time is in the head): where, which horse, what the type adds, the repeat.
+  const facts: { label: string; value: string }[] = [
+    ...(r.location ? [{ label: "Wo", value: r.location }] : []),
+    ...(r.horse_name ? [{ label: "Pferd", value: r.horse_name }] : []),
+    ...payloadDetails(r),
+    ...(rule ? [{ label: "Wiederholung", value: rule }] : []),
+  ];
+
+  // The one primary action of the page: accept, else mark as done.
+  const primary = r.can_accept
+    ? { label: acceptLabel(r.type), icon: HandHeart, run: () => action.mutate(() => requestsApi.accept(r.id)) }
+    : involved && active
+      ? { label: "Erledigt", icon: CheckCheck, run: () => action.mutate(() => requestsApi.done(r.id)) }
+      : null;
+
+  const quiet: { icon: LucideIcon; label: string; tone?: "danger"; run: () => void }[] = [
+    ...(r.is_helper && active
+      ? [{ icon: UserMinus, label: "Abmelden", run: () => action.mutate(() => requestsApi.withdraw(r.id)) }]
+      : []),
+    ...(r.status !== "cancelled" && involved ? [{ icon: Calendar, label: "In Kalender", run: () => void exportToCalendar() }] : []),
+    ...(canManage && active ? [{ icon: X, label: "Anfrage absagen", tone: "danger" as const, run: () => setCancelOpen(true) }] : []),
+  ];
 
   async function exportToCalendar() {
     if (!r) return;
@@ -114,14 +172,14 @@ export default function RequestDetail() {
     <Screen
       back
       refreshControl={
-        <RefreshControl refreshing={query.isRefetching} onRefresh={() => void query.refetch()} tintColor={colors.primary.DEFAULT} />
+        <RefreshControl refreshing={query.isRefetching} onRefresh={() => void query.refetch()} tintColor={c.primary.DEFAULT} />
       }
     >
       <PageHeader
         eyebrow={`Von ${r.is_creator ? "dir" : r.creator_name}`}
         title={requestTitle(r)}
         description={formatWhen(r)}
-        action={<RequestTypeIcon type={r.type} size={44} />}
+        action={<Avatar name={r.creator_name} colorKey={r.creator_color} size="md" />}
       >
         <View className="flex-row flex-wrap items-center gap-3">
           <Badge label={status.label} variant={status.variant} />
@@ -136,42 +194,19 @@ export default function RequestDetail() {
       ) : null}
       {notice ? <Text variant="bodySm">{notice}</Text> : null}
 
-      {r.can_accept ? (
-        <Button
-          label={acceptLabel(r.type)}
-          icon={HandHeart}
-          size="lg"
-          fullWidth
-          loading={busy}
-          onPress={() => action.mutate(() => requestsApi.accept(r.id))}
-        />
+      {primary ? <Button label={primary.label} icon={primary.icon} size="lg" fullWidth loading={busy} onPress={primary.run} /> : null}
+
+      {r.description ? (
+        <Text variant="body" className="font-display-italic text-foreground/80">
+          {`„${r.description}“`}
+        </Text>
       ) : null}
 
-      <Section title="Details">
-        <Card className="gap-3">
-          <Row label="Wann" value={formatWhen(r)} />
-          {r.location ? <Row label="Wo" value={r.location} /> : null}
-          {r.horse_name ? <Row label="Pferd" value={r.horse_name} /> : null}
-          {details.map((d) => (
-            <Row key={d.label} label={d.label} value={d.value} />
-          ))}
-          {rule ? (
-            <View className="flex-row items-center justify-between gap-4">
-              <Text variant="secondary">Wiederholung</Text>
-              <View className="flex-row items-center gap-1.5">
-                <Icon as={Repeat} size={16} className="text-muted" />
-                <Text variant="bodySm">{rule}</Text>
-              </View>
-            </View>
-          ) : null}
-          {r.description ? (
-            <>
-              <Divider />
-              <Text variant="body">{r.description}</Text>
-            </>
-          ) : null}
-        </Card>
-      </Section>
+      <View>
+        {facts.map((f, i) => (
+          <DetailRow key={f.label} label={f.label} value={f.value} last={i === facts.length - 1} />
+        ))}
+      </View>
 
       {r.is_helper && active ? (
         <Section title="Meine Erinnerung" description="Nur du siehst und erhältst sie.">
@@ -193,78 +228,76 @@ export default function RequestDetail() {
 
       {chips.length > 0 ? (
         <Section title="Checkliste">
-          <Card className="gap-1 py-2">
-            {chips.map((c) => (
+          <View>
+            {chips.map((chip, i) => (
               <Pressable
-                key={c}
+                key={chip}
                 accessibilityRole="checkbox"
-                accessibilityState={{ checked: !!checked[c] }}
-                onPress={() => setChecked({ ...checked, [c]: !checked[c] })}
-                className="min-h-touch flex-row items-center gap-3"
+                accessibilityState={{ checked: !!checked[chip] }}
+                onPress={() => setChecked({ ...checked, [chip]: !checked[chip] })}
+                className={cn("min-h-touch flex-row items-center gap-3 py-2", i < chips.length - 1 && "border-b border-divider")}
               >
-                <Icon as={checked[c] ? SquareCheck : Square} size={22} className={checked[c] ? "text-primary" : "text-muted"} />
-                <Text variant="body" className={checked[c] ? "text-muted line-through" : undefined}>
-                  {c}
+                <Icon as={checked[chip] ? SquareCheck : Square} size={22} className={checked[chip] ? "text-success" : "text-muted"} />
+                <Text variant="body" className={checked[chip] ? "text-muted line-through" : undefined}>
+                  {chip}
                 </Text>
               </Pressable>
             ))}
-          </Card>
+          </View>
         </Section>
       ) : null}
 
       <Section title="Helfer" description={helperStatusText(r.helpers_count, r.helpers_needed, r.type)}>
-        <Card className="gap-3">
-          {r.helpers.length === 0 ? <Text variant="secondary">Noch niemand.</Text> : null}
-          {r.helpers.map((h) => (
-            <View key={h.user_id} className="flex-row items-center gap-3">
-              <Avatar name={h.name} colorKey={h.avatar_color} />
-              <Text variant="body" className="flex-1">
-                {h.user_id === user?.id ? `${h.name} (du)` : h.name}
-              </Text>
-              {h.thanked ? (
-                <Badge label="Bedankt" variant="primary" />
-              ) : r.is_creator && r.status !== "cancelled" ? (
-                <Pill label="Danke" icon={Heart} onPress={() => thank.mutate(h.user_id)} />
-              ) : null}
-            </View>
-          ))}
-        </Card>
+        {r.helpers.length === 0 ? (
+          <Text variant="body" tone="muted">
+            Noch niemand.
+          </Text>
+        ) : (
+          <View>
+            {r.helpers.map((h, i) => (
+              <View
+                key={h.user_id}
+                className={cn("min-h-[60px] flex-row items-center gap-3 py-2", i < r.helpers.length - 1 && "border-b border-divider")}
+              >
+                <Avatar name={h.name} colorKey={h.avatar_color} />
+                <Text variant="body" className="flex-1">
+                  {h.user_id === user?.id ? `${h.name} (du)` : h.name}
+                </Text>
+                {h.thanked ? (
+                  <Text variant="bodySm" tone="brass" className="font-sans-semibold">
+                    Bedankt
+                  </Text>
+                ) : r.is_creator && r.status !== "cancelled" ? (
+                  <Pill label="Danke" icon={Heart} onPress={() => thank.mutate(h.user_id)} />
+                ) : null}
+              </View>
+            ))}
+          </View>
+        )}
       </Section>
 
-      <View className="gap-3">
-        {r.is_helper && active ? (
-          <Button
-            label="Abmelden"
-            icon={UserMinus}
-            variant="outline"
-            fullWidth
-            loading={busy}
-            onPress={() => action.mutate(() => requestsApi.withdraw(r.id))}
-          />
-        ) : null}
-        {(r.is_creator || r.is_helper) && active ? (
-          <Button
-            label="Erledigt"
-            icon={CheckCheck}
-            variant={r.can_accept ? "outline" : "primary"}
-            fullWidth
-            loading={busy}
-            onPress={() => action.mutate(() => requestsApi.done(r.id))}
-          />
-        ) : null}
-        {r.status !== "cancelled" && (r.is_creator || r.is_helper) ? (
-          <Button label="In Kalender" icon={Calendar} variant="outline" fullWidth onPress={() => void exportToCalendar()} />
-        ) : null}
-        {canManage && active ? (
-          <Button label="Anfrage absagen" icon={X} variant="ghost" fullWidth onPress={() => setCancelOpen(true)} />
-        ) : null}
-        {r.status === "done" ? (
-          <View className="flex-row items-center gap-2">
-            <Icon as={Check} size={18} className="text-primary" />
-            <Text variant="secondary">Erledigt. Danke an alle Helfer.</Text>
-          </View>
-        ) : null}
-      </View>
+      {quiet.length > 0 ? (
+        <View>
+          {quiet.map((q, i) => (
+            <ActionRow
+              key={q.label}
+              icon={q.icon}
+              label={q.label}
+              tone={q.tone}
+              loading={busy && q.label === "Abmelden"}
+              last={i === quiet.length - 1}
+              onPress={q.run}
+            />
+          ))}
+        </View>
+      ) : null}
+
+      {r.status === "done" ? (
+        <View className="flex-row items-center gap-2">
+          <Icon as={Check} size={18} className="text-success" />
+          <Text variant="secondary">Erledigt. Danke an alle Helfer.</Text>
+        </View>
+      ) : null}
 
       <Sheet
         open={cancelOpen}

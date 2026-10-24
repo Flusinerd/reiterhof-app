@@ -1,14 +1,14 @@
-import { ChevronRight, MessageSquareQuote } from "lucide-react-native";
+import { Check, ChevronRight, MessageSquareQuote } from "lucide-react-native";
 import { useState } from "react";
 import { Pressable, View } from "react-native";
 
 import { BlanketActions } from "@/components/blanket-actions";
 import { BlanketChoiceSheet } from "@/components/blanket-choice-sheet";
 import { BlanketPhoto } from "@/components/blanket-photo";
-import { Avatar, Badge, Card, Icon, Text } from "@/components/ui";
+import { Avatar, Badge, Icon, Text } from "@/components/ui";
+import { cn } from "@/lib/cn";
 import {
   deviatesFromRule,
-  fillLabel,
   recommendationDetail,
   recommendationTitle,
   ruleHint,
@@ -23,45 +23,58 @@ type Props = {
   /** Action being sent for this horse, or null. */
   pending: StateAction | null;
   timeZone: string;
+  /** No hairline below the last row of a list. */
+  last?: boolean;
   onAction: (action: StateAction) => void;
   onOpenPlan: () => void;
 };
 
-/** Large card of a horse that still needs its blanket decision tonight. */
-export function BlanketHorseCard({ item, pending, onAction, onOpenPlan }: Props) {
+/**
+ * A horse that still needs its blanket decision tonight, as a row with a hairline: avatar, name and
+ * box, tonight's blanket in italic, and the state buttons in one compact row below. Tapping the
+ * head opens the blanket plan of the horse.
+ */
+export function BlanketHorseRow({ item, pending, last = false, onAction, onOpenPlan }: Props) {
   const { horse, recommendation: rec } = item;
   const [choiceOpen, setChoiceOpen] = useState(false);
   const hint = ruleHint(rec, item.rule_recommendation);
+  const photo = rec.blanket?.photo_url ?? null;
   return (
-    <Card className="gap-4">
+    <View className={cn("gap-3 py-4", !last && "border-b border-divider")}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${horse.name}: Deckenplan öffnen`}
         onPress={onOpenPlan}
-        className="min-h-touch flex-row items-center gap-3"
+        className="min-h-touch flex-row items-center gap-3 active:opacity-70"
       >
         <Avatar name={horse.name} colorKey={horse.color_key} size="md" />
-        <View className="flex-1">
-          <Text variant="bodyStrong">{horse.name}</Text>
-          {horse.box ? <Text variant="secondary">Box {horse.box}</Text> : null}
-        </View>
-        {item.is_mine ? <Badge variant="primary" label="Dein Pferd" /> : null}
-        <Icon as={ChevronRight} size={20} className="text-muted" />
-      </Pressable>
-
-      <View className="flex-row items-center gap-3">
-        <BlanketPhoto url={rec.blanket?.photo_url ?? null} size={64} />
         <View className="flex-1 gap-0.5">
-          <Text variant="label">Heute Nacht</Text>
-          <Text variant="title">
+          <Text variant="bodyStrong">
+            {horse.name}
+            {horse.box ? (
+              <Text variant="secondary">{`  Box ${horse.box}`}</Text>
+            ) : null}
+          </Text>
+          <Text variant="body" className="font-display-italic">
             {recommendationTitle(rec)}
           </Text>
           <Text variant="secondary">{recommendationDetail(rec)}</Text>
-          {rec.blanket ? <Text variant="caption">{fillLabel(rec.blanket.fill_g)}</Text> : null}
-          {rec.manual ? <Badge variant="accent" label="Abweichend von Regel" className="mt-1 self-start" /> : null}
+        </View>
+        {photo ? <BlanketPhoto url={photo} size={48} /> : null}
+        <Icon as={ChevronRight} size={20} className="text-muted" />
+      </Pressable>
+
+      {item.is_mine || rec.manual || hint ? (
+        <View className="flex-row flex-wrap items-center gap-x-3 gap-y-1">
+          {item.is_mine ? (
+            <Text variant="eyebrow" tone="brass">
+              Dein Pferd
+            </Text>
+          ) : null}
+          {rec.manual ? <Badge variant="accent" label="Abweichend von Regel" /> : null}
           {hint ? <Text variant="caption">{hint}</Text> : null}
         </View>
-      </View>
+      ) : null}
 
       {rec.note ? (
         <View className="flex-row items-start gap-2">
@@ -87,46 +100,42 @@ export function BlanketHorseCard({ item, pending, onAction, onOpenPlan }: Props)
         </Text>
       </Pressable>
       <BlanketChoiceSheet open={choiceOpen} onOpenChange={setChoiceOpen} horseId={horse.id} mode="cover" />
-    </Card>
+    </View>
   );
 }
 
-/** Compact row of a finished horse; tapping it shows the buttons again to correct the state. */
-export function BlanketDoneRow({
-  item,
-  pending,
-  timeZone,
-  onAction,
-  onOpenPlan,
-}: Props) {
+/** A finished horse as a faded row; tapping it shows the buttons again to correct the state. */
+export function BlanketDoneRow({ item, pending, timeZone, last = false, onAction, onOpenPlan }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [choiceOpen, setChoiceOpen] = useState(false);
   const { horse, state } = item;
   const deviates = item.recommendation.manual || deviatesFromRule(state, item.rule_recommendation);
   return (
-    <Card padded={false} shape="tile">
+    <View className={cn(!last && "border-b border-divider")}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${horse.name}: ${state ? stateLabel(state) : "erledigt"}. Zum Ändern tippen`}
         onPress={() => setExpanded((v) => !v)}
-        className="min-h-[60px] flex-row items-center gap-3 px-4 py-3"
+        className={cn("min-h-[60px] flex-row items-center gap-3 py-3 active:opacity-70", !expanded && "opacity-60")}
       >
         <Avatar name={horse.name} colorKey={horse.color_key} size="sm" />
-        <View className="flex-1">
+        <View className="flex-1 gap-0.5">
           <Text variant="bodyStrong">{horse.name}</Text>
           {state ? (
             <Text variant="secondary" numberOfLines={1}>
               {stateLabel(state)} · {stateByline(state, timeZone)}
             </Text>
           ) : null}
+          {deviates ? (
+            <Text variant="caption" tone="accent">
+              Abweichend von der Regel
+            </Text>
+          ) : null}
         </View>
-        <View className="items-end gap-1">
-          <Badge variant="primary" label="Erledigt" />
-          {deviates ? <Badge variant="accent" label="Abweichend" /> : null}
-        </View>
+        <Icon as={Check} size={20} className="text-success" />
       </Pressable>
       {expanded ? (
-        <View className="gap-3 border-t border-divider px-4 pb-4 pt-3">
+        <View className="gap-3 pb-4">
           <BlanketActions
             recommendation={item.recommendation}
             pending={pending}
@@ -160,6 +169,6 @@ export function BlanketDoneRow({
         </View>
       ) : null}
       <BlanketChoiceSheet open={choiceOpen} onOpenChange={setChoiceOpen} horseId={horse.id} mode="cover" />
-    </Card>
+    </View>
   );
 }

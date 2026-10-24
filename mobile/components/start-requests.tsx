@@ -1,70 +1,64 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
-import { useState } from "react";
-import { ActivityIndicator } from "react-native";
+import { useMemo } from "react";
+import { ActivityIndicator, View } from "react-native";
 
-import { RequestCard } from "@/components/request-card";
-import { Button, Card, Text } from "@/components/ui";
+import { RequestRow } from "@/components/request-row";
+import { Button, Text } from "@/components/ui";
 import { requestKeys, requestsApi } from "@/lib/api/requests";
+import { useAuth } from "@/lib/auth";
 import type { ListParams } from "@/lib/requests";
+import { toIsoDate } from "@/lib/requests";
 import { requestErrorMessage } from "@/lib/requests-errors";
 import { useInvalidateOnEvents } from "@/lib/realtime";
-import { colors } from "@/lib/theme";
+import { useColors } from "@/lib/theme";
+import { useAcceptRequest } from "@/lib/use-accept-request";
 
-/** The two newest open help requests on the start screen (JAN-35). */
-const PARAMS: ListParams = { status: "open", limit: 2 };
+/** The three newest open help requests on the "Stall" tab. */
+const PARAMS: ListParams = { status: "open", limit: 3 };
 
+/**
+ * Open help requests as messages. Renders nothing at all when there are none: the section of the
+ * tab keeps its heading and "Neu", an empty state belongs on the request list.
+ */
 export function StartRequests() {
-  const queryClient = useQueryClient();
+  const c = useColors();
+  const { user } = useAuth();
+  const today = useMemo(() => toIsoDate(new Date()), []);
   const list = useQuery({ queryKey: requestKeys.list(PARAMS), queryFn: () => requestsApi.list(PARAMS) });
   useInvalidateOnEvents({ "request.changed": [requestKeys.all] });
-  const [acceptingId, setAcceptingId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const accept = useMutation({
-    mutationFn: (id: string) => requestsApi.accept(id),
-    onMutate: (id) => {
-      setError(null);
-      setAcceptingId(id);
-    },
-    onError: (e) => setError(requestErrorMessage(e)),
-    onSettled: () => {
-      setAcceptingId(null);
-      void queryClient.invalidateQueries({ queryKey: requestKeys.all });
-    },
-  });
+  const { accept, acceptingId, error } = useAcceptRequest();
 
-  if (list.isPending) return <ActivityIndicator color={colors.primary.DEFAULT} className="self-start" />;
+  if (list.isPending) return <ActivityIndicator color={c.primary.DEFAULT} className="self-start" />;
   if (list.isError) {
     return (
-      <Card className="gap-3">
+      <View className="gap-3">
         <Text variant="body">{requestErrorMessage(list.error)}</Text>
-        <Button label="Erneut versuchen" variant="outline" onPress={() => void list.refetch()} />
-      </Card>
+        <Button label="Erneut versuchen" variant="outline" size="sm" onPress={() => void list.refetch()} />
+      </View>
     );
   }
-  if (list.data.requests.length === 0) {
-    return (
-      <Text variant="body" tone="muted">
-        Keine offenen Anfragen.
-      </Text>
-    );
-  }
+  const requests = list.data.requests;
+  if (requests.length === 0) return null;
   return (
-    <>
+    <View>
       {error ? (
-        <Text variant="bodySm" tone="danger" accessibilityRole="alert">
+        <Text variant="bodySm" tone="danger" accessibilityRole="alert" className="pb-2">
           {error}
         </Text>
       ) : null}
-      {list.data.requests.map((r) => (
-        <RequestCard
+      {requests.map((r, i) => (
+        <RequestRow
           key={r.id}
           request={r}
+          today={today}
+          userId={user?.id}
+          last={i === requests.length - 1}
           accepting={acceptingId === r.id}
           onOpen={() => router.push({ pathname: "/requests/[id]", params: { id: r.id } })}
-          onAccept={() => accept.mutate(r.id)}
+          onAccept={() => accept(r.id)}
         />
       ))}
-    </>
+    </View>
   );
 }

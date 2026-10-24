@@ -1,12 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Plus, Send, Trash2 } from "lucide-react-native";
+import { Plus, Trash2 } from "lucide-react-native";
 import { useMemo, useState } from "react";
 import { View } from "react-native";
 
 import { DayPicker, FieldRow, Stepper } from "@/components/request-form-parts";
-import { RequestTypeIcon } from "@/components/request-type-icon";
-import { Button, Input, PageHeader, Pill, PressableCard, Screen, Section, Switch, Text, TimeField } from "@/components/ui";
+import { requestTypeIcon } from "@/components/request-type-icon";
+import { Button, Input, PageHeader, Pill, Screen, Section, Text, TimeField } from "@/components/ui";
 import { requestKeys, requestsApi, type RequestInput } from "@/lib/api/requests";
 import {
   CREATABLE_TYPES,
@@ -139,36 +139,28 @@ export default function NewRequest() {
 
   return (
     <Screen back keyboardShouldPersistTaps="handled">
-      <PageHeader title="Neue Anfrage" description="Geht an alle im Stall." />
+      <PageHeader eyebrow="Bitte um Hilfe" title="Neue Anfrage" description="Geht an alle im Stall." />
 
-      <Section title="Art der Anfrage">
-        <View className="flex-row flex-wrap gap-3">
+      <View className="gap-2">
+        <Text variant="eyebrow">Art der Anfrage</Text>
+        <View className="flex-row flex-wrap gap-2">
           {CREATABLE_TYPES.map((t) => (
-            <PressableCard
+            <Pill
               key={t.type}
-              shape="tile"
-              padded={false}
-              accessibilityState={{ selected: type === t.type }}
-              accessibilityLabel={t.label}
+              label={t.label}
+              icon={requestTypeIcon(t.type)}
+              selected={type === t.type}
               onPress={() => {
                 setType(t.type);
                 setTasks([]);
               }}
-              className={`w-[48%] flex-row items-center gap-3 p-3 ${type === t.type ? "border-primary bg-primary-soft" : ""}`}
-            >
-              <RequestTypeIcon type={t.type} size={40} selected={type === t.type} />
-              <View className="flex-1">
-                <Text variant="bodySm" className="font-sans-semibold">
-                  {t.label}
-                </Text>
-                <Text variant="caption">{t.hint}</Text>
-              </View>
-            </PressableCard>
+            />
           ))}
         </View>
-      </Section>
+        <Text variant="secondary">{typeMeta(type).hint}</Text>
+      </View>
 
-      <Section title={typeMeta(type).label} className="gap-4">
+      <View className="gap-5">
           <FieldRow label="Pferd" hint={NEEDS_HORSE.includes(type) ? undefined : "Optional"}>
             <View className="flex-row flex-wrap gap-2">
               {NEEDS_HORSE.includes(type) ? null : (
@@ -213,7 +205,7 @@ export default function NewRequest() {
               <Stepper value={helpers} onChange={setHelpers} label="Anzahl Helfer" />
             )}
           </FieldRow>
-      </Section>
+      </View>
 
       {type === "show_helper" ? (
         <Section title="Turnier" className="gap-4">
@@ -336,7 +328,7 @@ export default function NewRequest() {
           {error}
         </Text>
       ) : null}
-      <Button label="Anfrage senden" icon={Send} size="lg" fullWidth loading={create.isPending} onPress={submit} />
+      <Button label="Senden" accessibilityLabel="Anfrage senden" size="lg" fullWidth loading={create.isPending} onPress={submit} />
     </Screen>
   );
 }

@@ -1,38 +1,40 @@
 import { ScrollView, View } from "react-native";
 
-import { Card, Divider, Text } from "@/components/ui";
-import {
-  hasWeatherDetails,
-  weatherBarFraction,
-  weatherFacts,
-  windowLabel,
-  type Weather,
-} from "@/lib/blankets";
+import { Text } from "@/components/ui";
+import { hasWeatherDetails, weatherBarFraction, windowLabel, type Weather } from "@/lib/blankets";
 import { formatClock } from "@/lib/presence-format";
+import { weatherFigures, weatherSentence } from "@/lib/weather-summary";
 
 const BAR_HEIGHT = 44;
 
 /**
- * Forecast for the time a horse is covered (the stable's cover window): temperature range,
- * rain amount and timing, wind, plus an hourly strip with temperature and rain per hour.
+ * Forecast for the time a horse is covered (the stable's cover window): one sentence about the
+ * rain, three figures in brass (temperature, rain, wind) and an hourly strip with temperature and
+ * rain per hour. Sits on the page, no card.
  */
 export function WeatherCard({ weather, timeZone }: { weather: Weather; timeZone: string }) {
   const details = hasWeatherDetails(weather);
+  const figures = weatherFigures(weather);
   return (
-    <Card className="gap-4">
+    <View className="gap-3" accessibilityLabel="Wetter im Deckenzeitraum">
       <View className="gap-1">
-        <Text variant="bodyStrong">Wetter im Deckenzeitraum</Text>
-        <Text variant="secondary">{windowLabel(weather, timeZone)}</Text>
+        <Text variant="eyebrow">{`Deckenzeitraum · ${windowLabel(weather, timeZone)}`}</Text>
+        <Text variant="body">{weatherSentence(weather, timeZone)}</Text>
       </View>
-      <View className="gap-2">
-        {weatherFacts(weather, timeZone).map((f, i) => (
-          <View key={f.label}>
-            {i > 0 ? <Divider className="mb-2" /> : null}
-            <View className="flex-row items-baseline justify-between gap-4">
-              <Text variant="secondary">{f.label}</Text>
-              <Text variant="bodyStrong" className="flex-shrink text-right">
+      <View className="flex-row border-y border-divider py-3">
+        {figures.map((f) => (
+          <View
+            key={f.label}
+            className="flex-1 gap-0.5"
+            accessible
+            accessibilityLabel={`${f.label} ${f.value} ${f.unit}`}
+          >
+            <Text variant="caption">{f.label}</Text>
+            <View className="flex-row items-baseline gap-1">
+              <Text variant="heroNumberSm" tone="brass" className="text-title">
                 {f.value}
               </Text>
+              <Text variant="secondary">{f.unit}</Text>
             </View>
           </View>
         ))}
@@ -51,7 +53,7 @@ export function WeatherCard({ weather, timeZone }: { weather: Weather; timeZone:
                 <Text variant="bodyStrong">{Math.round(h.temp_c)}°</Text>
                 <View className="justify-end" style={{ height: BAR_HEIGHT }}>
                   <View
-                    className="w-3 rounded-pill bg-primary"
+                    className="w-3 rounded-pill bg-info"
                     style={{ height: Math.max(h.rain_mm > 0 ? 3 : 0, weatherBarFraction(h.rain_mm) * BAR_HEIGHT) }}
                   />
                 </View>
@@ -61,6 +63,6 @@ export function WeatherCard({ weather, timeZone }: { weather: Weather; timeZone:
           </View>
         </ScrollView>
       ) : null}
-    </Card>
+    </View>
   );
 }
