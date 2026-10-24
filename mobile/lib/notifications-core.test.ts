@@ -8,6 +8,8 @@ const ID = "00000000-0000-4000-8000-000000000301";
 test("routes of the whitelist are accepted", () => {
   for (const path of [
     "/blankets",
+    "/blankets/round",
+    "/blankets/round?horse=" + ID,
     "/blankets/history/" + ID,
     `/horses/${ID}/health`,
     `/horses/${ID}/reha`,

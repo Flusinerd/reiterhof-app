@@ -24,6 +24,7 @@ export default function Stable() {
   const today = useToday();
   useInvalidateOnEvents({ [BLANKET_STATE_EVENT]: [blanketKeys.today] });
   const mineIds = new Set([...(me?.roles.owned_horse_ids ?? []), ...(me?.roles.rider_horse_ids ?? [])]);
+  const openHorses = today.data?.horses.filter((h) => !h.done).length ?? 0;
 
   return (
     <Screen
@@ -51,6 +52,9 @@ export default function Stable() {
 
       <Section title="Decken heute Nacht">
         <StartBlanketsTile today={today.data} mineIds={mineIds} />
+        {openHorses > 0 ? (
+          <Button label="Runde starten" fullWidth onPress={() => router.push("/blankets/round" as Href)} />
+        ) : null}
       </Section>
 
       <Section

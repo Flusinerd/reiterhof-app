@@ -5,7 +5,7 @@ import { RefreshControl, View } from "react-native";
 
 import { BlanketDoneRow, BlanketHorseCard } from "@/components/blanket-horse-card";
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
-import { Card, PageHeader, Screen, Section, Text } from "@/components/ui";
+import { Button, Card, PageHeader, Screen, Section, Text } from "@/components/ui";
 import { WeatherCard } from "@/components/weather-card";
 import { WeatherWarnings } from "@/components/weather-warnings";
 import { errorMessage } from "@/lib/api";
@@ -90,6 +90,10 @@ export default function Blankets() {
           </View>
         ) : null}
       </PageHeader>
+
+      {open.length > 0 ? (
+        <Button label="Runde starten" variant="secondary" fullWidth onPress={() => router.push("/blankets/round" as Href)} />
+      ) : null}
 
       <WeatherWarnings timeZone={timeZone} />
 

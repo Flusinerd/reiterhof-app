@@ -24,6 +24,8 @@ type Props = {
    * rules) or go back to the rules. "cover": anybody records "Eingedeckt" with a blanket of their choice.
    */
   mode: "override" | "cover";
+  /** Called after the choice was saved, just before the sheet closes (the evening round moves on). */
+  onSaved?: () => void;
 };
 
 /** One selectable row: photo, name, filling and whether the rules name it. */
@@ -64,7 +66,7 @@ function ChoiceRow({
 }
 
 /** Pick a blanket by hand, deviating from the rules (owner/admin), or cover with another blanket (anybody). */
-export function BlanketChoiceSheet({ open, onOpenChange, horseId, mode }: Props) {
+export function BlanketChoiceSheet({ open, onOpenChange, horseId, mode, onSaved }: Props) {
   const plan = usePlan(horseId);
   const setState = useSetState();
   const save = usePlanMutation((v: { blanketId: string | null; nights: number | null; note: string }) =>
@@ -112,6 +114,7 @@ export function BlanketChoiceSheet({ open, onOpenChange, horseId, mode }: Props)
         await save.mutateAsync({ blanketId: picked, nights, note: note.trim() });
       }
       onOpenChange(false);
+      onSaved?.();
     } catch (e) {
       setError(blanketErrorMessage(e));
     }

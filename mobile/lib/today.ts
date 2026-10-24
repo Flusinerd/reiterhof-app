@@ -137,7 +137,7 @@ function blanketEntry(h: TodayHorse, reminderTime: string): TodayEntry | null {
     tone: "default",
     done: h.done,
     mine: !h.done,
-    screen: "/blankets",
+    screen: "/blankets/round",
     horseId: h.horse.id,
   };
 }
@@ -249,7 +249,7 @@ export function nextAction(entry: TodayEntry): string {
     case "training":
       return "Training starten";
     case "blanket":
-      return "Zu den Decken";
+      return "Runde starten";
     case "show":
       return "Zum Turnier";
     default:
