@@ -2,6 +2,7 @@ package trainingapi_test
 
 import (
 	"net/http"
+	"slices"
 	"testing"
 
 	"github.com/Flusinerd/reiterhof-app/backend/internal/seed"
@@ -20,7 +21,7 @@ func TestExerciseLibrary(t *testing.T) {
 	e.call("", http.MethodGet, "/api/v1/exercises", "", http.StatusUnauthorized)
 
 	all := e.call(seed.UserMia, http.MethodGet, "/api/v1/exercises", "", http.StatusOK) // any stable member
-	if n := len(list(all["exercises"])); n != 41 {
+	if n := len(list(all["exercises"])); n != 42 {
 		t.Fatalf("library has %d exercises: %v", n, exerciseTitles(all))
 	}
 	dressage := list(e.call(seed.UserSarah, http.MethodGet, "/api/v1/exercises?discipline=dressage", "", http.StatusOK)["exercises"])
@@ -41,13 +42,13 @@ func TestExerciseLibrary(t *testing.T) {
 			t.Fatalf("%s must come before %s: %v", chain[i-1], chain[i], pos)
 		}
 	}
-	if got := exerciseTitles(e.call(seed.UserJan, http.MethodGet, "/api/v1/exercises?discipline=jumping&level=beginner", "", http.StatusOK)); len(got) != 3 {
+	if got := exerciseTitles(e.call(seed.UserJan, http.MethodGet, "/api/v1/exercises?discipline=jumping&level=beginner", "", http.StatusOK)); len(got) != 4 || !slices.Contains(got, "Schenkelweichen") {
 		t.Fatalf("jumping beginner = %v", got)
 	}
 	if got := exerciseTitles(e.call(seed.UserJan, http.MethodGet, "/api/v1/exercises?discipline=lunge", "", http.StatusOK)); len(got) != 6 || got[0] != "Aufwärmen im Schritt" {
 		t.Fatalf("lunge = %v", got)
 	}
-	if got := exerciseTitles(e.call(seed.UserJan, http.MethodGet, "/api/v1/exercises?tag=seitengaenge", "", http.StatusOK)); len(got) != 4 {
+	if got := exerciseTitles(e.call(seed.UserJan, http.MethodGet, "/api/v1/exercises?tag=seitengaenge", "", http.StatusOK)); len(got) != 7 || !slices.Contains(got, "Schenkelweichen") {
 		t.Fatalf("tag seitengaenge = %v", got)
 	}
 	if got := exerciseTitles(e.call(seed.UserJan, http.MethodGet, "/api/v1/exercises?discipline=polo", "", http.StatusOK)); len(got) != 0 {
