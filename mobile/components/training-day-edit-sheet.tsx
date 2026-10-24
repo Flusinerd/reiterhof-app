@@ -100,7 +100,7 @@ export function DayEditSheet({
       description={mode === "draft" ? "Gilt erst beim Übernehmen." : "Gilt sofort nach dem Speichern."}
     >
       <View className="gap-2">
-        <Text variant="label">Was</Text>
+        <Text variant="eyebrow">Was</Text>
         <View className="flex-row flex-wrap gap-2">
           {choices.map((a) => (
             <Pill key={a} label={activityLabel(a)} selected={edit.activity === a && !rest} onPress={() => pickActivity(a)} />
@@ -112,7 +112,7 @@ export function DayEditSheet({
       {!rest && edit.activity ? (
         <>
           <View className="gap-2">
-            <Text variant="label">Wie lange</Text>
+            <Text variant="eyebrow">Wie lange</Text>
             <View className="flex-row flex-wrap gap-2">
               {minuteChoices(edit.activity, edit.minutes).map((m) => (
                 <Pill key={m} label={`${m} Min.`} selected={edit.minutes === m} onPress={() => setEdit((e) => ({ ...e, minutes: m }))} />
@@ -121,7 +121,7 @@ export function DayEditSheet({
           </View>
 
           <View className="gap-2">
-            <Text variant="label">Schwerpunkt</Text>
+            <Text variant="eyebrow">Schwerpunkt</Text>
             <Input
               value={edit.focus}
               onChangeText={(focus) => setEdit((e) => ({ ...e, focus }))}
@@ -133,7 +133,7 @@ export function DayEditSheet({
 
           {library !== "" ? (
             <View className="gap-2">
-              <Text variant="label">Übung</Text>
+              <Text variant="eyebrow">Übung</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-2">
                 <Pill label="Keine" selected={edit.exercise === null} onPress={() => setEdit((e) => ({ ...e, exercise: null }))} />
                 {exerciseItems.map((x) => (
@@ -152,7 +152,7 @@ export function DayEditSheet({
 
       {mode === "planned" && !rest ? (
         <View className="gap-2">
-          <Text variant="label">Wer</Text>
+          <Text variant="eyebrow">Wer</Text>
           <View className="flex-row flex-wrap gap-2">
             <Pill label="Niemand" selected={edit.userId === null} onPress={() => setEdit((e) => ({ ...e, userId: null }))} />
             {people.map((p) => (

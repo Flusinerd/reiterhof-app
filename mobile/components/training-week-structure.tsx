@@ -2,7 +2,7 @@ import { ChevronRight } from "lucide-react-native";
 import { useState } from "react";
 import { Pressable, View } from "react-native";
 
-import { Card, Divider, Icon, Pill, Sheet, Text } from "@/components/ui";
+import { Divider, Icon, Pill, Sheet, Text } from "@/components/ui";
 import { WEEKDAYS_LONG } from "@/lib/training";
 import { dayChoiceLabel, dayChoices, type DayChoice, type ProfileDraft } from "@/lib/training-profile";
 
@@ -25,7 +25,7 @@ export function WeekStructureRows({ days, modes, editable, onChange }: WeekStruc
 
   return (
     <View>
-      <Card padded={false}>
+      <View>
         {WEEKDAYS_LONG.map((weekday, i) => {
           const choice = days[i] ?? "";
           const label = dayChoiceLabel(choice);
@@ -37,18 +37,20 @@ export function WeekStructureRows({ days, modes, editable, onChange }: WeekStruc
                 accessibilityLabel={`${weekday}: ${label}`}
                 disabled={!editable}
                 onPress={() => setDayOpen(i)}
-                className="min-h-12 flex-row items-center gap-3 px-4 py-3 active:bg-background"
+                className="min-h-12 flex-row items-center gap-3 py-3 active:opacity-70"
               >
                 <Text variant="body" className="flex-1">
                   {weekday}
                 </Text>
-                <Text variant={choice ? "bodyStrong" : "secondary"}>{label}</Text>
+                <Text variant={choice ? "bodyStrong" : "secondary"} tone={choice ? "brass" : "muted"}>
+                  {label}
+                </Text>
                 {editable ? <Icon as={ChevronRight} size={20} className="text-muted" /> : null}
               </Pressable>
             </View>
           );
         })}
-      </Card>
+      </View>
 
       <Sheet
         open={dayOpen !== null}

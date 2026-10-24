@@ -1,7 +1,7 @@
 import { View } from "react-native";
 
 import { ActivityIcon } from "@/components/training-activity-icon";
-import { Card, Divider, Input, Pill, Switch, Text } from "@/components/ui";
+import { Divider, Input, Pill, Switch, Text } from "@/components/ui";
 import { ACTIVITIES, activityLabel, type Activity, type ActivityMode } from "@/lib/training";
 import type { ProfileDraft } from "@/lib/training-profile";
 
@@ -18,7 +18,7 @@ export type ActivityModeListProps = {
  */
 export function ActivityModeList({ modes, editable, onChange }: ActivityModeListProps) {
   return (
-    <Card padded={false}>
+    <View>
       {ACTIVITIES.map((a, i) => {
         const { mode, note } = modes[a];
         const label = activityLabel(a);
@@ -26,7 +26,7 @@ export function ActivityModeList({ modes, editable, onChange }: ActivityModeList
           <View key={a}>
             {i > 0 ? <Divider /> : null}
             {editable ? (
-              <View className="gap-3 px-4 py-2">
+              <View className="gap-3 py-2">
                 <View className="flex-row items-center gap-3">
                   <ActivityIcon activity={a} size={20} />
                   <Switch
@@ -63,7 +63,7 @@ export function ActivityModeList({ modes, editable, onChange }: ActivityModeList
                 ) : null}
               </View>
             ) : (
-              <View className="gap-1 px-4 py-3">
+              <View className="gap-1 py-3">
                 <View className="min-h-8 flex-row items-center gap-3">
                   <ActivityIcon activity={a} size={20} />
                   <Text variant="bodyStrong" className="flex-1">
@@ -77,6 +77,6 @@ export function ActivityModeList({ modes, editable, onChange }: ActivityModeList
           </View>
         );
       })}
-    </Card>
+    </View>
   );
 }

@@ -1,9 +1,10 @@
 import { useRouter, type Href } from "expo-router";
 import { useMemo, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, ScrollView, View } from "react-native";
 
 import { ExerciseListItem } from "@/components/exercise-list-item";
 import { Button, PageHeader, Pill, Screen, Section, Text } from "@/components/ui";
+import { RowList } from "@/components/ui/list-row";
 import {
   NO_FILTER,
   applyFilter,
@@ -17,12 +18,13 @@ import {
 } from "@/lib/tracking-exercises";
 import { useExerciseList } from "@/lib/tracking-queries";
 import { errorMessage } from "@/lib/api";
-import { colors } from "@/lib/theme";
+import { useColors } from "@/lib/theme";
 
 /** Exercise library (JAN-58): browse and filter by discipline, level and goal. */
 export default function ExerciseLibrary() {
   const router = useRouter();
   const list = useExerciseList();
+  const c = useColors();
   const [filter, setFilter] = useState<ExerciseFilter>(NO_FILTER);
 
   const all = list.data ?? [];
@@ -31,10 +33,10 @@ export default function ExerciseLibrary() {
 
   return (
     <Screen back>
-      <PageHeader title="Übungen" description="Für Halle und Platz." />
+      <PageHeader eyebrow="Training" title="Übungen" description="Für Halle und Platz." />
 
       {list.isPending ? (
-        <ActivityIndicator accessibilityLabel="Lädt" color={colors.primary.DEFAULT} />
+        <ActivityIndicator accessibilityLabel="Lädt" color={c.primary.DEFAULT} />
       ) : list.isError ? (
         <View className="gap-3">
           <Text variant="body" tone="danger" accessibilityRole="alert">
@@ -90,9 +92,11 @@ export default function ExerciseLibrary() {
                 {all.length === 0 ? "Noch keine Übungen." : "Keine Treffer."}
               </Text>
             ) : (
-              shown.map((e) => (
-                <ExerciseListItem key={e.id} exercise={e} onPress={() => router.push(`/training/exercises/${e.id}` as Href)} />
-              ))
+              <RowList>
+                {shown.map((e) => (
+                  <ExerciseListItem key={e.id} exercise={e} onPress={() => router.push(`/training/exercises/${e.id}` as Href)} />
+                ))}
+              </RowList>
             )}
           </Section>
         </>
@@ -101,12 +105,14 @@ export default function ExerciseLibrary() {
   );
 }
 
-/** A filter row: small label (not a section heading, three of them sit close together) and pills. */
+/** A filter row: small eyebrow (three of them sit close together) and one line of pills. */
 function FilterGroup({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <View className="-mb-2 gap-2">
-      <Text variant="label">{title}</Text>
-      <View className="flex-row flex-wrap gap-2">{children}</View>
+      <Text variant="eyebrow">{title}</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-2">
+        {children}
+      </ScrollView>
     </View>
   );
 }

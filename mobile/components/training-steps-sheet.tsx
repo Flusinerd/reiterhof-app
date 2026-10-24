@@ -1,6 +1,5 @@
-import { View } from "react-native";
-
-import { Badge, Sheet, Text } from "@/components/ui";
+import { NumberedSteps } from "@/components/exercise-steps";
+import { Sheet, Text } from "@/components/ui";
 import type { ExerciseSummary } from "@/lib/api/training";
 
 const LEVEL_LABELS: Record<string, string> = {
@@ -22,20 +21,11 @@ export function StepsSheet({
   return (
     <Sheet open={open && !!exercise} onOpenChange={onOpenChange} title={exercise?.title} description="Ablauf">
       {exercise?.level ? (
-        <Badge variant="primary" label={LEVEL_LABELS[exercise.level] ?? exercise.level} />
+        <Text variant="eyebrow" tone="brass">
+          {LEVEL_LABELS[exercise.level] ?? exercise.level}
+        </Text>
       ) : null}
-      {(exercise?.steps ?? []).map((step, i) => (
-        <View key={i} className="flex-row gap-3">
-          <View className="h-7 w-7 items-center justify-center rounded-pill bg-primary-soft">
-            <Text variant="caption" className="font-sans-semibold text-primary-deep">
-              {i + 1}
-            </Text>
-          </View>
-          <Text variant="body" className="flex-1">
-            {step}
-          </Text>
-        </View>
-      ))}
+      <NumberedSteps steps={exercise?.steps ?? []} />
     </Sheet>
   );
 }

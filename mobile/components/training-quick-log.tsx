@@ -54,13 +54,14 @@ export function QuickLogSheet({
 
   return (
     <Sheet open={open} onOpenChange={close} title="Nur eintragen" description={`Was hast du mit ${horseName} gemacht?`}>
-      <View className="flex-row flex-wrap gap-2">
+      <Text variant="eyebrow">Was</Text>
+      <View className="-mt-2 flex-row flex-wrap gap-2">
         {choices.map((a) => (
           <Pill key={a} label={activityLabel(a)} selected={activity === a} onPress={() => setActivity(a)} />
         ))}
       </View>
-      <Text variant="label">Wie lange?</Text>
-      <View className="flex-row flex-wrap gap-2">
+      <Text variant="eyebrow">Wie lange</Text>
+      <View className="-mt-2 flex-row flex-wrap gap-2">
         {QUICK_DURATIONS.map((m) => (
           <Pill key={m} label={`${m} Min.`} selected={minutes === m} onPress={() => setMinutes(m)} />
         ))}

@@ -1,9 +1,10 @@
 import { useLocalSearchParams, useRouter, type Href } from "expo-router";
-import { BookOpen, ChevronRight, MapPin, Warehouse } from "lucide-react-native";
+import { BookOpen, MapPin, Warehouse } from "lucide-react-native";
 import { useState } from "react";
 import { View } from "react-native";
 
-import { Button, Card, Icon, PageHeader, PressableCard, Screen, Section, Text } from "@/components/ui";
+import { Button, Icon, PageHeader, Screen, Section, Text } from "@/components/ui";
+import { ListRow, RowList } from "@/components/ui/list-row";
 import { activityLabel, isActivity, type Activity } from "@/lib/training";
 import { snapshotSummary } from "@/lib/tracking-persist";
 import { useStoredSession } from "@/lib/tracking-session";
@@ -62,16 +63,21 @@ export default function TrainingSession() {
   };
 
   const resumeCard = running ? (
-    <Section title="Noch offen">
-      <Card className="gap-3">
-        <Text variant="bodyStrong">Es läuft noch eine Einheit</Text>
-        <Text variant="secondary">{snapshotSummary(running, activityLabel(running.activity))}</Text>
-        <View className="flex-row gap-3">
-          <Button label="Fortsetzen" className="flex-1" onPress={resume} />
-          <Button label="Verwerfen" variant="outline" className="flex-1" onPress={() => void discard()} />
-        </View>
-      </Card>
-    </Section>
+    <View className="gap-4 rounded-card border border-border bg-raised p-5">
+      <View className="gap-1">
+        <Text variant="eyebrow" tone="brass">
+          Noch offen
+        </Text>
+        <Text variant="titleLg">Es läuft noch eine Einheit</Text>
+        <Text variant="bodySm" tone="muted">
+          {snapshotSummary(running, activityLabel(running.activity))}
+        </Text>
+      </View>
+      <View className="gap-2">
+        <Button label="Fortsetzen" fullWidth onPress={resume} />
+        <Button label="Verwerfen" variant="ghost" size="sm" fullWidth onPress={() => void discard()} />
+      </View>
+    </View>
   ) : null;
 
   if (!params.horse || !activity) {
@@ -110,38 +116,32 @@ export default function TrainingSession() {
       {resumeCard}
 
       <Section title="Aufzeichnung">
-        {modes.map((m, i) => (
-          <PressableCard
-            key={m.mode}
-            shape="tile"
-            className="flex-row items-center gap-4"
-            accessibilityLabel={`${m.title}${i === 0 ? ", empfohlen" : ""}`}
-            onPress={() => go(m.mode)}
-          >
-            <View className="h-11 w-11 items-center justify-center rounded-pill bg-primary-soft">
-              <Icon as={m.icon} size={22} className="text-primary-deep" />
-            </View>
-            <View className="flex-1 gap-1">
-              <Text variant="bodyStrong">{i === 0 ? `${m.title} (empfohlen)` : m.title}</Text>
-              <Text variant="secondary">{m.text}</Text>
-            </View>
-            <Icon as={ChevronRight} size={20} className="text-muted" />
-          </PressableCard>
-        ))}
+        <RowList>
+          {modes.map((m, i) => (
+            <ListRow
+              key={m.mode}
+              leading={
+                <View className="h-11 w-11 items-center justify-center rounded-pill bg-primary-soft">
+                  <Icon as={m.icon} size={22} className="text-primary-deep" />
+                </View>
+              }
+              eyebrow={i === 0 ? "Empfohlen" : undefined}
+              eyebrowTone="brass"
+              title={m.title}
+              detail={m.text}
+              accessibilityLabel={`${m.title}${i === 0 ? ", empfohlen" : ""}`}
+              onPress={() => go(m.mode)}
+            />
+          ))}
+        </RowList>
       </Section>
 
-      <PressableCard
-        shape="tile"
-        className="flex-row items-center gap-3"
+      <ListRow
+        leading={<Icon as={BookOpen} size={20} className="text-muted" />}
+        title="Übungen"
         accessibilityLabel="Übungen öffnen"
         onPress={() => router.push("/training/exercises" as Href)}
-      >
-        <Icon as={BookOpen} size={20} className="text-primary-deep" />
-        <Text variant="bodyStrong" className="flex-1">
-          Übungen
-        </Text>
-        <Icon as={ChevronRight} size={20} className="text-muted" />
-      </PressableCard>
+      />
     </Screen>
   );
 }

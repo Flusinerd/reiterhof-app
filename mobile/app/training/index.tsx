@@ -1,39 +1,17 @@
 import { useLocalSearchParams, useRouter, type Href } from "expo-router";
-import {
-  BookOpen,
-  CalendarDays,
-  ChevronRight,
-  HeartPulse,
-  ListChecks,
-  Pencil,
-  Play,
-  SlidersHorizontal,
-} from "lucide-react-native";
-import { useState } from "react";
-import { ActivityIndicator, RefreshControl, View } from "react-native";
+import { BookOpen, HeartPulse, ListChecks, Pencil, Play, SlidersHorizontal } from "lucide-react-native";
+import { useMemo, useState } from "react";
+import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
 
-import { ActivityPicker } from "@/components/training-activity-picker";
+import { HorseWeekStrip } from "@/components/horse-week-strip";
 import { ActivityIcon } from "@/components/training-activity-icon";
-import { WeekDots } from "@/components/training-dots";
+import { ActivityPicker } from "@/components/training-activity-picker";
 import { HorseSwitcher } from "@/components/training-horse-switcher";
 import { NextStepCard } from "@/components/training-next-step";
 import { QuickLogSheet } from "@/components/training-quick-log";
 import { StepsSheet } from "@/components/training-steps-sheet";
-import { WeekStrip } from "@/components/training-week-strip";
-import {
-  Badge,
-  Button,
-  Card,
-  Divider,
-  Icon,
-  LinkRow,
-  PageHeader,
-  Pill,
-  PressableCard,
-  Screen,
-  Section,
-  Text,
-} from "@/components/ui";
+import { Button, Icon, PageHeader, Pill, Screen, Section, Text } from "@/components/ui";
+import { ListRow, RowList } from "@/components/ui/list-row";
 import {
   trainingError,
   useToday,
@@ -42,7 +20,8 @@ import {
   type Recommendation,
 } from "@/lib/api/training";
 import { horseRoutes } from "@/lib/horse-format";
-import { colors } from "@/lib/theme";
+import { horseWeekStrip } from "@/lib/horse-page";
+import { useColors } from "@/lib/theme";
 import {
   DEFAULT_MINUTES,
   TIME_OPTIONS,
@@ -56,9 +35,13 @@ import {
 } from "@/lib/training";
 import { nextStep } from "@/lib/training-plan";
 
-/** "Was heute?" (JAN-57): the recommendation for today, 7-day status, alternatives, quick log. */
+/**
+ * "Was heute?" (JAN-57): the horse, the recommendation for today as the one raised block with its
+ * primary action, alternatives as rows, the week as one strip, and the links to profile and library.
+ */
 export default function Training() {
   const router = useRouter();
+  const c = useColors();
   const params = useLocalSearchParams<{ horse?: string }>();
   const horses = useTrainingHorses();
   const [horseId, setHorseId] = useState<string | undefined>(params.horse);
@@ -75,6 +58,11 @@ export default function Training() {
   const data = today.data;
   const week = useWeek(activeId);
   const step = nextStep(data, week.data);
+  const strip = useMemo(() => {
+    const days = week.data?.days;
+    if (!days) return [];
+    return horseWeekStrip(days, days.find((d) => d.is_today)?.date ?? "");
+  }, [week.data]);
 
   const selectHorse = (id: string) => {
     setHorseId(id);
@@ -86,7 +74,7 @@ export default function Training() {
     return (
       <Screen back>
         <PageHeader title="Training" />
-        <ActivityIndicator color={colors.primary.DEFAULT} className="self-start" />
+        <ActivityIndicator color={c.primary.DEFAULT} className="self-start" />
       </Screen>
     );
   }
@@ -94,11 +82,11 @@ export default function Training() {
     return (
       <Screen back>
         <PageHeader title="Training" />
-        <Card className="gap-3">
+        <View className="gap-3">
           <Text variant="bodyStrong">Laden fehlgeschlagen</Text>
           <Text variant="secondary">{trainingError(horses.error)}</Text>
           <Button label="Erneut versuchen" variant="outline" onPress={() => void horses.refetch()} />
-        </Card>
+        </View>
       </Screen>
     );
   }
@@ -132,6 +120,8 @@ export default function Training() {
   const hero: Recommendation | undefined = chosenRec ?? own;
   const alternatives = recs.filter((r) => r.activity !== hero?.activity).slice(0, 2);
   const isRest = hero?.activity === "rest";
+  // Without a profile the setup is the one thing to do; "Starten" steps back to an outline.
+  const setupFirst = step?.kind === "profile";
 
   const start = () => {
     if (!hero || !isActivity(hero.activity)) return;
@@ -147,104 +137,135 @@ export default function Training() {
   };
 
   const goto = (href: string) => router.push(href as Href);
+  const weekHref = `/training/week?horse=${activeId}`;
 
   return (
-    <Screen back
+    <Screen
+      back
       refreshControl={
-        <RefreshControl refreshing={today.isRefetching} onRefresh={() => void today.refetch()} tintColor={colors.primary.DEFAULT} />
+        <RefreshControl refreshing={today.isRefetching} onRefresh={() => void today.refetch()} tintColor={c.primary.DEFAULT} />
       }
     >
-      <HorseSwitcher horses={list} selected={activeId} onSelect={selectHorse} />
-
-      {/* Head: horse, profile status, the last 7 days, context */}
-      <PageHeader eyebrow="Training" title={horse.name} description={data?.context}>
-        {data ? (
-          <View className="gap-3">
-            <WeekDots dots={data.week} />
-            <Badge
-              variant={data.status === "fit" ? "primary" : "accent"}
-              label={`${statusLabel(data.status)} · ${trainedCount(data.week)}/7 Tage trainiert`}
-            />
-          </View>
-        ) : (
-          <ActivityIndicator color={colors.primary.DEFAULT} className="self-start" />
-        )}
+      <PageHeader
+        eyebrow={data ? `Training · ${statusLabel(data.status)}` : "Training"}
+        title={horse.name}
+        description={data?.context}
+      >
+        <HorseSwitcher horses={list} selected={activeId} onSelect={selectHorse} />
       </PageHeader>
 
+      {!data && !today.isError ? <ActivityIndicator color={c.primary.DEFAULT} className="self-start" /> : null}
+
       {today.isError ? (
-        <Card className="gap-3">
+        <View className="gap-3">
           <Text variant="secondary" tone="danger" accessibilityRole="alert">
             {trainingError(today.error)}
           </Text>
           <Button label="Erneut versuchen" variant="outline" onPress={() => void today.refetch()} />
-        </Card>
+        </View>
       ) : null}
 
       {data && !data.has_profile && !data.can_edit ? (
         <Text variant="secondary">Ohne Profil keine Empfehlung. Der Besitzer muss es anlegen.</Text>
       ) : null}
 
-      <NextStepCard step={step} horseId={activeId} horseName={horse.name} />
+      {setupFirst ? <NextStepCard step={step} horseId={activeId} horseName={horse.name} /> : null}
 
       {hero ? (
-        <Card className="gap-3">
-          <Text variant="label">{isRest ? "Empfehlung" : `Empfehlung · ${formatMinutes(hero.minutes)}`}</Text>
-          <View className="flex-row items-center gap-3">
-            {!isRest ? <ActivityIcon activity={hero.activity} size={28} /> : null}
-            <Text variant="title" accessibilityRole="header" className="flex-1">
-              {hero.label}
-            </Text>
+        <View className="gap-4 rounded-card border border-border bg-raised p-5">
+          <View className="flex-row items-center gap-4">
+            {!isRest ? (
+              <View className="h-14 w-14 items-center justify-center rounded-pill bg-primary-soft">
+                <ActivityIcon activity={hero.activity} size={26} />
+              </View>
+            ) : null}
+            <View className="flex-1 gap-1">
+              <Text variant="eyebrow" tone="brass">
+                {isRest ? "Empfehlung" : `Empfehlung · ${formatMinutes(hero.minutes)}`}
+              </Text>
+              <Text variant="titleLg" accessibilityRole="header">
+                {hero.label}
+              </Text>
+            </View>
           </View>
-          <Text variant="body" tone="muted">
-            {hero.reason}
-          </Text>
-          {hero.note ? (
-            <Text variant="secondary" tone="accent">
-              Bedingung: {hero.note}
+          <View className="gap-1">
+            <Text variant="bodySm" tone="muted">
+              {hero.reason}
             </Text>
-          ) : null}
-          {!isRest ? (
-            <>
+            {hero.note ? (
+              <Text variant="secondary" tone="accent">
+                Bedingung: {hero.note}
+              </Text>
+            ) : null}
+            {!isRest ? (
               <Text variant="secondary">
                 {hero.intensity_label ? `Belastung ${hero.intensity_label}` : intensityLabel("none")}
               </Text>
-              <View className="mt-1 flex-row flex-wrap gap-2">
-                <Button label="Starten" icon={Play} onPress={start} disabled={!data?.can_log} />
-                {hero.exercise ? (
-                  <Button label="Ablauf" variant="outline" onPress={() => setStepsOpen(true)} />
-                ) : null}
-              </View>
-            </>
+            ) : null}
+          </View>
+          {!isRest ? (
+            <View className="gap-2">
+              <Button
+                label="Starten"
+                icon={Play}
+                fullWidth
+                variant={setupFirst ? "outline" : "primary"}
+                onPress={start}
+                disabled={!data?.can_log}
+              />
+              {hero.exercise ? (
+                <Button label="Ablauf ansehen" variant="ghost" size="sm" fullWidth onPress={() => setStepsOpen(true)} />
+              ) : null}
+            </View>
           ) : null}
-        </Card>
+        </View>
       ) : null}
 
-      {alternatives.length > 0 ? (
-        <Section title="Alternativen">
-          {alternatives.map((r) => (
-            <PressableCard
-              key={r.activity}
-              shape="tile"
-              className="flex-row items-center gap-3"
-              accessibilityLabel={`${r.label}, ${r.activity === "rest" ? "" : formatMinutes(r.minutes) + ", "}${r.reason}`}
+      {!setupFirst && step ? <NextStepCard step={step} horseId={activeId} horseName={horse.name} /> : null}
+
+      <View className="gap-2">
+        <Text variant="eyebrow">Zeit heute</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-2">
+          {TIME_OPTIONS.map((m) => (
+            <Pill
+              key={m}
+              label={`${m} Min.`}
+              selected={minutes === m}
               onPress={() => {
+                setMinutes(m);
+                setChoice(0);
                 setPicked(null);
-                setChoice(recs.findIndex((x) => x.activity === r.activity));
               }}
-            >
-              <ActivityIcon activity={r.activity} />
-              <View className="flex-1 gap-0.5">
-                <Text variant="bodyStrong">
-                  {r.label}
-                  {r.activity === "rest" ? "" : ` · ${formatMinutes(r.minutes)}`}
-                </Text>
-                <Text variant="secondary" numberOfLines={2}>
-                  {r.reason}
-                </Text>
-              </View>
-              <Icon as={ChevronRight} size={20} className="text-muted" />
-            </PressableCard>
+            />
           ))}
+        </ScrollView>
+        <View className="-ml-4 flex-row flex-wrap">
+          <Button label="Andere Aktivität" variant="ghost" size="sm" icon={ListChecks} onPress={() => setPickerOpen(true)} />
+          {data?.can_log ? (
+            <Button label="Nur eintragen" variant="ghost" size="sm" icon={Pencil} onPress={() => setLogOpen(true)} />
+          ) : null}
+        </View>
+      </View>
+
+      {alternatives.length > 0 ? (
+        <Section title="Oder lieber">
+          <RowList>
+            {alternatives.map((r) => (
+              <ListRow
+                key={r.activity}
+                leading={<ActivityIcon activity={r.activity} size={22} className="text-muted" />}
+                eyebrow={r.activity === "rest" ? undefined : formatMinutes(r.minutes)}
+                eyebrowTone="brass"
+                title={r.label}
+                detail={r.reason}
+                accessibilityLabel={`${r.label}, ${r.activity === "rest" ? "" : formatMinutes(r.minutes) + ", "}${r.reason}`}
+                onPress={() => {
+                  setPicked(null);
+                  setChoice(recs.findIndex((x) => x.activity === r.activity));
+                }}
+              />
+            ))}
+          </RowList>
         </Section>
       ) : null}
 
@@ -260,54 +281,38 @@ export default function Training() {
 
       <Section
         title="Diese Woche"
-        action={
-          <Button
-            label="Woche"
-            variant="ghost"
-            size="sm"
-            icon={CalendarDays}
-            onPress={() => goto(`/training/week?horse=${activeId}`)}
-          />
-        }
+        description={data ? `${trainedCount(data.week)} von 7 Tagen trainiert` : undefined}
+        action={<Button label="Woche" variant="ghost" size="sm" onPress={() => goto(weekHref)} />}
       >
         {week.isPending ? (
-          <ActivityIndicator color={colors.primary.DEFAULT} className="self-start" />
-        ) : week.data ? (
-          <WeekStrip days={week.data.days} onPress={() => goto(`/training/week?horse=${activeId}`)} />
+          <ActivityIndicator color={c.primary.DEFAULT} className="self-start" />
+        ) : strip.length > 0 ? (
+          <HorseWeekStrip items={strip} onPress={() => goto(weekHref)} />
         ) : null}
       </Section>
 
-      <Section title="Zeit heute">
-        <View className="flex-row flex-wrap gap-2">
-          {TIME_OPTIONS.map((m) => (
-            <Pill key={m} label={`${m} Min.`} selected={minutes === m} onPress={() => { setMinutes(m); setChoice(0); setPicked(null); }} />
-          ))}
-        </View>
-        <View className="flex-row flex-wrap gap-2">
-          <Button label="Wählen" variant="outline" icon={ListChecks} onPress={() => setPickerOpen(true)} />
-          {data?.can_log ? (
-            <Button label="Nur eintragen" variant="outline" icon={Pencil} onPress={() => setLogOpen(true)} />
-          ) : null}
-        </View>
-      </Section>
-
-      <Section title="Mehr">
-        <Card padded={false}>
-          <LinkRow icon={BookOpen} label="Übungen" onPress={() => goto("/training/exercises")} />
-          <Divider />
-          <LinkRow
-            icon={SlidersHorizontal}
-            label="Trainingsprofil"
-            onPress={() => goto(horseRoutes.trainingProfile(activeId))}
+      <RowList>
+        <ListRow
+          leading={<Icon as={BookOpen} size={20} className="text-muted" />}
+          title="Übungen"
+          accessibilityLabel="Übungen"
+          onPress={() => goto("/training/exercises")}
+        />
+        <ListRow
+          leading={<Icon as={SlidersHorizontal} size={20} className="text-muted" />}
+          title="Trainingsprofil"
+          accessibilityLabel="Trainingsprofil"
+          onPress={() => goto(horseRoutes.trainingProfile(activeId))}
+        />
+        {data?.reha || data?.status === "reha" ? (
+          <ListRow
+            leading={<Icon as={HeartPulse} size={20} className="text-muted" />}
+            title="Reha-Plan"
+            accessibilityLabel="Reha-Plan"
+            onPress={() => goto(horseRoutes.reha(activeId))}
           />
-          {data?.reha || data?.status === "reha" ? (
-            <>
-              <Divider />
-              <LinkRow icon={HeartPulse} label="Reha-Plan" onPress={() => goto(horseRoutes.reha(activeId))} />
-            </>
-          ) : null}
-        </Card>
-      </Section>
+        ) : null}
+      </RowList>
 
       <StepsSheet exercise={hero?.exercise} open={stepsOpen} onOpenChange={setStepsOpen} />
       <ActivityPicker

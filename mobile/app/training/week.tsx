@@ -1,14 +1,15 @@
-import { useLocalSearchParams, useRouter, type Href } from "expo-router";
-import { BookOpen, ChevronLeft, ChevronRight, Sparkles } from "lucide-react-native";
+import { useLocalSearchParams } from "expo-router";
+import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, RefreshControl, View } from "react-native";
+import { ActivityIndicator, RefreshControl, View } from "react-native";
 
 import { useConsentPrompt } from "@/components/consent-prompt";
 import { DayEditSheet } from "@/components/training-day-edit-sheet";
-import { ActivityIcon } from "@/components/training-activity-icon";
 import { LoadBar } from "@/components/training-dots";
+import { WeekDayRow } from "@/components/training-week-day";
 import { HorseSwitcher } from "@/components/training-horse-switcher";
-import { Badge, Button, Card, Divider, PageHeader, Screen, Text } from "@/components/ui";
+import { Badge, Button, PageHeader, Screen, Text } from "@/components/ui";
+import { RowList } from "@/components/ui/list-row";
 import {
   trainingError,
   useApplyPlan,
@@ -22,10 +23,9 @@ import {
 } from "@/lib/api/training";
 import { useHorse } from "@/lib/api/horses";
 import { useAuth } from "@/lib/auth";
-import { weekRehaText } from "@/lib/reha";
-import { colors } from "@/lib/theme";
+import { useColors } from "@/lib/theme";
 import { useExerciseList } from "@/lib/tracking-queries";
-import { ACTIVITIES, addDays, dayStatusLabel, formatDayLong, weekRangeLabel, weekdayShort } from "@/lib/training";
+import { ACTIVITIES, addDays, weekRangeLabel } from "@/lib/training";
 import {
   applicableDays,
   canAskForAI,
@@ -40,7 +40,6 @@ import {
   type PlanDay,
   type PlanResponse,
 } from "@/lib/training-plan";
-import { showTestsText } from "@/lib/training-profile";
 
 type PlanMeta = Omit<PlanResponse, "days">;
 type Draft = { meta: PlanMeta; days: PlanDay[] };
@@ -56,6 +55,7 @@ const AI_CAPTION =
  */
 export default function TrainingWeek() {
   const params = useLocalSearchParams<{ horse?: string; plan?: string }>();
+  const c = useColors();
   const horses = useTrainingHorses();
   const [horseId, setHorseId] = useState<string | undefined>(params.horse);
   const [start, setStart] = useState<string>();
@@ -107,7 +107,7 @@ export default function TrainingWeek() {
     return (
       <Screen back>
         <View className="items-center py-16">
-          <ActivityIndicator color={colors.primary.DEFAULT} />
+          <ActivityIndicator color={c.primary.DEFAULT} />
         </View>
       </Screen>
     );
@@ -115,10 +115,10 @@ export default function TrainingWeek() {
   if (!activeId || week.isError || !data) {
     return (
       <Screen back>
-        <Card className="gap-3">
+        <View className="gap-3">
           <Text variant="secondary">{week.isError ? trainingError(week.error) : "Kein Pferd ausgewählt."}</Text>
           {week.isError ? <Button label="Erneut versuchen" variant="outline" onPress={() => void week.refetch()} /> : null}
-        </Card>
+        </View>
       </Screen>
     );
   }
@@ -155,7 +155,7 @@ export default function TrainingWeek() {
     <Screen
       back
       refreshControl={
-        <RefreshControl refreshing={week.isRefetching} onRefresh={() => void week.refetch()} tintColor={colors.primary.DEFAULT} />
+        <RefreshControl refreshing={week.isRefetching} onRefresh={() => void week.refetch()} tintColor={c.primary.DEFAULT} />
       }
     >
       <View pointerEvents={locked ? "none" : "auto"} className={locked ? "opacity-50" : undefined}>
@@ -173,14 +173,15 @@ export default function TrainingWeek() {
 
       <PageHeader
         eyebrow={`${horseName} · ${weekRangeLabel(data.start, data.end)}`}
-        title={data.assessment}
+        title="Woche"
+        description={data.assessment}
       >
         {drafting ? <Badge variant="accent" label="Entwurf" /> : null}
         <LoadBar segments={data.segments} />
       </PageHeader>
 
-      <View className="flex-row items-center justify-between">
-        <Button variant="outline" size="icon" icon={ChevronLeft} accessibilityLabel="Vorherige Woche" disabled={locked} onPress={() => shift(-7)} />
+      <View className="-mt-2 flex-row items-center justify-between">
+        <Button variant="ghost" size="icon" icon={ChevronLeft} accessibilityLabel="Vorherige Woche" disabled={locked} onPress={() => shift(-7)} />
         <Button
           label="Diese Woche"
           variant="ghost"
@@ -191,14 +192,14 @@ export default function TrainingWeek() {
             setStart(undefined);
           }}
         />
-        <Button variant="outline" size="icon" icon={ChevronRight} accessibilityLabel="Nächste Woche" disabled={locked} onPress={() => shift(7)} />
+        <Button variant="ghost" size="icon" icon={ChevronRight} accessibilityLabel="Nächste Woche" disabled={locked} onPress={() => shift(7)} />
       </View>
       {drafting ? <Text variant="caption">Erst übernehmen oder verwerfen.</Text> : null}
 
       {data.can_edit && !drafting ? (
         openDays.length > 0 ? (
           <View className="gap-2">
-            <Button label="Woche planen" icon={Sparkles} loading={plan.isPending} onPress={planWeek} />
+            <Button label="Woche planen" icon={Sparkles} fullWidth loading={plan.isPending} onPress={planWeek} />
             {askAI ? <Button label="KI-Vorschläge erlauben" variant="ghost" disabled={plan.isPending} onPress={() => void allowAI()} /> : null}
           </View>
         ) : (
@@ -220,25 +221,23 @@ export default function TrainingWeek() {
         </View>
       ) : null}
 
-      <Card padded={false}>
-        {data.days.map((d, i) => {
+      <RowList>
+        {data.days.map((d) => {
           const draftDay = draft?.days.find((x) => x.date === d.date);
           const editable = data.can_edit && (draftDay !== undefined || canEditStoredDay(d, todayIso));
           return (
-            <View key={d.date}>
-              {i > 0 ? <Divider /> : null}
-              <DayRow
-                day={d}
-                draftDay={draftDay}
-                editable={editable && !apply.isPending}
-                busy={take.isPending && take.variables?.day === d.date}
-                onTake={() => take.mutate({ day: d.date, status: "planned" })}
-                onEdit={() => openEdit(d.date)}
-              />
-            </View>
+            <WeekDayRow
+              key={d.date}
+              day={d}
+              draftDay={draftDay}
+              editable={editable && !apply.isPending}
+              busy={take.isPending && take.variables?.day === d.date}
+              onTake={() => take.mutate({ day: d.date, status: "planned" })}
+              onEdit={() => openEdit(d.date)}
+            />
           );
         })}
-      </Card>
+      </RowList>
       {take.isError && !editDate ? (
         <Text variant="secondary" tone="danger" accessibilityRole="alert">
           {trainingError(take.error)}
@@ -428,163 +427,5 @@ function DayEditor({
       onRepropose={proposeAgain}
       onRemove={remove}
     />
-  );
-}
-
-function DayRow({
-  day,
-  draftDay,
-  editable,
-  busy,
-  onTake,
-  onEdit,
-}: {
-  day: WeekDay;
-  draftDay?: PlanDay;
-  editable: boolean;
-  busy: boolean;
-  onTake: () => void;
-  onEdit: () => void;
-}) {
-  const router = useRouter();
-  const label = dayStatusLabel(day.status, day.user, day.is_me, day.rest_reason);
-  const open = day.status === "open" || (day.status === "today" && !day.user);
-  const summary = draftDay ? draftSummary(draftDay) : label;
-  const head = (
-    <>
-      <View className="w-12 items-center">
-        <Text variant="bodyStrong" className={day.is_today ? "text-accent-text" : undefined}>
-          {weekdayShort(day.date)}
-        </Text>
-        <Text variant="caption">{Number(day.date.slice(8, 10))}.</Text>
-      </View>
-      <View className="flex-1 gap-0.5">
-        {draftDay ? (
-          <DraftBody day={draftDay} />
-        ) : (
-          <>
-            <Text variant="body" tone={open ? "muted" : "default"}>
-              {label}
-            </Text>
-            {day.activity ? (
-              <View className="flex-row items-center gap-1.5">
-                <ActivityIcon activity={day.activity} size={14} className="text-muted" />
-                <Text variant="caption">
-                  {day.label}
-                  {day.minutes > 0 ? ` · ${day.minutes} Min.` : ""}
-                </Text>
-              </View>
-            ) : null}
-            {day.focus ? <Text variant="caption">Schwerpunkt: {day.focus}</Text> : null}
-            {day.exercise ? (
-              <Button
-                label={`Übung: ${day.exercise.title}`}
-                variant="ghost"
-                size="sm"
-                icon={BookOpen}
-                className="self-start px-0"
-                onPress={() => router.push(`/training/exercises/${day.exercise!.id}` as Href)}
-              />
-            ) : null}
-            {day.note && day.status !== "done" ? (
-              <Text variant="caption" numberOfLines={2}>
-                {day.note}
-              </Text>
-            ) : null}
-          </>
-        )}
-      </View>
-    </>
-  );
-  return (
-    <View className="gap-2 p-4" accessible={false}>
-      <View className="min-h-touch flex-row items-center gap-3">
-        {editable ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`${formatDayLong(day.date)}: ${summary}`}
-            accessibilityHint="Tag bearbeiten"
-            onPress={onEdit}
-            className="flex-1 flex-row items-center gap-3 active:opacity-70"
-          >
-            {head}
-          </Pressable>
-        ) : (
-          <View
-            className="flex-1 flex-row items-center gap-3"
-            accessible
-            accessibilityLabel={`${formatDayLong(day.date)}: ${summary}`}
-          >
-            {head}
-          </View>
-        )}
-        {day.can_take && !day.is_me && !draftDay ? (
-          <Button label="Ich" size="sm" variant="secondary" loading={busy} onPress={onTake} />
-        ) : null}
-      </View>
-      {day.reha ? (
-        <View className="ml-[60px] flex-row items-center gap-2" accessibilityLabel={`Reha: ${weekRehaText(day.reha)}`}>
-          <Badge variant={day.reha.done ? "primary" : "info"} label="Reha" />
-          <Text variant="secondary" className="flex-1">
-            {weekRehaText(day.reha)}
-          </Text>
-        </View>
-      ) : null}
-      {day.show ? (
-        <View className="ml-[60px] gap-1 rounded-tile bg-accent-soft p-3" accessibilityLabel={`Turnier ${day.show.name}`}>
-          <View className="flex-row items-center gap-2">
-            <Badge variant="accent" label="Turnier" />
-            <Text variant="bodyStrong" className="flex-1">
-              {day.show.name}
-            </Text>
-            {day.show.time ? <Text variant="secondary">ab {day.show.time} Uhr</Text> : null}
-          </View>
-          {showTestsText(day.show.tests ?? []).map((line, i) => (
-            <Text key={i} variant="secondary">
-              {line}
-            </Text>
-          ))}
-          {!day.show.tests?.length && day.show.classes ? (
-            <Text variant="secondary">Prüfungen: {day.show.classes}</Text>
-          ) : null}
-          {day.show.helper ? <Text variant="secondary">Helfer: {day.show.helper}</Text> : null}
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
-function draftSummary(day: PlanDay): string {
-  const what = day.activity === "rest" ? day.label : `${day.label}${day.minutes > 0 ? `, ${day.minutes} Min.` : ""}`;
-  return `Entwurf: ${what}`;
-}
-
-/** The proposal of one day in the draft: badges, unit, who, focus, exercise and the reason. */
-function DraftBody({ day }: { day: PlanDay }) {
-  const rest = day.activity === "rest";
-  return (
-    <>
-      <View className="flex-row flex-wrap items-center gap-2">
-        <Badge variant="neutral" label="Entwurf" />
-        {day.edited ? (
-          <Badge variant="neutral" label="Geändert" />
-        ) : (
-          <Badge variant={day.source === "ai" ? "info" : "neutral"} label={day.source === "ai" ? "KI" : "Regel"} />
-        )}
-      </View>
-      <View className="flex-row items-center gap-1.5">
-        <ActivityIcon activity={day.activity} size={16} />
-        <Text variant="body" className="flex-1">
-          {day.label}
-          {day.minutes > 0 ? ` · ${day.minutes} Min.` : ""}
-        </Text>
-      </View>
-      {day.level_label && !rest ? <Text variant="caption">{day.level_label}</Text> : null}
-      {day.user ? <Text variant="caption">{rest ? `${day.user.name} bleibt eingetragen` : `für ${day.user.name}`}</Text> : null}
-      {day.focus ? <Text variant="caption">Schwerpunkt: {day.focus}</Text> : null}
-      {day.exercise ? <Text variant="caption">Übung: {day.exercise.title}</Text> : null}
-      {!day.edited && day.reason ? <Text variant="secondary">{day.reason}</Text> : null}
-      {!day.edited && day.note ? <Text variant="caption">Bedingung: {day.note}</Text> : null}
-    </>
   );
 }

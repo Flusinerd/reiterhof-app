@@ -17,7 +17,7 @@ export function RiderRuleCard({ rider, editable, onChange }: RiderRuleCardProps)
   return (
     <Card className="gap-3">
       <Text variant="bodyStrong">{rider.name || "Reitbeteiligung"}</Text>
-      <Text variant="label">Erlaubte Aktivitäten</Text>
+      <Text variant="eyebrow">Erlaubte Aktivitäten</Text>
       <View className="flex-row flex-wrap gap-2">
         {ACTIVITIES.map((a) => (
           <Pill
@@ -29,7 +29,7 @@ export function RiderRuleCard({ rider, editable, onChange }: RiderRuleCardProps)
           />
         ))}
       </View>
-      <Text variant="label">Höchste Belastung</Text>
+      <Text variant="eyebrow">Höchste Belastung</Text>
       <View className="flex-row flex-wrap gap-2">
         {MAX_INTENSITY_OPTIONS.map((o) => (
           <Pill
