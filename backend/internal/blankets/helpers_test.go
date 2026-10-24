@@ -204,6 +204,7 @@ type recJSON struct {
 	RuleIndex *int         `json:"rule_index"`
 	Blanket   *blanketJSON `json:"blanket"`
 	Note      string       `json:"note"`
+	Manual    bool         `json:"manual"`
 }
 
 type stateJSON struct {

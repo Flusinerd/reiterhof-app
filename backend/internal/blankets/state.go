@@ -38,11 +38,15 @@ type planResponse struct {
 	CoverStart     string         `json:"cover_start"`
 	CoverEnd       string         `json:"cover_end"`
 	Recommendation Recommendation `json:"recommendation"`
-	Rules          []Rule         `json:"rules"`
-	Blankets       []Blanket      `json:"blankets"`
-	HelperNote     *string        `json:"helper_note"`
-	State          *State         `json:"state"`
-	CanManage      bool           `json:"can_manage"`
+	// RuleRecommendation is the answer of the rules; it differs from Recommendation only with an override.
+	RuleRecommendation Recommendation `json:"rule_recommendation"`
+	// Override is the active manual choice of tonight, or null.
+	Override   *Override `json:"override"`
+	Rules      []Rule    `json:"rules"`
+	Blankets   []Blanket `json:"blankets"`
+	HelperNote *string   `json:"helper_note"`
+	State      *State    `json:"state"`
+	CanManage  bool      `json:"can_manage"`
 }
 
 // plan answers GET /horses/{id}/blanket-plan: tonight's forecast, the matched rule, the
@@ -72,6 +76,7 @@ func (h *handler) plan(w http.ResponseWriter, r *http.Request) {
 	}
 	httpx.WriteJSON(w, http.StatusOK, planResponse{
 		Horse: hn.Horse.ref(), Day: n.Day, Weather: hn.Weather, Recommendation: hn.Rec,
+		RuleRecommendation: hn.RuleRec, Override: hn.Override,
 		CoverStart: hn.Horse.CoverStart, CoverEnd: hn.Horse.CoverEnd,
 		Rules: rules, Blankets: blankets, HelperNote: hn.Horse.HelperNote, State: hn.State, CanManage: can,
 	})
@@ -80,11 +85,13 @@ func (h *handler) plan(w http.ResponseWriter, r *http.Request) {
 // -------------------------------------------------------------------- today
 
 type todayHorse struct {
-	Horse          horseRef       `json:"horse"`
-	Recommendation Recommendation `json:"recommendation"`
-	State          *State         `json:"state"`
-	Done           bool           `json:"done"`
-	IsMine         bool           `json:"is_mine"`
+	Horse              horseRef       `json:"horse"`
+	Recommendation     Recommendation `json:"recommendation"`
+	RuleRecommendation Recommendation `json:"rule_recommendation"`
+	Override           *Override      `json:"override"`
+	State              *State         `json:"state"`
+	Done               bool           `json:"done"`
+	IsMine             bool           `json:"is_mine"`
 }
 
 type todayResponse struct {
@@ -112,7 +119,8 @@ func (h *handler) today(w http.ResponseWriter, r *http.Request) {
 	resp := todayResponse{Day: n.Day, Weather: n.Weather, ReminderTime: n.ReminderTime, Horses: []todayHorse{}}
 	for _, hn := range n.Horses {
 		mine := hn.Horse.OwnerID != nil && *hn.Horse.OwnerID == user.ID
-		resp.Horses = append(resp.Horses, todayHorse{Horse: hn.Horse.ref(), Recommendation: hn.Rec, State: hn.State,
+		resp.Horses = append(resp.Horses, todayHorse{Horse: hn.Horse.ref(), Recommendation: hn.Rec,
+			RuleRecommendation: hn.RuleRec, Override: hn.Override, State: hn.State,
 			Done: hn.done(), IsMine: mine})
 		if hn.done() {
 			resp.Progress.Done++
@@ -133,8 +141,9 @@ type stateInput struct {
 
 // setState records the day state of a horse. Any member of the stable may do it.
 //
-// covered_with is only allowed with "covered" and must be a blanket of the horse; when
-// it is omitted and the plan recommends a blanket, that blanket is stored. Posting the
+// covered_with is only allowed with "covered" and must be a blanket of the horse (any of
+// them, also one the rules do not recommend); when it is omitted and the plan recommends a
+// blanket (the manual choice first, then the rules), that blanket is stored. Posting the
 // same action and blanket as the newest state of the night is a no-op (double taps do not
 // clutter the history). The night is StateDay: "uncovered" in the morning ends the past night. Open blanket requests of the horse for that night are closed
 // (JAN-39). The event blanket_state.changed is sent after commit.

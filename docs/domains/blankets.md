@@ -50,6 +50,37 @@ in), so taking the blankets off does not mark the horse done for the coming one.
 - `no_rule`: there is a forecast but no rule matches.
 - `no_weather`: no snapshot for the night yet (graceful, no error). `rule_index` is null.
 - `rule_index` is the 0-based index into the `rules` array; `note` is the owner's wish (rule note).
+- `manual` is `true` when the recommendation is a manual choice (below); `rule_index` is then null.
+
+### Manual choice (Decke von Hand, abweichend von der Regel)
+
+Owners and admins can pick a blanket (or "Keine Decke") for a horse that replaces the rule
+recommendation, for example after clipping or when the horse is ill. Table `blanket_overrides`
+(migration `0290`): one row per horse (`blanket_id` NULL = no blanket, `day_from`, `day_until`
+inclusive or NULL = until reset, `note`, `set_by`, `set_at`). A new choice replaces the old one;
+deleting the chosen blanket drops the choice (`ON DELETE CASCADE`), so it never turns into "no
+blanket" by accident.
+
+- `PUT /horses/{id}/blanket-override` (owner, admin) `{blanket_id: string|null, nights: 1..30|null, note?}`:
+  from tonight's blanket day on, for `nights` nights (`1` = only tonight) or until reset (`null`).
+  `400` for a blanket of another horse or `nights` outside 1..30, note up to 200 characters.
+  Answer `{override, recommendation, rule_recommendation}`; publishes `blanket_plan.changed`.
+- `DELETE /horses/{id}/blanket-override` (owner, admin): back to the rules, `204` (also when there was none).
+- `GET blanket-plan` and every horse of `GET /blankets/today` carry `recommendation` (the effective one:
+  the manual choice when it is active tonight, `manual: true`, `rule_index: null`, `note` = reason),
+  `rule_recommendation` (what the rules say, always) and `override` (the active choice with
+  `{blanket_id, blanket, day_from, day_until, note, set_by{id,name}, set_at}`, or `null`). Old clients
+  that only read `recommendation` show the manual blanket.
+- `POST blanket-state` with `covered` and no `covered_with` stores the manually chosen blanket. Any member
+  can still cover with any other blanket of the horse (`covered_with`); the app offers that as
+  "Mit anderer Decke eindecken".
+- Weather change push: with an active choice the effective plan does not change with the weather. When the
+  rules change (as before) and now disagree with the manual choice, the push says so: "Luna: Regel jetzt
+  Decke 100 g statt keine Decke. Von Hand gewählt bleibt Decke 200 g."; when the rules now agree with
+  it, nothing is sent.
+- Automatic uncovering and the last-person reminder are unaffected: they look at the states, not at the
+  recommendation (a manually chosen blanket comes off at the auto-uncover time like any other).
+- Privacy export section `blanket_choices` (rows the user set).
 
 ### Cover window (Deckenzeitraum)
 
@@ -76,7 +107,9 @@ Blanket JSON: `{id, horse_id, name, fill_g, color, location, photo_path, photo_u
 | `GET /horses/{id}/blanket-rules` | member | `{rules:[{id, position, temp_min, temp_max, rain, rain_min_mm, rain_max_mm, blanket_id, note}]}` |
 | `PUT /horses/{id}/cover-window` | owner, admin | `{cover_start, cover_end}`, see "Cover window" |
 | `PUT /horses/{id}/blanket-rules` | owner, admin | `{rules:[{temp_min?, temp_max?, rain?, rain_min_mm?, rain_max_mm?, blanket_id?, note?}]}` full replace in one transaction; array order = priority (positions 1..n). Validation (`400`): max 30 rules, temperatures in -60..60, `temp_min < temp_max`, rain amounts only with `rain: true`, in 0..500 mm and `rain_min_mm < rain_max_mm`, `blanket_id` is a blanket of this horse, note up to 200 characters. `[]` removes all rules |
-| `GET /horses/{id}/blanket-plan` | member | `{horse, day, weather, recommendation, rules, blankets, helper_note, state, can_manage, cover_start, cover_end}` (`weather` null without snapshot; `state` = newest state tonight) |
+| `GET /horses/{id}/blanket-plan` | member | `{horse, day, weather, recommendation, rule_recommendation, override, rules, blankets, helper_note, state, can_manage, cover_start, cover_end}` (`weather` null without snapshot; `state` = newest state tonight) |
+| `PUT /horses/{id}/blanket-override` | owner, admin | manual choice `{blanket_id, nights, note}`, see "Manual choice" |
+| `DELETE /horses/{id}/blanket-override` | owner, admin | back to the rules, `204` |
 | `POST /horses/{id}/blanket-state` | member | `{action: covered\|uncovered\|checked, covered_with?}` -> `{state, closed_requests}` |
 | `GET /horses/{id}/blanket-states?days=14` | member | `{today, states}` newest first, 1..90 days (default 14) |
 | `GET /blankets/today` | member | overview below |
@@ -98,7 +131,8 @@ evening, `uncovered` in the morning). "Done" means: at least one state exists fo
     "window_start": "...", "window_end": "...", "timeline": [{"time": "...", "temp_c": 8, "rain_mm": 0.4, "rain_prob": 60, "wind_kmh": 9}], "fetched_at": "..."},
   "reminder_time": "20:30",
   "progress": {"done": 4, "total": 7},
-  "horses": [{"horse": {"id","name","box","color_key"}, "recommendation": {...}, "state": {...}|null, "done": false, "is_mine": true}]
+  "horses": [{"horse": {"id","name","box","color_key"}, "recommendation": {...}, "rule_recommendation": {...},
+    "override": {...}|null, "state": {...}|null, "done": false, "is_mine": true}]
 }
 ```
 
@@ -200,9 +234,15 @@ set before any forecast existed and snapshots of other days are ignored.
   for the cover window (default 18:00 to 12:30, set per horse by owners and admins in the plan). Snapshots without details show the facts only.
 - Tab "Decken": hero with date, night line ("Heute Nacht 3 bis 9 °C, 4,8 mm Regen"), progress "4/7" and
   "Erinnerung um 20:30"; open horses as large cards (avatar, recommendation with blanket photo
-  and location, owner wish, buttons "Eingedeckt"/"Abgedeckt" or "Geprüft"), done horses as
-  compact rows (tap to correct). Realtime refresh.
-- Deckenplan (`/horses/{id}/blanket-plan`): "Heute Nacht" hero, card "Deckenzeitraum" (`components/cover-window-section.tsx`, quarter-hour steps), rule list with the active rule
+  and location, owner wish, buttons "Eingedeckt"/"Abgedeckt" or "Geprüft", link "Mit anderer Decke
+  eindecken" which opens `components/blanket-choice-sheet.tsx` in cover mode), done horses as
+  compact rows (tap to correct; badge "Abweichend" when the state or the plan differs from the rules).
+  A manual choice shows the badge "Abweichend von Regel" and "Regel: Decke 100 g". Realtime refresh.
+- Deckenplan (`/horses/{id}/blanket-plan`): "Heute Nacht" hero (with a manual choice: badge "Abweichend
+  von Regel", how long, "Regel: …", reason and who chose; owners and admins get "Decke von Hand wählen" /
+  "Wahl ändern", which opens the choice sheet with blanket, "Wie lange?" (Nur heute Nacht, 3 Nächte,
+  7 Nächte, Bis auf Weiteres) and reason, and "Zurück zur Regel"; the rule list keeps highlighting the
+  rule that matches, labelled "Regel heute Nacht"), card "Deckenzeitraum" (`components/cover-window-section.tsx`, quarter-hour steps), rule list with the active rule
   highlighted, blanket grid with photos, helper note, history. Owners and admins edit rules
   (sheet with reorder, warning for rules that can never apply; with "Regen" a second choice
   "Wie stark?": Egal, Leicht (under 2 mm), Mäßig (2 to under 8 mm), Stark (from 8 mm), the steps of
@@ -211,7 +251,8 @@ set before any forecast existed and snapshots of other days are ignored.
 - Verlauf (`/blankets/history/{horseId}`): the last 60 days.
 - Start screen: greeting, night temperature with the recommendations for my horses (owned and
   ridden), presence tile, blanket progress tile, the two newest open requests.
-- Pure helpers with tests: `lib/blankets.ts` (texts, progress, greeting), `lib/blankets-rules.ts`
+- Pure helpers with tests: `lib/blankets.ts` (texts, progress, greeting, manual choice: `ruleHint`,
+  `deviatesFromRule`, `overrideUntilText`, `blanketChoices`), `lib/blankets-rules.ts`
   (rule drafts, validation, reorder, unreachable rules).
 
 ## Seed
@@ -226,4 +267,5 @@ permissions and validation, stable isolation, recommendation wiring with fixed s
 boundary, progress and ordering, history, realtime events, request auto-close, automatic uncovering
 (weekday/weekend/disabled/window, idempotent, request closing, schema), last person
 (0/1/2 present, re-check until 22:00, idempotent, opt-out, retry after a failed push), check-out
-hook, weather change. Time is a fake clock.
+hook, weather change, manual choice (permissions, validation, duration, until reset, reset, state default,
+dropped with its blanket, weather change push with a choice). Time is a fake clock.

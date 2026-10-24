@@ -4,7 +4,11 @@ import { test } from "node:test";
 import { ApiError } from "./api-core.ts";
 import {
   actionLabel,
+  blanketChoices,
   blanketErrorMessage,
+  deviatesFromRule,
+  overrideUntilText,
+  ruleHint,
   coveredNights,
   fillLabel,
   firstName,
@@ -293,4 +297,39 @@ test("stepCoverTime keeps start and end in their ranges", () => {
   assert.equal(stepCoverTime("end", "04:00", -1), "04:00");
   assert.equal(stepCoverTime("end", "12:40", -1), "12:30");
   assert.equal(stepCoverTime("end", "garbage", 1), "04:15");
+});
+
+test("manual choice: duration, rule hint and deviation", () => {
+  assert.equal(overrideUntilText({ day_until: null }, "2026-09-30"), "Bis auf Weiteres");
+  assert.equal(overrideUntilText({ day_until: "2026-09-30" }, "2026-09-30"), "Nur heute Nacht");
+  assert.equal(overrideUntilText({ day_until: "2026-10-02" }, "2026-09-30"), "Bis 02.10.");
+
+  const heavy: Blanket = { ...blanket, id: "b2", name: "Decke 200 g", fill_g: 200 };
+  const manual: Recommendation = { ...rec("blanket", heavy), rule_index: null, manual: true };
+  assert.equal(ruleHint(manual, rec("blanket", blanket)), "Regel: Decke 100 g");
+  assert.equal(ruleHint(manual, rec("none")), "Regel: Keine Decke");
+  assert.equal(ruleHint(manual, rec("no_weather")), "Regel: noch keine Vorhersage");
+  assert.equal(ruleHint(manual, rec("no_rule")), "Regel: keine passende Regel");
+  assert.equal(ruleHint(rec("blanket", blanket), rec("blanket", blanket)), null);
+  assert.equal(ruleHint(manual, undefined), null);
+
+  // Covered with the rule's blanket: no deviation; another one or none expected: deviation.
+  assert.equal(deviatesFromRule(state(), rec("blanket", blanket)), false);
+  assert.equal(deviatesFromRule(state({ covered_with: "b2" }), rec("blanket", blanket)), true);
+  assert.equal(deviatesFromRule(state(), rec("none")), true);
+  assert.equal(deviatesFromRule(state({ action: "checked", covered_with: null }), rec("blanket", blanket)), true);
+  assert.equal(deviatesFromRule(state({ action: "checked", covered_with: null }), rec("none")), false);
+  assert.equal(deviatesFromRule(state({ action: "uncovered", covered_with: null }), rec("blanket", blanket)), false);
+  assert.equal(deviatesFromRule(state({ covered_with: "b2" }), rec("no_weather")), false);
+  assert.equal(deviatesFromRule(null, rec("blanket", blanket)), false);
+  assert.equal(deviatesFromRule(state(), undefined), false);
+
+  assert.deepEqual(
+    blanketChoices([blanket, heavy], "b2").map((b) => b.id),
+    ["b2", "b1"],
+  );
+  assert.deepEqual(
+    blanketChoices([blanket, heavy], null).map((b) => b.id),
+    ["b1", "b2"],
+  );
 });

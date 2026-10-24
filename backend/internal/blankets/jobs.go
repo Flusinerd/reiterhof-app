@@ -368,13 +368,21 @@ func (s *Service) weatherChangeStable(ctx context.Context, st stableRow) error {
 		if !blanketplan.Changed(prev, next) {
 			continue
 		}
+		body := fmt.Sprintf("%s: jetzt %s statt %s.", hn.Horse.Name, describe(next, hn.Blankets), describe(prev, hn.Blankets))
+		if o := hn.Override; o != nil {
+			// The manual choice stays; only tell people when the rules now disagree with it.
+			if !blanketplan.Changed(next, blanketplan.Rule{BlanketID: o.BlanketID}) {
+				continue
+			}
+			body = fmt.Sprintf("%s: Regel jetzt %s statt %s. Von Hand gewählt bleibt %s.", hn.Horse.Name,
+				describe(next, hn.Blankets), describe(prev, hn.Blankets), describe(blanketplan.Rule{BlanketID: o.BlanketID}, hn.Blankets))
+		}
 		recipients, err := s.horseRecipients(ctx, st.id, hn.Horse.ID)
 		if err != nil {
 			errs = append(errs, err)
 			continue
 		}
 		title := "Wetter geändert"
-		body := fmt.Sprintf("%s: jetzt %s statt %s.", hn.Horse.Name, describe(next, hn.Blankets), describe(prev, hn.Blankets))
 		data := map[string]any{"horse_id": hn.Horse.ID, "screen": "/horses/" + hn.Horse.ID + "/blanket-plan"}
 		for _, uid := range recipients {
 			if err := s.remind(ctx, st.id, sourceWeather, hn.Horse.ID, due, push.KindWeatherChange, title, body, uid, data); err != nil {

@@ -76,6 +76,7 @@ func Export(ctx context.Context, q DB, userID string, now time.Time) (map[string
 				'since', hr.created_at)
 			FROM horse_riders hr JOIN horses h ON h.id = hr.horse_id WHERE hr.user_id = $1 ORDER BY h.name`},
 		{"blanket_changes", `SELECT to_jsonb(b) FROM blanket_states b WHERE b.changed_by = $1 ORDER BY b.changed_at`},
+		{"blanket_choices", `SELECT to_jsonb(o) FROM blanket_overrides o WHERE o.set_by = $1 ORDER BY o.set_at`},
 		{"reha_days_done", `SELECT to_jsonb(d) FROM reha_days d WHERE d.done_by = $1 ORDER BY d.day`},
 		{"documents_uploaded", `SELECT jsonb_build_object('id', id, 'horse_id', horse_id, 'kind', kind, 'title', title,
 				'file_path', file_path, 'created_at', created_at)
