@@ -104,10 +104,13 @@ Shared storage for photos and documents; see also "Files" in `architecture.md`.
 - Directory `REITERHOF_UPLOAD_DIR` (default `./uploads`, production `/var/lib/reiterhof/uploads`, see
   `deploy/api.env.example`), files at `<stable_id>/<32 hex random>.<ext>`.
 - `POST /api/v1/files` (multipart, field `file`): JPEG, PNG, WebP, PDF, at most 20 MB. The content is sniffed
-  (a declared type that is not allowed is rejected, a wrong but allowed one is corrected), the client file name is
-  never used. Images are stored without metadata (`metadata.go`: EXIF, XMP, IPTC, comments, unknown application
-  segments, PNG text and time chunks, WebP EXIF/XMP chunks, trailing data); a damaged container is refused. HEIC is
-  recognised but refused (its metadata cannot be rewritten; the phone picker delivers JPEG). `201 {path, url,
+  (a declared type that is neither allowed nor some `image/*` is rejected; a wrong one is corrected, since pickers
+  report the type of the original photo: Android's image picker re-encodes a HEIF photo to JPEG and still says
+  `image/heif`), the client file name is never used. Images are stored without metadata (`metadata.go`: EXIF, XMP,
+  IPTC, comments, unknown application segments, PNG text and time chunks, WebP EXIF/XMP chunks, trailing data); only
+  a JPEG's EXIF orientation is carried over, alone in a fresh EXIF block, so upright phone photos do not show up on
+  their side. A damaged container is refused. HEIC is recognised but refused (its metadata cannot be rewritten; the
+  app asks the iOS picker for the compatible representation, which is JPEG). `201 {path, url,
   content_type, size}` (the size after stripping); `413 file_too_large`, `415 unsupported_type`, `400 invalid_upload`
   (malformed upload or damaged image). Caddy allows 25 MB bodies (`deploy/Caddyfile`).
 - `GET /api/v1/files/{path...}` follows the record that references the file (least privilege): a
@@ -132,8 +135,13 @@ Shared storage for photos and documents; see also "Files" in `architecture.md`.
   (`horseRoutes` in `lib/horse-format.ts`).
 - Sub screens: `emergency` (tap to call), `health` (due list, add/edit sheet, "Erledigt"), `documents`
   (photo/PDF upload), `edit`, and `/horses/new`.
-- Upload helper `lib/upload.ts`: `uploadFile({uri, name, mimeType, size})`, `fileSource(url)`,
-  `openStoredFile(url)` (download link, then `Linking.openURL`), `uploadErrorMessage(err)`.
+- Upload helper `lib/upload.ts`: `uploadFile({uri, name, mimeType, size, file})`, `fileSource(url)`,
+  `openStoredFile(url)` (download link, then `Linking.openURL`), `uploadErrorMessage(err)`. Every picker call uses
+  `PHOTO_PICKER_OPTIONS` (images, iOS "compatible" representation, so no HEIC) and turns the asset into the upload
+  input with `pickedFile(asset, fallbackName)`, which keeps the web `File`. `uploadFile` declares the type from the
+  extension of the file it sends, not from the picker's label, and appends the file the way the platform needs
+  (`upload-core.ts`, `uploadSource`): native `{uri, name, type}` objects, on the web the `File` (or the blob: URL
+  fetched into a `Blob`); a browser turns the native object into the text "[object Object]".
 
 ## Seed
 

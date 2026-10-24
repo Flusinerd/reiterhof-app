@@ -510,7 +510,7 @@ accepted (it would end up in access logs and proxies). The clients use `expo/fet
 
 Package `internal/files` stores uploads on local disk (`REITERHOF_UPLOAD_DIR`, default `./uploads`, production
 `/var/lib/reiterhof/uploads`) as `<stable_id>/<random>.<ext>`. Images are stored without metadata (EXIF position,
-XMP, comments, trailers). Use it for every photo or document; details in
+XMP, comments, trailers; only the JPEG orientation stays). Use it for every photo or document; details in
 [domains/horses.md](domains/horses.md#files-internalfiles).
 
 ```go

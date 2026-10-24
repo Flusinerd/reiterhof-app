@@ -8,7 +8,7 @@ import { useConsentPrompt } from "@/components/consent-prompt";
 import { Button, Input, Sheet, Text } from "@/components/ui";
 import { blanketsApi, usePlanMutation } from "@/lib/api/blankets";
 import { blanketErrorMessage, type Blanket } from "@/lib/blankets";
-import { fileSource, uploadFile, type UploadInput } from "@/lib/upload";
+import { fileSource, PHOTO_PICKER_OPTIONS, pickedFile, uploadFile, type UploadInput } from "@/lib/upload";
 
 type Props = {
   open: boolean;
@@ -100,17 +100,14 @@ export function BlanketEditSheet({ open, onOpenChange, horseId, blanket }: Props
       const perm = await ImagePicker.requestCameraPermissionsAsync();
       if (!perm.granted) return setError("Kamerazugriff fehlt.");
     }
-    const options = { mediaTypes: ["images" as const], quality: 0.7 };
+    const options = { ...PHOTO_PICKER_OPTIONS, quality: 0.7 };
     const res =
       source === "camera"
         ? await ImagePicker.launchCameraAsync(options)
         : await ImagePicker.launchImageLibraryAsync(options);
     const a = res.assets?.[0];
     if (!res.canceled && a) {
-      setPhoto({
-        kind: "new",
-        file: { uri: a.uri, name: a.fileName ?? "decke.jpg", mimeType: a.mimeType ?? "image/jpeg", size: a.fileSize },
-      });
+      setPhoto({ kind: "new", file: pickedFile(a, "decke.jpg") });
     }
   }
 

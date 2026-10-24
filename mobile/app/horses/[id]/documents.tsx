@@ -11,7 +11,15 @@ import { Badge, Button, Icon, Input, PageHeader, Pill, PressableCard, Screen, Sh
 import { errorMessage } from "@/lib/api";
 import { horsesApi, useDocuments, useHorse, useHorseMutation, type HorseDocument } from "@/lib/api/horses";
 import { DOCUMENT_KINDS, documentKindLabel, formatDate } from "@/lib/horse-format";
-import { fileSource, openStoredFile, uploadErrorMessage, uploadFile, type UploadInput } from "@/lib/upload";
+import {
+  fileSource,
+  openStoredFile,
+  PHOTO_PICKER_OPTIONS,
+  pickedFile,
+  uploadErrorMessage,
+  uploadFile,
+  type UploadInput,
+} from "@/lib/upload";
 
 /** Documents of a horse (JAN-53): equine passport, vaccination record, insurance, other. */
 export default function Documents() {
@@ -76,31 +84,26 @@ export default function Documents() {
     if (!(await photoConsent())) return;
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) return setError("Kamerazugriff fehlt.");
-    const res = await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 0.8 });
+    const res = await ImagePicker.launchCameraAsync({ ...PHOTO_PICKER_OPTIONS, quality: 0.8 });
     const a = res.assets?.[0];
-    if (!res.canceled && a) {
-      await attach({ uri: a.uri, name: a.fileName ?? "foto.jpg", mimeType: a.mimeType ?? "image/jpeg", size: a.fileSize });
-    }
+    if (!res.canceled && a) await attach(pickedFile(a, "foto.jpg"));
   }
 
   async function pickPhoto() {
     if (!(await photoConsent())) return;
-    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.8 });
+    const res = await ImagePicker.launchImageLibraryAsync({ ...PHOTO_PICKER_OPTIONS, quality: 0.8 });
     const a = res.assets?.[0];
-    if (!res.canceled && a) {
-      await attach({ uri: a.uri, name: a.fileName ?? "foto.jpg", mimeType: a.mimeType ?? "image/jpeg", size: a.fileSize });
-    }
+    if (!res.canceled && a) await attach(pickedFile(a, "foto.jpg"));
   }
 
   async function pickFile() {
     const res = await DocumentPicker.getDocumentAsync({
-      type: ["application/pdf", "image/*"],
+      // Only what the server stores; "image/*" offered HEIC files that it refuses.
+      type: ["application/pdf", "image/jpeg", "image/png", "image/webp"],
       copyToCacheDirectory: true,
     });
     const a = res.assets?.[0];
-    if (!res.canceled && a) {
-      await attach({ uri: a.uri, name: a.name, mimeType: a.mimeType, size: a.size });
-    }
+    if (!res.canceled && a) await attach(pickedFile(a, "dokument.pdf"));
   }
 
   function confirmRemove(doc: HorseDocument) {
