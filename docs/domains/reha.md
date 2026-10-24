@@ -113,8 +113,8 @@ reminds again. Users can switch the kind off in `reminder_settings`. The push da
 ## Mobile
 
 `/horses/[id]/reha`: hero "Heute erlaubt" (activity, minutes, conditions) with "Heute erledigt" (and "Rückgängig"),
-plan card with progress, phase timeline (current phase highlighted), abort criteria, vet checkup with
-date, link "Auffälligkeit melden" (`/observations/new?horse=<id>`), history. Owner and admins get
+plan block with progress, phase timeline as rows (current phase with a brass "Jetzt"), abort criteria (accent line), vet checkup with
+date in brass, link "Auffälligkeit melden" (`/observations/new?horse=<id>`), history. Owner and admins get
 "Reha-Plan anlegen" / "Plan bearbeiten" / "Plan beenden". `/reha/edit?horse=<id>[&plan=<id>][&observation=<id>]`
 is the form with the phase editor sheet (add, edit, remove, reorder). With `observation` (JAN-68, from "In Reha-Plan
 umwandeln" in the horse record) a new plan starts with the diagnosis taken from the observation

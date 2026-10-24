@@ -153,8 +153,9 @@ Shared storage for photos and documents; see also "Files" in `architecture.md`.
 
 ## App
 
-- Horse list `/horses` (also the horse tab for users with several horses): hero with the number of horses, "Meine Pferde", "Ich reite",
-  then the rest, button "Pferd anlegen"; the rows show the photo as avatar.
+- Horse list `/horses` (also the horse tab for users with several horses): header with the number of horses and an outlined
+  "Pferd anlegen", then "Meine Pferde", "Ich reite" and the rest as hairline rows (`ListRow`, [design-system.md](../design-system.md))
+  with the photo as avatar.
 - Horse page `/horses/[id]` (`HorseRecord`, also the horse tab for the user's only horse, named after it), built from
   `components/horse-hero.tsx`, `horse-today-rows.tsx`, `horse-week-strip.tsx`, `horse-diary.tsx`, `horse-health-list.tsx`,
   `horse-file-tab.tsx`; the logic is in `lib/horse-page.ts` (tested):
@@ -173,7 +174,9 @@ Shared storage for photos and documents; see also "Files" in `architecture.md`.
     links "Trainingsprofil", "Deckenplan", "Reha", helper note, "Pferd bearbeiten"; `horseRoutes` in `lib/horse-format.ts`).
   - Stored images need the session token: `components/auth-image.tsx` sends it as a header (native), `auth-image.web.tsx` fetches the file
     with the header and shows a blob URL (React Native Web ignores `source.headers`). `Avatar` takes `photoUrl`.
-- Sub screens: `emergency` (tap to call), `health` (due list, add/edit sheet with date picker, repeat as one-tap presets
+- Sub screens are rows with hairlines, no card stacks: `emergency` (tap a row to call; the number big in Fraunces brass, the
+  preview in the Akte tab shows the same), `health` (rows with the kind as eyebrow, the due time right in brass, danger when overdue,
+  "Erledigt" as a quiet button; due list, add/edit sheet with date picker, repeat as one-tap presets
   per kind such as "6 Monate" / "1 Jahr" or "Eigenes" with number and unit, reminder days as chips "4 Wochen vorher" …
   "am Tag" plus the time; "Erledigt"), `documents`
   (photo/PDF upload), `edit`, and `/horses/new`.

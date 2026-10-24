@@ -107,7 +107,7 @@ with a slow connection. The report screen asks for confirmation before an urgent
   "Erledigt" (and the urgency if not info), button **Melden** (`/observations/new?horse=<id>`). Prop
   `renderActions(observation)` is the slot for extra buttons per observation; the horse record uses it for
   "In Reha-Plan umwandeln" (owner and admin, only while `reha_plan_id` is null; opens
-  `/reha/edit?observation=<id>&horse=<id>`). Rendered inside `ObservationCard`, taps do not open the detail screen.
+  `/reha/edit?observation=<id>&horse=<id>`). Rendered inside `ObservationCard` (a row, not a card: eyebrow with urgency and status from `observationEyebrow`), taps do not open the detail screen.
 - `/observations/new?horse=<id>`: horse chips, category chips, horse pictogram (`react-native-svg`, tappable
   regions plus chips as accessible alternative), description, photos (camera / library, upload happens on send and is
   not repeated on retry), urgency "Info" / "Bitte ansehen" / "Dringend". After an urgent report the emergency card opens.

@@ -3,7 +3,7 @@ import { UserPlus } from "lucide-react-native";
 import { useState } from "react";
 import { View } from "react-native";
 
-import { Button, Card, Text } from "@/components/ui";
+import { Button, Text } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { inviteExpiry, inviteMessage, shareInvite, webUrl, type Invite } from "@/lib/invite";
@@ -32,14 +32,14 @@ export function InviteCard() {
   });
 
   return (
-    <Card className="gap-3">
+    <View className="gap-3">
       <View className="gap-1">
         <Text variant="bodyStrong">Leute einladen</Text>
         <Text variant="secondary">Der Code gilt 7 Tage für bis zu 10 Personen.</Text>
       </View>
       {invite ? (
-        <View className="items-center gap-1 rounded-button-md bg-primary-soft px-4 py-3">
-          <Text selectable className="font-display text-[28px] leading-[34px] tracking-widest text-primary-deeper">
+        <View className="items-center gap-1 rounded-tile border border-border px-4 py-4">
+          <Text selectable className="font-display text-[32px] leading-[38px] tracking-widest text-brass">
             {invite.code}
           </Text>
           <Text variant="caption">Gültig bis {inviteExpiry(invite.expires_at, timeZone)}</Text>
@@ -54,10 +54,10 @@ export function InviteCard() {
         onPress={() => (invite ? void share(invite).catch(() => undefined) : create.mutate())}
       />
       {note ? (
-        <Text variant="bodySm" tone={note.error ? "danger" : "primary"} accessibilityRole={note.error ? "alert" : undefined}>
+        <Text variant="bodySm" tone={note.error ? "danger" : "success"} accessibilityRole={note.error ? "alert" : undefined}>
           {note.text}
         </Text>
       ) : null}
-    </Card>
+    </View>
   );
 }

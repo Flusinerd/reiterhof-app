@@ -15,10 +15,18 @@ library, JAN-59 week view, JAN-60 "Nur eintragen", JAN-61 finish screen, JAN-89 
   `app/training/session/finish.tsx` ("Wie war's?", see "Finish step"), `app/training/week.tsx` (week with draft), `app/horses/[id]/training-setup.tsx`
   (profile wizard), `app/horses/[id]/training-profile.tsx` (overview) and the section editors
   `app/horses/[id]/training-profile/{activities,rhythm,structure,shows,riders}.tsx`.
-- Mobile components: `components/training-next-step.tsx` (next-step card), `training-week-strip.tsx` (week strip),
+- Mobile layout (Abendlicht, see [design-system.md](../design-system.md)): the training tab (`app/training/index.tsx`) is the
+  horse in the header (with the horse switcher), the recommendation as the one raised block with the primary "Starten", the
+  duration pills, alternatives as rows, one week strip (`HorseWeekStrip`, the same as on the horse page) and links as rows.
+  Without a profile "Profil einrichten" (`NextStepCard`) is the raised block and "Starten" steps back to an outline; "Woche
+  planen" is a quiet row. The week (`app/training/week.tsx`) is a planning list of `WeekDayRow`s (big day number in Fraunces,
+  who, activity, exercise; reha and show with time and classes underneath), "Woche planen" is its one primary action. The
+  exercise library is `RowList` rows with filter pills; steps are `NumberedSteps` (numbers in Fraunces brass).
+- Mobile components: `components/training-next-step.tsx` (profile block, plan row), `training-week-day.tsx` (a day of the week),
+  `training-dots.tsx` (`LoadBar`), `exercise-steps.tsx` (numbered steps),
   `training-day-edit-sheet.tsx` (edit one day), `training-activity-modes.tsx` (activity list, wizard and editor),
   `training-week-structure.tsx` (seven weekday rules), `training-rider-rules.tsx` (rider rules); UI kit parts
-  `Stepper`, `NumberStepper`/`RangeStepper`, `DateField`, `LinkRow` (see [design-system.md](../design-system.md)).
+  `ListRow`/`RowList`, `Stepper`, `NumberStepper`/`RangeStepper`, `DateField`.
 - Mobile logic: `lib/session-finish.ts` (feeling, finish body, note target), pure helpers `lib/training*.ts` (`training-profile.ts`: drafts, per-section validation, discipline
   defaults, summaries; `training-plan.ts`: plan days, day edits, `nextStep`), API client and React Query hooks
   `lib/api/training.ts`.
