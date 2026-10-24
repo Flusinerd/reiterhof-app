@@ -1,15 +1,13 @@
-import { Check, Shirt, Sun } from "lucide-react-native";
-import type { LucideIcon } from "lucide-react-native";
 import { View } from "react-native";
 
 import { Button } from "@/components/ui";
 import { actionLabel, stateActions, type Recommendation, type StateAction } from "@/lib/blankets";
 
-const ICONS: Record<StateAction, LucideIcon> = { covered: Shirt, uncovered: Sun, checked: Check };
-
 /**
  * The buttons for a horse's day state: "Eingedeckt" / "Abgedeckt" when the plan recommends a
- * blanket, "Geprüft" when it does not. The first one is the primary action.
+ * blanket, "Geprüft" when it does not. The first one is the primary action. Text only and 128 px
+ * wide at least: two fit next to each other in a card on a phone, otherwise they wrap into rows
+ * of their own instead of cutting the label ("Eingedeckt" used to be clipped with an icon).
  */
 export function BlanketActions({
   recommendation,
@@ -30,12 +28,11 @@ export function BlanketActions({
         <Button
           key={action}
           label={actionLabel(action)}
-          icon={ICONS[action]}
           variant={i === 0 ? "primary" : "outline"}
           loading={pending === action}
           disabled={disabled}
           onPress={() => onAction(action)}
-          className="flex-1"
+          className="min-w-[128px] grow basis-[128px] px-3"
         />
       ))}
     </View>
