@@ -48,8 +48,8 @@ type Request struct {
 	CreatedBy     string          `json:"created_by"`
 	CreatorName   string          `json:"creator_name"`
 	CreatorColor  *string         `json:"creator_color"` // avatar color key of the creator
-	Date          string          `json:"date"`     // YYYY-MM-DD, stable-local
-	DateEnd       *string         `json:"date_end"` // inclusive
+	Date          string          `json:"date"`          // YYYY-MM-DD, stable-local
+	DateEnd       *string         `json:"date_end"`      // inclusive
 	TimeFrom      *string         `json:"time_from"`
 	TimeTo        *string         `json:"time_to"`
 	Location      string          `json:"location"`

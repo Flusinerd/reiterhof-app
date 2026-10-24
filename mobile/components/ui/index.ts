@@ -17,6 +17,7 @@ export { Section, SectionTitle, type SectionProps, type SectionTitleProps } from
 export { Sheet, type SheetProps } from "./sheet";
 export { Stepper, type StepperProps } from "./stepper";
 export { Switch, type SwitchProps } from "./switch";
+export { ListRow, RowList, type ListRowProps } from "./list-row";
 export { Tabs, TabsContent, TabsList, TabsTrigger } from "./tabs";
 export { ThemeScope, type ThemeScopeProps } from "./theme-scope";
 export { TimeField, type TimeFieldProps } from "./time-field";
