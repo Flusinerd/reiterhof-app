@@ -1,11 +1,12 @@
 import { router, useLocalSearchParams, type Href } from "expo-router";
 import { Check, HandHelping, Layers, Plus } from "lucide-react-native";
 import { useState } from "react";
-import { Alert, View } from "react-native";
+import { Alert, Pressable, View } from "react-native";
 
 import { HorseHealthSheet } from "@/components/horse-health-sheet";
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
-import { Badge, Button, Card, Icon, PageHeader, PressableCard, Screen, Text } from "@/components/ui";
+import { Button, Icon, PageHeader, Screen, Text } from "@/components/ui";
+import { RowList } from "@/components/ui/list-row";
 import { errorMessage } from "@/lib/api";
 import { horsesApi, useHealth, useHorse, useHorseMutation, type HealthInput, type HealthItem } from "@/lib/api/horses";
 import {
@@ -20,7 +21,7 @@ import {
 } from "@/lib/horse-format";
 import { bundleText, horseNamesText } from "@/lib/observations";
 
-const badgeVariant = { none: "neutral", overdue: "danger", soon: "accent", ok: "primary" } as const;
+const dueTone = { none: "muted", overdue: "danger", soon: "accent", ok: "brass" } as const;
 
 function itemSubtitle(item: HealthItem): string {
   if (item.daily_time) return `täglich um ${item.daily_time} Uhr`;
@@ -89,49 +90,71 @@ export default function Health() {
               ? `${soon} ${soon === 1 ? "Termin" : "Termine"} in den nächsten 7 Tagen.`
               : "Nichts Dringendes."
         }
-      >
-        {canManage ? (
-          <Button
-            label="Termin hinzufügen"
-            icon={Plus}
-            variant="secondary"
-            size="sm"
-            onPress={() => {
-              setError(null);
-              setSheet({ item: null });
-            }}
-          />
-        ) : null}
-      </PageHeader>
+        action={
+          canManage ? (
+            <Button
+              icon={Plus}
+              variant="outline"
+              size="icon"
+              accessibilityLabel="Termin hinzufügen"
+              onPress={() => {
+                setError(null);
+                setSheet({ item: null });
+              }}
+            />
+          ) : undefined
+        }
+      />
 
       {items.length === 0 ? (
         <Text variant="body" tone="muted">
           Noch keine Termine.
         </Text>
       ) : (
-        <View className="gap-3">
+        <RowList>
           {items.map((item) => {
             const level = dueLevel(item.days_until_due);
-            const body = (
+            const top = (
               <>
-                <View className="flex-row items-start justify-between gap-3">
-                  <View className="flex-1">
-                    <Text variant="secondary">{healthKindLabel(item.kind)}</Text>
-                    <Text variant="bodyStrong">{item.label}</Text>
-                    <Text variant="secondary">{itemSubtitle(item)}</Text>
-                    {item.due_date && !item.daily_time ? (
-                      <Text variant="caption">{remindText(item.remind_days ?? [], item.remind_time ?? "08:00")}</Text>
-                    ) : null}
-                  </View>
-                  {item.due_date ? (
-                    <Badge variant={badgeVariant[level]} label={dueDetailText(item.days_until_due)} />
+                <View className="flex-1 gap-0.5">
+                  <Text variant="eyebrow">{healthKindLabel(item.kind)}</Text>
+                  <Text variant="bodyStrong">{item.label}</Text>
+                  <Text variant="bodySm" tone="muted">
+                    {itemSubtitle(item)}
+                  </Text>
+                  {item.due_date && !item.daily_time ? (
+                    <Text variant="caption">{remindText(item.remind_days ?? [], item.remind_time ?? "08:00")}</Text>
                   ) : null}
                 </View>
+                {item.due_date ? (
+                  <Text variant="bodySm" tone={dueTone[level]} className="max-w-[40%] text-right font-sans-semibold">
+                    {dueDetailText(item.days_until_due)}
+                  </Text>
+                ) : null}
+              </>
+            );
+            return (
+              <View key={item.id} className="gap-2 py-3">
+                {canManage ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`${item.label} bearbeiten`}
+                    onPress={() => {
+                      setError(null);
+                      setSheet({ item });
+                    }}
+                    className="min-h-[56px] flex-row items-start gap-3 active:opacity-70"
+                  >
+                    {top}
+                  </Pressable>
+                ) : (
+                  <View className="min-h-[56px] flex-row items-start gap-3">{top}</View>
+                )}
                 {item.note ? <Text variant="bodySm">{item.note}</Text> : null}
                 {item.bundle ? (
-                  <View className="flex-row items-start gap-3 rounded-tile bg-info-soft p-3">
-                    <Icon as={Layers} size={20} className="text-info" />
-                    <View className="flex-1 gap-1">
+                  <View className="flex-row items-start gap-2">
+                    <Icon as={Layers} size={18} className="mt-0.5 text-info" />
+                    <View className="flex-1 gap-0.5">
                       <Text variant="bodySm" tone="info">
                         {bundleText(item.bundle.count)}
                       </Text>
@@ -140,13 +163,13 @@ export default function Health() {
                   </View>
                 ) : null}
                 {canManage || item.kind === "farrier" ? (
-                  <View className="flex-row flex-wrap gap-2">
+                  <View className="-ml-4 flex-row flex-wrap">
                     {canManage && (item.due_date || item.interval_count) ? (
                       <Button
                         label="Erledigt"
                         icon={Check}
                         size="sm"
-                        variant="secondary"
+                        variant="ghost"
                         loading={done.isPending && done.variables === item.id}
                         onPress={() => void markDone(item)}
                       />
@@ -156,33 +179,16 @@ export default function Health() {
                         label="Termin begleiten"
                         icon={HandHelping}
                         size="sm"
-                        variant="outline"
+                        variant="ghost"
                         onPress={() => router.push(appointmentCompanionRoute(id) as Href)}
                       />
                     ) : null}
                   </View>
                 ) : null}
-              </>
-            );
-            return canManage ? (
-              <PressableCard
-                key={item.id}
-                className="gap-3"
-                accessibilityLabel={`${item.label} bearbeiten`}
-                onPress={() => {
-                  setError(null);
-                  setSheet({ item });
-                }}
-              >
-                {body}
-              </PressableCard>
-            ) : (
-              <Card key={item.id} className="gap-3">
-                {body}
-              </Card>
+              </View>
             );
           })}
-        </View>
+        </RowList>
       )}
 
       {!canManage ? (

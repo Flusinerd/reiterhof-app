@@ -147,6 +147,20 @@ export function statusBadgeVariant(status: string): BadgeVariant {
   return status === "done" ? "primary" : "info";
 }
 
+export type EyebrowTone = "danger" | "accent" | "success" | "muted";
+
+/**
+ * Line above the title of an observation row: urgency (not for plain info) and status, e.g.
+ * "Dringend · Beobachten". Done observations are calm green, urgent ones red, "Bitte ansehen" orange.
+ */
+export function observationEyebrow(o: { urgency: string; status: string }): { text: string; tone: EyebrowTone } {
+  const text = [o.urgency !== "info" ? urgencyLabel(o.urgency) : "", statusLabel(o.status)].filter(Boolean).join(" · ");
+  if (o.status === "done") return { text, tone: "success" };
+  if (o.urgency === "urgent") return { text, tone: "danger" };
+  if (o.urgency === "check") return { text, tone: "accent" };
+  return { text, tone: "muted" };
+}
+
 /** The status a status button switches to. */
 export function nextStatus(status: string): Status {
   return status === "done" ? "watch" : "done";

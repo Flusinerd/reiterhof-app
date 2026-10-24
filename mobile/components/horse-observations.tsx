@@ -7,6 +7,7 @@ import { View } from "react-native";
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
 import { ObservationCard } from "@/components/observation-card";
 import { Button, Text } from "@/components/ui";
+import { RowList } from "@/components/ui/list-row";
 import { useObservationEvents, useObservations, type Observation } from "@/lib/api/observations";
 import { newObservationRoute, openCount } from "@/lib/observations";
 
@@ -41,7 +42,7 @@ export function HorseObservations({
         label="Melden"
         icon={Megaphone}
         variant="outline"
-        fullWidth
+        size="sm"
         onPress={() => router.push(newObservationRoute(horseId) as Href)}
       />
       {query.isError ? (
@@ -57,9 +58,11 @@ export function HorseObservations({
           <Text variant="secondary">
             {open === 0 ? "Nichts zu beobachten." : open === 1 ? "1 Auffälligkeit wird beobachtet." : `${open} Auffälligkeiten werden beobachtet.`}
           </Text>
-          {shown.map((o) => (
-            <ObservationCard key={o.id} observation={o} actions={renderActions?.(o)} />
-          ))}
+          <RowList>
+            {shown.map((o) => (
+              <ObservationCard key={o.id} observation={o} actions={renderActions?.(o)} />
+            ))}
+          </RowList>
           {list.length > VISIBLE ? (
             <Button
               label={all ? "Weniger anzeigen" : `Ältere anzeigen (${list.length - VISIBLE})`}

@@ -6,7 +6,7 @@ import { Pressable, View } from "react-native";
 import { AuthImage } from "@/components/auth-image";
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
 import { Horse } from "@/components/icons/horse";
-import { Badge, Button, PageHeader, Screen, Section, Text } from "@/components/ui";
+import { Button, PageHeader, Screen, Section, Text } from "@/components/ui";
 import { errorMessage } from "@/lib/api";
 import { useObservation, useObservationEvents, useSetObservationStatus } from "@/lib/api/observations";
 import { horseRoutes, joinParts } from "@/lib/horse-format";
@@ -14,12 +14,9 @@ import {
   bodyPartLabel,
   categoryLabel,
   nextStatus,
+  observationEyebrow,
   reportedText,
   statusActionLabel,
-  statusBadgeVariant,
-  statusLabel,
-  urgencyBadgeVariant,
-  urgencyLabel,
 } from "@/lib/observations";
 import { openStoredFile } from "@/lib/upload";
 
@@ -54,6 +51,8 @@ export default function ObservationDetail() {
     }
   }
 
+  const eyebrow = observationEyebrow(o);
+
   return (
     <Screen back>
       <PageHeader
@@ -64,17 +63,12 @@ export default function ObservationDetail() {
           `${o.reporter.name}, ${reportedText(o.created_at, new Date())}`,
         ])}
       >
-        <View className="flex-row flex-wrap gap-2">
-          <Badge variant={statusBadgeVariant(o.status)} label={statusLabel(o.status)} />
-          <Badge variant={urgencyBadgeVariant(o.urgency)} label={urgencyLabel(o.urgency)} />
-        </View>
+        <Text variant="eyebrow" tone={eyebrow.tone}>
+          {eyebrow.text}
+        </Text>
       </PageHeader>
 
-      {o.description ? (
-        <Section title="Beschreibung">
-          <Text variant="body">{o.description}</Text>
-        </Section>
-      ) : null}
+      {o.description ? <Text variant="title">{`„${o.description}“`}</Text> : null}
 
       {o.media.length > 0 ? (
         <Section title="Fotos">

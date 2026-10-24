@@ -24,7 +24,7 @@ export default function EditHorse() {
     <Screen back keyboardShouldPersistTaps="handled">
       {horse.data && card.data && canEdit ? (
         <>
-          <PageHeader title={`${horse.data.name} bearbeiten`} description="Änderungen sehen alle im Stall." />
+          <PageHeader eyebrow={horse.data.name} title="Bearbeiten" description="Änderungen sehen alle im Stall." />
           <HorseForm
             key={horse.data.id}
             horse={horse.data}

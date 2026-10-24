@@ -119,12 +119,12 @@ export function HorseHealthSheet({ open, onOpenChange, item, saving, error, onSa
         placeholder={`Bezeichnung, z. B. ${healthKindLabel(kind)}`}
       />
       <View className="gap-2">
-        <Text variant="secondary">{medication ? "Ende der Gabe (optional)" : "Fällig am"}</Text>
+        <Text variant="eyebrow">{medication ? "Ende der Gabe (optional)" : "Fällig am"}</Text>
         <DateField value={due} onChange={setDue} accessibilityLabel="Fälligkeitsdatum" clearable />
       </View>
       {medication ? (
         <View className="gap-2">
-          <Text variant="secondary">Tägliche Erinnerung um</Text>
+          <Text variant="eyebrow">Tägliche Erinnerung um</Text>
           <TimeField
             value={dailyTime}
             onChange={setDailyTime}
@@ -136,7 +136,7 @@ export function HorseHealthSheet({ open, onOpenChange, item, saving, error, onSa
       ) : (
         <>
           <View className="gap-2">
-            <Text variant="secondary">Wiederholung</Text>
+            <Text variant="eyebrow">Wiederholung</Text>
             <View className="flex-row flex-wrap gap-2">
               <Pill label="Einmalig" selected={interval === null} onPress={() => choose(null)} />
               {presets.map((p) => (
@@ -187,7 +187,7 @@ export function HorseHealthSheet({ open, onOpenChange, item, saving, error, onSa
             </Text>
           </View>
           <View className="gap-2">
-            <Text variant="secondary">Erinnerung</Text>
+            <Text variant="eyebrow">Erinnerung</Text>
             <View className="flex-row flex-wrap gap-2">
               {remindDayOptions(item?.remind_days ?? []).map((d) => (
                 <Pill

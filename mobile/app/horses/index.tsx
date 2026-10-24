@@ -7,9 +7,10 @@ import { RefreshControl } from "react-native";
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
 import { HorseListItem } from "@/components/horse-list-item";
 import { Button, PageHeader, Screen, Section, Text } from "@/components/ui";
+import { RowList } from "@/components/ui/list-row";
 import { horseKeys, useHorses, type Horse } from "@/lib/api/horses";
 import { horseRoutes } from "@/lib/horse-format";
-import { colors } from "@/lib/theme";
+import { useColors } from "@/lib/theme";
 
 /** Splits the stable's horses into own horses, horses the user rides, and the rest. */
 function groupHorses(horses: Horse[]) {
@@ -27,6 +28,7 @@ export default function HorsesRoute() {
 
 /** Own horses, horses the user rides, the rest; also the horse tab for users with several horses. */
 export function Horses({ back }: { back: boolean }) {
+  const c = useColors();
   const query = useHorses();
   const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
@@ -49,17 +51,18 @@ export function Horses({ back }: { back: boolean }) {
   return (
     <Screen back={back} menu={back}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary.DEFAULT} />
+        <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={c.primary.DEFAULT} />
       }
     >
       <PageHeader
+        eyebrow="Stall"
         title="Pferde"
         action={
           <Button
             label="Pferd anlegen"
             icon={Plus}
             size="sm"
-            variant="secondary"
+            variant="outline"
             onPress={() => router.push(horseRoutes.create as Href)}
           />
         }
@@ -79,9 +82,11 @@ export function Horses({ back }: { back: boolean }) {
         .filter((s) => s.horses.length > 0)
         .map((s) => (
           <Section key={s.title} title={s.title}>
-            {s.horses.map((h) => (
-              <HorseListItem key={h.id} horse={h} onPress={() => open(h.id)} />
-            ))}
+            <RowList>
+              {s.horses.map((h) => (
+                <HorseListItem key={h.id} horse={h} onPress={() => open(h.id)} />
+              ))}
+            </RowList>
           </Section>
         ))}
       {query.data && count === 0 ? (
