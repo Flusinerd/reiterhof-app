@@ -5,6 +5,7 @@ import { Button, Text } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { isInternalRoute } from "@/lib/notifications-core";
 import { rowMeta, rowTime, type ReminderItem } from "@/lib/reminders";
+import { reminderText } from "@/lib/today";
 
 export type ReminderRowProps = {
   item: ReminderItem;
@@ -27,6 +28,7 @@ export type ReminderRowProps = {
 export function ReminderRow({ item, timeZone, today, last = false, dismissing = false, onOpen, onDismiss }: ReminderRowProps) {
   const target = isInternalRoute(item.screen) ? item.screen : null;
   const time = rowTime(item, timeZone, today);
+  const text = reminderText(item.kind, item.title, item.body);
 
   const content = (
     <>
@@ -34,10 +36,10 @@ export function ReminderRow({ item, timeZone, today, last = false, dismissing = 
         {time.text}
       </Text>
       <View className="flex-1 gap-0.5">
-        <Text variant="bodyStrong">{item.title}</Text>
-        {item.body ? (
+        <Text variant="bodyStrong">{text.title}</Text>
+        {text.detail ? (
           <Text variant="bodySm" tone={time.overdue ? "danger" : "muted"}>
-            {item.body}
+            {text.detail}
           </Text>
         ) : null}
         <Text variant="caption">{rowMeta(item, timeZone)}</Text>
