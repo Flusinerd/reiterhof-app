@@ -12,6 +12,7 @@ export { NumberStepper, RangeStepper, type NumberStepperProps, type RangeStepper
 export { PageHeader, type PageHeaderProps } from "./page-header";
 export { Pill, type PillProps } from "./pill";
 export { Screen, ScreenMenuContext, type ScreenProps } from "./screen";
+export { Segmented, type SegmentedItem, type SegmentedProps } from "./segmented";
 export { Section, SectionTitle, type SectionProps, type SectionTitleProps } from "./section";
 export { Sheet, type SheetProps } from "./sheet";
 export { Stepper, type StepperProps } from "./stepper";

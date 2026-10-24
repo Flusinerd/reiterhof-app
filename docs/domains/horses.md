@@ -2,7 +2,7 @@
 
 Tickets: JAN-10 (Pferde und Reitbeteiligungen), JAN-48 (Pferdeakte), JAN-49 (Notfallkarte),
 JAN-12 (Termine und Erinnerungen), JAN-53 (Dokumente). Code: `backend/internal/horses`,
-`backend/internal/health`, `backend/internal/files`, Migration `0040`, App: `mobile/app/horses/`,
+`backend/internal/health`, `backend/internal/files`, `backend/internal/diary`, Migrations `0040` and `0310`, App: `mobile/app/horses/`,
 `mobile/app/(tabs)/horses.tsx`, `mobile/components/horse-*.tsx`, `mobile/lib/api/horses.ts`,
 `mobile/lib/upload.ts`.
 
@@ -30,10 +30,11 @@ the check.
 
 | Route | Notes |
 | --- | --- |
-| `GET /api/v1/horses` | all horses of the stable ordered by name: `id, name, box, sex, birth_year, breed, color_key, weight_kg, helper_note, owner{id,name,color_key}, riders[{user_id,name,color_key,rules}], is_mine, i_ride, can_manage, my_rules` |
+| `GET /api/v1/horses` | all horses of the stable ordered by name: `id, name, box, sex, birth_year, breed, color_key, weight_kg, helper_note, photo_url, owner{id,name,color_key}, riders[{user_id,name,color_key,rules}], is_mine, i_ride, can_manage, my_rules` (`photo_url` is `null` without a photo) |
 | `GET /api/v1/horses/{id}` | same shape |
-| `POST /api/v1/horses` | `name` required; `box, sex (mare/gelding/stallion), birth_year (1970..now), breed, color_key, weight_kg (20..1500), helper_note`, emergency fields, `owner_id` (admin) |
-| `PATCH /api/v1/horses/{id}` | any of the above; emergency fields: `emergency_note, emergency_medication, permanent_medication, allergies, insurance, vet_name, vet_phone` |
+| `POST /api/v1/horses` | `name` required; `box, sex (mare/gelding/stallion), birth_year (1970..now), breed, color_key, weight_kg (20..1500), helper_note`, emergency fields, `photo_path`, `owner_id` (admin) |
+| `PATCH /api/v1/horses/{id}` | any of the above; emergency fields: `emergency_note, emergency_medication, permanent_medication, allergies, insurance, vet_name, vet_phone`; `photo_path` (see Photo) |
+| `GET /api/v1/horses/{id}/diary` | see Diary |
 | `PUT /api/v1/horses/{id}/riders/{userId}` | body `{rules: [...]}` (omitted: defaults); replaces the rules; the owner cannot be a rider |
 | `DELETE /api/v1/horses/{id}/riders/{userId}` | `204` |
 | `GET /api/v1/members` | `[{id, name, color_key, is_me}]` for pickers |
@@ -55,6 +56,29 @@ A rider may only do what is on the list. Owners and admins always may everything
 
 Default for a new rider: `log_sessions`, `report_observations`, `take_week_slots`. Unknown rules give `400`.
 The app has the same list in `mobile/lib/horse-format.ts` (`RIDER_RULES`, German labels).
+
+## Photo
+
+Optional (migration `0310`, `horses.photo_path`). The app uploads an image with `POST /api/v1/files` and sends the returned
+`path` as `photo_path` in `PATCH /api/v1/horses/{id}` (owner or admin like every horse field); `""` removes the photo. The path
+must be an existing JPEG, PNG or WebP of the caller's stable (`400 validation_failed` otherwise, a PDF is refused). The horse JSON
+carries `photo_url` (`/api/v1/files/<path>`, `null` without photo); every member of the stable may load the file, like blanket
+photos. When the photo is replaced or removed, the old file is deleted unless another record (document, observation, blanket,
+horse) still points to it (`files.Referenced`). There is no route that deletes a horse, so there is no file clean-up on deletion.
+A horse photo shows the stable's animal, not a person; it needs no entry of its own in the processing register. The privacy export
+(`to_jsonb(horses)` of owned horses) contains `photo_path`. Without a photo the app shows the horse's color with its initial.
+
+## Diary (`internal/diary`)
+
+`GET /api/v1/horses/{id}/diary?before=<RFC 3339>&limit=<1..100, default 30>`: training sessions and observations of the horse in
+one list, newest first. Answer: `{items, next_before}`; `next_before` is the `before` of the next page (`null` at the end), so the
+app loads older entries with "Mehr laden". An item has `type` (`session` or `observation`), `id`, `at` (UTC), `day` (the
+stable's local calendar day), `user{id,name,color_key}` and exactly one of `session{activity, label, minutes, note, feel,
+exercise_title}` or `observation{category, body_part, description, urgency, status, media_url (first photo), media_count}`.
+
+Who sees what: observations every member of the stable (like `GET /horses/{id}/observations`); sessions follow the training rule
+(owner and admin all, riders the sessions marked visible plus their own, other members none). A horse of another stable is a `404`.
+Health items keep no history (marking one done moves its due date), so they are not part of the diary.
 
 ## Emergency card (JAN-49)
 
@@ -117,7 +141,7 @@ Shared storage for photos and documents; see also "Files" in `architecture.md`.
   (malformed upload or damaged image). Caddy allows 25 MB bodies (`deploy/Caddyfile`).
 - `GET /api/v1/files/{path...}` follows the record that references the file (least privilege): a
   `horse_documents.file_path` only for the owner, riders and admins of the horse, an `observations.media` entry or a
-  `blankets.photo_path` for every member of the stable. `401` without session, `404` for other stables, malformed
+  `blankets.photo_path` or a `horses.photo_path` for every member of the stable. `401` without session, `404` for other stables, malformed
   paths and files nothing points to (never attached, or detached since). Sent with `Content-Type` from the
   extension, `X-Content-Type-Options: nosniff`, `Cache-Control: private`.
 - Session tokens are never read from the URL. Viewers that cannot send headers (Linking.openURL of a PDF or a full-size
@@ -129,12 +153,26 @@ Shared storage for photos and documents; see also "Files" in `architecture.md`.
 
 ## App
 
-- Tab "Pferde": hero with the number of horses, "Meine Pferde", "Ich reite", then the rest, button "Pferd anlegen".
-- Horse record `/horses/[id]`: header, emergency card preview, four health tiles, "Auffälligkeiten" (`components/horse-observations.tsx`,
-  see [observations.md](observations.md); owner and admins get "In Reha-Plan umwandeln" on observations without a plan, see
-  [reha.md](reha.md)), riders with rule
-  toggles (owner/admin), documents, links "Trainingsprofil", "Deckenplan", "Reha"
-  (`horseRoutes` in `lib/horse-format.ts`).
+- Horse list `/horses` (also the horse tab for users with several horses): hero with the number of horses, "Meine Pferde", "Ich reite",
+  then the rest, button "Pferd anlegen"; the rows show the photo as avatar.
+- Horse page `/horses/[id]` (`HorseRecord`, also the horse tab for the user's only horse, named after it), built from
+  `components/horse-hero.tsx`, `horse-today-rows.tsx`, `horse-week-strip.tsx`, `horse-diary.tsx`, `horse-health-list.tsx`,
+  `horse-file-tab.tsx`; the logic is in `lib/horse-page.ts` (tested):
+  - Hero, full-bleed: with a photo it fades into the background, without one the horse's color is a field with its big italic initial
+    and "+ Foto hinzufügen" (owner and admin only; with a photo they get a small camera button). The photo sheet
+    (`components/horse-photo-sheet.tsx`) takes or picks a photo (photos consent), `uploadFile()`, then PATCH `photo_path`; it can remove it.
+    Eyebrow "Stute · 11 Jahre · Box 12", the name in display italic, below it "Dein Pferd · Hannoveraner".
+  - "Heute für <Name>": up to three rows with hairlines, each with one action: training today from the week plan ("Starten" when it is the
+    user's, one primary button), tonight's blanket ("Ändern" for owner and admin, opens the blanket choice), the next health item
+    ("Erledigt" for owner and admin when overdue or due within a week). Empty rows are left out; the training row is only for owner, admin
+    and riders (the week endpoint says `403` to others).
+  - "Diese Woche": seven marks (done, planned, show day in brass, rest, empty), tap opens `/training/week?horse=`.
+  - `Segmented` with Tagebuch (the diary, "Mehr laden", notes as italic quotes, observation photos as thumbnails, "Auffälligkeit melden"),
+    Gesundheit (compact health list, "Alle Termine", the observations with "Reha-Plan erstellen" for owner and admin, see
+    [observations.md](observations.md) and [reha.md](reha.md)) and Akte (emergency card preview, riders with rule toggles, documents,
+    links "Trainingsprofil", "Deckenplan", "Reha", helper note, "Pferd bearbeiten"; `horseRoutes` in `lib/horse-format.ts`).
+  - Stored images need the session token: `components/auth-image.tsx` sends it as a header (native), `auth-image.web.tsx` fetches the file
+    with the header and shows a blob URL (React Native Web ignores `source.headers`). `Avatar` takes `photoUrl`.
 - Sub screens: `emergency` (tap to call), `health` (due list, add/edit sheet with date picker, repeat as one-tap presets
   per kind such as "6 Monate" / "1 Jahr" or "Eigenes" with number and unit, reminder days as chips "4 Wochen vorher" …
   "am Tag" plus the time; "Erledigt"), `documents`

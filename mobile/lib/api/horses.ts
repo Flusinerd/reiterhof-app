@@ -1,7 +1,7 @@
 // API calls and react-query hooks for horses, the emergency card, health items and documents
 // (backend: internal/horses, internal/health; docs/domains/horses.md).
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { API_URL, authed } from "../api";
 import { parseErrorBody, ApiError } from "../api-core.ts";
@@ -23,6 +23,8 @@ export type Horse = {
   color_key: string | null;
   weight_kg: number | null;
   helper_note: string | null;
+  /** Relative API path of the photo ("/api/v1/files/..."); load it with fileSource(). null without a photo. */
+  photo_url: string | null;
   owner: Person | null;
   riders: Rider[];
   is_mine: boolean;
@@ -41,6 +43,8 @@ export type HorseInput = Partial<{
   color_key: string;
   weight_kg: number;
   helper_note: string;
+  /** Path from uploadFile(); "" removes the photo. Owner or admin. */
+  photo_path: string;
   emergency_note: string;
   emergency_medication: string;
   permanent_medication: string;
@@ -129,6 +133,37 @@ export type HorseDocument = {
   created_at: string;
 };
 
+/** One line of the diary (GET /horses/{id}/diary): a training session or an observation. */
+export type DiaryEntry = {
+  type: "session" | "observation";
+  id: string;
+  /** RFC 3339, UTC. */
+  at: string;
+  /** Calendar day of `at` in the stable's time zone, YYYY-MM-DD. */
+  day: string;
+  user: { id: string; name: string; color_key: string | null };
+  session: {
+    activity: string;
+    label: string;
+    minutes: number;
+    note: string | null;
+    feel: string | null;
+    exercise_title: string | null;
+  } | null;
+  observation: {
+    category: string | null;
+    body_part: string | null;
+    description: string | null;
+    urgency: "info" | "check" | "urgent";
+    status: "watch" | "done";
+    /** First photo (relative API path), null without photos. */
+    media_url: string | null;
+    media_count: number;
+  } | null;
+};
+
+export type DiaryPage = { items: DiaryEntry[]; next_before: string | null };
+
 // --- transport for PUT / DELETE (the shared client offers GET, POST and PATCH) -------------
 
 async function send<T>(method: "PUT" | "DELETE", path: string, body?: unknown): Promise<T> {
@@ -181,6 +216,11 @@ export const horsesApi = {
   removeHealthItem: (itemId: string) => send<void>("DELETE", `/api/v1/health-items/${itemId}`),
   markDone: (itemId: string) => authed.post<HealthItem>(`/api/v1/health-items/${itemId}/done`),
 
+  diary: (id: string, before?: string, limit = 20) =>
+    authed.get<DiaryPage>(
+      `/api/v1/horses/${id}/diary?limit=${limit}${before ? `&before=${encodeURIComponent(before)}` : ""}`,
+    ),
+
   documents: (id: string) => authed.get<HorseDocument[]>(`/api/v1/horses/${id}/documents`),
   addDocument: (id: string, input: { kind: string; title: string; file_path: string }) =>
     authed.post<HorseDocument>(`/api/v1/horses/${id}/documents`, input),
@@ -199,6 +239,7 @@ export const horseKeys = {
   emergency: (id: string) => ["horses", "emergency", id] as const,
   health: (id: string) => ["horses", "health", id] as const,
   documents: (id: string) => ["horses", "documents", id] as const,
+  diary: (id: string) => ["horses", "diary", id] as const,
   members: () => ["members"] as const,
 };
 
@@ -211,6 +252,15 @@ export const useHealth = (id: string) =>
   useQuery({ queryKey: horseKeys.health(id), queryFn: () => horsesApi.health(id) });
 export const useDocuments = (id: string, enabled = true) =>
   useQuery({ queryKey: horseKeys.documents(id), queryFn: () => horsesApi.documents(id), enabled });
+/** The diary, newest first, a page at a time (`fetchNextPage` loads older entries). */
+export const useDiary = (id: string, enabled = true) =>
+  useInfiniteQuery({
+    queryKey: horseKeys.diary(id),
+    queryFn: ({ pageParam }) => horsesApi.diary(id, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.next_before ?? undefined,
+    enabled,
+  });
 export const useMembers = () =>
   useQuery({ queryKey: horseKeys.members(), queryFn: horsesApi.members, staleTime: 60_000 });
 

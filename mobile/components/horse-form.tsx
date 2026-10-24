@@ -1,6 +1,6 @@
 import { Check } from "lucide-react-native";
 import { useState } from "react";
-import { Pressable, View } from "react-native";
+import { Pressable, useColorScheme, View } from "react-native";
 
 import {
   Button,
@@ -13,7 +13,7 @@ import {
   ToggleGroupItem,
 } from "@/components/ui";
 import type { EmergencyCard, Horse, HorseInput, Member } from "@/lib/api/horses";
-import { COLOR_KEYS, COLOR_PAIRS } from "@/lib/color-keys";
+import { COLOR_KEYS, colorsForKey } from "@/lib/color-keys";
 import { parseWholeNumber, sexLabel } from "@/lib/horse-format";
 import { cn } from "@/lib/cn";
 
@@ -46,6 +46,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
  * `app/horses/new.tsx` and `app/horses/[id]/edit.tsx`. Empty text clears a field on the server.
  */
 export function HorseForm({ horse, card, isAdmin, members, submitLabel, saving, error, onSubmit }: Props) {
+  const scheme = useColorScheme() === "dark" ? "dark" : "light";
   const [name, setName] = useState(horse?.name ?? "");
   const [box, setBox] = useState(horse?.box ?? "");
   const [sex, setSex] = useState<string>(horse?.sex ?? "");
@@ -153,9 +154,9 @@ export function HorseForm({ horse, card, isAdmin, members, submitLabel, saving, 
                       "h-9 w-9 items-center justify-center rounded-pill border-2",
                       selected ? "border-primary" : "border-transparent",
                     )}
-                    style={{ backgroundColor: COLOR_PAIRS[key].bg }}
+                    style={{ backgroundColor: colorsForKey(key, scheme).bg }}
                   >
-                    {selected ? <Icon as={Check} size={16} color={COLOR_PAIRS[key].fg} /> : null}
+                    {selected ? <Icon as={Check} size={16} color={colorsForKey(key, scheme).fg} /> : null}
                   </View>
                 </Pressable>
               );

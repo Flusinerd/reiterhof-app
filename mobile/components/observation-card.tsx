@@ -1,10 +1,10 @@
 import { router, type Href } from "expo-router";
-import { Image, View } from "react-native";
+import { View } from "react-native";
 
+import { AuthImage } from "@/components/auth-image";
 import { Badge, PressableCard, Text } from "@/components/ui";
 import type { Observation } from "@/lib/api/observations";
 import { observationRoute, observationTitle, reportedText, statusBadgeVariant, statusLabel, urgencyBadgeVariant, urgencyLabel } from "@/lib/observations";
-import { fileSource } from "@/lib/upload";
 
 /**
  * Card for one observation: title, badges (urgency, status "Beobachten"/"Erledigt"), first line of the
@@ -39,8 +39,8 @@ export function ObservationCard({
             </Text>
           </View>
           {photo ? (
-            <Image
-              source={fileSource(photo.url)}
+            <AuthImage
+              url={photo.url}
               accessibilityIgnoresInvertColors
               className="h-14 w-14 rounded-button-sm bg-divider"
             />
