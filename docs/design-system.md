@@ -189,6 +189,18 @@ a tone, title, detail, at most one `Button sm` on the right; only the training s
 timeline: a hairline with one dot per entry (`success` session, `accent` open observation, `danger` urgent, `border` done), the line
 above in `eyebrow` ("Gestern · Mia"), notes as italic quotes (`font-display-italic`), photos as 72 px thumbnails.
 
+### The stable pages
+
+Everything about the stable follows the same pattern: no cards, rows on the page with a hairline each (`border-b border-divider`,
+the last one without). A person is a row (`Avatar`, name, a short line, something in brass on the right: "seit 18:40"). A request is a
+message (`RequestRow`: avatar, "Anna · morgen 07:00" with the time in brass, the text, a quiet line, an outlined answer button),
+grouped by day under a `SectionTitle`. A blanket horse is a row with the blanket in italic and the state buttons in one compact
+row (`flex-1`, `size="sm"`, 8 px padding, so three labels fit at 390 px); finished rows fade (`opacity-60`). A reminder is the same line
+as on "Heute". The weather is one sentence and three figures in brass (`WeatherCard`); a warning is a row with a stripe in the
+tone of its level. Form labels are `eyebrow`; the choices of a type are `Pill`s with an icon; the page has one primary button
+("Senden", "Neu", "Runde starten", "Bin da"). Selected text on a `bg-primary` surface is `text-primary-foreground`, never `text-white`
+(brass in the dark scheme needs dark text).
+
 ## Navigation
 
 Bottom tab bar (`app/(tabs)/_layout.tsx`), four tabs:
@@ -197,7 +209,7 @@ Bottom tab bar (`app/(tabs)/_layout.tsx`), four tabs:
 | --- | --- | --- |
 | Heute | `(tabs)/index` | Next task and timeline of today and tomorrow for the user's horses (`lib/today.ts`, `lib/use-today.ts`, `components/today-parts.tsx`) |
 | *Name of the horse* / Pferde | `(tabs)/horse` | The user's only horse (owner or rider) directly, named after it; with several horses the horse list |
-| Stall | `(tabs)/stable` | "Bin da", who is here, tonight's blankets, requests for help, weather warnings |
+| Stall | `(tabs)/stable` | "Bin da", who is here (faces and one sentence), tonight's blankets as a board of horse avatars with a status dot, requests for help as messages, weather warnings (`lib/stable-tab.ts`, `components/stable-parts.tsx`, `components/request-row.tsx`) |
 | Ich | `(tabs)/me` | Links (reminders, training, exercises, all horses), notifications, account (the settings screen) |
 
 The active tab is brass with a short line above the icon; the bar has the page background and a hairline.

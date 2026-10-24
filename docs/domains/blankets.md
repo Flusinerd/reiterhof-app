@@ -262,22 +262,28 @@ Mobile: `components/weather-warnings.tsx`, `lib/api/weather.ts`, pure helpers wi
   the same severity, so only escalations push again.
 - **API** `GET /api/v1/weather/warnings` (every member): `{warnings: [{id, event, severity, headline,
   description, instruction, onset, expires, fetched_at}]}`, active ones (not expired), most severe first.
-- **App:** a card per warning above the content of the start screen and the tab "Decken" (level badge
-  in info/accent/danger for yellow/orange/red+violet, headline, time range in the stable's time zone;
-  tap shows description and the DWD's advice), "Quelle: Deutscher Wetterdienst". Nothing is shown
+- **App:** a row per warning above the content of the tab "Stall" and the list "Decken" (a stripe in
+  info/accent/danger for yellow/orange/red+violet, the level as eyebrow, headline, time range in the stable's time zone;
+  tap shows description and the DWD's advice; on "Heute" the quiet strip), "Quelle: Deutscher Wetterdienst". Nothing is shown
   without warnings. Pull to refresh reloads them.
 
 ## Mobile
 
-- Weather card (`components/weather-card.tsx`, on the tab and the plan): temperature range, rain
-  amount with intensity word, rain timing, peak per hour, probability, wind and an hourly strip
-  for the cover window (default 18:00 to 12:30, set per horse by owners and admins in the plan). Snapshots without details show the facts only.
-- Tab "Decken": hero with date, night line ("Heute Nacht 3 bis 9 °C, 4,8 mm Regen"), progress "4/7" and
-  "Erinnerung um 20:30"; open horses as large cards (avatar, recommendation with blanket photo
-  and location, owner wish, buttons "Eingedeckt"/"Abgedeckt" or "Geprüft", link "Mit anderer Decke
-  eindecken" which opens `components/blanket-choice-sheet.tsx` in cover mode), done horses as
-  compact rows (tap to correct; badge "Abweichend" when the state or the plan differs from the rules).
+- Weather block (`components/weather-card.tsx`, on the list and the plan, no card): the eyebrow "Deckenzeitraum · 18:00 bis 12:30 Uhr"
+  (default 18:00 to 12:30, set per horse by owners and admins in the plan), one sentence ("Mäßiger Regen von 22:00 bis 02:00 Uhr, bis 80 %
+  wahrscheinlich"), three figures in brass (temperature range, rain in mm, wind) and an hourly strip. Texts: `lib/weather-summary.ts`.
+  Snapshots without details give the amount only and no strip.
+- List "Decken" (`/blankets`): hero with date, night line ("Heute Nacht 3 bis 9 °C, 4,8 mm Regen"), progress "4/7" and
+  "Erinnerung um 20:30"; "Runde starten" is the one primary button; open horses as rows with hairlines
+  (`components/blanket-horse-row.tsx`: avatar, name and box, tonight's blanket in italic with its place, the small
+  blanket photo, "Dein Pferd", owner wish, the state buttons "Eingedeckt"/"Abgedeckt" or "Geprüft" in one compact row, link
+  "Mit anderer Decke eindecken" which opens `components/blanket-choice-sheet.tsx` in cover mode); done horses
+  faded below with a check (tap to correct; "Abweichend von der Regel" when the state or the plan differs from the rules);
+  the weather block at the end.
   A manual choice shows the badge "Abweichend von Regel" and "Regel: Decke 100 g". Realtime refresh.
+- Tab "Stall" (`app/(tabs)/stable.tsx`, `lib/stable-tab.ts`): "Decken heute Nacht" is a board: every horse is its avatar with
+  name and a small dot (done `success`, open `muted`, own horse still open `accent`), "3/7 versorgt" in brass opens the
+  list, the progress line, "Runde starten" while horses are open; a tap on a horse opens its blanket plan.
 - Deckenplan (`/horses/{id}/blanket-plan`): "Heute Nacht" hero (with a manual choice: badge "Abweichend
   von Regel", how long, "Regel: …", reason and who chose; owners and admins get "Decke von Hand wählen" /
   "Wahl ändern", which opens the choice sheet with blanket, "Wie lange?" (Nur heute Nacht, 3 Nächte,
@@ -290,10 +296,9 @@ Mobile: `components/weather-warnings.tsx`, `lib/api/weather.ts`, pure helpers wi
   upload through `lib/upload.ts`) and the helper note.
 - Abendrunde (`/blankets/round`, step 3 of the redesign): see "Evening round" below.
 - Verlauf (`/blankets/history/{horseId}`): the last 60 days.
-- Start screen: greeting, night temperature with the recommendations for my horses (owned and
-  ridden), weather warnings, presence tile, blanket progress tile, the two newest open requests.
-- The state buttons ("Eingedeckt", "Abgedeckt", "Geprüft") are text only and at least 128 px wide (`components/blanket-actions.tsx`); two sit
-  side by side in a card on a phone, otherwise they wrap into rows of their own (with an icon and `flex-1` the label was cut off).
+- The state buttons ("Eingedeckt", "Abgedeckt", "Geprüft") are text only, 44 px high with 8 px padding and share one row
+  (`flex-1`, `components/blanket-actions.tsx`); the longest label is about 80 px wide, so three fit at 390 px (an icon in the
+  button cut the label off once). The first button is `secondary`, the others `outline`.
 - Pure helpers with tests: `lib/blanket-round.ts` (evening round), `lib/blankets.ts` (texts, progress, greeting, manual choice: `ruleHint`,
   `deviatesFromRule`, `overrideUntilText`, `blanketChoices`), `lib/blankets-rules.ts`
   (rule drafts, validation, reorder, unreachable rules).

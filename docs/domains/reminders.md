@@ -105,9 +105,11 @@ the settings screen links there.
 
 ## Mobile
 
-- `/reminders`: hero "Deckencheck" (time of the reminder, progress "4/7", button "Zu den Decken"), "Heute", "Diese Woche" with a
-  heading per day. Tapping a row opens its `screen` (only internal whitelisted routes), the check icon "Erledigt" dismisses a stored
-  reminder. Refreshes on `blanket_state.changed` and `request.changed`.
+- `/reminders`: hero "Deckencheck" (time of the reminder, progress "4/7", button "Zu den Decken", primary only while horses are
+  open), then "Heute" and one heading per following day, each with rows in the look of the timeline of "Heute"
+  (`components/reminder-row.tsx`: time in brass, "fällig" in red for something overdue, "·" for all-day, title, text, kind;
+  `rowTime` and `rowMeta` in `lib/reminders.ts`). Tapping a row opens its `screen` (only internal whitelisted routes), the quiet
+  check icon "Erledigt" dismisses a stored reminder. Refreshes on `blanket_state.changed` and `request.changed`.
 - `/settings`: "Benachrichtigungen" (switch per kind, banner "Mitteilungen erlauben" without push consent, which opens the consent
   sheet, then the reminder time in quarter-hour steps with Speichern, admins only; members see the time), "Stallgasse" (invite
   card, admins only), "Konto" (links to the name screen, to `/presence` for geofence and visibility and to

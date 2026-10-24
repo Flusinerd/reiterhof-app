@@ -3,7 +3,7 @@
 Who is at the stable, JAN-24 (check-in/out), JAN-25 (visibility), JAN-26 (screen), JAN-27
 (geofence). Backend: `backend/internal/presence`, table `presence` (core schema, no extra
 migration). Mobile: `app/presence/index.tsx`, `lib/api/presence.ts`, `lib/geofence*.ts`,
-`components/presence-tile.tsx`.
+`components/stable-parts.tsx` (`PresenceRow`), `lib/stable-tab.ts`.
 
 ## Data
 
@@ -66,8 +66,11 @@ set when the person has at least 4 visits in that window and visibility `all`, a
 - The app menu top right on every screen has a check-in/out button ("Bin da" / "Ich gehe"); a long press opens `/presence`.
   It and the presence screen share `usePresenceCheckIn` (`components/presence-check-in.tsx`), which asks for the
   `presence_sharing` consent before a check-in.
-- `/presence`: the big check-in/out button, "Jetzt da", "Zuletzt gesehen", and the geofence switch and visibility. The start
-  screen's presence tile opens it.
+- `/presence`: the head is one sentence ("Anna, Lea und Mia sind da", "Du bist da", "Niemand im Stall"; `presenceSentence`
+  in `lib/stable-tab.ts`, me first as "Du") with the one big check-in/out button, then "Jetzt da" and "Zuletzt gesehen" as
+  rows with hairlines (avatar, name, "seit 18:40" in brass), and the settings on the page: the geofence switch and
+  "Wer sieht mich?". The row "Wer ist da" of the tab "Stall" (`PresenceRow`: up to four overlapping faces and the
+  sentence with the names strong) opens it.
 
 ## Check-out hook
 

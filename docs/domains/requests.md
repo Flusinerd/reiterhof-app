@@ -1,9 +1,9 @@
 # Requests (Anfragen, M4)
 
 Help requests to the whole stable ("Turniertrottel", trailer seat, "Bewegen", ...).
-Backend: `backend/internal/requests/`, migration `0050_requests.up.sql`. Mobile: tab
-`app/(tabs)/requests.tsx`, screens `app/requests/{new,[id],calendar}.tsx`, helpers
-`lib/requests*.ts`, `lib/api/requests.ts`, `components/request-*.tsx`.
+Backend: `backend/internal/requests/`, migration `0050_requests.up.sql`. Mobile: screens
+`app/requests/{index,new,[id],calendar}.tsx` (see "Mobile" below), helpers `lib/requests*.ts`,
+`lib/stable-tab.ts`, `lib/api/requests.ts`, `components/request-*.tsx`, `components/start-requests.tsx`.
 
 Requests go to **everyone** in the stable (not only people who are present). Everything is
 scoped by `stable_id`; all routes use `auth.RequireStable`. Other stables get `404`.
@@ -18,7 +18,7 @@ Status: `open` -> `assigned` (when helpers == `helpers_needed`) -> `done`; `canc
 `open`/`assigned`. A withdrawal moves `assigned` back to `open`.
 
 Request JSON (all responses): `id, type, horse_id, horse_name, horse_color_key, created_by,
-creator_name, date (YYYY-MM-DD), date_end (inclusive or null), time_from, time_to (HH:MM),
+creator_name, creator_color (avatar color key of the creator, may be null), date (YYYY-MM-DD), date_end (inclusive or null), time_from, time_to (HH:MM),
 location, description, tasks[], helpers_needed, status, recurring_rule, series_id,
 payload, created_at, helpers[{user_id,name,avatar_color,thanked,joined_at}],
 helpers_count, spots_left, is_creator, is_helper, can_accept, my_remind_at` (the viewer's own
@@ -117,6 +117,26 @@ embedded `VTIMEZONE`); requests without a start time are all-day events (`DTEND`
 The mobile app adds events with the system calendar screen (`expo-calendar`, no permission
 needed) and falls back to the share sheet. The ICS URLs need the bearer token, so they cannot be
 subscribed to from other calendar apps yet.
+
+## Mobile
+
+Requests are shown as messages, never as cards ([design system](../design-system.md)): `components/request-row.tsx`
+(`RequestRow`) has the avatar of who asked (`creator_color`), the first name or "Du" with the time in brass
+("Anna · morgen 07:00"), the text (the description, else the title; ride shares "Mitfahrgelegenheit nach Haltern"),
+a quiet line with the type, place and repeat, and the answer: the outlined accept button of the type ("Mach ich",
+"Ich komme mit") and who helps ("Noch niemand", "Jonas hilft", "Du und Jonas helfen · 2 von 3 Plätzen"). The texts
+are pure helpers in `lib/stable-tab.ts` (`requestRow`, `requestWhen`, `helpersLine`, `groupRequestsByDay`).
+
+- `/requests`: header with "Neu" (the page's one primary button) and the calendar icon, the filter pills (Offen, Meine, Ich
+  helfe, Erledigt), the requests grouped by day with a heading ("Morgen", "Montag, 26. Okt") and hairlines. Done and
+  cancelled ones fade. `/requests/calendar` uses the same rows.
+- `/requests/[id]`: one primary action by role (accept for everybody who can, else "Erledigt" for the creator and the
+  helpers), the description as an italic quote, the facts as rows (Wo, Pferd, Ziel, Wiederholung ...), "Meine Erinnerung" pills
+  for helpers, the checklist and the helpers as rows ("Danke" for the creator), and the quiet actions as rows
+  (Abmelden, In Kalender, Anfrage absagen in red, which asks in a sheet).
+- `/requests/new`: the type as icon pills with its hint, the fields with upper-case labels (`FieldRow`), one primary
+  button "Senden".
+- The tab "Stall" shows the three newest open requests with the same rows and renders nothing when there are none.
 
 ## Blanket requests close automatically
 
