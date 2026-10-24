@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 
 import { WeekStructureRows } from "@/components/training-week-structure";
-import { Button, Card, Divider, Input, PageHeader, Screen, Section, Text } from "@/components/ui";
+import { Button, Divider, Input, PageHeader, Screen, Section, Text } from "@/components/ui";
 import { trainingError, useProfile, useSaveProfile, type ProfileInput } from "@/lib/api/training";
 import { horseRoutes } from "@/lib/horse-format";
 import { ACTIVITIES, activityLabel } from "@/lib/training";
@@ -30,19 +30,19 @@ export default function StructureEditor() {
   if (profile.isError) {
     return (
       <Screen back>
-        <Card className="gap-3">
+        <View className="gap-3">
           <Text variant="secondary">{trainingError(profile.error)}</Text>
           <Button label="Erneut versuchen" variant="outline" onPress={() => void profile.refetch()} />
-        </Card>
+        </View>
       </Screen>
     );
   }
   if (data && !data.can_edit) {
     return (
       <Screen back>
-        <Card>
+        <View>
           <Text variant="secondary">Nur Besitzer und Admins können das Profil ändern.</Text>
-        </Card>
+        </View>
       </Screen>
     );
   }
@@ -92,7 +92,7 @@ export default function StructureEditor() {
         title="Wochenziele"
         description="Einheiten pro Woche (Mo–So). Die Planung füllt sie auf und plant nicht mehr fordernde Einheiten oder mehr einer Aktivität als angegeben. Leer = kein Ziel."
       >
-        <Card padded={false}>
+        <View>
           <QuotaRow
             label="Fordernd"
             value={draft.quotaDemanding}
@@ -112,7 +112,7 @@ export default function StructureEditor() {
               onChange={(v) => patch({ quotaActivities: { ...draft.quotaActivities, [a]: v } })}
             />
           ))}
-        </Card>
+        </View>
         <Text variant="caption">
           Die Belastung steigt höchstens um etwa 20 % gegenüber dem Schnitt der letzten zwei Wochen.
         </Text>
@@ -144,7 +144,7 @@ function QuotaRow({
   return (
     <View>
       {first ? null : <Divider />}
-      <View className="min-h-12 flex-row items-center gap-3 px-4 py-2">
+      <View className="min-h-12 flex-row items-center gap-3 py-2">
         <Text variant="body" className="flex-1">
           {label}
         </Text>

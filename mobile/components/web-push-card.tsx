@@ -2,7 +2,7 @@ import { Bell } from "lucide-react-native";
 import { useState } from "react";
 import { Platform, View } from "react-native";
 
-import { Button, Card, Icon, Text } from "@/components/ui";
+import { Button, Icon, Text } from "@/components/ui";
 import { useHasConsent } from "@/lib/consent";
 import { enableWebPush, webPushPermission, webPushSupportNow } from "@/lib/webpush";
 import { webPushCardState, webPushReasonMessage, type WebPushReason } from "@/lib/webpush-core";
@@ -38,9 +38,9 @@ export function WebPushCard() {
 
   const reason = state.kind === "hint" ? state.reason : failure;
   return (
-    <Card className="gap-3">
-      <View className="flex-row items-center gap-3">
-        <Icon as={Bell} size={20} className="text-accent-text" />
+    <View className="gap-2 border-l-2 border-accent pl-3">
+      <View className="flex-row items-center gap-2">
+        <Icon as={Bell} size={18} className="text-accent-text" />
         <Text variant="bodyStrong" className="flex-1">
           Mitteilungen auf diesem Gerät
         </Text>
@@ -53,8 +53,8 @@ export function WebPushCard() {
         <Text variant="secondary">Erinnerungen und Alarme brauchen die Erlaubnis dieses Browsers.</Text>
       )}
       {state.kind === "enable" ? (
-        <Button label="Aktivieren" variant="outline" loading={busy} onPress={() => void enable()} />
+        <Button label="Aktivieren" variant="outline" size="sm" loading={busy} onPress={() => void enable()} />
       ) : null}
-    </Card>
+    </View>
   );
 }

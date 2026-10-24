@@ -68,7 +68,7 @@ export function ConsentSheet({ kind, onDone }: ConsentSheetProps) {
           <View className="gap-2">
             {copy.points.map((point) => (
               <View key={point} className="flex-row gap-2">
-                <Text variant="body">•</Text>
+                <Text variant="body" tone="brass">•</Text>
                 <Text variant="body" className="flex-1">
                   {point}
                 </Text>

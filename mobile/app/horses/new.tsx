@@ -17,6 +17,7 @@ export default function NewHorse() {
   return (
     <Screen back keyboardShouldPersistTaps="handled">
       <PageHeader
+        eyebrow="Pferde"
         title="Pferd anlegen"
         description="Du wirst als Besitzer eingetragen."
       />

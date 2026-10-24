@@ -1,8 +1,8 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams, type Href } from "expo-router";
-import { Hand, History, MapPin, Pencil, Plus, RotateCcw } from "lucide-react-native";
+import { Hand, History, Pencil, Plus, RotateCcw } from "lucide-react-native";
 import { useState } from "react";
-import { Pressable, RefreshControl, View } from "react-native";
+import { RefreshControl, View } from "react-native";
 
 import { BlanketChoiceSheet } from "@/components/blanket-choice-sheet";
 import { BlanketEditSheet } from "@/components/blanket-edit-sheet";
@@ -11,7 +11,8 @@ import { BlanketPhoto } from "@/components/blanket-photo";
 import { BlanketRulesSheet } from "@/components/blanket-rules-sheet";
 import { CoverWindowSection } from "@/components/cover-window-section";
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
-import { Badge, Button, Card, Icon, Input, PageHeader, Screen, Section, Sheet, Text } from "@/components/ui";
+import { Button, Input, PageHeader, Screen, Section, Sheet, Text } from "@/components/ui";
+import { ListRow, RowList } from "@/components/ui/list-row";
 import { WeatherCard } from "@/components/weather-card";
 import { errorMessage } from "@/lib/api";
 import { BLANKET_PLAN_EVENT, BLANKET_STATE_EVENT, blanketKeys, blanketsApi, usePlan, usePlanMutation } from "@/lib/api/blankets";
@@ -33,11 +34,12 @@ import {
   type Blanket,
 } from "@/lib/blankets";
 import { useInvalidateOnEvents } from "@/lib/realtime";
-import { colors } from "@/lib/theme";
+import { useColors } from "@/lib/theme";
 
 /** Deckenplan of a horse (JAN-30): tonight's recommendation, rules, blankets, helper note, history. */
 export default function BlanketPlan() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const c = useColors();
   const queryClient = useQueryClient();
   const { me } = useAuth();
   const plan = usePlan(id);
@@ -90,60 +92,58 @@ export default function BlanketPlan() {
         <RefreshControl
           refreshing={plan.isRefetching}
           onRefresh={() => void queryClient.invalidateQueries({ queryKey: blanketKeys.all })}
-          tintColor={colors.primary.DEFAULT}
+          tintColor={c.primary.DEFAULT}
         />
       }
     >
       <PageHeader eyebrow={`${p.horse.name} · ${nightLine(p.weather)}`} title="Heute Nacht" description={recommendationDetail(rec)}>
-        <Card className="flex-row items-center gap-4">
-          <BlanketPhoto url={rec.blanket?.photo_url ?? null} size={88} />
-          <View className="flex-1 gap-1">
-            <Text variant="title">{recommendationTitle(rec)}</Text>
-            {rec.blanket ? <Text variant="body">{fillLabel(rec.blanket.fill_g)}</Text> : null}
-            {p.state ? (
-              <Text variant="secondary">
-                {stateLabel(p.state)} · {stateByline(p.state, timeZone)}
-              </Text>
-            ) : null}
-            {rec.manual ? (
-              <View className="flex-row flex-wrap items-center gap-2">
-                <Badge variant="accent" label="Abweichend von Regel" />
-                {p.override ? <Text variant="caption">{overrideUntilText(p.override, p.day)}</Text> : null}
-              </View>
-            ) : stateDeviates ? (
-              <Badge variant="accent" label="Abweichend von Regel" />
-            ) : null}
-            {hint ? <Text variant="secondary">{hint}</Text> : null}
-            {rec.note ? <Text variant="bodySm">{rec.manual ? "Grund" : "Wunsch"}: {rec.note}</Text> : null}
-            {rec.manual && p.override?.set_by ? (
-              <Text variant="caption">Gewählt von {p.override.set_by.name}</Text>
-            ) : null}
+        <View className="gap-4 rounded-card border border-border bg-raised p-5">
+          <View className="flex-row items-center gap-4">
+            <BlanketPhoto url={rec.blanket?.photo_url ?? null} size={88} />
+            <View className="flex-1 gap-1">
+              {rec.manual || stateDeviates ? (
+                <Text variant="eyebrow" tone="accent">
+                  Abweichend von Regel
+                </Text>
+              ) : null}
+              <Text variant="title">{recommendationTitle(rec)}</Text>
+              {rec.blanket ? <Text variant="body">{fillLabel(rec.blanket.fill_g)}</Text> : null}
+              {p.state ? (
+                <Text variant="bodySm" tone="muted">
+                  {stateLabel(p.state)} · {stateByline(p.state, timeZone)}
+                </Text>
+              ) : null}
+              {rec.manual && p.override ? <Text variant="caption">{overrideUntilText(p.override, p.day)}</Text> : null}
+            </View>
           </View>
-        </Card>
-        {canManage ? (
-          <View className="flex-row flex-wrap gap-3">
-            <Button
-              label={rec.manual ? "Wahl ändern" : "Decke von Hand wählen"}
-              icon={Hand}
-              variant="secondary"
-              size="sm"
-              onPress={() => setChoiceOpen(true)}
-            />
-            {rec.manual ? (
+          {hint ? <Text variant="secondary">{hint}</Text> : null}
+          {rec.note ? <Text variant="bodySm">{rec.manual ? "Grund" : "Wunsch"}: {rec.note}</Text> : null}
+          {rec.manual && p.override?.set_by ? <Text variant="caption">Gewählt von {p.override.set_by.name}</Text> : null}
+          {canManage ? (
+            <View className="flex-row flex-wrap gap-2">
               <Button
-                label="Zurück zur Regel"
-                icon={RotateCcw}
-                variant="ghost"
+                label={rec.manual ? "Wahl ändern" : "Decke von Hand wählen"}
+                icon={Hand}
+                variant="outline"
                 size="sm"
-                loading={resetChoice.isPending}
-                onPress={() => {
-                  setResetError(null);
-                  resetChoice.mutate(undefined, { onError: (e) => setResetError(blanketErrorMessage(e)) });
-                }}
+                onPress={() => setChoiceOpen(true)}
               />
-            ) : null}
-          </View>
-        ) : null}
+              {rec.manual ? (
+                <Button
+                  label="Zurück zur Regel"
+                  icon={RotateCcw}
+                  variant="ghost"
+                  size="sm"
+                  loading={resetChoice.isPending}
+                  onPress={() => {
+                    setResetError(null);
+                    resetChoice.mutate(undefined, { onError: (e) => setResetError(blanketErrorMessage(e)) });
+                  }}
+                />
+              ) : null}
+            </View>
+          ) : null}
+        </View>
         {resetError ? (
           <Text variant="bodySm" tone="danger" accessibilityRole="alert">
             {resetError}
@@ -170,25 +170,20 @@ export default function BlanketPlan() {
               : "Noch keine Regeln."}
           </Text>
         ) : (
-          p.rules.map((r, i) => {
-            const active = ruleRec.rule_index === i;
-            return (
-              <Card key={r.id} shape="tile" className={active ? "gap-1 border-primary bg-primary-soft" : "gap-1"}>
-                <View className="flex-row items-center justify-between gap-3">
-                  <Text variant="bodyStrong" className="flex-1">
-                    {ruleBlanketName(r, p.blankets)}
-                  </Text>
-                  {active ? (
-                    <Badge variant="primary" label={rec.manual ? "Regel heute Nacht" : "Gilt heute Nacht"} />
-                  ) : null}
-                </View>
-                <Text variant="secondary">
-                  {i + 1}. {ruleCondition(r)}
-                </Text>
-                {r.note ? <Text variant="bodySm">Wunsch: {r.note}</Text> : null}
-              </Card>
-            );
-          })
+          <RowList>
+            {p.rules.map((r, i) => {
+              const active = ruleRec.rule_index === i;
+              return (
+                <ListRow
+                  key={r.id}
+                  eyebrow={active ? (rec.manual ? "Regel heute Nacht" : "Gilt heute Nacht") : `Regel ${i + 1}`}
+                  eyebrowTone={active ? "brass" : undefined}
+                  title={ruleBlanketName(r, p.blankets)}
+                  detail={`${i + 1}. ${ruleCondition(r)}${r.note ? ` · Wunsch: ${r.note}` : ""}`}
+                />
+              );
+            })}
+          </RowList>
         )}
       </Section>
 
@@ -205,36 +200,18 @@ export default function BlanketPlan() {
             Noch keine Decken.
           </Text>
         ) : (
-          <View className="flex-row flex-wrap gap-3">
+          <RowList>
             {p.blankets.map((b) => (
-              <Pressable
+              <ListRow
                 key={b.id}
-                disabled={!canManage}
-                accessibilityRole={canManage ? "button" : undefined}
+                leading={<BlanketPhoto url={b.photo_url} size={56} />}
+                title={b.name}
+                detail={[fillLabel(b.fill_g), b.color, b.location].filter(Boolean).join(" · ")}
                 accessibilityLabel={canManage ? `${b.name} bearbeiten` : b.name}
-                onPress={() => setEditing({ blanket: b })}
-                className="basis-[47%] grow"
-              >
-                <Card shape="tile" className="gap-2 p-3">
-                  <BlanketPhoto url={b.photo_url} size={96} />
-                  <View className="gap-0.5">
-                    <Text variant="bodyStrong" numberOfLines={1}>
-                      {b.name}
-                    </Text>
-                    <Text variant="caption">{[fillLabel(b.fill_g), b.color].filter(Boolean).join(" · ")}</Text>
-                    {b.location ? (
-                      <View className="flex-row items-center gap-1">
-                        <Icon as={MapPin} size={12} className="text-muted" />
-                        <Text variant="caption" numberOfLines={1} className="flex-1">
-                          {b.location}
-                        </Text>
-                      </View>
-                    ) : null}
-                  </View>
-                </Card>
-              </Pressable>
+                onPress={canManage ? () => setEditing({ blanket: b }) : undefined}
+              />
             ))}
-          </View>
+          </RowList>
         )}
       </Section>
 

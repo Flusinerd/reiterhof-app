@@ -5,7 +5,8 @@ import { View } from "react-native";
 import { HorseEmergencyPreview } from "@/components/horse-emergency-preview";
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
 import { HorseRiders } from "@/components/horse-riders";
-import { Button, Card, Divider, LinkRow, Section, Text } from "@/components/ui";
+import { Button, Icon, Section, Text } from "@/components/ui";
+import { ListRow, RowList } from "@/components/ui/list-row";
 import { useDocuments, useEmergency, type Horse } from "@/lib/api/horses";
 import { horseRoutes } from "@/lib/horse-format";
 
@@ -36,31 +37,41 @@ export function HorseFileTab({ horse: h }: { horse: Horse }) {
       </Section>
 
       <Section title="Mehr zum Pferd">
-        <Card padded={false} className="overflow-hidden">
+        <RowList>
           {canSeeDocuments ? (
-            <>
-              <LinkRow
-                className="rounded-none border-0"
-                icon={FileText}
-                label="Dokumente"
-                description={
-                  documents.data
-                    ? documents.data.length === 0
-                      ? "Noch keine Dokumente"
-                      : `${documents.data.length} ${documents.data.length === 1 ? "Dokument" : "Dokumente"}`
-                    : "Equidenpass, Impfpass, Versicherung"
-                }
-                onPress={() => go(horseRoutes.documents(h.id))}
-              />
-              <Divider />
-            </>
+            <ListRow
+              leading={<Icon as={FileText} size={20} className="text-muted" />}
+              title="Dokumente"
+              detail={
+                documents.data
+                  ? documents.data.length === 0
+                    ? "Noch keine Dokumente"
+                    : `${documents.data.length} ${documents.data.length === 1 ? "Dokument" : "Dokumente"}`
+                  : "Equidenpass, Impfpass, Versicherung"
+              }
+              accessibilityLabel="Dokumente"
+              onPress={() => go(horseRoutes.documents(h.id))}
+            />
           ) : null}
-          <LinkRow className="rounded-none border-0" icon={Activity} label="Trainingsprofil" onPress={() => go(horseRoutes.trainingProfile(h.id))} />
-          <Divider />
-          <LinkRow className="rounded-none border-0" icon={Shirt} label="Deckenplan" onPress={() => go(horseRoutes.blanketPlan(h.id))} />
-          <Divider />
-          <LinkRow className="rounded-none border-0" icon={HeartPulse} label="Reha" onPress={() => go(horseRoutes.reha(h.id))} />
-        </Card>
+          <ListRow
+            leading={<Icon as={Activity} size={20} className="text-muted" />}
+            title="Trainingsprofil"
+            accessibilityLabel="Trainingsprofil"
+            onPress={() => go(horseRoutes.trainingProfile(h.id))}
+          />
+          <ListRow
+            leading={<Icon as={Shirt} size={20} className="text-muted" />}
+            title="Deckenplan"
+            accessibilityLabel="Deckenplan"
+            onPress={() => go(horseRoutes.blanketPlan(h.id))}
+          />
+          <ListRow
+            leading={<Icon as={HeartPulse} size={20} className="text-muted" />}
+            title="Reha"
+            accessibilityLabel="Reha"
+            onPress={() => go(horseRoutes.reha(h.id))}
+          />
+        </RowList>
       </Section>
 
       {h.helper_note ? (

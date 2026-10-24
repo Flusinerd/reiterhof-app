@@ -6,7 +6,7 @@ import { Alert, Image, Pressable, View } from "react-native";
 
 import { useConsentPrompt } from "@/components/consent-prompt";
 import { ObservationBodyPicker } from "@/components/observation-body-picker";
-import { Button, Icon, Input, PageHeader, Pill, Screen, Section, Text, ToggleGroup, ToggleGroupItem } from "@/components/ui";
+import { Button, Icon, Input, PageHeader, Pill, Screen, Text, ToggleGroup, ToggleGroupItem } from "@/components/ui";
 import { errorMessage } from "@/lib/api";
 import { useHorses } from "@/lib/api/horses";
 import { useReportObservation } from "@/lib/api/observations";
@@ -22,6 +22,16 @@ import {
   type Urgency,
 } from "@/lib/observations";
 import { PHOTO_PICKER_OPTIONS, pickedFile, uploadErrorMessage, uploadFile, type UploadInput } from "@/lib/upload";
+
+/** One question of the form: small eyebrow above its answer (six headings would shout). */
+function Step({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <View className="gap-3">
+      <Text variant="eyebrow">{title}</Text>
+      {children}
+    </View>
+  );
+}
 
 function confirmUrgent(): Promise<boolean> {
   return new Promise((resolve) => {
@@ -129,11 +139,12 @@ export default function NewObservation() {
   return (
     <Screen back keyboardShouldPersistTaps="handled">
       <PageHeader
+        eyebrow="Pferdeakte"
         title="Auffälligkeit melden"
         description="Besitzer und Reitbeteiligungen werden informiert."
       />
 
-      <Section title="Pferd">
+      <Step title="Pferd">
         <View className="flex-row flex-wrap gap-2">
           {(horses.data ?? []).map((h) => (
             <Pill key={h.id} label={h.name} selected={horseId === h.id} onPress={() => setHorseId(h.id)} />
@@ -141,21 +152,21 @@ export default function NewObservation() {
           {horses.isPending ? <Text variant="secondary">Lädt …</Text> : null}
           {horses.isError ? <Text variant="secondary" tone="danger">{errorMessage(horses.error)}</Text> : null}
         </View>
-      </Section>
+      </Step>
 
-      <Section title="Was ist aufgefallen?">
+      <Step title="Was ist aufgefallen?">
         <View className="flex-row flex-wrap gap-2">
           {CATEGORIES.map((c) => (
             <Pill key={c} label={categoryLabel(c)} selected={category === c} onPress={() => setCategory(c)} />
           ))}
         </View>
-      </Section>
+      </Step>
 
-      <Section title="Wo?">
+      <Step title="Wo?">
         <ObservationBodyPicker value={bodyPart} onChange={setBodyPart} />
-      </Section>
+      </Step>
 
-      <Section title="Beschreibung">
+      <Step title="Beschreibung">
         <Input
           value={description}
           onChangeText={setDescription}
@@ -166,9 +177,9 @@ export default function NewObservation() {
           maxLength={MAX_DESCRIPTION}
           className="h-32 py-3"
         />
-      </Section>
+      </Step>
 
-      <Section title="Fotos">
+      <Step title="Fotos">
         {photos.length > 0 ? (
           <View className="flex-row flex-wrap gap-3">
             {photos.map((p) => (
@@ -198,9 +209,9 @@ export default function NewObservation() {
           </View>
         ) : null}
         <Text variant="caption">Max. {MAX_PHOTOS} Fotos.</Text>
-      </Section>
+      </Step>
 
-      <Section title="Wie dringend?">
+      <Step title="Wie dringend?">
         <ToggleGroup type="single" value={urgency} onValueChange={(v) => setUrgency(v as Urgency)}>
           <ToggleGroupItem value="info" label="Info" icon={Info} />
           <ToggleGroupItem value="check" label="Bitte ansehen" icon={Eye} />
@@ -209,7 +220,7 @@ export default function NewObservation() {
         <Text variant="secondary" tone={urgent ? "danger" : "muted"}>
           {urgencyHint(urgency)}
         </Text>
-      </Section>
+      </Step>
 
       {error ? (
         <Text variant="bodySm" tone="danger" accessibilityRole="alert">

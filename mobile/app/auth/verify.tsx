@@ -7,7 +7,7 @@ import { Button, PageHeader, Screen, Text } from "@/components/ui";
 import { errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { isPlausibleToken } from "@/lib/deep-link";
-import { colors } from "@/lib/theme";
+import { useColors } from "@/lib/theme";
 
 /**
  * Target of the magic link `stallfunk://auth/verify?token=...` (Expo Router maps the link to
@@ -15,6 +15,7 @@ import { colors } from "@/lib/theme";
  * join screen or the tabs.
  */
 export default function Verify() {
+  const c = useColors();
   const router = useRouter();
   const { token } = useLocalSearchParams<{ token?: string }>();
   const { signInWithMagicToken } = useAuth();
@@ -47,7 +48,7 @@ export default function Verify() {
           <Button label="Neu anfordern" size="lg" fullWidth onPress={() => router.replace("/(auth)/sign-in")} />
         </View>
       ) : (
-        <ActivityIndicator color={colors.primary.DEFAULT} className="self-start" />
+        <ActivityIndicator color={c.primary.DEFAULT} className="self-start" />
       )}
     </Screen>
   );

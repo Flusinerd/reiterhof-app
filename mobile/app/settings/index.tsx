@@ -1,31 +1,22 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { router, type Href } from "expo-router";
-import { Activity, Bell, BellOff, BookOpen, ChevronRight, LogOut, MapPin, Pencil, ShieldCheck, type LucideIcon } from "lucide-react-native";
+import { Activity, Bell, BellOff, BookOpen, LogOut, MapPin, Pencil, ShieldCheck, type LucideIcon } from "lucide-react-native";
 import { useState } from "react";
-import { ActivityIndicator, Pressable, View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 
 import { useConsentPrompt } from "@/components/consent-prompt";
 import { Horse } from "@/components/icons/horse";
 import { InviteCard } from "@/components/invite-card";
 import { ReminderTimeCard } from "@/components/reminder-time-card";
 import { WebPushCard } from "@/components/web-push-card";
-import {
-  Button,
-  Card,
-  Divider,
-  Icon,
-  PageHeader,
-  Screen,
-  Section,
-  Switch,
-  Text,
-} from "@/components/ui";
+import { Button, Icon, PageHeader, Screen, Section, Switch, Text } from "@/components/ui";
+import { ListRow, RowList } from "@/components/ui/list-row";
 import { errorMessage } from "@/lib/api";
 import { reminderKeys, remindersApi, useNotificationSettings } from "@/lib/api/reminders";
 import { useAuth } from "@/lib/auth";
 import { useHasConsent } from "@/lib/consent";
 import type { NotificationSettings } from "@/lib/reminders";
-import { colors } from "@/lib/theme";
+import { useColors } from "@/lib/theme";
 
 /**
  * Settings (JAN-70): notifications per kind with the stable's reminder time, inviting (admins only), then the
@@ -37,6 +28,7 @@ export default function SettingsRoute() {
 
 /** Also the "Ich" tab (`back` false): then with the links that used to be tabs or in the app menu. */
 export function Settings({ back }: { back: boolean }) {
+  const c = useColors();
   const queryClient = useQueryClient();
   const { user, hasStable, signOut } = useAuth();
   const settings = useNotificationSettings();
@@ -80,18 +72,15 @@ export function Settings({ back }: { back: boolean }) {
 
   return (
     <Screen back={back} menu={back}>
-      <PageHeader title={back ? "Einstellungen" : (user?.name ?? "Ich")} description={user ? (back ? `${user.name}, ${user.email}` : user.email) : undefined} />
+      <PageHeader eyebrow={back ? undefined : "Ich"} title={back ? "Einstellungen" : (user?.name ?? "Ich")} description={user ? (back ? `${user.name}, ${user.email}` : user.email) : undefined} />
 
       {!back && hasStable ? (
-        <Card padded={false}>
-          <LinkRow icon={Bell} title="Erinnerungen" description="Heute und diese Woche" onPress={() => router.push("/reminders" as Href)} />
-          <Divider />
-          <LinkRow icon={Activity} title="Training" description="Empfehlung, Woche, Einheit erfassen" onPress={() => router.push("/training" as Href)} />
-          <Divider />
-          <LinkRow icon={BookOpen} title="Übungen" description="Die Übungsbibliothek" onPress={() => router.push("/training/exercises" as Href)} />
-          <Divider />
-          <LinkRow icon={Horse} title="Alle Pferde" description="Pferde im Stall, Pferd anlegen" onPress={() => router.push("/horses" as Href)} />
-        </Card>
+        <RowList>
+          <SettingsLink icon={Bell} title="Erinnerungen" description="Heute und diese Woche" onPress={() => router.push("/reminders" as Href)} />
+          <SettingsLink icon={Activity} title="Training" description="Empfehlung, Woche, Einheit erfassen" onPress={() => router.push("/training" as Href)} />
+          <SettingsLink icon={BookOpen} title="Übungen" description="Die Übungsbibliothek" onPress={() => router.push("/training/exercises" as Href)} />
+          <SettingsLink icon={Horse} title="Alle Pferde" description="Pferde im Stall, Pferd anlegen" onPress={() => router.push("/horses" as Href)} />
+        </RowList>
       ) : null}
 
       {error ? (
@@ -102,9 +91,9 @@ export function Settings({ back }: { back: boolean }) {
 
       <Section title="Benachrichtigungen">
         {pushConsent === false ? (
-          <Card className="gap-3 border-accent-soft bg-accent-soft">
-            <View className="flex-row items-center gap-3">
-              <Icon as={BellOff} size={20} className="text-accent-text" />
+          <View className="gap-2 border-l-2 border-accent pl-3">
+            <View className="flex-row items-center gap-2">
+              <Icon as={BellOff} size={18} className="text-accent-text" />
               <Text variant="bodyStrong" className="flex-1">
                 Mitteilungen sind aus
               </Text>
@@ -112,34 +101,33 @@ export function Settings({ back }: { back: boolean }) {
             <Text variant="secondary">
               Ohne deine Erlaubnis kommen keine Mitteilungen, egal was du unten einstellst. Erinnerungen siehst du trotzdem in der Übersicht.
             </Text>
-            <Button label="Erlauben" variant="outline" onPress={() => void allowPush()} />
-          </Card>
+            <Button label="Erlauben" variant="outline" size="sm" onPress={() => void allowPush()} />
+          </View>
         ) : null}
         <WebPushCard />
-        <Card className="gap-4">
-          {settings.isPending ? (
-            <ActivityIndicator color={colors.primary.DEFAULT} />
-          ) : settings.isError ? (
-            <View className="gap-3">
-              <Text variant="body" tone="danger">
-                {errorMessage(settings.error)}
-              </Text>
-              <Button label="Erneut versuchen" variant="outline" onPress={() => void settings.refetch()} />
-            </View>
-          ) : (
-            settings.data.items.map((item, i) => (
-              <View key={item.kind}>
-                {i > 0 ? <Divider className="mb-4" /> : null}
-                <Switch
-                  label={item.label}
-                  description={item.description}
-                  value={item.enabled}
-                  onValueChange={(enabled) => toggleKind.mutate({ kind: item.kind, enabled })}
-                />
-              </View>
-            ))
-          )}
-        </Card>
+        {settings.isPending ? (
+          <ActivityIndicator color={c.primary.DEFAULT} className="self-start" />
+        ) : settings.isError ? (
+          <View className="gap-3">
+            <Text variant="body" tone="danger">
+              {errorMessage(settings.error)}
+            </Text>
+            <Button label="Erneut versuchen" variant="outline" onPress={() => void settings.refetch()} />
+          </View>
+        ) : (
+          <RowList>
+            {settings.data.items.map((item) => (
+              <Switch
+                key={item.kind}
+                label={item.label}
+                description={item.description}
+                value={item.enabled}
+                className="py-2"
+                onValueChange={(enabled) => toggleKind.mutate({ kind: item.kind, enabled })}
+              />
+            ))}
+          </RowList>
+        )}
         <ReminderTimeCard />
       </Section>
 
@@ -150,32 +138,28 @@ export function Settings({ back }: { back: boolean }) {
       ) : null}
 
       <Section title="Konto">
-        <Card padded={false}>
-          <LinkRow
+        <RowList>
+          <SettingsLink
             icon={Pencil}
             title="Name"
             description={user?.name ?? "Ändern"}
             onPress={() => router.push("/(auth)/name" as Href)}
           />
-          <Divider />
           {hasStable ? (
-            <>
-              <LinkRow
-                icon={MapPin}
-                title="Anwesenheit"
-                description="Automatisch erkennen, Sichtbarkeit"
-                onPress={() => router.push("/presence" as Href)}
-              />
-              <Divider />
-            </>
+            <SettingsLink
+              icon={MapPin}
+              title="Anwesenheit"
+              description="Automatisch erkennen, Sichtbarkeit"
+              onPress={() => router.push("/presence" as Href)}
+            />
           ) : null}
-          <LinkRow
+          <SettingsLink
             icon={ShieldCheck}
             title="Datenschutz"
             description="Erlaubnisse, Datenexport, Konto löschen"
             onPress={() => router.push("/settings/privacy" as Href)}
           />
-        </Card>
+        </RowList>
         <Button label="Abmelden" icon={LogOut} variant="outline" fullWidth loading={signingOut} onPress={() => void leave()} />
       </Section>
       {prompt.sheet}
@@ -183,21 +167,25 @@ export function Settings({ back }: { back: boolean }) {
   );
 }
 
-/** A row in the account card that opens another screen. */
-function LinkRow({ icon, title, description, onPress }: { icon: LucideIcon; title: string; description: string; onPress: () => void }) {
+/** A row that opens another screen: icon, title, one line of context and a chevron. */
+function SettingsLink({
+  icon,
+  title,
+  description,
+  onPress,
+}: {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  onPress: () => void;
+}) {
   return (
-    <Pressable
-      accessibilityRole="button"
+    <ListRow
+      leading={<Icon as={icon} size={20} className="text-muted" />}
+      title={title}
+      detail={description}
       accessibilityLabel={`${title}. ${description}`}
-      className="min-h-touch flex-row items-center gap-3 px-5 py-4"
       onPress={onPress}
-    >
-      <Icon as={icon} size={20} className="text-muted" />
-      <View className="flex-1">
-        <Text variant="bodyStrong">{title}</Text>
-        <Text variant="secondary">{description}</Text>
-      </View>
-      <Icon as={ChevronRight} size={20} className="text-muted" />
-    </Pressable>
+    />
   );
 }

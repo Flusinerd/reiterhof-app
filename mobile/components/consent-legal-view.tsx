@@ -31,7 +31,7 @@ function BlockView({ block }: { block: Block }) {
       );
     case "quote":
       return (
-        <View className="rounded-tile border border-accent-soft bg-accent-soft p-4">
+        <View className="border-l-2 border-accent pl-3">
           <Text variant="bodySm">
             <Spans spans={block.spans} variant="bodySm" />
           </Text>

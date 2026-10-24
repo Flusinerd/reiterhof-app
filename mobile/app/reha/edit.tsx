@@ -5,7 +5,8 @@ import { View } from "react-native";
 
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
 import { RehaPhaseSheet } from "@/components/reha-phase-sheet";
-import { Button, Card, Divider, Input, PageHeader, Screen, Section, Text } from "@/components/ui";
+import { Button, Input, PageHeader, Screen, Section, Text } from "@/components/ui";
+import { RowList } from "@/components/ui/list-row";
 import { useObservation } from "@/lib/api/observations";
 import { diagnosisFromObservation } from "@/lib/observations";
 import { rehaError, useCreatePlan, useReha, useUpdatePlan } from "@/lib/api/reha";
@@ -110,18 +111,14 @@ export default function RehaEdit() {
   if (!view.can_edit) {
     return (
       <Screen back>
-        <Card>
-          <Text variant="secondary">Nur Besitzer und Admins können den Plan ändern.</Text>
-        </Card>
+        <Text variant="secondary">Nur Besitzer und Admins können den Plan ändern.</Text>
       </Screen>
     );
   }
   if (!draft) {
     return (
       <Screen back>
-        <Card>
-          <Text variant="secondary">Dieser Plan ist beendet.</Text>
-        </Card>
+        <Text variant="secondary">Dieser Plan ist beendet.</Text>
       </Screen>
     );
   }
@@ -193,55 +190,55 @@ export default function RehaEdit() {
           Noch keine Phase. z. B. „Boxenruhe“, „Schritt führen“.
         </Text>
       ) : (
-        <Card padded={false}>
+        <RowList>
           {draft.phases.map((p, i) => (
-            <View key={i}>
-              {i > 0 ? <Divider /> : null}
-              <View className="gap-2 p-4">
-                <View className="gap-1">
-                  <Text variant="bodyStrong">{`${i + 1}. ${p.name.trim() || "Ohne Namen"}`}</Text>
-                  <Text variant="secondary">{phaseRow(p).summary}</Text>
-                  {dated?.[i] && dated[i].days > 0 ? <Text variant="caption">{dateRange(dated[i].start, dated[i].end)}</Text> : null}
-                </View>
-                <View className="flex-row flex-wrap gap-1">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    icon={ChevronUp}
-                    accessibilityLabel={`Phase ${i + 1} nach oben`}
-                    disabled={i === 0}
-                    onPress={() => patch({ phases: movePhase(draft.phases, i, -1) })}
-                  />
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    icon={ChevronDown}
-                    accessibilityLabel={`Phase ${i + 1} nach unten`}
-                    disabled={i === draft.phases.length - 1}
-                    onPress={() => patch({ phases: movePhase(draft.phases, i, 1) })}
-                  />
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    icon={Pencil}
-                    accessibilityLabel={`Phase ${i + 1} bearbeiten`}
-                    onPress={() => {
-                      setEditing(i);
-                      setSheetOpen(true);
-                    }}
-                  />
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    icon={Trash2}
-                    accessibilityLabel={`Phase ${i + 1} entfernen`}
-                    onPress={() => patch({ phases: removePhase(draft.phases, i) })}
-                  />
-                </View>
+            <View key={i} className="gap-1 py-3">
+              <View className="gap-0.5">
+                <Text variant="eyebrow" tone="brass">{`Phase ${i + 1}`}</Text>
+                <Text variant="bodyStrong">{p.name.trim() || "Ohne Namen"}</Text>
+                <Text variant="bodySm" tone="muted">
+                  {phaseRow(p).summary}
+                </Text>
+                {dated?.[i] && dated[i].days > 0 ? <Text variant="caption">{dateRange(dated[i].start, dated[i].end)}</Text> : null}
+              </View>
+              <View className="-ml-3 flex-row flex-wrap">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  icon={ChevronUp}
+                  accessibilityLabel={`Phase ${i + 1} nach oben`}
+                  disabled={i === 0}
+                  onPress={() => patch({ phases: movePhase(draft.phases, i, -1) })}
+                />
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  icon={ChevronDown}
+                  accessibilityLabel={`Phase ${i + 1} nach unten`}
+                  disabled={i === draft.phases.length - 1}
+                  onPress={() => patch({ phases: movePhase(draft.phases, i, 1) })}
+                />
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  icon={Pencil}
+                  accessibilityLabel={`Phase ${i + 1} bearbeiten`}
+                  onPress={() => {
+                    setEditing(i);
+                    setSheetOpen(true);
+                  }}
+                />
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  icon={Trash2}
+                  accessibilityLabel={`Phase ${i + 1} entfernen`}
+                  onPress={() => patch({ phases: removePhase(draft.phases, i) })}
+                />
               </View>
             </View>
           ))}
-        </Card>
+        </RowList>
       )}
       <Button
         label="Phase hinzufügen"

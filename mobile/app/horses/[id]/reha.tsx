@@ -1,12 +1,13 @@
 import { router, useLocalSearchParams, type Href } from "expo-router";
-import { ChevronRight, ClipboardList, Megaphone, Pencil, Plus, Stethoscope, TriangleAlert } from "lucide-react-native";
+import { ClipboardList, Megaphone, Pencil, Plus, Stethoscope } from "lucide-react-native";
 import { useState } from "react";
 import { Alert, View } from "react-native";
 
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
 import { RehaTimeline } from "@/components/reha-timeline";
 import { RehaTodayHead } from "@/components/reha-today-head";
-import { Badge, Button, Card, Divider, Icon, PressableCard, Screen, Section, Text } from "@/components/ui";
+import { Button, Icon, Screen, Section, Text } from "@/components/ui";
+import { ListRow, RowList } from "@/components/ui/list-row";
 import {
   rehaError,
   rehaKeys,
@@ -23,30 +24,21 @@ import { useInvalidateOnEvents } from "@/lib/realtime";
 import { checkupText, dateRange, planProgress, planStatusText } from "@/lib/reha";
 import { formatDate } from "@/lib/training";
 
-function Fact({ label, value }: { label: string; value: string | null | undefined }) {
-  if (!value) return null;
-  return (
-    <View className="gap-1">
-      <Text variant="secondary">{label}</Text>
-      <Text variant="body">{value}</Text>
-    </View>
-  );
-}
-
 function ProgressBar({ value }: { value: number }) {
   return (
     <View className="h-2 overflow-hidden rounded-pill bg-divider" accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: Math.round(value * 100) }}>
-      <View className="h-2 rounded-pill bg-primary" style={{ width: `${Math.round(value * 100)}%` }} />
+      <View className="h-2 rounded-pill bg-brass" style={{ width: `${Math.round(value * 100)}%` }} />
     </View>
   );
 }
 
-function PlanCard({ plan }: { plan: RehaPlan }) {
+/** The plan at a glance, on the page: diagnosis, period, progress and the vet. */
+function PlanBlock({ plan }: { plan: RehaPlan }) {
   return (
-    <Card className="gap-4">
+    <View className="gap-4">
       <View className="gap-1">
-        <Text variant="bodyStrong">{plan.diagnosis}</Text>
-        <Text variant="secondary">
+        <Text variant="title">{plan.diagnosis}</Text>
+        <Text variant="bodySm" tone="muted">
           {formatDate(plan.start_date)} bis {formatDate(plan.end_date)}
         </Text>
       </View>
@@ -57,8 +49,13 @@ function PlanCard({ plan }: { plan: RehaPlan }) {
           {plan.done_days.length === 1 ? "1 Tag erledigt" : `${plan.done_days.length} Tage erledigt`}
         </Text>
       </View>
-      <Fact label="Tierarzt" value={plan.vet} />
-    </Card>
+      {plan.vet ? (
+        <View className="gap-1">
+          <Text variant="eyebrow">Tierarzt</Text>
+          <Text variant="body">{plan.vet}</Text>
+        </View>
+      ) : null}
+    </View>
   );
 }
 
@@ -68,40 +65,35 @@ function SourceObservation({ observationId }: { observationId: string }) {
   const o = query.data;
   if (!o) return null;
   return (
-    <PressableCard
+    <ListRow
+      leading={<Icon as={Megaphone} size={22} className="text-muted" />}
+      title={observationTitle(o)}
+      detail={`${o.reporter.name}, ${reportedText(o.created_at, new Date())}`}
       accessibilityLabel={`${observationTitle(o)} öffnen`}
-      className="flex-row items-center gap-3"
       onPress={() => router.push(observationRoute(o.id) as Href)}
-    >
-      <Icon as={Megaphone} size={24} className="text-primary-deep" />
-      <View className="flex-1">
-        <Text variant="bodyStrong">{observationTitle(o)}</Text>
-        <Text variant="secondary">
-          {o.reporter.name}, {reportedText(o.created_at, new Date())}
-        </Text>
-      </View>
-      <Icon as={ChevronRight} size={20} className="text-muted" />
-    </PressableCard>
+    />
   );
 }
 
-function CheckupCard({ plan }: { plan: RehaPlan }) {
+function CheckupRow({ plan }: { plan: RehaPlan }) {
   if (!plan.checkup_date) return null;
   const overdue = (plan.checkup_in_days ?? 0) < 0;
   return (
-    <Card className="gap-2">
-      <View className="flex-row items-center gap-3">
-        <Icon as={Stethoscope} size={24} className="text-primary-deep" />
-        <View className="flex-1">
-          <Text variant="bodyStrong">{formatDate(plan.checkup_date)}</Text>
-          <Text variant="secondary">{plan.vet ? `Kontrolle bei ${plan.vet}` : "Kontrolle beim Tierarzt"}</Text>
-        </View>
-        {plan.checkup_in_days !== null ? (
-          <Badge variant={overdue ? "danger" : plan.checkup_in_days <= 2 ? "accent" : "neutral"} label={checkupText(plan.checkup_in_days)} />
-        ) : null}
-      </View>
+    <View className="gap-1">
+      <ListRow
+        leading={<Icon as={Stethoscope} size={22} className="text-muted" />}
+        eyebrow={plan.vet ? `Kontrolle bei ${plan.vet}` : "Kontrolle beim Tierarzt"}
+        title={formatDate(plan.checkup_date)}
+        trailing={
+          plan.checkup_in_days !== null ? (
+            <Text variant="bodySm" tone={overdue ? "danger" : plan.checkup_in_days <= 2 ? "accent" : "brass"} className="font-sans-semibold">
+              {checkupText(plan.checkup_in_days)}
+            </Text>
+          ) : null
+        }
+      />
       <Text variant="caption">Erinnerung zwei Tage vorher und am Termintag.</Text>
-    </Card>
+    </View>
   );
 }
 
@@ -109,21 +101,16 @@ function History({ plans }: { plans: RehaPlan[] }) {
   if (plans.length === 0) return null;
   return (
     <Section title="Frühere Pläne">
-      <Card padded={false}>
-        {plans.map((p, i) => (
-          <View key={p.id}>
-            {i > 0 ? <Divider /> : null}
-            <View className="gap-1 p-4">
-              <Text variant="bodyStrong">{p.diagnosis}</Text>
-              <Text variant="secondary">
-                {dateRange(p.start_date, p.end_date)} · {p.phases.length === 1 ? "1 Phase" : `${p.phases.length} Phasen`}
-                {p.ended_on ? ` · beendet am ${formatDate(p.ended_on)}` : ""}
-              </Text>
-              <Text variant="caption">{p.done_days.length} Tage erledigt</Text>
-            </View>
-          </View>
+      <RowList>
+        {plans.map((p) => (
+          <ListRow
+            key={p.id}
+            title={p.diagnosis}
+            detail={`${dateRange(p.start_date, p.end_date)} · ${p.phases.length === 1 ? "1 Phase" : `${p.phases.length} Phasen`}${p.ended_on ? ` · beendet am ${formatDate(p.ended_on)}` : ""} · ${p.done_days.length} Tage erledigt`}
+            accessibilityLabel={`${p.diagnosis}, ${dateRange(p.start_date, p.end_date)}`}
+          />
         ))}
-      </Card>
+      </RowList>
     </Section>
   );
 }
@@ -200,7 +187,7 @@ export default function Reha() {
       {view.view === "full" && plan ? (
         <>
           <Section title="Plan">
-            <PlanCard plan={plan} />
+            <PlanBlock plan={plan} />
           </Section>
 
           {plan.observation_id ? (
@@ -215,21 +202,18 @@ export default function Reha() {
 
           {plan.abort_criteria ? (
             <Section title="Abbruchkriterien">
-              <Card className="gap-2 border-accent-soft bg-accent-soft">
-                <View className="flex-row items-center gap-2">
-                  <Icon as={TriangleAlert} size={20} className="text-accent-text" />
-                  <Text variant="bodyStrong" tone="accent">
-                    Sofort abbrechen bei
-                  </Text>
-                </View>
+              <View className="gap-1 border-l-2 border-accent pl-3">
+                <Text variant="eyebrow" tone="accent">
+                  Sofort abbrechen bei
+                </Text>
                 <Text variant="body">{plan.abort_criteria}</Text>
-              </Card>
+              </View>
             </Section>
           ) : null}
 
           {plan.checkup_date ? (
             <Section title="Tierarzt-Kontrolle">
-              <CheckupCard plan={plan} />
+              <CheckupRow plan={plan} />
             </Section>
           ) : null}
         </>
@@ -237,18 +221,13 @@ export default function Reha() {
 
       {view.view === "full" ? (
         <>
-          <PressableCard
+          <ListRow
+            leading={<Icon as={ClipboardList} size={22} className="text-muted" />}
+            title="Auffälligkeit melden"
+            detail="Lahmheit, Schwellung oder etwas anderes bemerkt?"
             accessibilityLabel="Auffälligkeit melden"
-            className="flex-row items-center gap-3"
             onPress={() => go(`/observations/new?horse=${id}`)}
-          >
-            <Icon as={ClipboardList} size={24} className="text-primary-deep" />
-            <View className="flex-1">
-              <Text variant="bodyStrong">Auffälligkeit melden</Text>
-              <Text variant="secondary">Lahmheit, Schwellung oder etwas anderes bemerkt?</Text>
-            </View>
-            <Icon as={ChevronRight} size={20} className="text-muted" />
-          </PressableCard>
+          />
 
           {view.can_edit ? (
             <View className="gap-3">

@@ -8,7 +8,8 @@ import { Alert, View } from "react-native";
 import { AuthImage } from "@/components/auth-image";
 import { useConsentPrompt } from "@/components/consent-prompt";
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
-import { Badge, Button, Icon, Input, PageHeader, Pill, PressableCard, Screen, Sheet, Text } from "@/components/ui";
+import { Button, Icon, Input, PageHeader, Pill, Screen, Sheet, Text } from "@/components/ui";
+import { ListRow, RowList } from "@/components/ui/list-row";
 import { errorMessage } from "@/lib/api";
 import { horsesApi, useDocuments, useHorse, useHorseMutation, type HorseDocument } from "@/lib/api/horses";
 import { DOCUMENT_KINDS, documentKindLabel, formatDate } from "@/lib/horse-format";
@@ -126,67 +127,64 @@ export default function Documents() {
         eyebrow={horse.data?.name ?? "Pferdeakte"}
         title="Dokumente"
         description="Sichtbar für Besitzer, Reitbeteiligungen und Admins."
-      >
-        {canManage ? (
-          <Button
-            label="Dokument hinzufügen"
-            icon={Plus}
-            variant="secondary"
-            size="sm"
-            onPress={() => {
-              setError(null);
-              setOpen(true);
-            }}
-          />
-        ) : null}
-      </PageHeader>
+        action={
+          canManage ? (
+            <Button
+              icon={Plus}
+              variant="outline"
+              size="icon"
+              accessibilityLabel="Dokument hinzufügen"
+              onPress={() => {
+                setError(null);
+                setOpen(true);
+              }}
+            />
+          ) : undefined
+        }
+      />
 
       {list.length === 0 ? (
         <Text variant="body" tone="muted">
           Noch keine Dokumente.
         </Text>
       ) : (
-        <View className="gap-3">
+        <RowList>
           {list.map((doc) => (
-            <PressableCard
+            <ListRow
               key={doc.id}
-              padded={false}
+              leading={
+                doc.content_type.startsWith("image/") ? (
+                  <AuthImage
+                    url={doc.url}
+                    accessibilityIgnoresInvertColors
+                    className="h-12 w-12 rounded-button-sm bg-divider"
+                  />
+                ) : (
+                  <View className="h-12 w-12 items-center justify-center rounded-button-sm bg-primary-soft">
+                    <Icon as={FileText} size={22} className="text-primary-deep" />
+                  </View>
+                )
+              }
+              eyebrow={documentKindLabel(doc.kind)}
+              title={doc.title}
+              detail={formatDate(doc.created_at)}
               accessibilityLabel={`${doc.title} öffnen`}
-              className="min-h-[68px] flex-row items-center gap-3 px-4 py-3"
+              chevron={false}
               onPress={() => void openStoredFile(doc.url).catch((e) => setError(errorMessage(e)))}
-            >
-              {doc.content_type.startsWith("image/") ? (
-                <AuthImage
-                  url={doc.url}
-                  accessibilityIgnoresInvertColors
-                  className="h-11 w-11 rounded-button-sm bg-divider"
-                />
-              ) : (
-                <View className="h-11 w-11 items-center justify-center rounded-button-sm bg-primary-soft">
-                  <Icon as={FileText} size={20} className="text-primary" />
-                </View>
-              )}
-              <View className="flex-1 gap-1">
-                <Text variant="bodyStrong" numberOfLines={1}>
-                  {doc.title}
-                </Text>
-                <View className="flex-row items-center gap-2">
-                  <Badge label={documentKindLabel(doc.kind)} />
-                  <Text variant="caption">{formatDate(doc.created_at)}</Text>
-                </View>
-              </View>
-              {canManage ? (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  icon={Trash2}
-                  accessibilityLabel={`${doc.title} löschen`}
-                  onPress={() => confirmRemove(doc)}
-                />
-              ) : null}
-            </PressableCard>
+              trailing={
+                canManage ? (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    icon={Trash2}
+                    accessibilityLabel={`${doc.title} löschen`}
+                    onPress={() => confirmRemove(doc)}
+                  />
+                ) : null
+              }
+            />
           ))}
-        </View>
+        </RowList>
       )}
 
       <Sheet open={open} onOpenChange={setOpen} title="Dokument hinzufügen" description="Foto oder PDF, höchstens 20 MB.">

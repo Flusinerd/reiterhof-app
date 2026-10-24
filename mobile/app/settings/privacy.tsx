@@ -4,7 +4,8 @@ import { useState } from "react";
 import { Alert, View } from "react-native";
 
 import { useConsentPrompt } from "@/components/consent-prompt";
-import { Button, Card, Divider, Icon, PageHeader, PressableCard, Screen, Section, Switch, Text } from "@/components/ui";
+import { Button, Icon, PageHeader, Screen, Section, Switch, Text } from "@/components/ui";
+import { ListRow, RowList } from "@/components/ui/list-row";
 import { ApiError, errorMessage } from "@/lib/api";
 import { privacyApi } from "@/lib/api/privacy";
 import { useAuth } from "@/lib/auth";
@@ -96,7 +97,6 @@ export default function PrivacySettings() {
       ) : null}
 
       <Section title="Erlaubnisse">
-        <Card className="gap-4">
         {consents.isPending ? (
           <Text variant="body" tone="muted">
             Wird geladen ...
@@ -109,23 +109,23 @@ export default function PrivacySettings() {
             <Button label="Erneut versuchen" variant="outline" onPress={() => void consents.refetch()} />
           </View>
         ) : (
-          items.map((item, i) => (
-            <View key={item.kind} className="gap-2">
-              {i > 0 ? <Divider className="mb-2" /> : null}
-              <Switch
-                label={CONSENT_COPY[item.kind].label}
-                description={CONSENT_COPY[item.kind].summary}
-                value={item.granted}
-                disabled={setConsent.isPending}
-                onValueChange={(on) => void toggle(item.kind, on)}
-              />
-              {item.granted && !item.up_to_date ? (
-                <Text variant="caption">Datenschutztext geändert. Zum Zustimmen aus- und wieder einschalten.</Text>
-              ) : null}
-            </View>
-          ))
+          <RowList>
+            {items.map((item) => (
+              <View key={item.kind} className="gap-1 py-2">
+                <Switch
+                  label={CONSENT_COPY[item.kind].label}
+                  description={CONSENT_COPY[item.kind].summary}
+                  value={item.granted}
+                  disabled={setConsent.isPending}
+                  onValueChange={(on) => void toggle(item.kind, on)}
+                />
+                {item.granted && !item.up_to_date ? (
+                  <Text variant="caption">Datenschutztext geändert. Zum Zustimmen aus- und wieder einschalten.</Text>
+                ) : null}
+              </View>
+            ))}
+          </RowList>
         )}
-        </Card>
       </Section>
 
       <Section title="Deine Daten" description="Alle über dich gespeicherten Daten als JSON-Datei.">
@@ -133,17 +133,20 @@ export default function PrivacySettings() {
       </Section>
 
       <Section title="Rechtliches">
-        <Card padded={false}>
-        <PressableCard shape="tile" padded={false} className="min-h-touch flex-row items-center gap-3 border-0 px-5 py-3" onPress={() => router.push("/legal/privacy")}>
-          <Icon as={FileText} size={20} className="text-muted" />
-          <Text variant="body">Datenschutzerklärung</Text>
-        </PressableCard>
-        <Divider />
-        <PressableCard shape="tile" padded={false} className="min-h-touch flex-row items-center gap-3 border-0 px-5 py-3" onPress={() => router.push("/legal/licenses")}>
-          <Icon as={BookOpen} size={20} className="text-muted" />
-          <Text variant="body">Open-Source-Lizenzen</Text>
-        </PressableCard>
-        </Card>
+        <RowList>
+          <ListRow
+            leading={<Icon as={FileText} size={20} className="text-muted" />}
+            title="Datenschutzerklärung"
+            accessibilityLabel="Datenschutzerklärung"
+            onPress={() => router.push("/legal/privacy")}
+          />
+          <ListRow
+            leading={<Icon as={BookOpen} size={20} className="text-muted" />}
+            title="Open-Source-Lizenzen"
+            accessibilityLabel="Open-Source-Lizenzen"
+            onPress={() => router.push("/legal/licenses")}
+          />
+        </RowList>
       </Section>
 
       <Section

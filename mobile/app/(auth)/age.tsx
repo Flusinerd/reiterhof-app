@@ -92,7 +92,7 @@ export default function Age() {
           </Text>
           <Button label="Status prüfen" size="lg" fullWidth loading={busy} onPress={() => void refresh()} />
           <Button
-            variant="secondary"
+            variant="outline"
             label={resendLabel(secondsLeft)}
             fullWidth
             disabled={secondsLeft > 0 || busy}

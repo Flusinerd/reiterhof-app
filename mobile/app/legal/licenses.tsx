@@ -40,7 +40,7 @@ export default function Licenses() {
           />
         }
         renderItem={({ item }) => (
-          <View className="gap-2 rounded-card border border-border bg-card p-4">
+          <View className="gap-2 border-b border-divider pb-4">
             <Text variant="bodyStrong">{item.packages.join(", ")}</Text>
             <Text variant="caption">{item.text}</Text>
           </View>

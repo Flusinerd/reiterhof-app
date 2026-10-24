@@ -3,7 +3,7 @@ import Svg, { G, Path, Rect, Text as SvgText } from "react-native-svg";
 
 import { Pill, Text } from "@/components/ui";
 import { BODY_PARTS, bodyPartLabel, bodyPartShort } from "@/lib/observations";
-import { colors } from "@/lib/theme";
+import { useColors } from "@/lib/theme";
 
 // Simple side view of a horse looking to the left. Every region is tappable. The legs carry a
 // caption (VL = vorne links, VR = vorne rechts, HL = hinten links, HR = hinten rechts) because
@@ -37,11 +37,12 @@ export function ObservationBodyPicker({
   value: string | null;
   onChange: (value: string | null) => void;
 }) {
+  const colors = useColors();
   const toggle = (key: string) => onChange(value === key ? null : key);
   const fill = (key: string) => (value === key ? colors.primary.DEFAULT : colors.primary.soft);
   return (
     <View className="gap-3">
-      <View className="items-center rounded-tile border border-border bg-card py-3">
+      <View className="items-center rounded-tile border border-divider py-3">
         <Svg width="100%" height={170} viewBox="0 0 240 170" accessibilityLabel="Pferd, Stelle antippen">
           {REGIONS.map((r) => (
             <Path

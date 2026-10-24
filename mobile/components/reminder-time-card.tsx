@@ -3,7 +3,7 @@ import { Minus, Plus } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
 
-import { Button, Card, Text } from "@/components/ui";
+import { Button, Text } from "@/components/ui";
 import { blanketKeys } from "@/lib/api/blankets";
 import { reminderKeys, remindersApi, useReminderTime } from "@/lib/api/reminders";
 import {
@@ -43,22 +43,22 @@ export function ReminderTimeCard() {
     onError: (e) => setError(reminderErrorMessage(e)),
   });
 
-  if (query.isPending) return <Card><Text variant="body" tone="muted">Wird geladen ...</Text></Card>;
+  if (query.isPending) return <Text variant="body" tone="muted">Wird geladen ...</Text>;
   if (query.isError || !saved) {
     return (
-      <Card className="gap-3">
+      <View className="gap-3">
         <Text variant="body" tone="danger">
           {reminderErrorMessage(query.error)}
         </Text>
         <Button label="Erneut versuchen" variant="outline" onPress={() => void query.refetch()} />
-      </Card>
+      </View>
     );
   }
 
   const shown = draft ?? saved;
   const changed = draft !== null && draft !== saved;
   return (
-    <Card className="gap-4">
+    <View className="gap-4 border-t border-divider pt-4">
       <View className="gap-1">
         <Text variant="bodyStrong">Erinnerung fürs Decken</Text>
         <Text variant="secondary">
@@ -76,7 +76,7 @@ export function ReminderTimeCard() {
               disabled={shown === REMINDER_TIME_MIN}
               onPress={() => setDraft(stepReminderTime(shown, -1))}
             />
-            <Text variant="heroNumberSm" accessibilityLabel={`${shown} Uhr`}>
+            <Text variant="heroNumberSm" tone="brass" accessibilityLabel={`${shown} Uhr`}>
               {shown}
             </Text>
             <Button
@@ -102,9 +102,9 @@ export function ReminderTimeCard() {
         </>
       ) : (
         <Text variant="body">
-          Aktuell um <Text variant="bodyStrong">{saved} Uhr</Text>. Nur Verwalter können das ändern.
+          Aktuell um <Text variant="bodyStrong" tone="brass">{saved} Uhr</Text>. Nur Verwalter können das ändern.
         </Text>
       )}
-    </Card>
+    </View>
   );
 }

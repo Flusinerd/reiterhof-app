@@ -141,6 +141,11 @@ All exported from `@/components/ui` (barrel) or individually from `@/components/
   **`Divider`**: hairline inside cards; with `label="oder"` a labeled rule between two groups on the page.
 - **`LinkRow`**: navigation row with `icon`, `label`, optional `description`, `onPress` and a chevron (44 px minimum).
   Stack several in one `Card padded={false}` with `Divider`s between them.
+- **`ListRow`** + **`RowList`** (`@/components/ui/list-row`, import it directly, not from the barrel): a row on the page background
+  without a card: `leading` (avatar, icon, number), `eyebrow` (+ `eyebrowTone`), `title`, `detail`, `trailing` (outside the tap area,
+  e.g. a quiet `Button` or a value in brass), `children` below the text, `onPress` (tap area with chevron). `RowList` puts a hairline
+  between rows (empty children are dropped, so do not pass components that render `null`). Used by training, horse sub pages,
+  observations, reha, blanket plan and settings; prefer it over `LinkRow` in `Card`s.
 - **`Brand`** (`@/components/brand`): logo and wordmark, as in the login mail. Sign-in and the magic-link screen only.
 
 ### Text and icons

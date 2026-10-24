@@ -14,6 +14,7 @@ import {
   MAX_PHOTOS,
   newObservationRoute,
   nextStatus,
+  observationEyebrow,
   observationRoute,
   observationTitle,
   openCount,
@@ -70,6 +71,13 @@ test("status labels and toggling", () => {
   assert.equal(nextStatus("done"), "watch");
   assert.equal(statusActionLabel("watch"), "Erledigt");
   assert.equal(statusActionLabel("done"), "Wieder beobachten");
+});
+
+test("observationEyebrow names urgency and status with a tone", () => {
+  assert.deepEqual(observationEyebrow({ urgency: "info", status: "watch" }), { text: "Beobachten", tone: "muted" });
+  assert.deepEqual(observationEyebrow({ urgency: "check", status: "watch" }), { text: "Bitte ansehen · Beobachten", tone: "accent" });
+  assert.deepEqual(observationEyebrow({ urgency: "urgent", status: "watch" }), { text: "Dringend · Beobachten", tone: "danger" });
+  assert.deepEqual(observationEyebrow({ urgency: "urgent", status: "done" }), { text: "Dringend · Erledigt", tone: "success" });
 });
 
 test("observationTitle joins category and body part", () => {

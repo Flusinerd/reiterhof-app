@@ -4,20 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 
 import { RiderRuleCard } from "@/components/training-rider-rules";
-import {
-  Badge,
-  Button,
-  Card,
-  Divider,
-  Input,
-  LinkRow,
-  PageHeader,
-  Pill,
-  Screen,
-  Section,
-  Sheet,
-  Text,
-} from "@/components/ui";
+import { Button, Icon, Input, PageHeader, Pill, Screen, Section, Sheet, Text } from "@/components/ui";
+import { ListRow, RowList } from "@/components/ui/list-row";
 import { trainingError, useProfile, useSaveProfile, type ProfileInput } from "@/lib/api/training";
 import { dateToIso } from "@/lib/date-field";
 import { horseRoutes } from "@/lib/horse-format";
@@ -35,7 +23,7 @@ import {
 
 type EditorSection = "activities" | "rhythm" | "structure" | "shows" | "riders";
 
-const STATUS_BADGE = { fit: "primary", reha: "accent", pause: "neutral" } as const;
+const STATUS_TONE = { fit: "success", reha: "accent", pause: "muted" } as const;
 
 /** "Dressur, Niveau L" */
 function disciplineLine(d: Pick<ProfileDraft, "discipline" | "level">): string {
@@ -89,10 +77,10 @@ export default function TrainingProfile() {
   if (profile.isError || !data) {
     return (
       <Screen back>
-        <Card className="gap-3">
+        <View className="gap-3">
           <Text variant="secondary">{profile.isError ? trainingError(profile.error) : "Kein Profil gefunden."}</Text>
           <Button label="Erneut versuchen" variant="outline" onPress={() => void profile.refetch()} />
-        </Card>
+        </View>
       </Screen>
     );
   }
@@ -136,9 +124,13 @@ export default function TrainingProfile() {
         }
       >
         {draft ? (
-          <Badge variant={STATUS_BADGE[draft.status]} label={statusLabel(draft.status)} />
+          <Text variant="eyebrow" tone={STATUS_TONE[draft.status]}>
+            {statusLabel(draft.status)}
+          </Text>
         ) : (
-          <Badge variant="accent" label="Noch nicht angelegt" />
+          <Text variant="eyebrow" tone="accent">
+            Noch nicht angelegt
+          </Text>
         )}
       </PageHeader>
 
@@ -167,38 +159,52 @@ export default function TrainingProfile() {
             ) : null}
           </Section>
 
-          <Card padded={false}>
-            <LinkRow icon={Medal} label="Disziplin und Niveau" description={disciplineLine(draft)} onPress={openSheet} />
-            <Divider />
-            <LinkRow icon={Activity} label="Aktivitäten" description={activitySummary(draft)} onPress={() => go("activities")} />
-            <Divider />
-            <LinkRow icon={Timer} label="Rhythmus" description={rhythmSummary(draft)} onPress={() => go("rhythm")} />
-            <Divider />
-            <LinkRow
-              icon={CalendarRange}
-              label="Feste Tage und Ziele"
-              description={structureSummary(draft)}
+          <RowList>
+            <ListRow
+              leading={<Icon as={Medal} size={20} className="text-muted" />}
+              title="Disziplin und Niveau"
+              detail={disciplineLine(draft)}
+              accessibilityLabel="Disziplin und Niveau"
+              onPress={openSheet}
+            />
+            <ListRow
+              leading={<Icon as={Activity} size={20} className="text-muted" />}
+              title="Aktivitäten"
+              detail={activitySummary(draft)}
+              accessibilityLabel="Aktivitäten"
+              onPress={() => go("activities")}
+            />
+            <ListRow
+              leading={<Icon as={Timer} size={20} className="text-muted" />}
+              title="Rhythmus"
+              detail={rhythmSummary(draft)}
+              accessibilityLabel="Rhythmus"
+              onPress={() => go("rhythm")}
+            />
+            <ListRow
+              leading={<Icon as={CalendarRange} size={20} className="text-muted" />}
+              title="Feste Tage und Ziele"
+              detail={structureSummary(draft)}
+              accessibilityLabel="Feste Tage und Ziele"
               onPress={() => go("structure")}
             />
-            <Divider />
-            <LinkRow
-              icon={Trophy}
-              label="Turniere"
-              description={showsSummary(draft.shows, dateToIso(new Date()))}
+            <ListRow
+              leading={<Icon as={Trophy} size={20} className="text-muted" />}
+              title="Turniere"
+              detail={showsSummary(draft.shows, dateToIso(new Date()))}
+              accessibilityLabel="Turniere"
               onPress={() => go("shows")}
             />
             {draft.riders.length > 0 ? (
-              <>
-                <Divider />
-                <LinkRow
-                  icon={Users}
-                  label="Reitbeteiligungen"
-                  description={ridersSummary(draft.riders)}
-                  onPress={() => go("riders")}
-                />
-              </>
+              <ListRow
+                leading={<Icon as={Users} size={20} className="text-muted" />}
+                title="Reitbeteiligungen"
+                detail={ridersSummary(draft.riders)}
+                accessibilityLabel="Reitbeteiligungen"
+                onPress={() => go("riders")}
+              />
             ) : null}
-          </Card>
+          </RowList>
 
           <Sheet
             open={sheetOpen}
@@ -212,7 +218,7 @@ export default function TrainingProfile() {
               ))}
             </View>
             <View className="gap-1.5">
-              <Text variant="label">Niveau</Text>
+              <Text variant="eyebrow">Niveau</Text>
               <Input
                 accessibilityLabel="Niveau"
                 placeholder="Niveau, z. B. L (optional)"

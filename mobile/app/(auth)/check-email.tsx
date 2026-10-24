@@ -130,7 +130,7 @@ export default function CheckEmail() {
           Nichts angekommen? Schau im Spam-Ordner.
         </Text>
         <Button
-          variant="secondary"
+          variant="outline"
           label={resendLabel(secondsLeft)}
           fullWidth
           loading={busy}
@@ -139,7 +139,7 @@ export default function CheckEmail() {
         />
         <Button variant="ghost" label="Andere Adresse" fullWidth onPress={() => router.back()} />
         {message ? (
-          <Text variant="bodySm" tone={message.error ? "danger" : "primary"} accessibilityRole={message.error ? "alert" : undefined}>
+          <Text variant="bodySm" tone={message.error ? "danger" : "success"} accessibilityRole={message.error ? "alert" : undefined}>
             {message.text}
           </Text>
         ) : null}

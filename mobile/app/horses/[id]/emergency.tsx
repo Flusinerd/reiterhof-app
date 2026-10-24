@@ -1,46 +1,59 @@
 import { router, useLocalSearchParams, type Href } from "expo-router";
 import { Pencil, Phone, Plus } from "lucide-react-native";
 import { useState } from "react";
-import { Alert, Linking, View } from "react-native";
+import { Alert, Linking, Pressable, View } from "react-native";
 
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
-import { Button, Card, Divider, Input, PageHeader, Screen, Section, Sheet, Text } from "@/components/ui";
+import { Button, Icon, Input, PageHeader, Screen, Section, Sheet, Text } from "@/components/ui";
+import { RowList } from "@/components/ui/list-row";
 import { errorMessage } from "@/lib/api";
 import { horsesApi, useEmergency, useHorseMutation, type Contact } from "@/lib/api/horses";
 import { horseRoutes, telUrl } from "@/lib/horse-format";
 
 type CallRowProps = { label: string; name: string | null | undefined; phone: string | null | undefined; onEdit?: () => void };
 
-/** One person to call: label, name and a 44 px call button (tel: link). */
+/** One person to call: label, name and the number big in brass; the whole row calls (tel: link). */
 function CallRow({ label, name, phone, onEdit }: CallRowProps) {
   const url = telUrl(phone);
-  return (
-    <View className="min-h-touch flex-row items-center gap-3">
-      <View className="flex-1">
-        <Text variant="secondary">{label}</Text>
+  const body = (
+    <>
+      <View className="flex-1 gap-0.5">
+        <Text variant="eyebrow">{label}</Text>
         <Text variant="bodyStrong">{name || "Nicht eingetragen"}</Text>
-        {phone ? <Text variant="bodySm">{phone}</Text> : null}
+        {phone ? (
+          <Text variant="heroNumberSm" tone="brass" className="mt-0.5 text-[28px] leading-[34px]">
+            {phone}
+          </Text>
+        ) : null}
       </View>
-      {onEdit ? (
-        <Button size="icon" variant="ghost" icon={Pencil} accessibilityLabel={`${label} bearbeiten`} onPress={onEdit} />
-      ) : null}
+      {url ? <Icon as={Phone} size={22} className="text-brass" /> : null}
+    </>
+  );
+  return (
+    <View className="min-h-[72px] flex-row items-center gap-2 py-3">
       {url ? (
-        <Button
-          size="icon"
-          icon={Phone}
+        <Pressable
+          accessibilityRole="button"
           accessibilityLabel={`${name ?? label} anrufen`}
           onPress={() => void Linking.openURL(url)}
-        />
+          className="flex-1 flex-row items-center gap-3 active:opacity-70"
+        >
+          {body}
+        </Pressable>
+      ) : (
+        <View className="flex-1 flex-row items-center gap-3">{body}</View>
+      )}
+      {onEdit ? (
+        <Button size="icon" variant="ghost" icon={Pencil} accessibilityLabel={`${label} bearbeiten`} onPress={onEdit} />
       ) : null}
     </View>
   );
 }
 
-function Fact({ label, value }: { label: string; value: string | number | null | undefined }) {
-  if (value === null || value === undefined || value === "") return null;
+function Fact({ label, value }: { label: string; value: string }) {
   return (
-    <View className="gap-1">
-      <Text variant="secondary">{label}</Text>
+    <View className="gap-1 py-3">
+      <Text variant="eyebrow">{label}</Text>
       <Text variant="body">{value}</Text>
     </View>
   );
@@ -69,6 +82,15 @@ export default function Emergency() {
     );
   }
   const c = card.data;
+  const facts: [string, string][] = [];
+  const addFact = (label: string, value: string | null | undefined) => {
+    if (value) facts.push([label, value]);
+  };
+  addFact("Notfall-Medikament", c.emergency_medication);
+  addFact("Dauermedikation", c.permanent_medication);
+  addFact("Allergien", c.allergies);
+  addFact("Gewicht", c.weight_kg ? `${c.weight_kg} kg` : null);
+  addFact("Versicherung", c.insurance);
 
   async function saveDraft() {
     if (!draft) return;
@@ -116,21 +138,26 @@ export default function Emergency() {
       />
 
       <Section title="Anrufen">
-        <Card className="gap-3">
-        <CallRow label="Besitzer" name={c.owner?.name} phone={c.owner?.phone} />
-        <Divider />
-        <CallRow label="Tierarzt" name={c.vet_name} phone={c.vet_phone} />
-        {c.contacts.map((contact) => (
-          <View key={contact.id} className="gap-3">
-            <Divider />
+        <RowList>
+          <CallRow label="Besitzer" name={c.owner?.name} phone={c.owner?.phone} />
+          <CallRow label="Tierarzt" name={c.vet_name} phone={c.vet_phone} />
+          {c.contacts.map((contact) => (
             <CallRow
+              key={contact.id}
               label={contact.label}
               name={contact.name}
               phone={contact.phone}
-              onEdit={c.can_manage ? () => { setError(null); setDraft({ ...contact }); } : undefined}
+              onEdit={
+                c.can_manage
+                  ? () => {
+                      setError(null);
+                      setDraft({ ...contact });
+                    }
+                  : undefined
+              }
             />
-          </View>
-        ))}
+          ))}
+        </RowList>
         {c.can_manage ? (
           <Button
             label="Kontakt hinzufügen"
@@ -143,23 +170,21 @@ export default function Emergency() {
             }}
           />
         ) : null}
-        </Card>
       </Section>
 
-      <Section title="Medizinisches">
-        <View className="gap-4">
-          <Fact label="Notfall-Medikament" value={c.emergency_medication} />
-          <Fact label="Dauermedikation" value={c.permanent_medication} />
-          <Fact label="Allergien" value={c.allergies} />
-          <Fact label="Gewicht" value={c.weight_kg ? `${c.weight_kg} kg` : null} />
-          <Fact label="Versicherung" value={c.insurance} />
-          {!c.emergency_medication && !c.permanent_medication && !c.allergies && !c.weight_kg && !c.insurance ? (
-            <Text variant="body" tone="muted">
-              Noch keine Angaben.
-            </Text>
-          ) : null}
-        </View>
-      </Section>
+      {facts.length > 0 ? (
+        <Section title="Medizinisches">
+          <RowList>
+            {facts.map(([label, value]) => (
+              <Fact key={label} label={label} value={value} />
+            ))}
+          </RowList>
+        </Section>
+      ) : (
+        <Text variant="body" tone="muted">
+          Noch keine Angaben.
+        </Text>
+      )}
 
       <Sheet
         open={draft !== null}

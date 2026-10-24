@@ -1,18 +1,9 @@
-import { ChevronRight, UserPlus } from "lucide-react-native";
+import { UserPlus } from "lucide-react-native";
 import { useState } from "react";
 import { View } from "react-native";
 
-import {
-  Avatar,
-  Button,
-  Card,
-  Divider,
-  Icon,
-  PressableCard,
-  Sheet,
-  Switch,
-  Text,
-} from "@/components/ui";
+import { Avatar, Button, Sheet, Switch, Text } from "@/components/ui";
+import { ListRow, RowList } from "@/components/ui/list-row";
 import { errorMessage } from "@/lib/api";
 import { horsesApi, useHorseMutation, useMembers, type Horse, type Rider } from "@/lib/api/horses";
 import { DEFAULT_RIDER_RULES, RIDER_RULES, rulesSummary, toggleRule } from "@/lib/horse-format";
@@ -59,33 +50,18 @@ export function HorseRiders({ horse }: { horse: Horse }) {
           Keine Reitbeteiligungen.
         </Text>
       ) : (
-        horse.riders.map((r) => {
-          const row = (
-            <>
-              <Avatar name={r.name} colorKey={r.color_key} size="sm" />
-              <View className="flex-1">
-                <Text variant="bodyStrong">{r.name}</Text>
-                <Text variant="secondary">{rulesSummary(r.rules)}</Text>
-              </View>
-              {horse.can_manage ? <Icon as={ChevronRight} size={20} className="text-muted" /> : null}
-            </>
-          );
-          return horse.can_manage ? (
-            <PressableCard
+        <RowList>
+          {horse.riders.map((r) => (
+            <ListRow
               key={r.user_id}
-              padded={false}
-              onPress={() => edit(r)}
-              accessibilityLabel={`${r.name} bearbeiten`}
-              className="min-h-touch flex-row items-center gap-3 px-4 py-3"
-            >
-              {row}
-            </PressableCard>
-          ) : (
-            <Card key={r.user_id} padded={false} className="min-h-touch flex-row items-center gap-3 px-4 py-3">
-              {row}
-            </Card>
-          );
-        })
+              leading={<Avatar name={r.name} colorKey={r.color_key} size="md" />}
+              title={r.name}
+              detail={rulesSummary(r.rules)}
+              accessibilityLabel={horse.can_manage ? `${r.name} bearbeiten` : `${r.name}, ${rulesSummary(r.rules)}`}
+              onPress={horse.can_manage ? () => edit(r) : undefined}
+            />
+          ))}
+        </RowList>
       )}
 
       {horse.can_manage ? (
@@ -93,6 +69,7 @@ export function HorseRiders({ horse }: { horse: Horse }) {
           label="Reitbeteiligung hinzufügen"
           icon={UserPlus}
           variant="outline"
+          size="sm"
           onPress={() => {
             setError(null);
             setPicking(true);
@@ -109,31 +86,28 @@ export function HorseRiders({ horse }: { horse: Horse }) {
         {candidates.length === 0 ? (
           <Text variant="secondary">Alle sind schon eingetragen.</Text>
         ) : (
-          <View>
-            {candidates.map((m, i) => (
-              <View key={m.id}>
-                {i > 0 ? <Divider /> : null}
-                <PressableCard
-                  padded={false}
-                  className="min-h-touch flex-row items-center gap-3 border-0 px-1 py-2"
-                  accessibilityLabel={`${m.name} auswählen`}
-                  onPress={() => {
-                    setPicking(false);
-                    setEditing({
-                      userId: m.id,
-                      name: m.name,
-                      colorKey: m.color_key,
-                      rules: [...DEFAULT_RIDER_RULES],
-                      isNew: true,
-                    });
-                  }}
-                >
-                  <Avatar name={m.name} colorKey={m.color_key} size="sm" />
-                  <Text variant="body">{m.name}</Text>
-                </PressableCard>
-              </View>
+          <RowList>
+            {candidates.map((m) => (
+              <ListRow
+                key={m.id}
+                leading={<Avatar name={m.name} colorKey={m.color_key} size="sm" />}
+                title={m.name}
+                accessibilityLabel={`${m.name} auswählen`}
+                chevron={false}
+                className="min-h-touch"
+                onPress={() => {
+                  setPicking(false);
+                  setEditing({
+                    userId: m.id,
+                    name: m.name,
+                    colorKey: m.color_key,
+                    rules: [...DEFAULT_RIDER_RULES],
+                    isNew: true,
+                  });
+                }}
+              />
             ))}
-          </View>
+          </RowList>
         )}
       </Sheet>
 

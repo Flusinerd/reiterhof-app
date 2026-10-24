@@ -38,19 +38,19 @@ export default function ShowsEditor() {
   if (profile.isError) {
     return (
       <Screen back>
-        <Card className="gap-3">
+        <View className="gap-3">
           <Text variant="secondary">{trainingError(profile.error)}</Text>
           <Button label="Erneut versuchen" variant="outline" onPress={() => void profile.refetch()} />
-        </Card>
+        </View>
       </Screen>
     );
   }
   if (data && !data.can_edit) {
     return (
       <Screen back>
-        <Card>
+        <View>
           <Text variant="secondary">Nur Besitzer und Admins können das Profil ändern.</Text>
-        </Card>
+        </View>
       </Screen>
     );
   }
@@ -114,7 +114,7 @@ export default function ShowsEditor() {
             onChangeText={(name) => patchShow(i, { name })}
           />
           <View className="gap-2">
-            <Text variant="secondary">Beginn (optional)</Text>
+            <Text variant="eyebrow">Beginn (optional)</Text>
             <TimeField
               accessibilityLabel={`Beginn, Turnier ${i + 1}`}
               placeholder="z. B. 08:30"
@@ -125,7 +125,7 @@ export default function ShowsEditor() {
             />
           </View>
           <View className="gap-2">
-            <Text variant="secondary">Prüfungen</Text>
+            <Text variant="eyebrow">Prüfungen</Text>
             {s.tests.map((t, k) => (
               <View key={k} className="flex-row items-center gap-2">
                 <Input
