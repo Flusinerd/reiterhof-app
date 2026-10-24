@@ -5,18 +5,17 @@ import { ACTIVITIES } from "./training.ts";
 import {
   FEELING_OPTIONS,
   buildSessionBody,
-  checklistItems,
   durationCaption,
+  exercisePractised,
   feelingLabel,
   finishEyebrow,
   focusFromFeeling,
-  initialChecked,
   notePlaceholder,
   otherPerson,
   parseMinutes,
   placeLabel,
-  practisedLabel,
   savedTitle,
+  stepsCaption,
   visibleLabel,
 } from "./session-finish.ts";
 
@@ -79,15 +78,15 @@ test("the note speaks to the other person on the horse", () => {
   assert.equal(visibleLabel("Mia"), "Mia sieht die Einheit");
 });
 
-test("the checklist is ticked from the tracker, or fully from the plan", () => {
-  assert.deepEqual(checklistItems("Schenkelweichen", ["a", "b"]), ["a", "b"]);
-  assert.deepEqual(checklistItems("Schenkelweichen", []), ["Schenkelweichen"]);
-  assert.deepEqual(checklistItems("Schenkelweichen", undefined), ["Schenkelweichen"]);
-  assert.deepEqual(initialChecked(3, [0, 2]), [0, 2]);
-  assert.deepEqual(initialChecked(3, []), []);
-  assert.deepEqual(initialChecked(3, [1, 7]), [1]);
-  assert.deepEqual(initialChecked(3, undefined), [0, 1, 2]);
-  assert.equal(practisedLabel(2, 3), "2 von 3 geübt");
+test("the exercise starts out ticked from the tracker, or from the plan without tracker data", () => {
+  assert.equal(exercisePractised([0, 2]), true);
+  assert.equal(exercisePractised([]), false);
+  assert.equal(exercisePractised(undefined), true);
+  assert.equal(stepsCaption([0, 2], 4), "2 von 4 Schritten erledigt");
+  assert.equal(stepsCaption([0, 1, 2, 3, 4], 4), "4 von 4 Schritten erledigt");
+  assert.equal(stepsCaption([], 4), "0 von 4 Schritten erledigt");
+  assert.equal(stepsCaption(undefined, 4), null);
+  assert.equal(stepsCaption([0], 0), null);
 });
 
 test("body of a tracked session with exercise, feeling and note", () => {
@@ -97,7 +96,7 @@ test("body of a tracked session with exercise, feeling and note", () => {
     startedAt: "2026-10-24T16:00:00.000Z",
     gaitShares: { walk: 0.4, trot: 0.6 },
     reinChanges: [{ rein: "left", minutes: 20 }],
-    exercise: { id: "e1", rows: 3, checked: [0, 1] },
+    exercise: { id: "e1", practised: true },
     feeling: "good",
     note: "  Schenkelweichen klappt  ",
     visibleToRider: true,
@@ -116,11 +115,11 @@ test("body of a tracked session with exercise, feeling and note", () => {
   });
 });
 
-test("an exercise without ticked rows is not recorded, and a bare body stays bare", () => {
+test("an exercise that was not practised is not recorded, and a bare body stays bare", () => {
   const none = buildSessionBody({
     activity: "arena",
     minutes: 30,
-    exercise: { id: "e1", rows: 3, checked: [] },
+    exercise: { id: "e1", practised: false },
     feeling: "easy",
     note: "",
   });
@@ -129,16 +128,15 @@ test("an exercise without ticked rows is not recorded, and a bare body stays bar
   const bare = buildSessionBody({ activity: "hack", minutes: 60, feeling: null, note: "   " });
   assert.deepEqual(bare, { activity: "hack", minutes: 60 });
 
-  // An exercise with a single row (no steps) counts as practised only while it is ticked.
-  const single = buildSessionBody({
+  const practised = buildSessionBody({
     activity: "lunge",
     minutes: 20,
-    exercise: { id: "e2", rows: 1, checked: [0] },
+    exercise: { id: "e2", practised: true },
     feeling: "easy",
     note: "",
   });
-  assert.equal(single.exercise_id, "e2");
-  assert.equal(single.focus_rating, 3);
+  assert.equal(practised.exercise_id, "e2");
+  assert.equal(practised.focus_rating, 3);
 });
 
 test("saved title", () => {

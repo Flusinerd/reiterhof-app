@@ -11,15 +11,14 @@ import { useAuth } from "@/lib/auth";
 import {
   FEELING_OPTIONS,
   buildSessionBody,
-  checklistItems,
   durationCaption,
+  exercisePractised,
   finishEyebrow,
-  initialChecked,
   notePlaceholder,
   otherPerson,
   parseMinutes,
-  practisedLabel,
   savedTitle,
+  stepsCaption,
   visibleLabel,
   type Feeling,
 } from "@/lib/session-finish";
@@ -57,7 +56,7 @@ function Finish({ params }: { params: FinishParams }) {
   const [changingPlace, setChangingPlace] = useState(false);
   const [minutesText, setMinutesText] = useState(String(params.minutes));
   const [feeling, setFeeling] = useState<Feeling | null>(null);
-  const [ticked, setTicked] = useState<number[] | null>(null);
+  const [practised, setPractised] = useState<boolean | null>(null);
   const [note, setNote] = useState("");
   const [visible, setVisible] = useState(true);
   const [saved, setSaved] = useState<CreatedSession | null>(null);
@@ -86,8 +85,7 @@ function Finish({ params }: { params: FinishParams }) {
   const tracked = !!params.startedAt;
   const gaits = gaitShareRows(params.gaitShares);
   const rein = reinSummary(params.reinChanges);
-  const items = exercise.data ? checklistItems(exercise.data.title, exercise.data.steps) : [];
-  const checked = ticked ?? initialChecked(items.length, params.stepsDone);
+  const exerciseTicked = practised ?? exercisePractised(params.stepsDone);
   const leave = () => router.replace("/training");
 
   if (saved) {
@@ -111,8 +109,6 @@ function Finish({ params }: { params: FinishParams }) {
     );
   }
 
-  const toggle = (i: number) => setTicked(checked.includes(i) ? checked.filter((x) => x !== i) : [...checked, i].sort((a, b) => a - b));
-
   const save = () => {
     if (minutes === null) return;
     const body: SessionInput = {
@@ -123,9 +119,7 @@ function Finish({ params }: { params: FinishParams }) {
         gaitShares: params.gaitShares,
         reinChanges: params.reinChanges,
         distanceM: params.distanceM,
-        exercise: params.exerciseId
-          ? { id: params.exerciseId, rows: exercise.data ? items.length : 0, checked }
-          : undefined,
+        exercise: params.exerciseId ? { id: params.exerciseId, practised: exerciseTicked } : undefined,
         feeling,
         note,
         visibleToRider: horse?.role === "owner" && other ? visible : undefined,
@@ -143,7 +137,7 @@ function Finish({ params }: { params: FinishParams }) {
   };
 
   return (
-    <Screen back keyboardShouldPersistTaps="handled">
+    <Screen back menu={false} keyboardShouldPersistTaps="handled">
       <PageHeader eyebrow={finishEyebrow(horseName)} title="Wie war’s?" />
 
       <View className="gap-2">
@@ -186,17 +180,13 @@ function Finish({ params }: { params: FinishParams }) {
 
       {exercise.data ? (
         <View>
-          <Text variant="eyebrow">{`Übung · ${exercise.data.title}`}</Text>
-          {items.length > 1 ? (
-            <Text variant="caption" className="mt-1">
-              {practisedLabel(checked.length, items.length)}
-            </Text>
-          ) : null}
-          <View className="mt-1">
-            {items.map((label, i) => (
-              <TickRow key={i} label={label} checked={checked.includes(i)} onPress={() => toggle(i)} />
-            ))}
-          </View>
+          <Text variant="eyebrow">Übungen</Text>
+          <TickRow
+            label={exercise.data.title}
+            hint={stepsCaption(params.stepsDone, exercise.data.step_count)}
+            checked={exerciseTicked}
+            onPress={() => setPractised(!exerciseTicked)}
+          />
         </View>
       ) : null}
 

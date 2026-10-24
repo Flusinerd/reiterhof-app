@@ -3,6 +3,7 @@
 // line under the duration, the note placeholder and the body of the session. No React Native
 // imports (unit-tested with node --test). German UI text.
 
+import { checklistLabel } from "./tracking-exercises.ts";
 import { activityLabel, type Activity, type ReinSegment } from "./training.ts";
 
 // --- feeling ---------------------------------------------------------------------------
@@ -100,26 +101,21 @@ export function visibleLabel(other: string): string {
   return `${other} sieht die Einheit`;
 }
 
-// --- exercise checklist ----------------------------------------------------------------
-
-/** What the checklist rows are: the steps of the exercise, or the exercise itself when it has none. */
-export function checklistItems(title: string, steps: readonly string[] | undefined): string[] {
-  return steps && steps.length > 0 ? [...steps] : [title];
-}
+// --- exercise of the plan --------------------------------------------------------------
 
 /**
- * Rows that start ticked: the steps the tracker reported; without tracker data (a ride that was
- * only planned, or entered afterwards) the plan counts as followed and everything is ticked, one
- * tap takes a row off.
+ * Whether the exercise of the plan starts out ticked: when the tracker reports steps, if at least
+ * one was ticked; without tracker data (the ride was only planned, or entered afterwards) the plan
+ * counts as followed. One tap takes it off.
  */
-export function initialChecked(count: number, stepsDone: readonly number[] | undefined): number[] {
-  if (stepsDone === undefined) return Array.from({ length: count }, (_, i) => i);
-  return stepsDone.filter((i) => i < count);
+export function exercisePractised(stepsDone: readonly number[] | undefined): boolean {
+  return stepsDone === undefined || stepsDone.length > 0;
 }
 
-/** "2 von 3 geübt" for the line next to the exercise title. */
-export function practisedLabel(done: number, total: number): string {
-  return `${done} von ${total} geübt`;
+/** "2 von 4 Schritten erledigt" under the exercise; null without tracker data or steps. */
+export function stepsCaption(stepsDone: readonly number[] | undefined, stepCount: number): string | null {
+  if (stepsDone === undefined || stepCount <= 0) return null;
+  return checklistLabel(Math.min(stepsDone.length, stepCount), stepCount);
 }
 
 // --- body ------------------------------------------------------------------------------
@@ -146,8 +142,8 @@ export type FinishForm = {
   gaitShares?: Record<string, number>;
   reinChanges?: ReinSegment[];
   distanceM?: number;
-  /** The planned exercise, with how many checklist rows exist and which are ticked. */
-  exercise?: { id: string; rows: number; checked: readonly number[] };
+  /** The exercise of the plan and whether it was practised (ticked). */
+  exercise?: { id: string; practised: boolean };
   feeling: Feeling | null;
   note: string;
   /** Only set when the person can decide it (owner with a rider). */
@@ -155,11 +151,11 @@ export type FinishForm = {
 };
 
 /**
- * Body of `POST /horses/{id}/sessions`. The exercise is only recorded when at least one row is
- * ticked; the feeling doubles as the rating of that exercise (`focusFromFeeling`).
+ * Body of `POST /horses/{id}/sessions`. The exercise is only recorded when it is ticked; the
+ * feeling doubles as the rating of that exercise (`focusFromFeeling`).
  */
 export function buildSessionBody(form: FinishForm): FinishBody {
-  const practised = !!form.exercise && (form.exercise.rows === 0 || form.exercise.checked.length > 0);
+  const practised = !!form.exercise?.practised;
   const focus = practised ? focusFromFeeling(form.feeling) : undefined;
   const note = form.note.trim();
   return {

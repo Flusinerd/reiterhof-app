@@ -31,7 +31,7 @@ export function DurationField({
         selectTextOnFocus
         placeholder="0"
         placeholderTextColor={c.muted}
-        className="min-w-[72px] border-b border-border p-0 font-display text-hero-sm text-foreground"
+        className="w-[108px] border-b border-border p-0 font-display text-hero-sm text-foreground"
       />
       <Text variant="bodySm" tone="muted" className="flex-1 pb-2">
         {caption}
@@ -40,8 +40,18 @@ export function DurationField({
   );
 }
 
-/** One row of the exercise checklist: round-cornered box, ticked in `success`, 44 px high. */
-export function TickRow({ label, checked, onPress }: { label: string; checked: boolean; onPress: () => void }) {
+/** One row of the exercise checklist: round-cornered box, ticked in `success`, 44 px high, optional hint below. */
+export function TickRow({
+  label,
+  hint,
+  checked,
+  onPress,
+}: {
+  label: string;
+  hint?: string | null;
+  checked: boolean;
+  onPress: () => void;
+}) {
   return (
     <Pressable
       accessibilityRole="checkbox"
@@ -58,9 +68,12 @@ export function TickRow({ label, checked, onPress }: { label: string; checked: b
       >
         {checked ? <Icon as={Check} size={14} strokeWidth={3} className="text-primary-foreground" /> : null}
       </View>
-      <Text variant="body" className={cn("flex-1", !checked && "text-muted")}>
-        {label}
-      </Text>
+      <View className="flex-1">
+        <Text variant="body" className={cn(!checked && "text-muted")}>
+          {label}
+        </Text>
+        {hint ? <Text variant="caption">{hint}</Text> : null}
+      </View>
     </Pressable>
   );
 }
