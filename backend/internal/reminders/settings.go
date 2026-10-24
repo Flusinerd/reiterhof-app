@@ -29,6 +29,7 @@ type KindInfo struct {
 var catalog = []struct{ kind, label, description string }{
 	{push.KindLastPerson, "Decken: letzte Person", "Abends, wenn du die letzte Person im Stall bist und Pferde noch ohne Deckenstatus sind."},
 	{push.KindWeatherChange, "Decken: Wetteränderung", "Wenn sich die Decken-Empfehlung für eines deiner Pferde ändert."},
+	{push.KindWeatherWarning, "Wetterwarnungen", "Amtliche Unwetterwarnungen des DWD für den Stall, dazu Sturm, Frost, Glätte und Hitze ab der markanten Stufe."},
 	{push.KindMedication, "Medikamente", "Zur Uhrzeit, zu der ein Pferd von dir sein Medikament bekommt."},
 	{push.KindHealthDue, "Fällige Termine", "Hufschmied, Impfung, Wurmkur und Co., eine Woche und einen Tag vorher."},
 	{push.KindRehaCheckup, "Reha-Kontrolle", "Kontrolle beim Tierarzt, zwei Tage vorher und am Tag selbst."},

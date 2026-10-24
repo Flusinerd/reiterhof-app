@@ -21,6 +21,8 @@ const (
 	KindUrgentObservation = "urgent_observation"
 	// KindObservation is a new observation ("Auffälligkeit") that is not urgent: info or "please check".
 	KindObservation = "observation"
+	// KindWeatherWarning is an official DWD weather warning for the stable (storm, frost, heat, ...).
+	KindWeatherWarning = "weather_warning"
 )
 
 // Kinds lists all known reminder kinds.
@@ -28,7 +30,7 @@ func Kinds() []string {
 	return []string{
 		KindLastPerson, KindWeatherChange, KindMedication, KindHelper,
 		KindTrainingPlan, KindHealthDue, KindRehaCheckup, KindNewRequest,
-		KindUrgentObservation, KindObservation,
+		KindUrgentObservation, KindObservation, KindWeatherWarning,
 	}
 }
 

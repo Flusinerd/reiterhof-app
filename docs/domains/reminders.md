@@ -14,6 +14,7 @@ Tickets: JAN-69 (reminder center), JAN-70 (settings), rest of JAN-18 (push: sett
 | Kind | Written by | Row in `reminders` | `source_table` |
 | --- | --- | --- | --- |
 | `last_person`, `weather_change` | `internal/blankets` | yes, when sent | `blanket_night`, `blanket_checkout`, `blanket_weather` |
+| `weather_warning` | `internal/weather` warning job | yes, when sent | `weather_warnings` |
 | `health_due`, `medication` | `internal/health` job | yes, when sent | `health_items` |
 | `reha_checkup` | `internal/reha` job | yes, when sent | `reha_plans` |
 | `helper` (reminder) | `internal/requests` job | yes, when sent | `requests` |

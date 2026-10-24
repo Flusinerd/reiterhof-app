@@ -122,6 +122,19 @@ func main() {
 				return errors.Join(err, blanketSvc.CheckWeatherChange(ctx))
 			},
 		})
+		warningSvc := &weather.WarningService{
+			Pool:    pool,
+			Fetcher: &weather.DWDWarnings{},
+			Notify:  notifier,
+			Log:     log,
+			Now:     time.Now,
+		}
+		sched.Go(ctx, &jobs, scheduler.Job{
+			Name:       "weather-warnings",
+			Schedule:   scheduler.Every(15 * time.Minute),
+			RunOnStart: true,
+			Run:        warningSvc.Refresh,
+		})
 	}
 	// The last person leaving the stable gets an immediate blanket reminder.
 	presence.AfterCheckOut = func(ctx context.Context, stableID, userID string) {

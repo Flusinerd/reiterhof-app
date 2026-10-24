@@ -78,6 +78,7 @@ const KIND_LABELS: Record<string, string> = {
   training_plan: "Training",
   urgent_observation: "Dringend",
   observation: "Auffälligkeit",
+  weather_warning: "Unwetter",
 };
 
 /** Short German name of a reminder kind for the chip in the list. */

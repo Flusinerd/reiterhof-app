@@ -7,8 +7,10 @@ import { BlanketDoneRow, BlanketHorseCard } from "@/components/blanket-horse-car
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
 import { Card, PageHeader, Screen, Section, Text } from "@/components/ui";
 import { WeatherCard } from "@/components/weather-card";
+import { WeatherWarnings } from "@/components/weather-warnings";
 import { errorMessage } from "@/lib/api";
 import { BLANKET_PLAN_EVENT, BLANKET_STATE_EVENT, blanketKeys, useSetState, useToday } from "@/lib/api/blankets";
+import { weatherKeys } from "@/lib/api/weather";
 import { useAuth } from "@/lib/auth";
 import {
   nightLine,
@@ -59,7 +61,10 @@ export default function Blankets() {
       refreshControl={
         <RefreshControl
           refreshing={today.isRefetching}
-          onRefresh={() => void queryClient.invalidateQueries({ queryKey: blanketKeys.all })}
+          onRefresh={() => {
+            void queryClient.invalidateQueries({ queryKey: blanketKeys.all });
+            void queryClient.invalidateQueries({ queryKey: weatherKeys.warnings });
+          }}
           tintColor={colors.primary.DEFAULT}
         />
       }
@@ -85,6 +90,8 @@ export default function Blankets() {
           </View>
         ) : null}
       </PageHeader>
+
+      <WeatherWarnings timeZone={timeZone} />
 
       {error ? (
         <Card className="border-danger bg-danger-soft">
