@@ -77,6 +77,12 @@ Einmalige Schritte, die nicht im Repository stehen:
 8. **Testgeräte**: GPS-Tracking, Hintergrundortung, Karte und Push laufen nicht in Expo Go; ein Development Build ist nötig (siehe [`docs/domains/tracking.md`](docs/domains/tracking.md)).
 9. **Native Builds** entstehen lokal, ohne EAS (Expo sieht keine Schlüssel und keine Nutzerdaten): `cd mobile && npx expo prebuild --clean` erzeugt `android/` und `ios/` (git-ignoriert). Android: `cd android && ./gradlew bundleRelease` mit einem eigenen Upload-Keystore (`~/.gradle/gradle.properties` oder `android/app/build.gradle`, nie ins Repository); das `.aab` in der Play Console hochladen. iOS: `ios/Stallfunk.xcworkspace` in Xcode öffnen, Signing mit dem Team wählen, Product, Archive und über den Organizer zu App Store Connect (TestFlight) hochladen. Entwicklung auf dem Gerät: `npx expo run:android` bzw. `npx expo run:ios --device`.
 
+## Releases
+
+Versionen stehen in `mobile/app.json` und `mobile/package.json` (gleicher Wert), Änderungen in
+[`CHANGELOG.md`](CHANGELOG.md). Ein Release ist ein Merge auf `main` plus Tag `vX.Y.Z` und GitHub-Release
+mit dem Changelog-Eintrag; der Deploy-Workflow bringt den getesteten Stand auf den Server.
+
 ## CI und Deployment
 
 - CI (`.github/workflows/ci.yml`): Backend (`go vet`, `go test` mit Postgres 16), Mobile (Typecheck, Tests, Web-Export der PWA; `npx expo install --check` warnt nur, damit neue Expo-Patches main nicht rot machen), Pin-Check und ShellCheck.
