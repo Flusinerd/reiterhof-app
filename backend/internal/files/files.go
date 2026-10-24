@@ -3,7 +3,7 @@
 //
 // Layout: <upload dir>/<stable_id>/<32 hex random>.<ext>. The relative "path"
 // (stable_id/name.ext) is what other tables store (horse_documents.file_path,
-// blankets.photo_path, observations.media). Other packages use the Go API:
+// blankets.photo_path, horses.photo_path, observations.media). Other packages use the Go API:
 //
 //	saved, err := files.Save(ctx, stableID, reader, declaredContentType)
 //	// store saved.Path; the app loads saved.URL ("/api/v1/files/<path>")
@@ -14,8 +14,8 @@
 // their metadata (EXIF position, XMP, comments, trailers; see metadata.go).
 //
 // Serving follows the record that references a file (least privilege, see handlers.go):
-// the raw route only answers for paths a horse document, an observation or a blanket
-// points to, with the visibility of that record.
+// the raw route only answers for paths a horse document, an observation, a blanket or a horse
+// (its photo) points to, with the visibility of that record.
 package files
 
 import (
