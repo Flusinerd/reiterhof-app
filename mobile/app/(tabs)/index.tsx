@@ -6,10 +6,12 @@ import { RefreshControl } from "react-native";
 import { PresenceTile } from "@/components/presence-tile";
 import { StartBlanketsTile } from "@/components/start-blankets-tile";
 import { StartRequests } from "@/components/start-requests";
+import { WeatherWarnings } from "@/components/weather-warnings";
 import { Button, PageHeader, Screen, Section } from "@/components/ui";
 import { BLANKET_PLAN_EVENT, BLANKET_STATE_EVENT, blanketKeys, useToday } from "@/lib/api/blankets";
 import { PRESENCE_KEY } from "@/lib/api/presence";
 import { requestKeys } from "@/lib/api/requests";
+import { weatherKeys } from "@/lib/api/weather";
 import { useAuth } from "@/lib/auth";
 import { greeting, myBlanketLines, nightTempShort, nightUnit, startWeatherText } from "@/lib/blankets";
 import { useInvalidateOnEvents } from "@/lib/realtime";
@@ -42,6 +44,7 @@ export default function Home() {
             void queryClient.invalidateQueries({ queryKey: blanketKeys.all });
             void queryClient.invalidateQueries({ queryKey: PRESENCE_KEY });
             void queryClient.invalidateQueries({ queryKey: requestKeys.all });
+            void queryClient.invalidateQueries({ queryKey: weatherKeys.warnings });
           }}
           tintColor={colors.primary.DEFAULT}
         />
@@ -54,6 +57,8 @@ export default function Home() {
         unit={nightUnit(weather)}
         description={data ? startWeatherText(lines, weather !== null, mineIds.size > 0) : "Wird geladen ..."}
       />
+
+      <WeatherWarnings timeZone={me?.stable?.timezone ?? "Europe/Berlin"} />
 
       <Section title="Anwesenheit">
         <PresenceTile />

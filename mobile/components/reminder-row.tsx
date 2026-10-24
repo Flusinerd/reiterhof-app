@@ -29,6 +29,7 @@ const KIND_ICONS: Record<string, LucideIcon> = {
   training_plan: Activity,
   urgent_observation: TriangleAlert,
   observation: Eye,
+  weather_warning: TriangleAlert,
 };
 
 export type ReminderRowProps = {

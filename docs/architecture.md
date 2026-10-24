@@ -20,7 +20,7 @@ backend/
     seed/             example data + exported fixed IDs (seed.HorseLuna, ...)
     admincli/         commands of stallfunk-admin (env file parser, stable/user/invite/horse/...)
     scheduler/        reusable periodic / daily jobs (see "Scheduler")
-    weather/          DWD MOSMIX client, night summary, weather_snapshots, hourly job
+    weather/          DWD MOSMIX client, night summary, weather_snapshots, hourly job; DWD warnings (weather_warnings, 15-minute job, GET /weather/warnings)
     mistral/          chat completions client for the AI week plan (httpx.Deps.Chat)
     blanketplan/      pure rule evaluation (Recommend, Changed) + LoadRules
     stables/          stable data access: ground condition, stables with coordinates
@@ -40,7 +40,7 @@ Configuration (environment):
 | `REITERHOF_ADDR` | `:8080` | listen address |
 | `REITERHOF_DATABASE_URL` | `postgres://postgres:postgres@localhost:5432/reiterhof?sslmode=disable` | app database |
 | `REITERHOF_TEST_DATABASE_URL` | unset | admin URL for DB tests; unset means they skip |
-| `REITERHOF_WEATHER_ENABLED` | `true` | run the hourly DWD weather job |
+| `REITERHOF_WEATHER_ENABLED` | `true` | run the hourly DWD weather job and the 15-minute DWD warning job |
 | `REITERHOF_WEATHER_STATION` | unset | force one MOSMIX station id for all stables; unset = nearest per stable |
 | `REITERHOF_APNS_KEY_FILE`, `_KEY_ID`, `_TEAM_ID`, `_TOPIC`, `_SANDBOX` | unset | APNs token authentication (.p8 key file, key ID, team ID; topic defaults to the bundle id; sandbox for Xcode builds). Unset = no iOS push (`push.NewClientFromEnv`) |
 | `REITERHOF_FCM_SERVICE_ACCOUNT_FILE` | unset | Firebase service account JSON for FCM HTTP v1. Unset = no Android push |
@@ -458,6 +458,10 @@ hourly `timeline`. `will_rain = maxProb >= 50 % || sum >= 0.5 mm`
 **Job:** `weather.Service.Refresh` runs hourly (wired in `cmd/api`): per stable with lat/lng
 it stores snapshots for today and tomorrow in `weather_snapshots` (append-only, `raw` holds
 station and summary). `weather.Store.Latest(ctx, stableID, day)` returns the newest one.
+
+**Warnings:** `weather.WarningService.Refresh` (every 15 minutes) stores the official DWD warnings of
+the stable's municipality in `weather_warnings` and pushes the relevant ones; see "Weather warnings"
+in `docs/domains/blankets.md`.
 
 **Recommendation** (`blanketplan`): `Recommend(rules, Forecast{NightMinC, WillRain, RainMM})` returns
 the first matching rule by position (semantics in "Testing" below); `Changed(prev, next)`

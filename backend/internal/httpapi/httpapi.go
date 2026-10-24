@@ -22,6 +22,7 @@ import (
 	"github.com/Flusinerd/reiterhof-app/backend/internal/reminders"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/requests"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/trainingapi"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/weather"
 )
 
 // Deps are the dependencies handed to every domain package (see httpx.Deps).
@@ -44,6 +45,7 @@ var registrations = []func(mux *http.ServeMux, deps Deps){
 	horses.Register,
 	observations.Register,
 	trainingapi.Register,
+	weather.Register,
 }
 
 // NewHandler builds the router. It uses net/http only, no framework.

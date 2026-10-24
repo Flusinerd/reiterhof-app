@@ -193,6 +193,46 @@ riders get a `weather_change` push ("Luna: jetzt Decke 100 g statt keine Decke."
 horse and night (claim `blanket_weather`, `source_id` = horse). Horses without a state, states
 set before any forecast existed and snapshots of other days are ignored.
 
+## Weather warnings (Wetterwarnungen)
+
+Official warnings of the Deutscher Wetterdienst for the stable's location, next to the forecast.
+Code: `backend/internal/weather/warnings.go` (fetch and parse), `warnstore.go` (table),
+`warnjob.go` (job and push), `handler.go` (route); migration `0300_weather_warnings.up.sql`.
+Mobile: `components/weather-warnings.tsx`, `lib/api/weather.ts`, pure helpers with tests in
+`lib/weather-warnings.ts`.
+
+- **Source:** the WFS layer `dwd:Warnungen_Gemeinden` of the DWD GeoServer
+  (`https://maps.dwd.de/geoserver/dwd/ows?service=WFS&version=2.0.0&request=GetFeature&typeName=dwd:Warnungen_Gemeinden&outputFormat=application/json&bbox=<lat-d>,<lng-d>,<lat+d>,<lng+d>,urn:ogc:def:crs:EPSG::4326`),
+  open data without a key. A box of about 100 m around the stable's coordinates selects the
+  municipality, so no warn cell id has to be configured. Every municipality polygon is one feature;
+  `weather.ParseWarnings` keeps each CAP `IDENTIFIER` once and skips test messages (`STATUS` not
+  `Actual`) and cancellations. Fields used: `EVENT`, `SEVERITY` (stored lower case: `minor`,
+  `moderate`, `severe`, `extreme`, the DWD levels 1 to 4), `HEADLINE`, `DESCRIPTION`,
+  `INSTRUCTION`, `ONSET` (fallback `SENT`), `EXPIRES` (may be null). The test fixture
+  `testdata/warnungen_gemeinden_sample.json` was written after the documented layer schema, not
+  recorded (the container had no access to the DWD): check it against a real answer when touching
+  the parser.
+- **Job** `weather-warnings` (`weather.WarningService.Refresh`, every 15 minutes, only with
+  `REITERHOF_WEATHER_ENABLED`): per stable with lat/lng it fetches the warnings and replaces the rows
+  in `weather_warnings` (`Store.ReplaceWarnings`: gone ones deleted, same `dwd_id` updated, new ones
+  inserted; expired ones are not stored).
+- **Push** `weather_warning` to every member of the stable (opt-out in the settings) for warnings with
+  `severe` or `extreme` severity, and `moderate` ones whose event is about storm, frost, ice or heat
+  (`Warning.Notify`: `STURM`, `ORKAN`, `FROST`, `GLÄTTE`, `GLATTEIS`, `HITZE`); everything else is only
+  shown. Title "Unwetterwarnung" (severe, extreme) or "Wetterwarnung", body
+  "Amtliche WARNUNG vor STURMBÖEN: Sa 24.10., 14:00 bis 22:00 Uhr.", `data = {screen: "/blankets",
+  warning_id}`. Once per warning and user: claim row in `reminders` (`source_table =
+  'weather_warnings'`, unique index `reminders_weather_warning_once`), released when the push fails;
+  then `weather_warnings.notified` is set. The DWD sends an updated warning with a new identifier; a
+  new row counts as notified when the stable had a notified warning of the same event and at least
+  the same severity, so only escalations push again.
+- **API** `GET /api/v1/weather/warnings` (every member): `{warnings: [{id, event, severity, headline,
+  description, instruction, onset, expires, fetched_at}]}`, active ones (not expired), most severe first.
+- **App:** a card per warning above the content of the start screen and the tab "Decken" (level badge
+  in info/accent/danger for yellow/orange/red+violet, headline, time range in the stable's time zone;
+  tap shows description and the DWD's advice), "Quelle: Deutscher Wetterdienst". Nothing is shown
+  without warnings. Pull to refresh reloads them.
+
 ## Mobile
 
 - Weather card (`components/weather-card.tsx`, on the tab and the plan): temperature range, rain
@@ -210,7 +250,7 @@ set before any forecast existed and snapshots of other days are ignored.
   upload through `lib/upload.ts`) and the helper note.
 - Verlauf (`/blankets/history/{horseId}`): the last 60 days.
 - Start screen: greeting, night temperature with the recommendations for my horses (owned and
-  ridden), presence tile, blanket progress tile, the two newest open requests.
+  ridden), weather warnings, presence tile, blanket progress tile, the two newest open requests.
 - Pure helpers with tests: `lib/blankets.ts` (texts, progress, greeting), `lib/blankets-rules.ts`
   (rule drafts, validation, reorder, unreachable rules).
 

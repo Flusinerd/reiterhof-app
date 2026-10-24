@@ -297,6 +297,8 @@ func (b *builder) storedItems(ctx context.Context) error {
 			}
 		case "training_plan":
 			it.Screen = screenWeek
+		case "weather_warnings":
+			it.Screen = screenBlankets
 		}
 		b.stored[storedKey(it.Kind, table, source, it.DueAt, b.w)] = true
 		b.items = append(b.items, it)
