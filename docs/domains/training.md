@@ -6,19 +6,20 @@ library, JAN-59 week view, JAN-60 "Nur eintragen", JAN-61 finish screen, JAN-89 
 - Backend: `backend/internal/trainingapi` (HTTP + SQL). The rules live in the pure packages
   `internal/training`, `training/load` (load score, week segments, assessment) and
   `training/recommend` (recommender); see "Training logic" in [architecture.md](../architecture.md).
+- Migration `0320_session_feeling.up.sql`: `sessions.feeling` (`hard|good|easy`, nullable), see "Sessions".
 - Migration `0240_week_slot_focus.up.sql`: `week_slots.focus`, `week_slots.exercise_id` (JAN-92).
 - Migration `0060_training_sessions.up.sql`: `sessions.exercise_id` and CHECK constraints for
   activity, feel and focus rating. Tables `training_profiles`, `exercises`, `sessions`, `week_slots`
   and `reha_plans` come from `0003`.
 - Mobile screens: `app/(tabs)/training.tsx` (Was heute?), `app/training/session.tsx` (chooser GPS/indoor, see [tracking.md](tracking.md)),
-  `app/training/session/finish.tsx`, `app/training/week.tsx` (week with draft), `app/horses/[id]/training-setup.tsx`
+  `app/training/session/finish.tsx` ("Wie war's?", see "Finish step"), `app/training/week.tsx` (week with draft), `app/horses/[id]/training-setup.tsx`
   (profile wizard), `app/horses/[id]/training-profile.tsx` (overview) and the section editors
   `app/horses/[id]/training-profile/{activities,rhythm,structure,shows,riders}.tsx`.
 - Mobile components: `components/training-next-step.tsx` (next-step card), `training-week-strip.tsx` (week strip),
   `training-day-edit-sheet.tsx` (edit one day), `training-activity-modes.tsx` (activity list, wizard and editor),
   `training-week-structure.tsx` (seven weekday rules), `training-rider-rules.tsx` (rider rules); UI kit parts
   `Stepper`, `NumberStepper`/`RangeStepper`, `DateField`, `LinkRow` (see [design-system.md](../design-system.md)).
-- Mobile logic: pure helpers `lib/training*.ts` (`training-profile.ts`: drafts, per-section validation, discipline
+- Mobile logic: `lib/session-finish.ts` (feeling, finish body, note target), pure helpers `lib/training*.ts` (`training-profile.ts`: drafts, per-section validation, discipline
   defaults, summaries; `training-plan.ts`: plan days, day edits, `nextStep`), API client and React Query hooks
   `lib/api/training.ts`.
 
@@ -178,6 +179,30 @@ most 1), `rein_changes` (ordered segments `{rein: left|right, minutes}`, the num
 is the segment count minus one), `distance_m`, and `feel` (`fresh|loose|tired|tense`),
 `focus_rating` (1 Schwer, 2 Besser, 3 Sitzt), `exercise_id`, `note`, `visible_to_rider` (default
 true). `source` is `tracked` when gait shares, rein changes or a distance are sent, else `quick`.
+
+`feeling` (`hard|good|easy`, "Schwer", "Gut", "Sehr locker"; optional, `null` for quick logs and older app
+versions; anything else is `400`) is how the session felt for the rider, asked by "Wie war's?" after the ride.
+It is separate from `feel`, which is how the horse was and what the recommender and the week plan read; the
+app no longer asks for `feel` but the API still takes it. Sessions are returned with both.
+
+### Finish step "Wie war's?"
+
+`app/training/session/finish.tsx` (after both trackers, `lib/session-finish.ts` for the logic), top to bottom:
+eyebrow "Luna · gerade eben" and the title; the minutes from the tracker as a big number the rider can edit
+("Minuten in der Halle, aus dem Tracking"; "Ort ändern" switches the activity), gait and rein summary when
+tracked; "Gefühl" chips (Schwer, Gut, Sehr locker, tap again to clear); "Übungen" with the exercise of the
+plan as one tick row; the note ("Notiz für Mia …" when someone else owns or rides the horse, else "Notiz …"),
+for an owner with a rider the switch "Mia sieht die Einheit" (`visible_to_rider`); the one button "Ins
+Tagebuch", and a quiet "Etwas aufgefallen?". Without a next progression the screen closes after saving,
+with one it shows "Als Nächstes" first.
+
+- The exercise row starts out ticked when the indoor tracker ticked at least one step (the tracker passes
+  `steps_done`, e.g. `0,2`, or `-` for none, in the finish params) and when no tracker data exists. The
+  caption says "2 von 4 Schritten erledigt". Unticked: no `exercise_id` is sent.
+- The feeling also rates the exercise when it is sent (`focus_rating` 1, 2, 3 for hard, good, easy), so the
+  suggestion of the next step ("Sitzt") keeps working without a second question.
+- Where the minutes come from: `minutes` of the finish params, at least 1 (`secondsToMinutes`); a typed value
+  must be a whole number from 1 to 600, otherwise the button stays disabled.
 
 A non-empty `track` (GPS) needs the `location_tracking` consent, else `403 consent_required`
 (`privacy.Has`, JAN-19); see [privacy.md](privacy.md).

@@ -21,7 +21,7 @@ closed, and links the exercise library.
 | `app/training/track/gps.tsx` | Ride with GPS (JAN-63) |
 | `app/training/track/indoor.tsx` | Hall, arena, lunge without GPS (JAN-65) |
 | `app/training/exercises/index.tsx`, `[id].tsx` | Library: filter by discipline, level and goal; steps and next progression |
-| `app/training/session/finish.tsx` | Unchanged API; additionally posts `track` and `gait_windows` (see below) |
+| `app/training/session/finish.tsx` | "Wie war's?" (see [training.md](training.md#finish-step-wie-wars)); additionally posts `track` and `gait_windows` (see below) |
 
 ### GPS mode
 
@@ -59,7 +59,7 @@ closed, and links the exercise library.
 `finish()` closes the session and navigates to `/training/session/finish` with the params the finish screen
 already reads: `horse`, `activity`, `minutes` (active time, at least 1), `started_at`, `exercise`, `gait`
 (JSON, fractions of `halt|walk|trot|canter`, rounded down so the sum stays at most 1), `rein` (JSON) and
-`distance_m`. Track and windows are too large for router params: they go to `lib/tracking-store.ts`
+`distance_m`, plus `steps_done` (indexes of the ticked steps, `-` for none) when there is an exercise. Track and windows are too large for router params: they go to `lib/tracking-store.ts`
 (`saveFinishExtras`) and `finish.tsx` reads them (`loadFinishExtras`, keyed by `started_at`), adds them to the
 POST body and deletes them after saving. Until the extras are loaded the save button shows its spinner.
 

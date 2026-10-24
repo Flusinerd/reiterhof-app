@@ -11,7 +11,7 @@ source files in `mobile/components/ui/`, owned by this repo. Tokens live in one 
 Code and identifiers are English; all UI text is German. The concept and the decisions behind it
 (concept "Mischung", owners first, Abendlicht, optional horse photos) were made with the product
 owner in October 2026; the rebuild goes step by step: foundation and "Heute", then the horse page
-with photo and diary, then the flows (after the ride, evening round), then the remaining screens.
+with photo and diary, then the flows (after the ride, evening round; built), then the remaining screens.
 
 ## Rules
 
@@ -39,6 +39,8 @@ with photo and diary, then the flows (after the ride, evening round), then the r
 13. Icons are Lucide, stroke 2, through `Icon`; the custom `Horse` (`@/components/icons/horse`) is drawn
     in the Lucide style.
 14. Use `cn()` (`@/lib/cn`) to merge classes. Texts stay short (JAN-80).
+15. **Flows that belong to the night are always dark** (the evening blanket round), however the phone is set:
+    wrap them in `ThemeScope` (see "Always-dark flows"). Everything else follows the phone.
 
 ## Tokens
 
@@ -164,6 +166,8 @@ All exported from `@/components/ui` (barrel) or individually from `@/components/
 
 ### Display and overlays
 
+- **`ThemeScope`**: `<ThemeScope scheme="dark">…</ThemeScope>` (default `dark`) pins a subtree to one scheme, see "Always-dark flows".
+
 - **`Badge`**: static status label. `label`, `variant` (`neutral|primary|accent|info|danger`).
 - **`Avatar`**: `name`, `colorKey`, `size` (`sm` 32, `md` 44, `lg` 64, `xl` 96).
 - **`Sheet`**: bottom sheet. `open`, `onOpenChange`, `title`, `description`, children.
@@ -189,6 +193,23 @@ tomorrow), tonight's blanket of each own horse at the stable's reminder time, an
 (health, medication, reha, helpers, weather; `training_plan` and `last_person` are left out because the
 plan and blanket entries cover them). The next task is the user's own training of today, else the earliest
 open timed task from now on, else something overdue.
+
+## Always-dark flows
+
+The token class names read the CSS variables of `global.css`, which follow the phone. `ThemeScope`
+(`components/ui/theme-scope.tsx`) overrides them for its subtree: it builds the variables from `palettes[scheme]`
+(`paletteVariables` in `lib/tokens.ts`, the same `--color-<token>: r g b` as `global.css`) and passes them to a wrapping
+`View` with NativeWind's `vars()`, so every `bg-*`, `text-*` and `border-*` inside is dark. A context makes `useColors()`
+return the same palette, so spinner tints and native props agree; use `useColors()`, not the static `colors`, in
+components that can appear inside a scope. Two things the scope cannot do and the screen does itself: the status bar
+(`<StatusBar style="light" />`) and the stack's `contentStyle` (`<Stack.Screen options={{ contentStyle: { backgroundColor: palettes.dark.background } }} />`).
+
+On the web a `Modal` (our `Sheet`) is rendered outside the wrapper, so while a scope is mounted the variables are also
+set on `<html>` and restored when it unmounts; a sheet opened inside the round is therefore dark as well.
+
+The only always-dark screen so far is `/blankets/round` ([blankets.md](domains/blankets.md#evening-round-abendrunde)):
+it happens in the stable at night, with the one brass button. "Wie war's?" after the ride (`/training/session/finish`)
+follows the phone like every other screen.
 
 ## Adding a screen
 

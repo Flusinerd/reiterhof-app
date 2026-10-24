@@ -288,12 +288,48 @@ Mobile: `components/weather-warnings.tsx`, `lib/api/weather.ts`, pure helpers wi
   "Wie stark?": Egal, Leicht (under 2 mm), Mäßig (2 to under 8 mm), Stark (from 8 mm), the steps of
   the weather card, or Genau with own "Ab (mm)" / "Unter (mm)"), blankets (sheet with photo
   upload through `lib/upload.ts`) and the helper note.
+- Abendrunde (`/blankets/round`, step 3 of the redesign): see "Evening round" below.
 - Verlauf (`/blankets/history/{horseId}`): the last 60 days.
 - Start screen: greeting, night temperature with the recommendations for my horses (owned and
   ridden), weather warnings, presence tile, blanket progress tile, the two newest open requests.
-- Pure helpers with tests: `lib/blankets.ts` (texts, progress, greeting, manual choice: `ruleHint`,
+- The state buttons ("Eingedeckt", "Abgedeckt", "Geprüft") are text only and at least 128 px wide (`components/blanket-actions.tsx`); two sit
+  side by side in a card on a phone, otherwise they wrap into rows of their own (with an icon and `flex-1` the label was cut off).
+- Pure helpers with tests: `lib/blanket-round.ts` (evening round), `lib/blankets.ts` (texts, progress, greeting, manual choice: `ruleHint`,
   `deviatesFromRule`, `overrideUntilText`, `blanketChoices`), `lib/blankets-rules.ts`
   (rule drafts, validation, reorder, unreachable rules).
+
+## Evening round (Abendrunde)
+
+`app/blankets/round.tsx`, logic in `lib/blanket-round.ts`. One horse per screen, always in the dark ("Abendlicht"), also
+when the phone is set to light: the route is wrapped in `ThemeScope` and sets the status bar to light (see
+[design-system.md](../design-system.md#always-dark-flows)). No new API: it reads `GET /blankets/today` and sets the
+day state with `POST /horses/{id}/blanket-state` (`useSetState`), and refreshes on the realtime events like the tab.
+
+- **Entry:** the action "Runde starten" of the blanket task on "Heute" (`lib/today.ts`, screen `/blankets/round`), a
+  primary button in the block "Decken heute Nacht" on the Stall tab while horses are open, a secondary button on
+  `/blankets`. Optional `?horse=<id>` starts at that horse. Notification routes need no change (`/blankets`
+  matches by prefix).
+- **Order** (`roundOrder`): the user's own horses first (owner or rider), then the others, each by box (numeric, so box
+  9 comes before 10, horses without a box last). Horses that are done stay in the list; the round starts at the
+  first open one and `nextIndex` skips done horses. "Zurück zu <Pferd>" goes to the previous horse in the list,
+  done or not, to correct it.
+- **Screen:** eyebrow "Abendrunde · 7 Pferde" over one progress segment per horse (done: `success`, current:
+  brass, open: muted); the horse (avatar, name in Fraunces italic, "Box 12 · dein Pferd"); "Heute Nacht" with the title of
+  the recommendation (blanket, "Keine Decke", without advice "Keine Empfehlung — Regel prüfen"), the weather line
+  ("4 °C, 4,8 mm Regen, Wind bis 45 km/h", "Noch keine Vorhersage"), "von Hand gewählt: Grund" for a manual choice,
+  the owner's wish and where the blanket hangs; the big button; "Andere Decke" (the cover sheet
+  `components/blanket-choice-sheet.tsx`, mode `cover`, which then also moves on) and "Später"; a peek row "Merlin als
+  Nächstes" (tap to jump there).
+- **The big button** is the first of `stateActions` (`roundActions`): "Eingedeckt" (`covered`) for a blanket and without a
+  recommendation, "Keine Decke — passt" (`checked`) when the rules want none. The others are small text buttons
+  below: "Abgedeckt" (`uncovered`), and "Geprüft" when there is no recommendation. After saving, the round waits
+  for the refreshed list and shows the next open horse.
+- **"Später"** moves on without saving; the horse comes around again after the last one. When only that horse is
+  left, the round ends with it open.
+- **Summary** (`roundSummary`): "7 von 7 versorgt" (or "5 von 7 versorgt" with "2 Pferde sind noch offen."), one
+  row per horse with what was set ("Eingedeckt mit Decke 100 g", "Geprüft", "Abgedeckt (Hof, automatisch)") and who
+  and when ("Jan, 19:04"), open horses marked "Noch offen" (tap to go there), and "Fertig" back to where the round
+  was started.
 
 ## Seed
 
