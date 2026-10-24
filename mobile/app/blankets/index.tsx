@@ -57,7 +57,7 @@ export default function Blankets() {
   const done = data?.horses.filter((h) => h.done) ?? [];
 
   return (
-    <Screen
+    <Screen back
       refreshControl={
         <RefreshControl
           refreshing={today.isRefetching}

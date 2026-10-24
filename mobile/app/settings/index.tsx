@@ -1,10 +1,11 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { router, type Href } from "expo-router";
-import { BellOff, ChevronRight, LogOut, MapPin, Pencil, ShieldCheck, type LucideIcon } from "lucide-react-native";
+import { Activity, Bell, BellOff, BookOpen, ChevronRight, LogOut, MapPin, Pencil, ShieldCheck, type LucideIcon } from "lucide-react-native";
 import { useState } from "react";
 import { ActivityIndicator, Pressable, View } from "react-native";
 
 import { useConsentPrompt } from "@/components/consent-prompt";
+import { Horse } from "@/components/icons/horse";
 import { InviteCard } from "@/components/invite-card";
 import { ReminderTimeCard } from "@/components/reminder-time-card";
 import { WebPushCard } from "@/components/web-push-card";
@@ -30,7 +31,12 @@ import { colors } from "@/lib/theme";
  * Settings (JAN-70): notifications per kind with the stable's reminder time, inviting (admins only), then the
  * account (name, presence, privacy, sign-out).
  */
-export default function Settings() {
+export default function SettingsRoute() {
+  return <Settings back />;
+}
+
+/** Also the "Ich" tab (`back` false): then with the links that used to be tabs or in the app menu. */
+export function Settings({ back }: { back: boolean }) {
   const queryClient = useQueryClient();
   const { user, hasStable, signOut } = useAuth();
   const settings = useNotificationSettings();
@@ -73,8 +79,20 @@ export default function Settings() {
   }
 
   return (
-    <Screen back>
-      <PageHeader title="Einstellungen" description={user ? `${user.name}, ${user.email}` : undefined} />
+    <Screen back={back} menu={back}>
+      <PageHeader title={back ? "Einstellungen" : (user?.name ?? "Ich")} description={user ? (back ? `${user.name}, ${user.email}` : user.email) : undefined} />
+
+      {!back && hasStable ? (
+        <Card padded={false}>
+          <LinkRow icon={Bell} title="Erinnerungen" description="Heute und diese Woche" onPress={() => router.push("/reminders" as Href)} />
+          <Divider />
+          <LinkRow icon={Activity} title="Training" description="Empfehlung, Woche, Einheit erfassen" onPress={() => router.push("/training" as Href)} />
+          <Divider />
+          <LinkRow icon={BookOpen} title="Übungen" description="Die Übungsbibliothek" onPress={() => router.push("/training/exercises" as Href)} />
+          <Divider />
+          <LinkRow icon={Horse} title="Alle Pferde" description="Pferde im Stall, Pferd anlegen" onPress={() => router.push("/horses" as Href)} />
+        </Card>
+      ) : null}
 
       {error ? (
         <Text variant="bodySm" tone="danger" accessibilityRole="alert">

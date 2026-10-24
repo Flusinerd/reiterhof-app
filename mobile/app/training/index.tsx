@@ -84,7 +84,7 @@ export default function Training() {
 
   if (horses.isPending) {
     return (
-      <Screen>
+      <Screen back>
         <PageHeader title="Training" />
         <ActivityIndicator color={colors.primary.DEFAULT} className="self-start" />
       </Screen>
@@ -92,7 +92,7 @@ export default function Training() {
   }
   if (horses.isError) {
     return (
-      <Screen>
+      <Screen back>
         <PageHeader title="Training" />
         <Card className="gap-3">
           <Text variant="bodyStrong">Laden fehlgeschlagen</Text>
@@ -104,7 +104,7 @@ export default function Training() {
   }
   if (list.length === 0 || !activeId) {
     return (
-      <Screen>
+      <Screen back>
         <PageHeader
           eyebrow="Training"
           title="Noch kein Pferd"
@@ -149,7 +149,7 @@ export default function Training() {
   const goto = (href: string) => router.push(href as Href);
 
   return (
-    <Screen
+    <Screen back
       refreshControl={
         <RefreshControl refreshing={today.isRefetching} onRefresh={() => void today.refetch()} tintColor={colors.primary.DEFAULT} />
       }

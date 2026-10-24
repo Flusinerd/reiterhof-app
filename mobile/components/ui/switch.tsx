@@ -1,7 +1,7 @@
 import { Pressable, Switch as RNSwitch, View, type ViewProps } from "react-native";
 
 import { cn } from "@/lib/cn";
-import { switchColors } from "@/lib/theme";
+import { switchColors, useColors } from "@/lib/theme";
 
 import { Text } from "./text";
 
@@ -31,6 +31,7 @@ export function Switch({
   accessibilityLabel,
   ...props
 }: SwitchProps) {
+  const sw = switchColors(useColors());
   return (
     <View className={cn("min-h-touch flex-row items-center justify-between gap-4", className)} {...props}>
       {label ? (
@@ -51,9 +52,10 @@ export function Switch({
         onValueChange={onValueChange}
         disabled={disabled}
         accessibilityLabel={accessibilityLabel ?? label}
-        trackColor={{ false: switchColors.trackOff, true: switchColors.trackOn }}
-        thumbColor={switchColors.thumb}
-        ios_backgroundColor={switchColors.trackOff}
+        trackColor={{ false: sw.trackOff, true: sw.trackOn }}
+        thumbColor={sw.thumb}
+        {...({ activeThumbColor: sw.thumb } as object)}
+        ios_backgroundColor={sw.trackOff}
       />
     </View>
   );

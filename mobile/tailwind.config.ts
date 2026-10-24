@@ -5,7 +5,16 @@ import { colors, fontFamilies, fontSizes, radii } from "./lib/tokens.ts";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const nativewindPreset = require("nativewind/preset");
 
-// All design tokens live in lib/tokens.ts; this file only maps them to Tailwind.
+// All design tokens live in lib/tokens.ts; this file only maps them to Tailwind. Colors point at
+// the CSS variables of global.css, which switch with the phone's light/dark setting.
+const themed = (name: string) => `rgb(var(--color-${name}) / <alpha-value>)`;
+const colorTokens: Record<string, string | Record<string, string>> = {};
+for (const [name, value] of Object.entries(colors)) {
+  colorTokens[name] =
+    typeof value === "string"
+      ? themed(name)
+      : Object.fromEntries(Object.keys(value).map((k) => [k, themed(k === "DEFAULT" ? name : `${name}-${k}`)]));
+}
 const config: Config = {
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
   presets: [nativewindPreset],
@@ -16,7 +25,7 @@ const config: Config = {
       transparent: "transparent",
       current: "currentColor",
       white: "#ffffff",
-      ...colors,
+      ...colorTokens,
     },
     fontFamily: Object.fromEntries(
       Object.entries(fontFamilies).map(([name, family]) => [name, [family]]),
@@ -48,7 +57,7 @@ const config: Config = {
     },
     borderColor: ({ theme }) => ({
       ...theme("colors"),
-      DEFAULT: colors.border,
+      DEFAULT: themed("border"),
     }),
     extend: {
       spacing: { page: "24px", touch: "44px" },

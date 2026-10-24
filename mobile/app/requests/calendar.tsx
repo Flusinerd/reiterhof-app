@@ -60,7 +60,7 @@ export default function HelperCalendar() {
           <Text variant="body" tone="muted">
             Hier stehen Anfragen, bei denen du hilfst.
           </Text>
-          <Button label="Zu den Anfragen" variant="outline" onPress={() => router.replace("/(tabs)/requests")} />
+          <Button label="Zu den Anfragen" variant="outline" onPress={() => router.replace("/requests")} />
         </View>
       ) : (
         groupByDay(requests).map((g) => (

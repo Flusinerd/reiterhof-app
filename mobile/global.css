@@ -1,3 +1,69 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Color tokens as RGB channels (generated from palettes in lib/tokens.ts; lib/tokens.test.ts checks
+   they match). Light by day, "Abendlicht" when the phone is set to dark. */
+:root {
+  --color-background: 244 240 230;
+  --color-card: 255 253 248;
+  --color-raised: 255 253 248;
+  --color-border: 230 223 209;
+  --color-divider: 238 232 219;
+  --color-foreground: 26 24 20;
+  --color-muted: 109 103 92;
+  --color-primary: 31 53 39;
+  --color-primary-foreground: 244 240 230;
+  --color-primary-soft: 226 232 220;
+  --color-primary-deep: 31 53 39;
+  --color-primary-deeper: 20 35 26;
+  --color-brass: 138 106 44;
+  --color-brass-soft: 241 232 212;
+  --color-success: 45 106 69;
+  --color-success-soft: 225 238 227;
+  --color-accent: 194 65 12;
+  --color-accent-soft: 251 236 223;
+  --color-accent-text: 154 77 11;
+  --color-info: 30 79 138;
+  --color-info-soft: 230 238 251;
+  --color-danger: 159 29 29;
+  --color-danger-soft: 251 228 226;
+  --color-panel: 22 36 27;
+  --color-gait-walk: 134 239 172;
+  --color-gait-trot: 251 191 36;
+  --color-gait-canter: 255 255 255;
+  --color-gait-canter-light: 194 65 12;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-background: 14 18 16;
+    --color-card: 20 26 22;
+    --color-raised: 25 33 28;
+    --color-border: 42 52 45;
+    --color-divider: 31 39 34;
+    --color-foreground: 237 231 218;
+    --color-muted: 152 162 148;
+    --color-primary: 201 164 92;
+    --color-primary-foreground: 26 20 10;
+    --color-primary-soft: 40 38 27;
+    --color-primary-deep: 232 207 152;
+    --color-primary-deeper: 243 227 189;
+    --color-brass: 201 164 92;
+    --color-brass-soft: 40 38 27;
+    --color-success: 140 196 158;
+    --color-success-soft: 27 42 32;
+    --color-accent: 229 148 87;
+    --color-accent-soft: 43 31 22;
+    --color-accent-text: 242 179 134;
+    --color-info: 143 179 230;
+    --color-info-soft: 23 33 48;
+    --color-danger: 228 133 133;
+    --color-danger-soft: 46 26 26;
+    --color-panel: 25 36 29;
+    --color-gait-walk: 134 239 172;
+    --color-gait-trot: 251 191 36;
+    --color-gait-canter: 255 255 255;
+    --color-gait-canter-light: 194 65 12;
+  }
+}

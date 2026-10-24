@@ -86,7 +86,7 @@ export default function FinishSession() {
   const horseName = horse?.name ?? "Das Pferd";
   const gaits = gaitShareRows(params.gaitShares);
   const rein = reinSummary(params.reinChanges);
-  const leave = () => router.replace("/(tabs)/training");
+  const leave = () => router.replace("/training");
 
   if (saved) {
     return (

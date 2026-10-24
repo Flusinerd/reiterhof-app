@@ -6,7 +6,7 @@
     "scheme": "stallfunk",
     "orientation": "portrait",
     "icon": "./assets/icon-1024.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "plugins": [
       "expo-router",
       "expo-notifications",
@@ -73,8 +73,8 @@
       "shortName": "Stallfunk",
       "lang": "de",
       "favicon": "./public/favicon.png",
-      "backgroundColor": "#f6f4ee",
-      "themeColor": "#f6f4ee"
+      "backgroundColor": "#f4f0e6",
+      "themeColor": "#f4f0e6"
     },
     "extra": {
       "apiUrl": "https://api.stallfunk.de",

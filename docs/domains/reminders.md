@@ -111,8 +111,10 @@ the settings screen links there.
 - `/settings`: "Benachrichtigungen" (switch per kind, banner "Mitteilungen erlauben" without push consent, which opens the consent
   sheet, then the reminder time in quarter-hour steps with Speichern, admins only; members see the time), "Stallgasse" (invite
   card, admins only), "Konto" (links to the name screen, to `/presence` for geofence and visibility and to
-  `/settings/privacy`, then Abmelden). Entry points: bell and gear in the app menu
-  top right on every screen (see [design system](../design-system.md)).
+  `/settings/privacy`, then Abmelden). The settings screen is also the tab "Ich"
+  (with links to the reminders, training, exercises and all horses); sub pages keep bell and gear in the app menu top right
+  (see [design system](../design-system.md)). The tab "Heute" shows the reminder center's items of today and tomorrow in its
+  timeline (`lib/today.ts`).
 - Notification taps (`lib/notifications.ts`, `useNotificationNavigation` in the root layout): the tap while the app runs (listener) and
   the tap that started it (`getLastNotificationResponse`, cleared after handling) open `data.screen`, else `data.route` (health and reha
   pushes still use that key), else `request_id` / `observation_id` (`notificationRoute`). Only routes starting with `/blankets`,

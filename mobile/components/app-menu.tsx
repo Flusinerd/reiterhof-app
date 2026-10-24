@@ -6,13 +6,8 @@ import { Alert, View } from "react-native";
 import { usePresenceCheckIn } from "@/components/presence-check-in";
 import { Button } from "@/components/ui";
 
-/**
- * The menu top right on every screen: check in or out at the stable, the reminders, the settings.
- * A long press on the presence button opens the presence screen. The button of the screen that is
- * open is left out.
- */
-export function AppMenu() {
-  const pathname = usePathname();
+/** "Bin da" / "Ich gehe": checks in or out at the stable. A long press opens the presence screen. */
+export function PresenceButton() {
   const presence = usePresenceCheckIn();
 
   useEffect(() => {
@@ -20,21 +15,37 @@ export function AppMenu() {
   }, [presence.error]);
 
   return (
+    <>
+      <Button
+        label={presence.here ? "Ich gehe" : "Bin da"}
+        icon={presence.here ? LogOut : LogIn}
+        variant={presence.here ? "secondary" : "outline"}
+        size="sm"
+        accessibilityLabel={presence.here ? "Im Stall. Abmelden" : "Nicht im Stall. Anmelden"}
+        accessibilityHint="Lange drücken zeigt, wer im Stall ist."
+        loading={presence.toggling}
+        disabled={presence.overview.isPending}
+        onPress={() => void presence.arriveOrLeave(!presence.here)}
+        onLongPress={() => router.push("/presence")}
+      />
+      {presence.sheet}
+    </>
+  );
+}
+
+/**
+ * The menu top right of sub pages: check in or out at the stable, the reminders, the settings.
+ * The button of the screen that is open is left out. Tab screens have no menu: "Stall" and "Ich"
+ * carry these.
+ */
+export function AppMenu() {
+  const pathname = usePathname();
+  return (
     <View className="flex-row items-center gap-1">
       {pathname !== "/presence" ? (
-        <Button
-          label={presence.here ? "Ich gehe" : "Bin da"}
-          icon={presence.here ? LogOut : LogIn}
-          variant={presence.here ? "secondary" : "outline"}
-          size="sm"
-          accessibilityLabel={presence.here ? "Im Stall. Abmelden" : "Nicht im Stall. Anmelden"}
-          accessibilityHint="Lange drücken zeigt, wer im Stall ist."
-          loading={presence.toggling}
-          disabled={presence.overview.isPending}
-          onPress={() => void presence.arriveOrLeave(!presence.here)}
-          onLongPress={() => router.push("/presence")}
-          className="mr-1"
-        />
+        <View className="mr-1">
+          <PresenceButton />
+        </View>
       ) : null}
       {pathname !== "/reminders" ? (
         <Button
@@ -54,7 +65,6 @@ export function AppMenu() {
           onPress={() => router.push("/settings" as Href)}
         />
       ) : null}
-      {presence.sheet}
     </View>
   );
 }

@@ -18,7 +18,7 @@ import "@/lib/geofence"; // registers the background geofence task at app start
 import "@/lib/tracking-location"; // registers the ride tracking task at app start
 import { useNotificationNavigation } from "@/lib/notifications"; // also sets the foreground presentation
 import { useDeviceSetup } from "@/lib/use-push-registration";
-import { colors } from "@/lib/theme";
+import { useColors } from "@/lib/theme";
 import { setupWeb } from "@/lib/web-setup";
 
 setupWeb(); // web only: Alert.alert replacement; no-op on native
@@ -42,7 +42,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <StatusBar style="dark" />
+          <StatusBar style="auto" />
           <AuthGate />
         </AuthProvider>
       </QueryClientProvider>
@@ -58,6 +58,7 @@ export default function RootLayout() {
  */
 function AuthGate() {
   const { status, hasStable, refresh, user } = useAuth();
+  const c = useColors();
   useDeviceSetup(); // push token registration + geofence re-arm after sign-in
   useNotificationNavigation(); // tapping a push opens its screen
   const segments = useSegments() as string[];
@@ -67,7 +68,7 @@ function AuthGate() {
   const inSettings = segments[0] === "settings"; // privacy settings: export and deletion need no stable
 
   const stack = (
-    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }} />
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.background } }} />
   );
 
   if (status === "loading") {

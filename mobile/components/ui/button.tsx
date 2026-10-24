@@ -3,7 +3,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { ActivityIndicator, Pressable, type PressableProps } from "react-native";
 
 import { cn } from "@/lib/cn";
-import { colors } from "@/lib/theme";
+import { useColors, type Palette } from "@/lib/theme";
 
 import { Icon } from "./icon";
 import { Text } from "./text";
@@ -11,9 +11,9 @@ import { Text } from "./text";
 const buttonVariants = cva("flex-row items-center justify-center gap-2 border", {
   variants: {
     variant: {
-      primary: "border-primary bg-primary active:bg-primary-deep",
+      primary: "border-primary bg-primary active:opacity-85",
       secondary: "border-primary-soft bg-primary-soft active:bg-border",
-      outline: "border-border bg-card active:bg-background",
+      outline: "border-border bg-transparent active:bg-divider",
       ghost: "border-transparent bg-transparent active:bg-divider",
       danger: "border-danger bg-danger active:opacity-90",
     },
@@ -36,11 +36,11 @@ const buttonVariants = cva("flex-row items-center justify-center gap-2 border", 
 const buttonTextVariants = cva("font-sans-semibold", {
   variants: {
     variant: {
-      primary: "text-white",
+      primary: "text-primary-foreground",
       secondary: "text-primary-deep",
       outline: "text-foreground",
       ghost: "text-foreground",
-      danger: "text-white",
+      danger: "text-primary-foreground",
     },
     size: { sm: "text-body-sm", md: "text-body", lg: "text-body", icon: "text-body" },
   },
@@ -48,20 +48,17 @@ const buttonTextVariants = cva("font-sans-semibold", {
 });
 
 const iconColorClass = {
-  primary: "text-white",
+  primary: "text-primary-foreground",
   secondary: "text-primary-deep",
   outline: "text-foreground",
   ghost: "text-foreground",
-  danger: "text-white",
+  danger: "text-primary-foreground",
 } as const;
 
-const spinnerColor = {
-  primary: colors.card,
-  secondary: colors.primary.deep,
-  outline: colors.foreground,
-  ghost: colors.foreground,
-  danger: colors.card,
-} as const;
+function spinnerColor(c: Palette, variant: ButtonVariant): string {
+  if (variant === "primary" || variant === "danger") return c.primary.foreground;
+  return variant === "secondary" ? c.primary.deep : c.foreground;
+}
 
 export type ButtonVariant = NonNullable<VariantProps<typeof buttonVariants>["variant"]>;
 export type ButtonSize = NonNullable<VariantProps<typeof buttonVariants>["size"]>;
@@ -97,6 +94,7 @@ export function Button({
   className,
   ...props
 }: ButtonProps) {
+  const c = useColors();
   const isDisabled = disabled || loading;
   const iconSize = size === "sm" ? 16 : 20;
   return (
@@ -109,7 +107,7 @@ export function Button({
       {...props}
     >
       {loading ? (
-        <ActivityIndicator size="small" color={spinnerColor[variant]} />
+        <ActivityIndicator size="small" color={spinnerColor(c, variant)} />
       ) : icon ? (
         <Icon as={icon} size={iconSize} className={iconColorClass[variant]} />
       ) : null}

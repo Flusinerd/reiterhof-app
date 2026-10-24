@@ -1,79 +1,68 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { router, type Href } from "expo-router";
-import { useMemo } from "react";
-import { RefreshControl } from "react-native";
+import { RefreshControl, View } from "react-native";
 
-import { PresenceTile } from "@/components/presence-tile";
-import { StartBlanketsTile } from "@/components/start-blankets-tile";
-import { StartRequests } from "@/components/start-requests";
+import { NextTask, Timeline } from "@/components/today-parts";
 import { WeatherWarnings } from "@/components/weather-warnings";
-import { Button, PageHeader, Screen, Section } from "@/components/ui";
-import { BLANKET_PLAN_EVENT, BLANKET_STATE_EVENT, blanketKeys, useToday } from "@/lib/api/blankets";
-import { PRESENCE_KEY } from "@/lib/api/presence";
-import { requestKeys } from "@/lib/api/requests";
-import { weatherKeys } from "@/lib/api/weather";
+import { Button, PageHeader, Screen, SectionTitle, Text } from "@/components/ui";
+import { BLANKET_PLAN_EVENT, BLANKET_STATE_EVENT, blanketKeys } from "@/lib/api/blankets";
+import { reminderKeys } from "@/lib/api/reminders";
 import { useAuth } from "@/lib/auth";
-import { greeting, myBlanketLines, nightTempShort, nightUnit, startWeatherText } from "@/lib/blankets";
+import { greeting } from "@/lib/blankets";
 import { useInvalidateOnEvents } from "@/lib/realtime";
 import { colors } from "@/lib/theme";
+import { todaySummary } from "@/lib/today";
+import { useTodayData } from "@/lib/use-today";
 
-/** Start screen (JAN-35): greeting, tonight's weather and blankets for my horses, presence, progress, requests. */
-export default function Home() {
-  const queryClient = useQueryClient();
-  const { user, me } = useAuth();
-  const today = useToday();
+const dateLine = (timeZone: string) =>
+  new Intl.DateTimeFormat("de-DE", { timeZone, weekday: "long", day: "numeric", month: "long" }).format(new Date());
+
+/**
+ * "Heute": what is up for the user's own horses (docs/design-system.md). One next task with its
+ * action, then a timeline of today and tomorrow. Empty things are left out.
+ */
+export default function Heute() {
+  const { user } = useAuth();
+  const data = useTodayData();
   useInvalidateOnEvents({
-    [BLANKET_STATE_EVENT]: [blanketKeys.today],
+    [BLANKET_STATE_EVENT]: [blanketKeys.today, reminderKeys.all],
     [BLANKET_PLAN_EVENT]: [blanketKeys.today],
+    "request.changed": [reminderKeys.all],
   });
-
-  const mineIds = useMemo(
-    () => new Set([...(me?.roles.owned_horse_ids ?? []), ...(me?.roles.rider_horse_ids ?? [])]),
-    [me],
-  );
-  const data = today.data;
-  const lines = data ? myBlanketLines(data.horses, mineIds) : [];
-  const weather = data?.weather ?? null;
+  const view = data.view;
+  const colorOf = (id?: string) => data.horses.find((h) => h.id === id)?.color_key;
 
   return (
     <Screen
-      refreshControl={
-        <RefreshControl
-          refreshing={today.isRefetching}
-          onRefresh={() => {
-            void queryClient.invalidateQueries({ queryKey: blanketKeys.all });
-            void queryClient.invalidateQueries({ queryKey: PRESENCE_KEY });
-            void queryClient.invalidateQueries({ queryKey: requestKeys.all });
-            void queryClient.invalidateQueries({ queryKey: weatherKeys.warnings });
-          }}
-          tintColor={colors.primary.DEFAULT}
-        />
-      }
+      menu={false}
+      refreshControl={<RefreshControl refreshing={data.refreshing} onRefresh={data.refresh} tintColor={colors.primary.DEFAULT} />}
     >
       <PageHeader
+        eyebrow={dateLine(data.timeZone)}
         title={greeting(new Date().getHours(), user?.name ?? "")}
-        value={data ? nightTempShort(weather) : "–"}
-        valueSize="lg"
-        unit={nightUnit(weather)}
-        description={data ? startWeatherText(lines, weather !== null, mineIds.size > 0) : "Wird geladen ..."}
+        description={view ? todaySummary(view) : "Wird geladen …"}
       />
 
-      <WeatherWarnings timeZone={me?.stable?.timezone ?? "Europe/Berlin"} />
+      {view?.next ? <NextTask entry={view.next} horseColor={colorOf(view.next.horseId)} /> : null}
 
-      <Section title="Anwesenheit">
-        <PresenceTile />
-      </Section>
+      <WeatherWarnings timeZone={data.timeZone} compact />
 
-      <Section title="Decken">
-        <StartBlanketsTile today={data} mineIds={mineIds} />
-      </Section>
+      {view && view.today.length > 0 ? <Timeline entries={view.today} colorOf={colorOf} /> : null}
 
-      <Section
-        title="Offene Anfragen"
-        action={<Button label="Alle" variant="ghost" size="sm" onPress={() => router.push("/requests" as Href)} />}
-      >
-        <StartRequests />
-      </Section>
+      {view && view.tomorrow.length > 0 ? (
+        <View className="gap-1">
+          <SectionTitle>Morgen</SectionTitle>
+          <Timeline entries={view.tomorrow} colorOf={colorOf} />
+        </View>
+      ) : null}
+
+      {view && data.horses.length === 0 ? (
+        <View className="gap-3">
+          <Text variant="body" tone="muted">
+            Sobald du ein Pferd besitzt oder reitest, steht hier, was heute für es ansteht.
+          </Text>
+          <Button label="Pferd anlegen" variant="outline" onPress={() => router.push("/horses/new" as Href)} />
+        </View>
+      ) : null}
     </Screen>
   );
 }

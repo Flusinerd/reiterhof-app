@@ -46,7 +46,7 @@ export default function Requests() {
   const requests = list.data?.requests ?? [];
 
   return (
-    <Screen
+    <Screen back
       refreshControl={
         <RefreshControl
           refreshing={list.isRefetching}

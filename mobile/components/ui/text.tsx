@@ -7,14 +7,14 @@ import { cn } from "@/lib/cn";
 export const textVariants = cva("text-foreground", {
   variants: {
     variant: {
-      /** Page title at the top of a screen, Fraunces 32 px. Use through `PageHeader`. */
-      display: "font-display text-title-xl",
-      /** Section heading, Fraunces 20 px. Use through `SectionTitle`. */
-      heading: "font-display text-heading",
-      /** Title of a sheet or a prominent card, Fraunces 26 px. */
-      title: "font-display text-title",
-      /** Larger title, Fraunces 28 px. */
-      titleLg: "font-display text-title-lg",
+      /** Page title at the top of a screen, Fraunces light italic 34 px. Use through `PageHeader`. */
+      display: "font-display-italic text-title-xl",
+      /** Section heading, Fraunces medium italic 20 px. Use through `SectionTitle`. */
+      heading: "font-display-italic-medium text-heading",
+      /** Title of a sheet or a prominent block, Fraunces light italic 26 px. */
+      title: "font-display-italic text-title",
+      /** Larger title, Fraunces light italic 28 px. */
+      titleLg: "font-display-italic text-title-lg",
       /** Big number, Fraunces 44 px. Use inside a `Hero`. */
       heroNumberSm: "font-display text-hero-sm",
       /** Big number, Fraunces 56 px. */
@@ -33,11 +33,16 @@ export const textVariants = cva("text-foreground", {
       caption: "font-sans text-caption text-muted",
       /** Form field label, Geist 13 px / 600 muted. */
       label: "font-sans-semibold text-secondary text-muted",
+      /** Small line above a title or row: Geist 11 px / 600, upper case, spaced, muted. */
+      eyebrow: "font-sans-semibold text-[11px] uppercase leading-4 tracking-[1.4px] text-muted",
     },
     tone: {
       default: "",
       muted: "text-muted",
       primary: "text-primary",
+      /** Times, numbers, small highlights. */
+      brass: "text-brass",
+      success: "text-success",
       accent: "text-accent-text",
       info: "text-info",
       danger: "text-danger",

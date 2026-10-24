@@ -29,7 +29,7 @@ export type LivePanelProps = Omit<ViewProps, "children"> & {
 export function LivePanel({ eyebrow, title, value, description, children, className, ...props }: LivePanelProps) {
   return (
     <TextToneContext.Provider value="inverse">
-      <View className={cn("gap-3 rounded-card bg-primary-deeper p-6", className)} {...props}>
+      <View className={cn("gap-3 rounded-card bg-panel p-6", className)} {...props}>
         {eyebrow ? (
           <Text variant="secondary" className="text-white/70">
             {eyebrow}

@@ -1,59 +1,68 @@
-# Stallfunk design system
+# Stallfunk design system ("Abendlicht")
 
-Warm, calm, flat, like a notice board in the stable aisle: text on paper, a few white cards
-for the things that are objects (a horse, a request, a list), one green button for the one
-thing to do. Built with NativeWind v4 (Tailwind 3) in the shadcn / react-native-reusables
-style: components are plain source files in `mobile/components/ui/`, owned by this repo.
-Tokens live in one place, `mobile/lib/tokens.ts`, and are mapped to Tailwind by
-`mobile/tailwind.config.ts`.
+Calm and warm, built around the day of a horse owner: the app says what is up for your horse
+now, not where a feature lives. It follows the phone's light or dark setting. Light is warm paper
+by day; dark ("Abendlicht") is the stable at night, with brass for the one thing to do. Built with
+NativeWind v4 (Tailwind 3) in the shadcn / react-native-reusables style: components are plain
+source files in `mobile/components/ui/`, owned by this repo. Tokens live in one place,
+`mobile/lib/tokens.ts`; `mobile/global.css` carries them as CSS variables per scheme and
+`mobile/tailwind.config.ts` maps the Tailwind colors to those variables.
 
-Code and identifiers are English; all UI text is German.
+Code and identifiers are English; all UI text is German. The concept and the decisions behind it
+(concept "Mischung", owners first, Abendlicht, optional horse photos) were made with the product
+owner in October 2026; the rebuild goes step by step: foundation and "Heute", then the horse page
+with photo and diary, then the flows (after the ride, evening round), then the remaining screens.
 
 ## Rules
 
-1. **Every screen opens with a `PageHeader`**: title in Fraunces, optionally a key figure and one
-   sentence, set directly on the page background. No colored block, no box. The one exception is
-   `LivePanel`, the dark readout of a running session (the gait colors are made for it).
-2. **Cards are for objects, not for layout.** A horse, a request, a reminder list, a settings
-   group: `Card`. Forms, buttons, inputs, explanations and empty states sit directly on the page.
-   Never a card inside a card; a tile inside a card only for a small grid (blankets, health).
-3. **Headings only where a screen really has groups** (`Section` / `SectionTitle`, Fraunces 20 px).
-   A single list or form needs none. Field names in forms use `Text variant="label"`.
-4. **Emphasis comes from type and the one primary button**, not from painting a block. Filled
-   surfaces are reserved for meaning: `danger-soft` for an error, `accent-soft` for a warning,
-   `primary-soft` for a selected item.
-5. **No emojis, no gradients, no shadows.** Depth comes from a 1 px `border-border`.
-6. **Touch targets are at least 44 px** (`min-h-touch`, `h-11`). Small visuals get `hitSlop`.
-7. Page padding is 24 px, section gap 24 px, inside a section 12 px. `Screen` and `Section` do this;
-   do not add your own.
-8. Colors come from tokens only. The default Tailwind palette (zinc, gray, ...) is removed on purpose.
-9. Never set `fontWeight`. React Native needs one font family per weight; use `Text` variants or `font-sans-semibold` etc.
-10. Icons are Lucide, stroke 2, through `Icon`. Lucide has no horse: `Horse` (`@/components/icons/horse`) is drawn in the
-    Lucide style (24 grid, outline, stroke 2, round caps) and built with `createLucideIcon`. Add further custom icons the same
-    way, never as filled glyphs or images.
-11. Use `cn()` (`@/lib/cn`) to merge classes. Do not use `StyleSheet` for things that have a token.
-12. Texts stay short (JAN-80): titles of one to three words, one sentence below, buttons of one or two words.
+1. **One next thing, then a timeline.** Screens that answer "what now" lead with one raised block
+   (`bg-raised`) holding the next task and its single primary button, followed by rows with
+   hairlines (`border-divider`), not a stack of cards.
+2. **One primary action per screen** (brass in the dark, deep green in the light). Everything else is
+   `outline`, `ghost` or a tappable row.
+3. **Leave out what is empty.** No "Keine offenen Anfragen" blocks on overview screens; an empty
+   state belongs on the screen that lists the thing.
+4. **Titles have a voice:** `PageHeader` titles, section headings and horse names are Fraunces
+   italic (`display`, `heading`, `title`). Everything that is operated or scanned is Geist.
+5. **Times and numbers in brass** (`tone="brass"`), states in `success` (done), `accent`
+   (warning), `danger` (overdue, errors). Green is no longer the general highlight.
+6. **Every screen opens with a `PageHeader`** with a small upper-case `eyebrow` (date, horse, stable).
+7. **Cards are for objects** (a horse, a request, a settings group), never for layout. Never a card
+   inside a card.
+8. **No emojis, no gradients, no shadows.** Depth comes from the `raised` surface and 1 px borders.
+9. **Touch targets are at least 44 px** (`min-h-touch`, `h-11`). Small visuals get `hitSlop`.
+10. Page padding is 24 px, section gap 24 px, inside a section 12 px. `Screen` and `Section` do this.
+11. **Colors come from tokens only**, as class names. JS values (spinner tints, the tab bar, native
+    props) come from `useColors()` (`@/lib/theme`), which follows the scheme; `colors` from
+    `@/lib/theme` is the current palette read at render time. The default Tailwind palette is removed.
+12. Never set `fontWeight`; use `Text` variants or `font-sans-semibold` etc.
+13. Icons are Lucide, stroke 2, through `Icon`; the custom `Horse` (`@/components/icons/horse`) is drawn
+    in the Lucide style.
+14. Use `cn()` (`@/lib/cn`) to merge classes. Texts stay short (JAN-80).
 
 ## Tokens
 
 ### Colors (Tailwind names: `bg-*`, `text-*`, `border-*`)
 
-| Token | Value | Use |
-| --- | --- | --- |
-| `background` | `#f6f4ee` | Screen background |
-| `card` | `#ffffff` | Cards, tab bar, inputs |
-| `border` | `#e7e2d9` | 1 px borders (default for `border`) |
-| `divider` | `#f0ebe1` | Hairlines inside cards, neutral badge |
-| `foreground` | `#1c1917` | Primary text |
-| `muted` | `#6b6560` | Secondary text |
-| `primary` / `primary-soft` / `primary-deep` / `primary-deeper` | `#2d5a3d` / `#e3efe6` / `#24503a` / `#1c3a27` | Actions, active state, wordmark, `LivePanel` |
-| `accent` / `accent-soft` / `accent-text` | `#c2410c` / `#fdf1e0` / `#9a4d0b` | Warnings, highlights |
-| `info` / `info-soft` | `#1e4f8a` / `#e6eefb` | Informational |
-| `danger` / `danger-soft` | `#9f1d1d` / `#fde8e8` | Destructive, errors |
-| `gait-walk` / `gait-trot` / `gait-canter` | `#86efac` / `#fbbf24` / `#ffffff` | Gaits in the `LivePanel` |
-| `gait-canter-light` | `#c2410c` | Canter on light backgrounds |
+`palettes.light` / `palettes.dark` in `lib/tokens.ts`; `global.css` has the same values as RGB
+channels (`--color-<name>`), so opacity modifiers work (`bg-primary/20`). `lib/tokens.test.ts`
+checks that both palettes have the same tokens and that `global.css` matches.
 
-Values needed in JS (`style`, navigation options): `import { colors } from "@/lib/theme"`.
+| Token | Light | Dark | Use |
+| --- | --- | --- | --- |
+| `background` | `#f4f0e6` | `#0e1210` | Screen background, tab bar |
+| `card` | `#fffdf8` | `#141a16` | Cards, inputs, sheets |
+| `raised` | `#fffdf8` | `#19211c` | The next task, running flows |
+| `border` / `divider` | `#e6dfd1` / `#eee8db` | `#2a342d` / `#1f2722` | Borders / hairlines between rows |
+| `foreground` / `muted` | `#1a1814` / `#6d675c` | `#ede7da` / `#98a294` | Text / secondary text |
+| `primary` (+ `foreground`, `soft`, `deep`, `deeper`) | `#1f3527` | `#c9a45c` | The one action; text on it is `primary-foreground` |
+| `brass` / `brass-soft` | `#8a6a2c` | `#c9a45c` | Times, numbers, active tab |
+| `success` / `success-soft` | `#2d6a45` | `#8cc49e` | Done, in good shape, switches |
+| `accent` (+ `soft`, `text`) | `#c2410c` | `#e59457` | Warnings |
+| `info` / `info-soft` | `#1e4f8a` | `#8fb3e6` | Informational |
+| `danger` / `danger-soft` | `#9f1d1d` | `#e48585` | Overdue, destructive, errors |
+| `panel` | `#16241b` | `#19241d` | `LivePanel` (dark in both schemes) |
+| `gait-walk` / `-trot` / `-canter` / `-canter-light` | | | Gaits (same in both schemes) |
 
 ### Horse and person colors
 
@@ -74,9 +83,11 @@ Helpers in `@/lib/color-keys`: `colorsForKey(key)` returns `{ bg, fg }` (unknown
 
 ### Typography
 
-Geist (UI, 400 to 700) and Fraunces (titles, headings, key figures, the wordmark), loaded in `app/_layout.tsx` with `expo-font`;
+Geist (UI, 400 to 700) and Fraunces (upright 500 to 700 for key figures and the wordmark, light and medium
+italic for titles), loaded in `app/_layout.tsx` with `expo-font` (`lib/fonts.ts`);
 the splash screen stays until they are ready. Class names for fonts: `font-sans`, `font-sans-medium`,
-`font-sans-semibold`, `font-sans-bold`, `font-display`, `font-display-medium`, `font-display-bold`.
+`font-sans-semibold`, `font-sans-bold`, `font-display`, `font-display-medium`, `font-display-bold`,
+`font-display-italic`, `font-display-italic-medium`.
 
 | Size class | px | Used by |
 | --- | --- | --- |
@@ -84,9 +95,10 @@ the splash screen stays until they are ready. Class names for fonts: `font-sans`
 | `text-secondary` | 13 / 18 | `secondary`, `label` |
 | `text-body-sm` | 14 / 20 | `bodySm`, buttons (sm) |
 | `text-body` | 15 / 22 | `body`, `bodyStrong` |
-| `text-heading` | 20 / 26 | `heading` (Fraunces): `SectionTitle`, wordmark |
-| `text-title` / `text-title-lg` | 26 / 28 | `title`, `titleLg` (Fraunces): sheets, prominent cards |
-| `text-title-xl` | 32 / 38 | `display` (Fraunces): `PageHeader` title, login code |
+| `text-heading` | 20 / 26 | `heading` (Fraunces medium italic): `SectionTitle` |
+| `text-title` / `text-title-lg` | 26 / 28 | `title`, `titleLg` (Fraunces light italic): sheets, the next task |
+| `text-[11px]` upper case | 11 / 16 | `eyebrow` (Geist 600, letter spacing 1.4): the line above titles |
+| `text-title-xl` | 34 / 38 | `display` (Fraunces light italic): `PageHeader` title |
 | `text-hero-sm` / `text-hero` / `text-hero-lg` | 44 / 56 / 72 | `heroNumberSm`, `heroNumber`, `heroNumberLg` (Fraunces) |
 
 ### Shape and layout
@@ -115,7 +127,7 @@ All exported from `@/components/ui` (barrel) or individually from `@/components/
 - **`PageHeader`**: the head of every screen, on the page background. Props: `eyebrow`, `title` (Fraunces 32),
   `action` (element right of the title, e.g. an icon `Button` or an `Avatar`), `value` + `valueSize` (`sm|md|lg`) + `unit`
   (the key figure), `description`, `children` (badges, a progress bar, a small button). Exactly one per screen.
-- **`LivePanel`**: dark green readout for a running session only (`eyebrow`, `title`, `value` 72 px, `description`, `children`
+- **`LivePanel`**: dark readout (`bg-panel`) for a running session only (`eyebrow`, `title`, `value` 72 px, `description`, `children`
   in white). The only filled block in the app.
 - **`Section`**: `<Section title="Noch offen" action={...} description="...">…</Section>`: `SectionTitle` (Fraunces 20) plus its
   content, 12 px apart. **`SectionTitle`** alone when the content is not a simple child list.
@@ -128,8 +140,8 @@ All exported from `@/components/ui` (barrel) or individually from `@/components/
 
 ### Text and icons
 
-- **`Text`**: `variant` = `display | heading | title | titleLg | heroNumberSm | heroNumber | heroNumberLg | body | bodySm | bodyStrong | secondary | caption | label`,
-  `tone` = `default | muted | primary | accent | info | danger | inverse`. Use `className` for the rest.
+- **`Text`**: `variant` = `display | heading | title | titleLg | heroNumberSm | heroNumber | heroNumberLg | body | bodySm | bodyStrong | secondary | caption | label | eyebrow`,
+  `tone` = `default | muted | primary | brass | success | accent | info | danger | inverse`. Use `className` for the rest.
 - **`Icon`**: `<Icon as={Check} size={20} className="text-primary" />`. Default size 24, stroke 2. Color via `text-*` class.
 
 ### Actions and inputs
@@ -158,10 +170,25 @@ All exported from `@/components/ui` (barrel) or individually from `@/components/
 
 ## Navigation
 
-Bottom tab bar (`app/(tabs)/_layout.tsx`): Start, Decken, Anfragen, Training, Pferde with Lucide icons
-(`House`, `Shirt`, `HandHelping`, `Activity`, and the custom `Horse`). The active tab is a green icon inside a `primary-soft` pill;
-the bar is white with a 1 px top border. Its dimensions are in `tabBar` in `@/lib/theme`.
-Sub pages sit outside `(tabs)` (no tab bar) and use `<Screen back>`.
+Bottom tab bar (`app/(tabs)/_layout.tsx`), four tabs:
+
+| Tab | Route | Content |
+| --- | --- | --- |
+| Heute | `(tabs)/index` | Next task and timeline of today and tomorrow for the user's horses (`lib/today.ts`, `lib/use-today.ts`, `components/today-parts.tsx`) |
+| *Name of the horse* / Pferde | `(tabs)/horse` | The user's only horse (owner or rider) directly, named after it; with several horses the horse list |
+| Stall | `(tabs)/stable` | "Bin da", who is here, tonight's blankets, requests for help, weather warnings |
+| Ich | `(tabs)/me` | Links (reminders, training, exercises, all horses), notifications, account (the settings screen) |
+
+The active tab is brass with a short line above the icon; the bar has the page background and a hairline.
+Blankets (`/blankets`), requests (`/requests`), training (`/training`) and the horse list (`/horses`) are
+sub pages at the same URLs as before, so push `data.screen` links keep working. Tab screens have no app
+menu (`menu={false}`); sub pages keep it (back button left, presence, reminders, settings right).
+
+"Heute" merges three sources: the week plan of each own horse (training of today, shows of today and
+tomorrow), tonight's blanket of each own horse at the stable's reminder time, and the reminder center
+(health, medication, reha, helpers, weather; `training_plan` and `last_person` are left out because the
+plan and blanket entries cover them). The next task is the user's own training of today, else the earliest
+open timed task from now on, else something overdue.
 
 ## Adding a screen
 

@@ -15,9 +15,14 @@ import { ageText, horseRoutes, joinParts, sexLabel } from "@/lib/horse-format";
 import { rehaFromObservationRoute } from "@/lib/observations";
 import { colors } from "@/lib/theme";
 
-/** Horse record ("Pferdeakte", JAN-48). */
-export default function HorseRecord() {
+/** Horse record ("Pferdeakte", JAN-48) as a sub page. */
+export default function HorseRecordRoute() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  return <HorseRecord id={id} back />;
+}
+
+/** The horse record; the horse tab shows it without the back button for the user's only horse. */
+export function HorseRecord({ id, back }: { id: string; back: boolean }) {
   const queryClient = useQueryClient();
   const horse = useHorse(id);
   const emergency = useEmergency(id);
@@ -35,7 +40,7 @@ export default function HorseRecord() {
 
   if (!horse.data) {
     return (
-      <Screen back>
+      <Screen back={back} menu={back}>
         {horse.isError ? <HorseError error={horse.error} onRetry={() => horse.refetch()} /> : <HorseLoading />}
       </Screen>
     );
@@ -46,7 +51,8 @@ export default function HorseRecord() {
 
   return (
     <Screen
-      back
+      back={back}
+      menu={back}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary.DEFAULT} />
       }

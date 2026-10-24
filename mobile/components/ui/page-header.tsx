@@ -8,7 +8,7 @@ import { Text } from "./text";
 export type PageHeaderProps = Omit<ViewProps, "children"> & {
   /** Small muted line above the title, e.g. the horse's name or today's date. */
   eyebrow?: string;
-  /** Page title (Fraunces 32 px). Give a `title`, a `value`, or both. */
+  /** Page title (Fraunces light italic 34 px). Give a `title`, a `value`, or both. */
   title?: string;
   /** Big figure (Fraunces), e.g. "12" or "7°". Sits below the title. */
   value?: string;
@@ -49,7 +49,7 @@ export function PageHeader({
 }: PageHeaderProps) {
   return (
     <View className={cn("gap-2", className)} {...props}>
-      {eyebrow ? <Text variant="secondary">{eyebrow}</Text> : null}
+      {eyebrow ? <Text variant="eyebrow">{eyebrow}</Text> : null}
       {title || action ? (
         <View className="flex-row items-start justify-between gap-4">
           {title ? (

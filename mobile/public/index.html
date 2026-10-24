@@ -35,8 +35,15 @@
       body {
         height: 100%;
         /* The first thing an installed app shows is this background: it is the "splash screen". */
-        background-color: #f6f4ee;
-        color: #1c1917;
+        background-color: #f4f0e6;
+        color: #1a1814;
+      }
+      @media (prefers-color-scheme: dark) {
+        html,
+        body {
+          background-color: #0e1210;
+          color: #ede7da;
+        }
       }
       /* The screens scroll themselves (ScrollView), not the body. */
       body {

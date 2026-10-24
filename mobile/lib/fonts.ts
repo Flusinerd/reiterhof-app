@@ -1,6 +1,8 @@
 // Deep imports on purpose: the package root re-exports every weight and would
 // bundle all of them.
+import { Fraunces_300Light_Italic } from "@expo-google-fonts/fraunces/300Light_Italic";
 import { Fraunces_500Medium } from "@expo-google-fonts/fraunces/500Medium";
+import { Fraunces_500Medium_Italic } from "@expo-google-fonts/fraunces/500Medium_Italic";
 import { Fraunces_600SemiBold } from "@expo-google-fonts/fraunces/600SemiBold";
 import { Fraunces_700Bold } from "@expo-google-fonts/fraunces/700Bold";
 import { Geist_400Regular } from "@expo-google-fonts/geist/400Regular";
@@ -17,4 +19,6 @@ export const fontAssets = {
   Fraunces_500Medium,
   Fraunces_600SemiBold,
   Fraunces_700Bold,
+  Fraunces_300Light_Italic,
+  Fraunces_500Medium_Italic,
 };

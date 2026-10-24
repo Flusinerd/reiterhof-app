@@ -128,7 +128,7 @@ export default function TrainingSetup() {
     setSaveError(null);
     saving.current = true;
     save.mutate(result.input as ProfileInput, {
-      onSuccess: () => router.replace({ pathname: "/(tabs)/training", params: { horse: id } }),
+      onSuccess: () => router.replace({ pathname: "/training", params: { horse: id } }),
       onError: () => {
         saving.current = false;
       },

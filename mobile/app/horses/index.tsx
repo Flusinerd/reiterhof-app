@@ -20,7 +20,13 @@ function groupHorses(horses: Horse[]) {
   };
 }
 
-export default function Horses() {
+/** All horses of the stable as a sub page. */
+export default function HorsesRoute() {
+  return <Horses back />;
+}
+
+/** Own horses, horses the user rides, the rest; also the horse tab for users with several horses. */
+export function Horses({ back }: { back: boolean }) {
   const query = useHorses();
   const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
@@ -41,7 +47,7 @@ export default function Horses() {
   ];
 
   return (
-    <Screen
+    <Screen back={back} menu={back}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary.DEFAULT} />
       }
