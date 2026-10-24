@@ -3,7 +3,7 @@ import { AppState } from "react-native";
 
 import { GaitStream, gaitShares } from "./gait";
 import type { Gait, GaitWindow } from "./gait";
-import { secondsToMinutes } from "./training";
+import { encodeStepsDone, secondsToMinutes } from "./training";
 import {
   activeMs,
   addCorrection,
@@ -305,7 +305,10 @@ export function useTrackingSession(options: TrackingOptions): TrackingSession {
       minutes: String(secondsToMinutes(seconds)),
       started_at: startedAt,
     };
-    if (exerciseId) params.exercise = exerciseId;
+    if (exerciseId) {
+      params.exercise = exerciseId;
+      params.steps_done = encodeStepsDone(checkedRef.current); // the finish screen starts out ticked like this
+    }
 
     const points = gaitPoints(final, done);
     let shares: Record<string, number> = {};

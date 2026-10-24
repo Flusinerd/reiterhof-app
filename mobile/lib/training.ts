@@ -280,6 +280,7 @@ export function dayStatusLabel(status: DayStatus, user: RowUser, isMe: boolean, 
 
 // --- session summary and finish screen -------------------------------------------------
 
+/** How the horse was (`feel` of the API, read by the recommender); the app no longer asks, see lib/session-finish.ts. */
 export const FEEL_OPTIONS = [
   { value: "fresh", label: "Frisch" },
   { value: "loose", label: "Locker" },
@@ -287,12 +288,6 @@ export const FEEL_OPTIONS = [
   { value: "tense", label: "Klemmig" },
 ] as const;
 export type Feel = (typeof FEEL_OPTIONS)[number]["value"];
-
-export const FOCUS_OPTIONS = [
-  { value: 1, label: "Schwer" },
-  { value: 2, label: "Besser" },
-  { value: 3, label: "Sitzt" },
-] as const;
 
 export type GaitShareRow = { gait: string; label: string; percent: number };
 
@@ -338,6 +333,8 @@ export type FinishParams = {
   gaitShares?: Record<string, number>;
   reinChanges?: ReinSegment[];
   distanceM?: number;
+  /** Steps of the exercise the rider ticked in the tracker; undefined = nothing was tracked. */
+  stepsDone?: number[];
 };
 
 function parseJson<T>(raw: string | undefined): T | undefined {
@@ -369,12 +366,23 @@ export function parseFinishParams(p: Record<string, string | string[] | undefine
     gaitShares: parseJson<Record<string, number>>(one("gait")),
     reinChanges: parseJson<ReinSegment[]>(one("rein")),
     distanceM: Number.isFinite(distance) && distance > 0 ? Math.round(distance) : undefined,
+    stepsDone: decodeStepsDone(one("steps_done")),
   };
 }
 
-/** "Luna war ..." lead-in of the feel chips. */
-export function feelPrompt(horseName: string): string {
-  return `${horseName} war …`;
+/** Router param for the ticked exercise steps: "0,2", or "-" when none is ticked (an empty param may get lost). */
+export function encodeStepsDone(checked: readonly number[]): string {
+  return checked.length > 0 ? checked.join(",") : "-";
+}
+
+/** Inverse of `encodeStepsDone`; undefined for a missing or unusable param. */
+export function decodeStepsDone(raw: string | undefined): number[] | undefined {
+  if (raw === undefined || raw === "") return undefined;
+  if (raw === "-") return [];
+  const parts = raw.split(",");
+  const indexes = parts.map((p) => (/^\d{1,3}$/.test(p) ? Number(p) : NaN));
+  if (indexes.some((i) => Number.isNaN(i))) return undefined;
+  return [...new Set(indexes)].sort((a, b) => a - b);
 }
 
 // --- errors ----------------------------------------------------------------------------

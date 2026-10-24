@@ -1,64 +1,69 @@
-import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter, type Href } from "expo-router";
-import { Check, ChevronRight, TriangleAlert } from "lucide-react-native";
+import { Check } from "lucide-react-native";
 import { useEffect, useState } from "react";
-import { View } from "react-native";
+import { Pressable, View } from "react-native";
 
-import { ActivityIcon } from "@/components/training-activity-icon";
+import { DurationField, NoteField, TickRow } from "@/components/finish-parts";
+import { Button, Card, PageHeader, Pill, Screen, Section, Switch, Text } from "@/components/ui";
+import { useHorse } from "@/lib/api/horses";
+import { trainingError, useCreateSession, useTrainingHorses, type CreatedSession, type SessionInput } from "@/lib/api/training";
+import { useAuth } from "@/lib/auth";
 import {
-  Button,
-  Card,
-  Icon,
-  Input,
-  PageHeader,
-  Pill,
-  PressableCard,
-  Screen,
-  Section,
-  Switch,
-  Text,
-} from "@/components/ui";
-import {
-  trainingApi,
-  trainingError,
-  useCreateSession,
-  useTrainingHorses,
-  type CreatedSession,
-  type SessionInput,
-} from "@/lib/api/training";
+  FEELING_OPTIONS,
+  buildSessionBody,
+  checklistItems,
+  durationCaption,
+  finishEyebrow,
+  initialChecked,
+  notePlaceholder,
+  otherPerson,
+  parseMinutes,
+  practisedLabel,
+  savedTitle,
+  visibleLabel,
+  type Feeling,
+} from "@/lib/session-finish";
+import { useExercise } from "@/lib/tracking-queries";
 import { clearFinishExtras, loadFinishExtras, type FinishExtras } from "@/lib/tracking-store";
-import {
-  FEEL_OPTIONS,
-  FOCUS_OPTIONS,
-  activityLabel,
-  feelPrompt,
-  formatMinutes,
-  gaitShareRows,
-  parseFinishParams,
-  reinSummary,
-  type Feel,
-} from "@/lib/training";
+import { ACTIVITIES, activityLabel, gaitShareRows, parseFinishParams, reinSummary, type Activity, type FinishParams } from "@/lib/training";
 
-/** Finish screen of a session (JAN-61): summary, feel, focus, note, visibility, save. */
+/**
+ * "Wie war's?" after the ride (docs/domains/training.md, "Finish"): the minutes and the place come
+ * from the tracker and can be corrected, one tap for the feeling, the exercises of the plan are
+ * ticked as far as they were done, an optional note, one button.
+ */
 export default function FinishSession() {
-  const router = useRouter();
   const raw = useLocalSearchParams<Record<string, string | string[]>>();
   const params = parseFinishParams(raw);
-  const horses = useTrainingHorses();
-  const create = useCreateSession(params?.horse ?? "");
-  const exercise = useQuery({
-    queryKey: ["training", "exercise", params?.exerciseId],
-    queryFn: () => trainingApi.exercise(params!.exerciseId!),
-    enabled: !!params?.exerciseId,
-  });
+  if (!params) {
+    return (
+      <Screen back>
+        <Text variant="body">Angaben fehlen.</Text>
+      </Screen>
+    );
+  }
+  return <Finish params={params} />;
+}
 
-  const [feel, setFeel] = useState<Feel | null>(null);
-  const [focus, setFocus] = useState<1 | 2 | 3 | null>(null);
+function Finish({ params }: { params: FinishParams }) {
+  const router = useRouter();
+  const { user } = useAuth();
+  const horses = useTrainingHorses();
+  const horseDetail = useHorse(params.horse);
+  const create = useCreateSession(params.horse);
+  const exercise = useExercise(params.exerciseId);
+
+  const [activity, setActivity] = useState<Activity>(params.activity);
+  const [changingPlace, setChangingPlace] = useState(false);
+  const [minutesText, setMinutesText] = useState(String(params.minutes));
+  const [feeling, setFeeling] = useState<Feeling | null>(null);
+  const [ticked, setTicked] = useState<number[] | null>(null);
   const [note, setNote] = useState("");
   const [visible, setVisible] = useState(true);
   const [saved, setSaved] = useState<CreatedSession | null>(null);
+
   // Track and gait windows of a tracked session (too big for router params, see lib/tracking-store).
-  const startedAt = params?.startedAt;
+  const startedAt = params.startedAt;
   const [extras, setExtras] = useState<FinishExtras | null>(null);
   const [extrasReady, setExtrasReady] = useState(!startedAt);
   useEffect(() => {
@@ -74,35 +79,30 @@ export default function FinishSession() {
     };
   }, [startedAt]);
 
-  if (!params) {
-    return (
-      <Screen back>
-        <Text variant="body">Angaben fehlen.</Text>
-      </Screen>
-    );
-  }
-
   const horse = horses.data?.find((h) => h.id === params.horse);
   const horseName = horse?.name ?? "Das Pferd";
+  const other = otherPerson(horseDetail.data, user?.id);
+  const minutes = parseMinutes(minutesText);
+  const tracked = !!params.startedAt;
   const gaits = gaitShareRows(params.gaitShares);
   const rein = reinSummary(params.reinChanges);
+  const items = exercise.data ? checklistItems(exercise.data.title, exercise.data.steps) : [];
+  const checked = ticked ?? initialChecked(items.length, params.stepsDone);
   const leave = () => router.replace("/training");
 
   if (saved) {
     return (
       <Screen back>
         <PageHeader
-          eyebrow="Gespeichert"
-          title={`${activityLabel(saved.session.activity)}, ${formatMinutes(saved.session.minutes)}`}
+          eyebrow="Im Tagebuch"
+          title={savedTitle(saved.session.activity, saved.session.minutes)}
           description="In der Woche eingetragen."
         />
         {saved.next_progression ? (
           <Section title="Als Nächstes">
             <Card className="gap-1">
               <Text variant="bodyStrong">{saved.next_progression.title}</Text>
-              <Text variant="secondary">
-                Nächste Stufe, wenn es sitzt.
-              </Text>
+              <Text variant="secondary">Nächste Stufe, wenn es sitzt.</Text>
             </Card>
           </Section>
         ) : null}
@@ -111,112 +111,124 @@ export default function FinishSession() {
     );
   }
 
+  const toggle = (i: number) => setTicked(checked.includes(i) ? checked.filter((x) => x !== i) : [...checked, i].sort((a, b) => a - b));
+
   const save = () => {
+    if (minutes === null) return;
     const body: SessionInput = {
-      activity: params.activity,
-      minutes: params.minutes,
-      ...(params.startedAt ? { started_at: params.startedAt } : {}),
-      ...(params.gaitShares ? { gait_shares: params.gaitShares } : {}),
-      ...(params.reinChanges ? { rein_changes: params.reinChanges } : {}),
-      ...(params.distanceM ? { distance_m: params.distanceM } : {}),
-      ...(params.exerciseId ? { exercise_id: params.exerciseId } : {}),
+      ...buildSessionBody({
+        activity,
+        minutes,
+        startedAt: params.startedAt,
+        gaitShares: params.gaitShares,
+        reinChanges: params.reinChanges,
+        distanceM: params.distanceM,
+        exercise: params.exerciseId
+          ? { id: params.exerciseId, rows: exercise.data ? items.length : 0, checked }
+          : undefined,
+        feeling,
+        note,
+        visibleToRider: horse?.role === "owner" && other ? visible : undefined,
+      }),
       ...(extras?.track ? { track: extras.track } : {}),
       ...(extras?.gait_windows ? { gait_windows: extras.gait_windows } : {}),
-      ...(feel ? { feel } : {}),
-      ...(focus ? { focus_rating: focus } : {}),
-      ...(note.trim() ? { note: note.trim() } : {}),
-      visible_to_rider: visible,
     };
     create.mutate(body, {
       onSuccess: (created) => {
-        setSaved(created);
         void clearFinishExtras();
+        if (created.next_progression) setSaved(created);
+        else leave();
       },
     });
   };
 
   return (
     <Screen back keyboardShouldPersistTaps="handled">
-      <PageHeader
-        eyebrow="Einheit abschließen"
-        title={activityLabel(params.activity)}
-        value={String(params.minutes)}
-        valueSize="sm"
-        unit="Minuten"
-      >
-        <View className="gap-1">
-          {gaits.length > 0 ? (
-            <View className="flex-row items-center gap-2">
-              <ActivityIcon activity={params.activity} size={18} />
-              <Text variant="secondary">{gaits.map((g) => `${g.label} ${g.percent} %`).join(" · ")}</Text>
-            </View>
-          ) : null}
-          {rein ? (
-            <Text variant="secondary">
-              {`Linke Hand ${rein.leftPercent} % · Rechte Hand ${rein.rightPercent} % · ${rein.changes} Handwechsel`}
+      <PageHeader eyebrow={finishEyebrow(horseName)} title="Wie war’s?" />
+
+      <View className="gap-2">
+        <DurationField value={minutesText} onChangeText={setMinutesText} caption={durationCaption(activity, tracked)} />
+        {gaits.length > 0 ? (
+          <Text variant="secondary">{gaits.map((g) => `${g.label} ${g.percent} %`).join(" · ")}</Text>
+        ) : null}
+        {rein ? (
+          <Text variant="secondary">
+            {`Linke Hand ${rein.leftPercent} % · Rechte Hand ${rein.rightPercent} % · ${rein.changes} Handwechsel`}
+          </Text>
+        ) : null}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Ort ändern, jetzt ${activityLabel(activity)}`}
+          onPress={() => setChangingPlace((v) => !v)}
+          className="min-h-touch justify-center self-start"
+        >
+          <Text variant="bodySm" tone="primary">
+            {changingPlace ? "Fertig" : "Ort ändern"}
+          </Text>
+        </Pressable>
+        {changingPlace ? (
+          <View className="flex-row flex-wrap gap-2">
+            {ACTIVITIES.map((a) => (
+              <Pill key={a} label={activityLabel(a)} selected={activity === a} onPress={() => setActivity(a)} />
+            ))}
+          </View>
+        ) : null}
+      </View>
+
+      <View className="gap-2">
+        <Text variant="eyebrow">Gefühl</Text>
+        <View className="flex-row flex-wrap gap-2">
+          {FEELING_OPTIONS.map((f) => (
+            <Pill key={f.value} label={f.label} selected={feeling === f.value} onPress={() => setFeeling(feeling === f.value ? null : f.value)} />
+          ))}
+        </View>
+      </View>
+
+      {exercise.data ? (
+        <View>
+          <Text variant="eyebrow">{`Übung · ${exercise.data.title}`}</Text>
+          {items.length > 1 ? (
+            <Text variant="caption" className="mt-1">
+              {practisedLabel(checked.length, items.length)}
             </Text>
           ) : null}
-          {exercise.data ? <Text variant="secondary">Übung: {exercise.data.title}</Text> : null}
+          <View className="mt-1">
+            {items.map((label, i) => (
+              <TickRow key={i} label={label} checked={checked.includes(i)} onPress={() => toggle(i)} />
+            ))}
+          </View>
         </View>
-      </PageHeader>
-
-      <Section title={feelPrompt(horseName)}>
-        <View className="flex-row flex-wrap gap-2">
-          {FEEL_OPTIONS.map((f) => (
-            <Pill key={f.value} label={f.label} selected={feel === f.value} onPress={() => setFeel(feel === f.value ? null : f.value)} />
-          ))}
-        </View>
-      </Section>
-
-      <Section title="Wie lief der Fokus?">
-        <View className="flex-row flex-wrap gap-2">
-          {FOCUS_OPTIONS.map((f) => (
-            <Pill key={f.value} label={f.label} selected={focus === f.value} onPress={() => setFocus(focus === f.value ? null : f.value)} />
-          ))}
-        </View>
-      </Section>
-
-      <Section title="Notiz">
-        <Input
-          accessibilityLabel="Notiz"
-          placeholder="Was war dir wichtig?"
-          value={note}
-          onChangeText={setNote}
-          multiline
-          maxLength={2000}
-          className="h-28 py-3"
-          textAlignVertical="top"
-        />
-      </Section>
-
-      {horse?.role === "owner" ? (
-        <Switch
-          label="Reitbeteiligung sieht das"
-          description="In Woche und Verlauf sichtbar."
-          value={visible}
-          onValueChange={setVisible}
-        />
       ) : null}
 
-      <PressableCard
-        shape="tile"
-        className="flex-row items-center gap-3"
-        accessibilityLabel="Etwas aufgefallen?"
-        onPress={() => router.push(`/observations/new?horse=${params.horse}` as Href)}
-      >
-        <Icon as={TriangleAlert} size={20} className="text-accent" />
-        <Text variant="bodyStrong" className="flex-1">
-          Etwas aufgefallen?
-        </Text>
-        <Icon as={ChevronRight} size={20} className="text-muted" />
-      </PressableCard>
+      <View className="gap-2">
+        <NoteField value={note} onChangeText={setNote} placeholder={notePlaceholder(other)} />
+        {horse?.role === "owner" && other ? (
+          <Switch label={visibleLabel(other)} value={visible} onValueChange={setVisible} />
+        ) : null}
+      </View>
 
       {create.isError ? (
         <Text variant="secondary" tone="danger" accessibilityRole="alert">
           {trainingError(create.error)}
         </Text>
       ) : null}
-      <Button label="Speichern" size="lg" fullWidth loading={create.isPending || !extrasReady} onPress={save} />
+      <View className="gap-1">
+        <Button
+          label="Ins Tagebuch"
+          size="lg"
+          fullWidth
+          disabled={minutes === null}
+          loading={create.isPending || !extrasReady}
+          onPress={save}
+        />
+        <Button
+          label="Etwas aufgefallen?"
+          variant="ghost"
+          size="sm"
+          fullWidth
+          onPress={() => router.push(`/observations/new?horse=${params.horse}` as Href)}
+        />
+      </View>
     </Screen>
   );
 }

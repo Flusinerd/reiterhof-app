@@ -10,7 +10,9 @@ import {
   addDays,
   dayStatusLabel,
   dotTone,
+  decodeStepsDone,
   dotViewModels,
+  encodeStepsDone,
   exerciseLibrary,
   formatClock,
   formatDayLong,
@@ -175,10 +177,24 @@ test("finish params are parsed defensively", () => {
     gaitShares: { walk: 0.5, trot: 0.5 },
     reinChanges: undefined,
     distanceM: undefined,
+    stepsDone: undefined,
   });
   assert.equal(parseFinishParams({ horse: "h", activity: "hack", minutes: "0" })?.minutes, 1);
   assert.equal(parseFinishParams({ horse: "h", activity: "hack", minutes: "9999" })?.minutes, 600);
   assert.equal(parseFinishParams({ horse: ["h", "x"], activity: ["hack"], minutes: ["30"] })?.minutes, 30);
+});
+
+test("ticked exercise steps travel as a router param", () => {
+  assert.equal(encodeStepsDone([0, 2]), "0,2");
+  assert.equal(encodeStepsDone([]), "-");
+  assert.deepEqual(decodeStepsDone("0,2"), [0, 2]);
+  assert.deepEqual(decodeStepsDone("2,0,2"), [0, 2]);
+  assert.deepEqual(decodeStepsDone("-"), []);
+  assert.equal(decodeStepsDone(undefined), undefined);
+  assert.equal(decodeStepsDone(""), undefined);
+  assert.equal(decodeStepsDone("a,1"), undefined);
+  assert.deepEqual(parseFinishParams({ horse: "h", activity: "hall", steps_done: "1" })?.stepsDone, [1]);
+  assert.deepEqual(parseFinishParams({ horse: "h", activity: "hall", steps_done: "-" })?.stepsDone, []);
 });
 
 test("training error texts are German", () => {

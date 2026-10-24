@@ -13,6 +13,7 @@ import {
   type Intensity,
   type ReinSegment,
 } from "../training";
+import type { Feeling } from "../session-finish";
 import { planApplyBody, type PlanDay, type PlanResponse, type ReproposeOptions, type TakeDayBody } from "../training-plan";
 import type { DayRuleApi, QuotasApi } from "../training-profile";
 
@@ -136,6 +137,8 @@ export type SessionInput = {
   gait_shares?: Record<string, number>;
   rein_changes?: ReinSegment[];
   feel?: Feel;
+  /** How the session felt for the rider ("Wie war's?"), optional for older clients. */
+  feeling?: Feeling;
   focus_rating?: 1 | 2 | 3;
   exercise_id?: string;
   note?: string;
