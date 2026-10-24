@@ -18,7 +18,7 @@ export function HorseListItem({ horse, onPress }: { horse: Horse; onPress: () =>
       accessibilityLabel={`${horse.name}, ${sub}`}
       className="min-h-[68px] flex-row items-center gap-4 px-4 py-3"
     >
-      <Avatar name={horse.name} colorKey={horse.color_key} size="md" />
+      <Avatar name={horse.name} colorKey={horse.color_key} photoUrl={horse.photo_url} size="md" />
       <View className="flex-1">
         <Text variant="bodyStrong" numberOfLines={1}>
           {horse.name}

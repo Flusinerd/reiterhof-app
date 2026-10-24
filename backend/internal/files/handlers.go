@@ -81,7 +81,7 @@ func writeUploadError(w http.ResponseWriter, deps httpx.Deps, err error) {
 
 // download serves a file by its path with the visibility of the record that references it
 // (least privilege): a horse document only to the owner, the riders and admins of the horse;
-// an observation photo or a blanket photo to every member of the stable. A path no record
+// an observation photo, a blanket photo or a horse photo to every member of the stable. A path no record
 // points to (never attached, or detached since) is a 404 for everybody, like a path of
 // another stable.
 func (h *handler) download(w http.ResponseWriter, r *http.Request) {
@@ -113,7 +113,7 @@ func (h *handler) download(w http.ResponseWriter, r *http.Request) {
 			httpx.WriteError(w, http.StatusInternalServerError, "internal", "could not read the file")
 			return
 		}
-	case refObservation, refBlanket:
+	case refObservation, refBlanket, refHorse:
 		allowed = true
 	}
 	if !allowed {
@@ -130,6 +130,7 @@ const (
 	refDocument
 	refObservation
 	refBlanket
+	refHorse
 )
 
 type reference struct {
@@ -150,6 +151,7 @@ func referenceOf(ctx context.Context, q interface {
 			SELECT 1 AS kind, horse_id FROM horse_documents WHERE stable_id = $1 AND file_path = $2
 			UNION ALL SELECT 2, horse_id FROM observations WHERE stable_id = $1 AND media ? $2
 			UNION ALL SELECT 3, horse_id FROM blankets WHERE stable_id = $1 AND photo_path = $2
+			UNION ALL SELECT 4, id FROM horses WHERE stable_id = $1 AND photo_path = $2
 		) r ORDER BY kind LIMIT 1`, stableID, path).Scan(&kind, &horseID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return reference{}, nil
@@ -158,6 +160,16 @@ func referenceOf(ctx context.Context, q interface {
 		return reference{}, err
 	}
 	return reference{kind: refKind(kind), horseID: horseID}, nil
+}
+
+// Referenced reports whether any record of the stable (document, observation, blanket or horse)
+// still points to path. Callers that replace a reference use it before removing the file, since
+// a client may attach one upload to several records.
+func Referenced(ctx context.Context, q interface {
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}, stableID, path string) (bool, error) {
+	ref, err := referenceOf(ctx, q, stableID, path)
+	return ref.kind != refNone, err
 }
 
 // Serve writes the stored file of the stable, or a 404 if the path is malformed,

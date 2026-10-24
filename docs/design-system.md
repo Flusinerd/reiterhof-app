@@ -29,7 +29,8 @@ with photo and diary, then the flows (after the ride, evening round; built), the
 6. **Every screen opens with a `PageHeader`** with a small upper-case `eyebrow` (date, horse, stable).
 7. **Cards are for objects** (a horse, a request, a settings group), never for layout. Never a card
    inside a card.
-8. **No emojis, no gradients, no shadows.** Depth comes from the `raised` surface and 1 px borders.
+8. **No emojis, no gradients, no shadows.** Depth comes from the `raised` surface and 1 px borders. The one exception is the
+    horse photo, which fades into the page background (`HorseHero`).
 9. **Touch targets are at least 44 px** (`min-h-touch`, `h-11`). Small visuals get `hitSlop`.
 10. Page padding is 24 px, section gap 24 px, inside a section 12 px. `Screen` and `Section` do this.
 11. **Colors come from tokens only**, as class names. JS values (spinner tints, the tab bar, native
@@ -81,7 +82,9 @@ Backend stores a `color_key` per horse/user. Keys: `green`, `amber`, `blue`, `ro
 | `neutral` | `#e7e2d9` | `#44403c` | People without a key, unknown keys |
 
 Helpers in `@/lib/color-keys`: `colorsForKey(key)` returns `{ bg, fg }` (unknown, empty or missing keys give `neutral`),
-`resolveColorKey(key)`, `isColorKey(v)`, `COLOR_KEYS`, `COLOR_PAIRS`. `@/lib/initials`: `initialOf(name)`.
+`resolveColorKey(key)`, `isColorKey(v)`, `COLOR_KEYS`, `COLOR_PAIRS`. In the dark scheme the pastels would glow, so
+`colorsForKey(key, "dark")` returns `DARK_COLOR_PAIRS` (a muted dark tint with a light initial, e.g. green `#2c4434` / `#b9dcc3`);
+`Avatar`, the timeline dots of "Heute" and the color picker pass `useColorScheme()`. Light is unchanged. `@/lib/initials`: `initialOf(name)`.
 
 ### Typography
 
@@ -169,8 +172,22 @@ All exported from `@/components/ui` (barrel) or individually from `@/components/
 - **`ThemeScope`**: `<ThemeScope scheme="dark">…</ThemeScope>` (default `dark`) pins a subtree to one scheme, see "Always-dark flows".
 
 - **`Badge`**: static status label. `label`, `variant` (`neutral|primary|accent|info|danger`).
-- **`Avatar`**: `name`, `colorKey`, `size` (`sm` 32, `md` 44, `lg` 64, `xl` 96).
+- **`Avatar`**: `name`, `colorKey`, optional `photoUrl` (`Horse.photo_url`, shown instead of the initial, falls back to it if the image does not load),
+  `size` (`sm` 32, `md` 44, `lg` 64, `xl` 96).
+- **`Segmented`**: `items [{value, label}]`, `value`, `onValueChange`. Underline switch between the views of one screen (hairline, the selected
+  label with a brass underline), quieter than `Tabs`; the screen renders the content itself. Used on the horse page.
+- **`AuthImage`** (`@/components/auth-image`): `url` of a stored file (`/api/v1/files/...`) plus `Image` props; adds the session token on
+  every platform (header on native, fetched blob URL on the web). Use it instead of `<Image source={fileSource(url)}>`.
 - **`Sheet`**: bottom sheet. `open`, `onOpenChange`, `title`, `description`, children.
+
+### The horse page
+
+`app/horses/[id]/index.tsx` is the model of a "page of an object": a full-bleed `HorseHero` (photo, or the horse's color with its big
+italic initial as ornament; eyebrow, name in `display` 44 px), then `Section "Heute für <Name>"` with rows (`HorseTodayRows`: eyebrow in
+a tone, title, detail, at most one `Button sm` on the right; only the training start is `primary`), `Section "Diese Woche"` with
+`HorseWeekStrip` (done `success`, planned dashed, show day `brass`), then `Segmented` and its content. The diary (`HorseDiary`) is a
+timeline: a hairline with one dot per entry (`success` session, `accent` open observation, `danger` urgent, `border` done), the line
+above in `eyebrow` ("Gestern · Mia"), notes as italic quotes (`font-display-italic`), photos as 72 px thumbnails.
 
 ## Navigation
 

@@ -1,0 +1,83 @@
+import { router, type Href } from "expo-router";
+import { Activity, FileText, HeartPulse, Pencil, Shirt } from "lucide-react-native";
+import { View } from "react-native";
+
+import { HorseEmergencyPreview } from "@/components/horse-emergency-preview";
+import { HorseError, HorseLoading } from "@/components/horse-query-state";
+import { HorseRiders } from "@/components/horse-riders";
+import { Button, Card, Divider, LinkRow, Section, Text } from "@/components/ui";
+import { useDocuments, useEmergency, type Horse } from "@/lib/api/horses";
+import { horseRoutes } from "@/lib/horse-format";
+
+/**
+ * "Akte" of the horse page: emergency card preview, riders with their rules, documents, the links
+ * to training profile, blanket plan and reha, helper note and "Bearbeiten".
+ */
+export function HorseFileTab({ horse: h }: { horse: Horse }) {
+  const emergency = useEmergency(h.id);
+  const canSeeDocuments = h.can_manage || h.i_ride;
+  const documents = useDocuments(h.id, canSeeDocuments);
+  const go = (path: string) => router.push(path as Href);
+
+  return (
+    <View className="gap-6">
+      <Section title="Notfallkarte">
+        {emergency.data ? (
+          <HorseEmergencyPreview card={emergency.data} onPress={() => go(horseRoutes.emergency(h.id))} />
+        ) : emergency.isError ? (
+          <HorseError error={emergency.error} onRetry={() => emergency.refetch()} />
+        ) : (
+          <HorseLoading />
+        )}
+      </Section>
+
+      <Section title="Reitbeteiligungen">
+        <HorseRiders horse={h} />
+      </Section>
+
+      <Section title="Mehr zum Pferd">
+        <Card padded={false} className="overflow-hidden">
+          {canSeeDocuments ? (
+            <>
+              <LinkRow
+                className="rounded-none border-0"
+                icon={FileText}
+                label="Dokumente"
+                description={
+                  documents.data
+                    ? documents.data.length === 0
+                      ? "Noch keine Dokumente"
+                      : `${documents.data.length} ${documents.data.length === 1 ? "Dokument" : "Dokumente"}`
+                    : "Equidenpass, Impfpass, Versicherung"
+                }
+                onPress={() => go(horseRoutes.documents(h.id))}
+              />
+              <Divider />
+            </>
+          ) : null}
+          <LinkRow className="rounded-none border-0" icon={Activity} label="Trainingsprofil" onPress={() => go(horseRoutes.trainingProfile(h.id))} />
+          <Divider />
+          <LinkRow className="rounded-none border-0" icon={Shirt} label="Deckenplan" onPress={() => go(horseRoutes.blanketPlan(h.id))} />
+          <Divider />
+          <LinkRow className="rounded-none border-0" icon={HeartPulse} label="Reha" onPress={() => go(horseRoutes.reha(h.id))} />
+        </Card>
+      </Section>
+
+      {h.helper_note ? (
+        <Section title="Hinweise für Helfer">
+          <Text variant="body">{h.helper_note}</Text>
+        </Section>
+      ) : null}
+
+      {h.can_manage ? (
+        <Button
+          label="Pferd bearbeiten"
+          icon={Pencil}
+          variant="outline"
+          fullWidth
+          onPress={() => go(horseRoutes.edit(h.id))}
+        />
+      ) : null}
+    </View>
+  );
+}

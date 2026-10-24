@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { COLOR_KEYS, COLOR_PAIRS, colorsForKey, isColorKey, resolveColorKey } from "./color-keys.ts";
+import { COLOR_KEYS, COLOR_PAIRS, DARK_COLOR_PAIRS, colorsForKey, isColorKey, resolveColorKey } from "./color-keys.ts";
 
 test("every color key has a palette entry", () => {
   for (const key of COLOR_KEYS) {
@@ -35,4 +35,29 @@ test("isColorKey", () => {
   assert.equal(isColorKey("rose"), true);
   assert.equal(isColorKey("Rose"), false);
   assert.equal(isColorKey(3), false);
+});
+
+test("dark pairs cover every key and keep light unchanged", () => {
+  for (const key of COLOR_KEYS) {
+    assert.match(DARK_COLOR_PAIRS[key].bg, /^#[0-9a-f]{6}$/);
+    assert.match(DARK_COLOR_PAIRS[key].fg, /^#[0-9a-f]{6}$/);
+    assert.deepEqual(colorsForKey(key), COLOR_PAIRS[key]);
+    assert.deepEqual(colorsForKey(key, "light"), COLOR_PAIRS[key]);
+    assert.deepEqual(colorsForKey(key, "dark"), DARK_COLOR_PAIRS[key]);
+  }
+});
+
+test("dark fields are darker than the light ones and the initial is lighter than the field", () => {
+  const luma = (hex: string) => {
+    const n = parseInt(hex.slice(1), 16);
+    return 0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255);
+  };
+  for (const key of COLOR_KEYS) {
+    assert.ok(luma(DARK_COLOR_PAIRS[key].bg) < luma(COLOR_PAIRS[key].bg), key);
+    assert.ok(luma(DARK_COLOR_PAIRS[key].fg) > luma(DARK_COLOR_PAIRS[key].bg) + 60, key);
+  }
+});
+
+test("unknown keys fall back to neutral in the dark scheme too", () => {
+  assert.deepEqual(colorsForKey("pink", "dark"), DARK_COLOR_PAIRS.neutral);
 });

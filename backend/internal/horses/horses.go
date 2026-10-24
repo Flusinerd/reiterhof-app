@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/Flusinerd/reiterhof-app/backend/internal/auth"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/files"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/httpx"
 )
 
@@ -83,8 +84,10 @@ type Horse struct {
 	ColorKey   *string `json:"color_key"`
 	WeightKG   *int    `json:"weight_kg"`
 	HelperNote *string `json:"helper_note"`
-	Owner      *Person `json:"owner"`
-	Riders     []Rider `json:"riders"`
+	// PhotoURL loads the horse's photo (files API, every member may read it); null without photo.
+	PhotoURL *string `json:"photo_url"`
+	Owner    *Person `json:"owner"`
+	Riders   []Rider `json:"riders"`
 	// IsMine: the caller owns the horse. IRide: the caller is listed as rider.
 	IsMine bool `json:"is_mine"`
 	IRide  bool `json:"i_ride"`
@@ -95,7 +98,7 @@ type Horse struct {
 }
 
 const horseColumns = `h.id, h.name, h.box, h.sex, h.birth_year, h.breed, h.color_key, h.weight_kg, h.helper_note,
-	h.owner_id, o.name, o.avatar_color`
+	h.photo_path, h.owner_id, o.name, o.avatar_color`
 
 // loadHorses returns the horses of the user's stable (all, or only horseID) with owner,
 // riders and the caller's flags, ordered by name.
@@ -117,13 +120,18 @@ func (h *handler) loadHorses(ctx context.Context, user auth.User, horseID string
 	for rows.Next() {
 		var (
 			hr        Horse
+			photoPath *string
 			ownerID   *string
 			ownerName *string
 			ownerCol  *string
 		)
 		if err := rows.Scan(&hr.ID, &hr.Name, &hr.Box, &hr.Sex, &hr.BirthYear, &hr.Breed, &hr.ColorKey,
-			&hr.WeightKG, &hr.HelperNote, &ownerID, &ownerName, &ownerCol); err != nil {
+			&hr.WeightKG, &hr.HelperNote, &photoPath, &ownerID, &ownerName, &ownerCol); err != nil {
 			return nil, err
+		}
+		if photoPath != nil {
+			url := files.URLFor(*photoPath)
+			hr.PhotoURL = &url
 		}
 		if ownerID != nil && ownerName != nil {
 			hr.Owner = &Person{ID: *ownerID, Name: *ownerName, ColorKey: ownerCol}
@@ -277,6 +285,8 @@ type horseInput struct {
 	Insurance           *string `json:"insurance"`
 	VetName             *string `json:"vet_name"`
 	VetPhone            *string `json:"vet_phone"`
+	// PhotoPath is the path of an image uploaded to the stable ("" removes the photo).
+	PhotoPath *string `json:"photo_path"`
 	// OwnerID may only be set by admins.
 	OwnerID *string `json:"owner_id"`
 }
@@ -332,6 +342,23 @@ func (in *horseInput) validate(thisYear int) string {
 	return ""
 }
 
+// validatePhoto checks that photo_path, if set, is an existing image of the caller's stable.
+func (in *horseInput) validatePhoto(stableID string) string {
+	if in.PhotoPath == nil || *in.PhotoPath == "" {
+		return ""
+	}
+	ct, ok := files.ContentTypeOf(*in.PhotoPath)
+	if !ok || !strings.HasPrefix(ct, "image/") || !files.Belongs(stableID, *in.PhotoPath) {
+		return "photo_path must be the path of an image uploaded to this stable"
+	}
+	f, _, err := files.Open(stableID, *in.PhotoPath)
+	if err != nil {
+		return "photo_path must be the path of an image uploaded to this stable"
+	}
+	_ = f.Close()
+	return ""
+}
+
 // userInStable reports whether the user exists in the stable.
 func (h *handler) userInStable(ctx context.Context, stableID, userID string) (bool, error) {
 	var ok bool
@@ -362,6 +389,10 @@ func (h *handler) create(w http.ResponseWriter, r *http.Request) {
 		invalid(w, msg)
 		return
 	}
+	if msg := in.validatePhoto(user.StableID); msg != "" {
+		invalid(w, msg)
+		return
+	}
 	owner := user.ID
 	if in.OwnerID != nil && *in.OwnerID != user.ID {
 		if !user.IsAdmin {
@@ -383,14 +414,14 @@ func (h *handler) create(w http.ResponseWriter, r *http.Request) {
 	var id string
 	err := h.deps.Pool.QueryRow(r.Context(), `INSERT INTO horses
 		(stable_id, name, box, sex, birth_year, breed, color_key, weight_kg, helper_note, emergency_note,
-		 emergency_medication, permanent_medication, allergies, insurance, vet_name, vet_phone, owner_id)
+		 emergency_medication, permanent_medication, allergies, insurance, vet_name, vet_phone, owner_id, photo_path)
 		VALUES ($1, $2, NULLIF($3, ''), NULLIF($4, ''), NULLIF($5::int, 0), NULLIF($6, ''), NULLIF($7, ''), NULLIF($8::int, 0),
 		        NULLIF($9, ''), NULLIF($10, ''), NULLIF($11, ''), NULLIF($12, ''), NULLIF($13, ''), NULLIF($14, ''),
-		        NULLIF($15, ''), NULLIF($16, ''), $17)
+		        NULLIF($15, ''), NULLIF($16, ''), $17, NULLIF($18, ''))
 		RETURNING id`,
 		user.StableID, *in.Name, in.Box, in.Sex, in.BirthYear, in.Breed, in.ColorKey, in.WeightKG, in.HelperNote,
 		in.EmergencyNote, in.EmergencyMedication, in.PermanentMedication, in.Allergies, in.Insurance,
-		in.VetName, in.VetPhone, owner).Scan(&id)
+		in.VetName, in.VetPhone, owner, in.PhotoPath).Scan(&id)
 	if err != nil {
 		h.fail(w, "create", err)
 		return
@@ -412,6 +443,10 @@ func (h *handler) patch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if msg := in.validate(h.deps.Now().Year()); msg != "" {
+		invalid(w, msg)
+		return
+	}
+	if msg := in.validatePhoto(user.StableID); msg != "" {
 		invalid(w, msg)
 		return
 	}
@@ -455,17 +490,26 @@ func (h *handler) patch(w http.ResponseWriter, r *http.Request) {
 	if in.OwnerID != nil {
 		add("owner_id = $%d", *in.OwnerID)
 	}
+	if in.PhotoPath != nil {
+		add("photo_path = NULLIF($%d, '')", *in.PhotoPath)
+	}
 	for _, f := range in.textFields() {
 		if f.value != nil {
 			add(f.column+" = NULLIF($%d, '')", *f.value)
 		}
 	}
 	if len(sets) > 0 {
-		_, err := h.deps.Pool.Exec(r.Context(),
-			`UPDATE horses SET `+strings.Join(sets, ", ")+` WHERE id = $1 AND stable_id = $2`, args...)
+		// The previous photo is read in the same statement (the subquery sees the old row).
+		var oldPhoto *string
+		err := h.deps.Pool.QueryRow(r.Context(),
+			`UPDATE horses SET `+strings.Join(sets, ", ")+` WHERE id = $1 AND stable_id = $2
+			 RETURNING (SELECT o.photo_path FROM horses o WHERE o.id = $1)`, args...).Scan(&oldPhoto)
 		if err != nil {
 			h.fail(w, "patch", err)
 			return
+		}
+		if in.PhotoPath != nil {
+			h.dropPhoto(r.Context(), user.StableID, oldPhoto, *in.PhotoPath)
 		}
 	}
 	h.writeHorse(w, r, user, id, http.StatusOK)
@@ -577,4 +621,24 @@ func (h *handler) listMembers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, members)
+}
+
+// dropPhoto removes the file of a replaced or cleared horse photo, like deleting a document
+// does. It keeps the file when the photo did not change or another record still points to it
+// (a client may attach one upload twice). Best effort: an orphaned file is harmless.
+func (h *handler) dropPhoto(ctx context.Context, stableID string, old *string, now string) {
+	if old == nil || *old == now {
+		return
+	}
+	used, err := files.Referenced(ctx, h.deps.Pool, stableID, *old)
+	if err != nil {
+		h.deps.Log.Warn("horses: photo reference check", "path", *old, "err", err)
+		return
+	}
+	if used {
+		return
+	}
+	if err := files.Remove(stableID, *old); err != nil {
+		h.deps.Log.Warn("horses: remove horse photo", "path", *old, "err", err)
+	}
 }

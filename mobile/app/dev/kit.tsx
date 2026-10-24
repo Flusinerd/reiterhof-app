@@ -23,6 +23,7 @@ import {
   Sheet,
   Stepper,
   Switch,
+  Segmented,
   Tabs,
   TabsContent,
   TabsList,
@@ -176,6 +177,15 @@ export default function Kit() {
             <Text variant="secondary">Inhalt für „Woche“.</Text>
           </TabsContent>
         </Tabs>
+        <Segmented
+          items={[
+            { value: "today", label: "Tagebuch" },
+            { value: "week", label: "Gesundheit" },
+            { value: "file", label: "Akte" },
+          ]}
+          value={tab}
+          onValueChange={setTab}
+        />
         <Switch label="Erinnerungen" description="Push am Morgen" value={on} onValueChange={setOn} />
         <ToggleGroup type="single" value={gait} onValueChange={setGait}>
           <ToggleGroupItem value="walk" label="Schritt" />

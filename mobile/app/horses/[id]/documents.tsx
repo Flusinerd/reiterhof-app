@@ -3,8 +3,9 @@ import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams } from "expo-router";
 import { Camera, FileText, Image as ImageIcon, Paperclip, Plus, Trash2 } from "lucide-react-native";
 import { useState } from "react";
-import { Alert, Image, View } from "react-native";
+import { Alert, View } from "react-native";
 
+import { AuthImage } from "@/components/auth-image";
 import { useConsentPrompt } from "@/components/consent-prompt";
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
 import { Badge, Button, Icon, Input, PageHeader, Pill, PressableCard, Screen, Sheet, Text } from "@/components/ui";
@@ -12,7 +13,6 @@ import { errorMessage } from "@/lib/api";
 import { horsesApi, useDocuments, useHorse, useHorseMutation, type HorseDocument } from "@/lib/api/horses";
 import { DOCUMENT_KINDS, documentKindLabel, formatDate } from "@/lib/horse-format";
 import {
-  fileSource,
   openStoredFile,
   PHOTO_PICKER_OPTIONS,
   pickedFile,
@@ -156,8 +156,8 @@ export default function Documents() {
               onPress={() => void openStoredFile(doc.url).catch((e) => setError(errorMessage(e)))}
             >
               {doc.content_type.startsWith("image/") ? (
-                <Image
-                  source={fileSource(doc.url)}
+                <AuthImage
+                  url={doc.url}
                   accessibilityIgnoresInvertColors
                   className="h-11 w-11 rounded-button-sm bg-divider"
                 />

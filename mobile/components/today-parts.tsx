@@ -1,5 +1,5 @@
 import { router, type Href } from "expo-router";
-import { Pressable, View } from "react-native";
+import { Pressable, useColorScheme, View } from "react-native";
 
 import { Avatar, Button, Text } from "@/components/ui";
 import { cn } from "@/lib/cn";
@@ -32,6 +32,7 @@ export function NextTask({ entry, horseColor }: { entry: TodayEntry; horseColor?
 
 /** One line of the timeline: time in brass, title and detail; done lines fade, overdue lines are red. */
 export function TimelineRow({ entry, last, horseColor }: { entry: TodayEntry; last: boolean; horseColor?: string }) {
+  const scheme = useColorScheme() === "dark" ? "dark" : "light";
   const dot = !entry.time && entry.horseId && entry.tone !== "danger";
   return (
     <Pressable
@@ -43,7 +44,7 @@ export function TimelineRow({ entry, last, horseColor }: { entry: TodayEntry; la
     >
       {dot ? (
         <View className="w-12 pt-1.5">
-          <View className="h-2.5 w-2.5 rounded-pill" style={{ backgroundColor: colorsForKey(horseColor).bg }} />
+          <View className="h-2.5 w-2.5 rounded-pill" style={{ backgroundColor: colorsForKey(horseColor, scheme).bg }} />
         </View>
       ) : (
         <Text variant="bodySm" tone={entry.tone === "danger" ? "danger" : "brass"} className="w-12 font-sans-semibold">
