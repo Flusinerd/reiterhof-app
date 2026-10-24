@@ -13,7 +13,9 @@ import (
 // owner name), XMP and IPTC blocks, vendor data, thumbnails and sometimes whole extra files
 // after the image (Motion Photos append an MP4 with audio). None of that is needed to show
 // the picture, but all of it would be served to everybody who may see the photo. Everything a
-// decoder does not need is therefore removed before the file is stored; formats that cannot
+// decoder does not need is therefore removed before the file is stored, except the Exif
+// orientation of a JPEG, which is rewritten as a block of its own (without it, photos taken
+// upright show up on their side); formats that cannot
 // be rewritten this way (HEIC) are not accepted at all, PDFs are stored as they are.
 //
 // The filters copy the container structure and never touch the compressed image data, so the
@@ -76,6 +78,7 @@ const (
 	jpegEOI   = 0xD9
 	jpegSOS   = 0xDA
 	jpegAPP0  = 0xE0
+	jpegAPP1  = 0xE1
 	jpegAPP2  = 0xE2
 	jpegAPP14 = 0xEE
 	jpegCOM   = 0xFE
@@ -83,7 +86,7 @@ const (
 
 // jpegKeepSegment decides for a length-bearing segment whether it is needed to decode the
 // image. Only the JFIF header, the ICC colour profile and Adobe's colour transform flag
-// survive among the application segments; Exif and XMP (APP1), IPTC/Photoshop (APP13),
+// survive among the application segments (plus the orientation, see stripJPEG); Exif and XMP (APP1), IPTC/Photoshop (APP13),
 // vendor blocks (other APPn), MPF multi-picture blocks (APP2) and comments are dropped.
 func jpegKeepSegment(marker byte, payload []byte) bool {
 	switch marker {
@@ -100,6 +103,73 @@ func jpegKeepSegment(marker byte, payload []byte) bool {
 		return false
 	}
 	return true
+}
+
+var exifHeader = []byte("Exif\x00\x00")
+
+// exifOrientationTag is the TIFF tag of the image orientation (1 = upright, 2..8 = mirrored
+// and/or rotated, e.g. 6 for a phone held upright, whose sensor data lies on its side).
+const exifOrientationTag = 0x0112
+
+// exifOrientation returns the orientation (1..8) in IFD0 of an Exif APP1 payload, or 0 when
+// there is none or the block cannot be read.
+func exifOrientation(payload []byte) int {
+	tiff, ok := bytes.CutPrefix(payload, exifHeader)
+	if !ok || len(tiff) < 8 {
+		return 0
+	}
+	var order binary.ByteOrder
+	switch string(tiff[:2]) {
+	case "II":
+		order = binary.LittleEndian
+	case "MM":
+		order = binary.BigEndian
+	default:
+		return 0
+	}
+	if order.Uint16(tiff[2:4]) != 42 {
+		return 0
+	}
+	ifd := int(order.Uint32(tiff[4:8]))
+	if ifd < 8 || ifd+2 > len(tiff) {
+		return 0
+	}
+	n := int(order.Uint16(tiff[ifd : ifd+2]))
+	for i := range n {
+		e := ifd + 2 + 12*i
+		if e+12 > len(tiff) {
+			return 0
+		}
+		if order.Uint16(tiff[e:e+2]) != exifOrientationTag {
+			continue
+		}
+		if order.Uint16(tiff[e+2:e+4]) != 3 || order.Uint32(tiff[e+4:e+8]) != 1 { // one SHORT
+			return 0
+		}
+		if o := int(order.Uint16(tiff[e+8 : e+10])); o >= 1 && o <= 8 {
+			return o
+		}
+		return 0
+	}
+	return 0
+}
+
+// orientationSegment is an APP1 Exif segment that holds nothing but the orientation.
+func orientationSegment(o int) []byte {
+	tiff := []byte{
+		'M', 'M', 0, 42, 0, 0, 0, 8, // big endian, IFD0 at offset 8
+		0, 1, // one entry
+		0x01, 0x12, 0, 3, 0, 0, 0, 1, 0, byte(o), 0, 0, // orientation, SHORT, count 1, value
+		0, 0, 0, 0, // no next IFD
+	}
+	payload := append(append([]byte{}, exifHeader...), tiff...)
+	return jpegSegmentBytes(jpegAPP1, payload)
+}
+
+func jpegSegmentBytes(marker byte, payload []byte) []byte {
+	seg := []byte{0xFF, marker, 0, 0}
+	binary.BigEndian.PutUint16(seg[2:], uint16(len(payload)+2))
+	return append(seg, payload...)
 }
 
 // jpegReadMarker reads the next marker (0xFF plus one byte), skipping fill bytes.
@@ -166,6 +236,8 @@ func stripJPEG(src *os.File, w *bufio.Writer) error {
 		marker byte
 		err    error
 		have   bool // marker already read by jpegCopyEntropy
+		// orientationDone is set after the first Exif block (only that one counts).
+		orientationDone bool
 	)
 	for {
 		if !have {
@@ -213,6 +285,23 @@ func stripJPEG(src *os.File, w *bufio.Writer) error {
 				continue
 			}
 			head, _ := r.Peek(min(payloadLen, 16))
+			if marker == jpegAPP1 && bytes.HasPrefix(head, exifHeader) {
+				// Exif is dropped, but its orientation tag is what makes a phone photo
+				// stand upright; it is carried over alone in a fresh, minimal Exif block.
+				payload := make([]byte, payloadLen)
+				if _, err := io.ReadFull(r, payload); err != nil {
+					return errCorrupt
+				}
+				if !orientationDone {
+					orientationDone = true
+					if o := exifOrientation(payload); o > 1 {
+						if _, err := w.Write(orientationSegment(o)); err != nil {
+							return err
+						}
+					}
+				}
+				continue
+			}
 			if jpegKeepSegment(marker, head) {
 				if _, err := w.Write([]byte{0xFF, marker, lenBytes[0], lenBytes[1]}); err != nil {
 					return err

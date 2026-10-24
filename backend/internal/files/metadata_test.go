@@ -312,3 +312,100 @@ func TestStripJPEGLargeSegment(t *testing.T) {
 		t.Error("Exif survived")
 	}
 }
+
+// exifBlock builds an Exif APP1 payload like a phone writes it: IFD0 with make, orientation and
+// a pointer to the GPS IFD, then the GPS IFD, then the make string and more position data.
+func exifBlock(order binary.ByteOrder, orientation uint16) []byte {
+	tiff := make([]byte, 8)
+	if order == binary.LittleEndian {
+		copy(tiff, "II")
+	} else {
+		copy(tiff, "MM")
+	}
+	order.PutUint16(tiff[2:], 42)
+	order.PutUint32(tiff[4:], 8)
+	entry := func(tag, typ uint16, count, value uint32) []byte {
+		e := make([]byte, 12)
+		order.PutUint16(e[0:], tag)
+		order.PutUint16(e[2:], typ)
+		order.PutUint32(e[4:], count)
+		if typ == 3 && count == 1 {
+			order.PutUint16(e[8:], uint16(value))
+		} else {
+			order.PutUint32(e[8:], value)
+		}
+		return e
+	}
+	const ifd0Entries = 3
+	gpsIFD := uint32(8 + 2 + 12*ifd0Entries + 4)
+	makeAt := gpsIFD + 2 + 12 + 4
+	ifd := make([]byte, 2)
+	order.PutUint16(ifd, ifd0Entries)
+	ifd = append(ifd, entry(0x010F, 2, 8, makeAt)...)              // Make
+	ifd = append(ifd, entry(0x0112, 3, 1, uint32(orientation))...) // Orientation
+	ifd = append(ifd, entry(0x8825, 4, 1, gpsIFD)...)              // GPS IFD pointer
+	ifd = append(ifd, 0, 0, 0, 0)
+	gps := make([]byte, 2)
+	order.PutUint16(gps, 1)
+	gps = append(gps, entry(0x0001, 2, 2, 0x4E000000)...) // GPSLatitudeRef
+	gps = append(gps, 0, 0, 0, 0)
+	tiff = append(append(append(tiff, ifd...), gps...), []byte("SAMSUNG\x00GPSLatitude 51.66")...)
+	return append([]byte("Exif\x00\x00"), tiff...)
+}
+
+// Phones store the picture as the sensor saw it and an orientation tag to turn it upright; the
+// tag survives (alone), everything else in Exif goes.
+func TestStripJPEGKeepsOnlyOrientation(t *testing.T) {
+	var enc bytes.Buffer
+	if err := jpeg.Encode(&enc, testImage(), &jpeg.Options{Quality: 90}); err != nil {
+		t.Fatal(err)
+	}
+	original := enc.Bytes()
+	for name, order := range map[string]binary.ByteOrder{"little endian": binary.LittleEndian, "big endian": binary.BigEndian} {
+		var in bytes.Buffer
+		in.Write(original[:2])
+		in.Write(jpegSegment(0xE1, exifBlock(order, 6)))
+		in.Write(jpegSegment(0xE1, exifBlock(order, 3))) // a second Exif block does not count
+		in.Write(jpegSegment(0xE2, []byte("MPF\x00second image")))
+		in.Write(original[2:])
+		out, err := strip(t, in.Bytes(), "image/jpeg")
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		for _, gone := range []string{"SAMSUNG", "GPSLatitude", "MPF"} {
+			if bytes.Contains(out, []byte(gone)) {
+				t.Errorf("%s: %q survived", name, gone)
+			}
+		}
+		if n := bytes.Count(out, []byte("Exif\x00\x00")); n != 1 {
+			t.Fatalf("%s: %d Exif blocks, want 1", name, n)
+		}
+		i := bytes.Index(out, []byte{0xFF, 0xE1})
+		seg := out[i+4 : i+2+int(binary.BigEndian.Uint16(out[i+2:]))]
+		if o := exifOrientation(seg); o != 6 {
+			t.Errorf("%s: orientation = %d, want 6", name, o)
+		}
+		if _, err := jpeg.Decode(bytes.NewReader(out)); err != nil {
+			t.Errorf("%s: stripped JPEG does not decode: %v", name, err)
+		}
+	}
+
+	// Upright photos (orientation 1) and damaged Exif blocks keep no Exif at all.
+	for name, block := range map[string][]byte{
+		"upright":   exifBlock(binary.LittleEndian, 1),
+		"truncated": exifBlock(binary.LittleEndian, 6)[:14],
+		"bad value": exifBlock(binary.BigEndian, 9),
+	} {
+		var in bytes.Buffer
+		in.Write(original[:2])
+		in.Write(jpegSegment(0xE1, block))
+		in.Write(original[2:])
+		out, err := strip(t, in.Bytes(), "image/jpeg")
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if bytes.Contains(out, []byte("Exif")) {
+			t.Errorf("%s: Exif block kept", name)
+		}
+	}
+}

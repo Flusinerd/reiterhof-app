@@ -284,6 +284,12 @@ advanced = L** and M (groundwork and lunging: the FN badge stages). Distances ar
 (Großpferde). The app has no editor for global rows; corrections or new exercises go into a new
 migration (`UPDATE`/`INSERT … ON CONFLICT` on the fixed IDs), never into 0250.
 
+Migration `0280_leg_yield.up.sql` (first correction): Schenkelweichen (804) and "Viereck verkleinern und
+vergrößern" (813) get the aim `seitengaenge` (before, the filter "Seitengänge" and the AI plan's tag
+matching skipped them), and the jumping library gets its own Schenkelweichen (846, beginner, followed by
+Trabstangen), because hall and arena days of jumping horses use the jumping library and had no leg-yield.
+The library now has 42 exercises (9 jumping).
+
 ## Open points
 
 - The tracker screens (`app/training/track/gps.tsx`, `indoor.tsx`, see [tracking.md](tracking.md)) hand `gait`,

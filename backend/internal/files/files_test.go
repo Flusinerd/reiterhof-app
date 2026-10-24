@@ -196,6 +196,14 @@ func TestUploadRejectsWrongContent(t *testing.T) {
 	if rec := upload(t, pool, h, seed.UserJan, "file", "a.png", "text/html", pngBytes); rec.Code != http.StatusUnsupportedMediaType {
 		t.Errorf("declared text/html: status = %d", rec.Code)
 	}
+	// Declared as another image type (Android's picker re-encodes a HEIF photo to JPEG but
+	// reports image/heif): the content decides.
+	for _, declared := range []string{"image/heif", "image/heic", "image/gif"} {
+		rec := upload(t, pool, h, seed.UserJan, "file", "IMG_0001.heic", declared, jpegBytes)
+		if rec.Code != http.StatusCreated || decode(t, rec).ContentType != "image/jpeg" {
+			t.Errorf("declared %s, real JPEG: %d %s", declared, rec.Code, rec.Body)
+		}
+	}
 	// Declared image/png, real JPEG: accepted, stored as the sniffed type.
 	rec := upload(t, pool, h, seed.UserJan, "file", "a.png", "image/png", jpegBytes)
 	if rec.Code != http.StatusCreated || decode(t, rec).ContentType != "image/jpeg" {

@@ -69,7 +69,7 @@ type Saved struct {
 
 // types maps allowed (sniffed) content types to the file extension. Only image formats
 // whose metadata can be stripped (metadata.go) are accepted; HEIC is recognised by Sniff
-// but refused, the phone's picker delivers JPEG anyway.
+// but refused, the app asks the iOS picker for the compatible (JPEG) representation.
 var types = map[string]string{
 	"image/jpeg":      "jpg",
 	"image/png":       "png",
@@ -143,7 +143,10 @@ func ContentTypeOf(path string) (string, bool) {
 
 // Save stores the content of r for the stable. declaredType is the type the
 // client claims (may be empty or application/octet-stream); if given it must be
-// an allowed type, but the stored type is always the sniffed one. The file is
+// an allowed type or some image type, but the stored type is always the sniffed one.
+// Any image/* is accepted as a declaration because phone pickers report the type of
+// the original photo, not of the file they hand over: Android's expo-image-picker
+// re-encodes a HEIF photo to JPEG and still says image/heif. The file is
 // streamed to disk; more than MaxSize bytes give ErrTooLarge and keep nothing.
 // Images are rewritten without metadata; a damaged image gives ErrCorrupt.
 func Save(ctx context.Context, stableID string, r io.Reader, declaredType string) (Saved, error) {
@@ -152,7 +155,7 @@ func Save(ctx context.Context, stableID string, r io.Reader, declaredType string
 	}
 	stableID = strings.ToLower(stableID)
 	if d := normalizeType(declaredType); d != "" {
-		if _, ok := types[d]; !ok {
+		if _, ok := types[d]; !ok && !strings.HasPrefix(d, "image/") {
 			return Saved{}, ErrUnsupportedType
 		}
 	}

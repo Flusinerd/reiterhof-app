@@ -9,12 +9,21 @@
 // photo) use openStoredFile(url): it fetches a short-lived download link first, so the session
 // token never appears in a URL (histories, share sheets and proxy logs would keep it).
 
+import * as ImagePicker from "expo-image-picker";
 import { Linking } from "react-native";
 
 import { API_URL, authed } from "./api";
 import { parseErrorBody, ApiError } from "./api-core.ts";
 import { getToken } from "./token";
-import { absoluteUrl, downloadLinkPath, MAX_UPLOAD_BYTES, uploadErrorMessage } from "./upload-core.ts";
+import {
+  absoluteUrl,
+  downloadLinkPath,
+  MAX_UPLOAD_BYTES,
+  uploadContentType,
+  uploadErrorMessage,
+  uploadFileName,
+  uploadSource,
+} from "./upload-core.ts";
 
 export { MAX_UPLOAD_BYTES, uploadErrorMessage };
 
@@ -27,7 +36,41 @@ export type UploadInput = {
   mimeType?: string | null;
   /** Size in bytes if known; checked against the 20 MB limit before uploading. */
   size?: number | null;
+  /** The picked file itself; only the web pickers deliver it (their uri is a blob: URL). */
+  file?: Blob | null;
 };
+
+/**
+ * Options for every photo picker call (camera and library). On iOS the library picker hands out
+ * the stored representation by default, which is HEIC for most iPhone photos, and the server
+ * refuses HEIC (its metadata cannot be stripped); "compatible" makes the picker deliver JPEG.
+ */
+export const PHOTO_PICKER_OPTIONS = {
+  mediaTypes: ["images"],
+  preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
+} satisfies ImagePicker.ImagePickerOptions;
+
+/** The upload input for a picked photo or document (image picker or document picker asset). */
+export function pickedFile(
+  asset: {
+    uri: string;
+    fileName?: string | null;
+    name?: string;
+    mimeType?: string | null;
+    fileSize?: number;
+    size?: number;
+    file?: Blob;
+  },
+  fallbackName: string,
+): UploadInput {
+  return {
+    uri: asset.uri,
+    name: asset.fileName ?? asset.name ?? fallbackName,
+    mimeType: asset.mimeType,
+    size: asset.fileSize ?? asset.size,
+    file: asset.file,
+  };
+}
 
 export type UploadedFile = {
   /** Store this in the domain record (e.g. horse_documents.file_path). */
@@ -43,13 +86,22 @@ export async function uploadFile(input: UploadInput): Promise<UploadedFile> {
   if (input.size && input.size > MAX_UPLOAD_BYTES) {
     throw new ApiError(413, "file_too_large", "File exceeds 20 MB");
   }
+  const type = uploadContentType(input.uri, input.file?.type || input.mimeType);
+  const name = uploadFileName(input.name, type);
   const form = new FormData();
-  // React Native's FormData accepts {uri, name, type} objects for files.
-  form.append("file", {
-    uri: input.uri,
-    name: input.name,
-    type: input.mimeType || "application/octet-stream",
-  } as unknown as Blob);
+  try {
+    const source = uploadSource(input);
+    if (source === "blob") {
+      form.append("file", input.file as Blob, name);
+    } else if (source === "fetch") {
+      form.append("file", await (await fetch(input.uri)).blob(), name);
+    } else {
+      // React Native's FormData accepts {uri, name, type} objects for files.
+      form.append("file", { uri: input.uri, name, type } as unknown as Blob);
+    }
+  } catch {
+    throw new ApiError(400, "invalid_upload", "Could not read the picked file");
+  }
 
   const token = getToken();
   const headers: Record<string, string> = { Accept: "application/json" };

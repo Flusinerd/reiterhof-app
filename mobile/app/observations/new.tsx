@@ -21,7 +21,7 @@ import {
   urgencyHint,
   type Urgency,
 } from "@/lib/observations";
-import { uploadErrorMessage, uploadFile, type UploadInput } from "@/lib/upload";
+import { PHOTO_PICKER_OPTIONS, pickedFile, uploadErrorMessage, uploadFile, type UploadInput } from "@/lib/upload";
 
 function confirmUrgent(): Promise<boolean> {
   return new Promise((resolve) => {
@@ -56,12 +56,7 @@ export default function NewObservation() {
   const consent = useConsentPrompt();
 
   async function addPhotos(assets: ImagePicker.ImagePickerAsset[]) {
-    const next = assets.map<UploadInput>((a) => ({
-      uri: a.uri,
-      name: a.fileName ?? "foto.jpg",
-      mimeType: a.mimeType ?? "image/jpeg",
-      size: a.fileSize,
-    }));
+    const next = assets.map<UploadInput>((a) => pickedFile(a, "foto.jpg"));
     setPhotos((cur) => [...cur, ...next].slice(0, MAX_PHOTOS));
   }
 
@@ -69,14 +64,14 @@ export default function NewObservation() {
     if (!(await consent.ensure("photos"))) return;
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) return setError("Kamerazugriff fehlt.");
-    const res = await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 0.7 });
+    const res = await ImagePicker.launchCameraAsync({ ...PHOTO_PICKER_OPTIONS, quality: 0.7 });
     if (!res.canceled) await addPhotos(res.assets);
   }
 
   async function pickPhotos() {
     if (!(await consent.ensure("photos"))) return;
     const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
+      ...PHOTO_PICKER_OPTIONS,
       quality: 0.7,
       allowsMultipleSelection: true,
       selectionLimit: Math.max(1, MAX_PHOTOS - photos.length),
