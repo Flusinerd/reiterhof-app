@@ -3,7 +3,7 @@ import { test } from "node:test";
 
 import { readFileSync } from "node:fs";
 
-import { colors, flattenPalette, fontFamilies, hexToRgbChannels, layout, palettes } from "./tokens.ts";
+import { colors, flattenPalette, fontFamilies, hexToRgbChannels, layout, paletteVariables, palettes } from "./tokens.ts";
 
 test("core colors match the design spec (Abendlicht)", () => {
   assert.equal(colors, palettes.light);
@@ -29,6 +29,16 @@ test("global.css carries every token of both palettes", () => {
       assert.ok(part.includes(`--color-${name}: ${hexToRgbChannels(value)};`), `${scheme} --color-${name}`);
     }
   }
+});
+
+test("paletteVariables is what a ThemeScope sets, and equals the dark block of global.css", () => {
+  const css = readFileSync(new URL("../global.css", import.meta.url), "utf8");
+  const dark = css.slice(css.indexOf("prefers-color-scheme: dark"));
+  const vars = paletteVariables(palettes.dark);
+  assert.equal(vars["--color-background"], "14 18 16");
+  assert.equal(vars["--color-primary-foreground"], "26 20 10");
+  assert.equal(Object.keys(vars).length, flattenPalette(palettes.dark).length);
+  for (const [name, value] of Object.entries(vars)) assert.ok(dark.includes(`${name}: ${value};`), name);
 });
 
 test("hex to rgb channels", () => {

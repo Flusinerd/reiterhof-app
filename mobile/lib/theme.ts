@@ -1,14 +1,28 @@
 // Values that are needed in JS (icons, navigation options, native props) and
 // cannot be expressed as class names. Everything is derived from lib/tokens.ts.
+import { createContext, useContext } from "react";
 import { Appearance, useColorScheme } from "react-native";
 
 import { layout, palettes, type Palette } from "./tokens.ts";
 
 export { layout, palettes, type Palette } from "./tokens.ts";
 
-/** The palette of the phone's current light/dark setting; re-renders when it changes. */
+/**
+ * Set by `ThemeScope` (components/ui/theme-scope.tsx) for a subtree that ignores the phone's
+ * setting, e.g. the always-dark evening round. null = follow the phone.
+ */
+export const SchemeOverrideContext = createContext<"light" | "dark" | null>(null);
+
+/** The scheme in effect for this part of the tree: a `ThemeScope`, else the phone's setting. */
+export function useScheme(): "light" | "dark" {
+  const override = useContext(SchemeOverrideContext);
+  const phone = useColorScheme();
+  return override ?? (phone === "dark" ? "dark" : "light");
+}
+
+/** The palette in effect for this part of the tree (see `useScheme`); re-renders when it changes. */
 export function useColors(): Palette {
-  return useColorScheme() === "dark" ? palettes.dark : palettes.light;
+  return palettes[useScheme()];
 }
 
 /**

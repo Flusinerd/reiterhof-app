@@ -2,13 +2,14 @@ import { ActivityIndicator, View } from "react-native";
 
 import { Button, Card, Text } from "@/components/ui";
 import { ApiError, errorMessage } from "@/lib/api";
-import { colors } from "@/lib/theme";
+import { useColors } from "@/lib/theme";
 
 /** Centered spinner for a screen or block that is still loading. */
 export function HorseLoading() {
+  const c = useColors();
   return (
     <View className="items-center py-10" accessibilityLabel="Wird geladen">
-      <ActivityIndicator color={colors.primary.DEFAULT} />
+      <ActivityIndicator color={c.primary.DEFAULT} />
     </View>
   );
 }

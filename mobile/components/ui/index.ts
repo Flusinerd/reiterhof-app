@@ -17,6 +17,7 @@ export { Sheet, type SheetProps } from "./sheet";
 export { Stepper, type StepperProps } from "./stepper";
 export { Switch, type SwitchProps } from "./switch";
 export { Tabs, TabsContent, TabsList, TabsTrigger } from "./tabs";
+export { ThemeScope, type ThemeScopeProps } from "./theme-scope";
 export { TimeField, type TimeFieldProps } from "./time-field";
 export { Text, type TextProps, type TextTone, type TextVariant } from "./text";
 export { ToggleGroup, ToggleGroupItem, type ToggleGroupProps } from "./toggle-group";

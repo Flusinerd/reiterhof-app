@@ -90,6 +90,14 @@ export function hexToRgbChannels(hex: string): string {
   return `${(n >> 16) & 255} ${(n >> 8) & 255} ${n & 255}`;
 }
 
+/**
+ * The CSS variables of one palette, `--color-<token>` to "r g b", exactly what global.css declares
+ * for that scheme. `ThemeScope` hands them to NativeWind's `vars()` to pin a subtree to a scheme.
+ */
+export function paletteVariables(palette: Palette): Record<string, string> {
+  return Object.fromEntries(flattenPalette(palette).map(([name, hex]) => [`--color-${name}`, hexToRgbChannels(hex)]));
+}
+
 /** Radii in px. Cards 20, tiles 16, buttons 12-14, pills fully round. */
 export const radii = {
   card: 20,
