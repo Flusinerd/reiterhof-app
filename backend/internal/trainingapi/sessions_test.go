@@ -69,6 +69,8 @@ func TestSessionValidation(t *testing.T) {
 		"gait unknown":       `{"activity":"hall","minutes":30,"gait_shares":{"gallop":0.5}}`,
 		"rein":               `{"activity":"hall","minutes":30,"rein_changes":[{"rein":"up","minutes":3}]}`,
 		"feel":               `{"activity":"hall","minutes":30,"feel":"happy"}`,
+		"feeling":            `{"activity":"hall","minutes":30,"feeling":"great"}`,
+		"feeling feel value": `{"activity":"hall","minutes":30,"feeling":"loose"}`,
 		"focus":              `{"activity":"hall","minutes":30,"focus_rating":4}`,
 		"future":             `{"activity":"hall","minutes":30,"started_at":"2026-03-26T10:00:00+01:00"}`,
 		"too old":            `{"activity":"hall","minutes":30,"started_at":"2026-01-01T10:00:00+01:00"}`,
@@ -183,5 +185,48 @@ func TestSessionVisibility(t *testing.T) {
 	ownerMon := obj(list(e.call(seed.UserJan, http.MethodGet, "/api/v1/horses/"+luna+"/week?start=2026-03-23", "", http.StatusOK)["days"])[0])
 	if ownerMon["activity"] != "arena" || obj(ownerMon["user"])["name"] != "Jan" {
 		t.Fatalf("owner week monday = %v", ownerMon)
+	}
+}
+
+func TestSessionFeeling(t *testing.T) {
+	e := newEnv(t)
+	path := "/api/v1/horses/" + luna + "/sessions"
+
+	// Optional: clients from before "Wie war's?" send none and get null back.
+	old := obj(e.call(seed.UserJan, http.MethodPost, path, `{"activity":"hall","minutes":30,"started_at":"2026-03-23T17:00:00+01:00"}`, http.StatusCreated)["session"])
+	if v, ok := old["feeling"]; !ok || v != nil {
+		t.Fatalf("session without feeling = %v", old)
+	}
+
+	for _, feeling := range []string{"hard", "good", "easy"} {
+		body := `{"activity":"hall","minutes":45,"feeling":"` + feeling + `","feel":"loose"}`
+		s := obj(e.call(seed.UserJan, http.MethodPost, path, body, http.StatusCreated)["session"])
+		if s["feeling"] != feeling || s["feel"] != "loose" {
+			t.Fatalf("created %s: %v", feeling, s)
+		}
+		var stored string
+		if err := e.pool.QueryRow(context.Background(), `SELECT feeling FROM sessions WHERE id = $1`, s["id"]).Scan(&stored); err != nil || stored != feeling {
+			t.Fatalf("stored feeling = %q, err %v", stored, err)
+		}
+	}
+
+	// An empty string is "not given", not a value.
+	empty := obj(e.call(seed.UserJan, http.MethodPost, path, `{"activity":"hall","minutes":30,"feeling":""}`, http.StatusCreated)["session"])
+	if empty["feeling"] != nil {
+		t.Fatalf("empty feeling = %v", empty["feeling"])
+	}
+
+	// The list returns it, and the database refuses anything else.
+	feelings := map[string]int{}
+	for _, s := range list(e.call(seed.UserJan, http.MethodGet, path, "", http.StatusOK)["sessions"]) {
+		if f, ok := obj(s)["feeling"].(string); ok {
+			feelings[f]++
+		}
+	}
+	if len(feelings) != 3 || feelings["easy"] != 1 {
+		t.Fatalf("listed feelings = %v", feelings)
+	}
+	if _, err := e.pool.Exec(context.Background(), `UPDATE sessions SET feeling = 'great'`); err == nil {
+		t.Fatal("the feeling check constraint accepted 'great'")
 	}
 }

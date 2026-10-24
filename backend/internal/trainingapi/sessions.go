@@ -35,6 +35,9 @@ type reinSegment struct {
 // Feel values ("Luna war ...") and their German labels.
 var feelLabels = map[string]string{"fresh": "Frisch", "loose": "Locker", "tired": "Müde", "tense": "Klemmig"}
 
+// Feeling values ("Wie war's?" after the ride: how the session felt) and their German labels.
+var feelingLabels = map[string]string{"hard": "Schwer", "good": "Gut", "easy": "Sehr locker"}
+
 type sessionRow struct {
 	ID         string
 	UserID     string
@@ -45,6 +48,7 @@ type sessionRow struct {
 	Gait       map[string]float64
 	Rein       []reinSegment
 	Feel       *string
+	Feeling    *string
 	Focus      *int
 	Note       *string
 	Visible    bool
@@ -64,7 +68,7 @@ func clamp01(v float64) float64 { return math.Max(0, math.Min(1, v)) }
 func (h *handler) querySessions(ctx context.Context, stableID, horseID string, from, to time.Time, onlyFor string, limit int) ([]sessionRow, error) {
 	q := `
 		SELECT s.id::text, s.user_id::text, u.name, s.activity, s.started_at, COALESCE(s.duration_min, 0),
-		       s.gait_shares, s.rein_changes, s.feel, s.focus_rating, s.note, s.visible_to_rider,
+		       s.gait_shares, s.rein_changes, s.feel, s.feeling, s.focus_rating, s.note, s.visible_to_rider,
 		       COALESCE(s.load_score, 0)::float8, s.source, s.exercise_id::text, s.distance_m
 		FROM sessions s JOIN users u ON u.id = s.user_id
 		WHERE s.stable_id = $1 AND s.horse_id = $2 AND s.started_at >= $3 AND s.started_at < $4
@@ -84,7 +88,7 @@ func (h *handler) querySessions(ctx context.Context, stableID, horseID string, f
 		var act string
 		var gait, rein []byte
 		if err := rows.Scan(&s.ID, &s.UserID, &s.UserName, &act, &s.StartedAt, &s.Minutes, &gait, &rein,
-			&s.Feel, &s.Focus, &s.Note, &s.Visible, &s.Load, &s.Source, &s.ExerciseID, &s.DistanceM); err != nil {
+			&s.Feel, &s.Feeling, &s.Focus, &s.Note, &s.Visible, &s.Load, &s.Source, &s.ExerciseID, &s.DistanceM); err != nil {
 			return nil, err
 		}
 		s.Activity = training.Activity(act)
@@ -138,6 +142,7 @@ type sessionOut struct {
 	GaitShares     map[string]float64 `json:"gait_shares"`
 	ReinChanges    []reinSegment      `json:"rein_changes"`
 	Feel           *string            `json:"feel"`
+	Feeling        *string            `json:"feeling"`
 	FocusRating    *int               `json:"focus_rating"`
 	Note           *string            `json:"note"`
 	VisibleToRider bool               `json:"visible_to_rider"`
@@ -170,7 +175,7 @@ func (s sessionRow) out(horseID string, loc *time.Location) sessionOut {
 		Activity: s.Activity, Label: s.Activity.GermanName(),
 		StartedAt: s.StartedAt.UTC(), Day: s.StartedAt.In(loc).Format(dateLayout),
 		Minutes: s.Minutes, CanterShare: s.canter(), GaitShares: gait, ReinChanges: nonNil(s.Rein),
-		Feel: s.Feel, FocusRating: s.Focus, Note: s.Note, VisibleToRider: s.Visible,
+		Feel: s.Feel, Feeling: s.Feeling, FocusRating: s.Focus, Note: s.Note, VisibleToRider: s.Visible,
 		Load: round1(s.Load), Intensity: intensityKey(load.Classify(s.Load)), Source: s.Source,
 		ExerciseID: s.ExerciseID, DistanceM: s.DistanceM,
 	}
@@ -188,6 +193,7 @@ type sessionIn struct {
 	GaitShares     map[string]float64 `json:"gait_shares"`
 	ReinChanges    []reinSegment      `json:"rein_changes"`
 	Feel           string             `json:"feel"`
+	Feeling        string             `json:"feeling"`
 	FocusRating    *int               `json:"focus_rating"`
 	ExerciseID     string             `json:"exercise_id"`
 	Note           string             `json:"note"`
@@ -275,12 +281,13 @@ func (h *handler) createSession(w http.ResponseWriter, r *http.Request) {
 	var id string
 	err = tx.QueryRow(ctx, `
 		INSERT INTO sessions (stable_id, horse_id, user_id, activity, started_at, duration_min, gait_shares,
-		                      rein_changes, feel, focus_rating, note, visible_to_rider, load_score, source,
-		                      exercise_id, distance_m, track)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULLIF($9, ''), $10, NULLIF($11, ''), $12, $13, $14, NULLIF($15, '')::uuid, $16, $17)
+		                      rein_changes, feel, feeling, focus_rating, note, visible_to_rider, load_score,
+		                      source, exercise_id, distance_m, track)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULLIF($9, ''), NULLIF($10, ''), $11, NULLIF($12, ''), $13, $14, $15,
+		        NULLIF($16, '')::uuid, $17, $18)
 		RETURNING id::text`,
 		a.user.StableID, a.horseID, a.user.ID, in.Activity, v.startedAt, in.Minutes, gait, rein, in.Feel,
-		in.FocusRating, in.Note, v.visible, score, v.source, v.exerciseID, in.DistanceM, track).Scan(&id)
+		in.Feeling, in.FocusRating, in.Note, v.visible, score, v.source, v.exerciseID, in.DistanceM, track).Scan(&id)
 	if err != nil {
 		h.fail(w, r, err)
 		return
@@ -412,6 +419,9 @@ func validateSession(in sessionIn, now time.Time) (validSession, error) {
 	}
 	if _, ok := feelLabels[in.Feel]; in.Feel != "" && !ok {
 		return v, errors.New("feel must be fresh, loose, tired or tense")
+	}
+	if _, ok := feelingLabels[in.Feeling]; in.Feeling != "" && !ok {
+		return v, errors.New("feeling must be hard, good or easy")
 	}
 	if in.FocusRating != nil && (*in.FocusRating < 1 || *in.FocusRating > 3) {
 		return v, errors.New("focus_rating must be 1, 2 or 3")
