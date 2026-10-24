@@ -3,12 +3,15 @@ import { useState } from "react";
 import { Pressable, View } from "react-native";
 
 import { BlanketActions } from "@/components/blanket-actions";
+import { BlanketChoiceSheet } from "@/components/blanket-choice-sheet";
 import { BlanketPhoto } from "@/components/blanket-photo";
 import { Avatar, Badge, Card, Icon, Text } from "@/components/ui";
 import {
+  deviatesFromRule,
   fillLabel,
   recommendationDetail,
   recommendationTitle,
+  ruleHint,
   stateByline,
   stateLabel,
   type StateAction,
@@ -27,6 +30,8 @@ type Props = {
 /** Large card of a horse that still needs its blanket decision tonight. */
 export function BlanketHorseCard({ item, pending, onAction, onOpenPlan }: Props) {
   const { horse, recommendation: rec } = item;
+  const [choiceOpen, setChoiceOpen] = useState(false);
+  const hint = ruleHint(rec, item.rule_recommendation);
   return (
     <Card className="gap-4">
       <Pressable
@@ -53,6 +58,8 @@ export function BlanketHorseCard({ item, pending, onAction, onOpenPlan }: Props)
           </Text>
           <Text variant="secondary">{recommendationDetail(rec)}</Text>
           {rec.blanket ? <Text variant="caption">{fillLabel(rec.blanket.fill_g)}</Text> : null}
+          {rec.manual ? <Badge variant="accent" label="Abweichend von Regel" className="mt-1 self-start" /> : null}
+          {hint ? <Text variant="caption">{hint}</Text> : null}
         </View>
       </View>
 
@@ -61,7 +68,7 @@ export function BlanketHorseCard({ item, pending, onAction, onOpenPlan }: Props)
           <Icon as={MessageSquareQuote} size={16} className="mt-0.5 text-accent-text" />
           <Text variant="bodySm" className="flex-1">
             <Text variant="bodySm" tone="accent">
-              Besitzerwunsch:{" "}
+              {rec.manual ? "Grund: " : "Besitzerwunsch: "}
             </Text>
             {rec.note}
           </Text>
@@ -69,6 +76,17 @@ export function BlanketHorseCard({ item, pending, onAction, onOpenPlan }: Props)
       ) : null}
 
       <BlanketActions recommendation={rec} pending={pending} disabled={pending !== null} onAction={onAction} />
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => setChoiceOpen(true)}
+        disabled={pending !== null}
+        className="min-h-touch justify-center self-start"
+      >
+        <Text variant="bodySm" tone="primary">
+          Mit anderer Decke eindecken
+        </Text>
+      </Pressable>
+      <BlanketChoiceSheet open={choiceOpen} onOpenChange={setChoiceOpen} horseId={horse.id} mode="cover" />
     </Card>
   );
 }
@@ -82,7 +100,9 @@ export function BlanketDoneRow({
   onOpenPlan,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
+  const [choiceOpen, setChoiceOpen] = useState(false);
   const { horse, state } = item;
+  const deviates = item.recommendation.manual || deviatesFromRule(state, item.rule_recommendation);
   return (
     <Card padded={false} shape="tile">
       <Pressable
@@ -100,7 +120,10 @@ export function BlanketDoneRow({
             </Text>
           ) : null}
         </View>
-        <Badge variant="primary" label="Erledigt" />
+        <View className="items-end gap-1">
+          <Badge variant="primary" label="Erledigt" />
+          {deviates ? <Badge variant="accent" label="Abweichend" /> : null}
+        </View>
       </Pressable>
       {expanded ? (
         <View className="gap-3 border-t border-divider px-4 pb-4 pt-3">
@@ -113,6 +136,22 @@ export function BlanketDoneRow({
               setExpanded(false);
             }}
           />
+          {ruleHint(item.recommendation, item.rule_recommendation) ? (
+            <Text variant="caption">
+              {recommendationTitle(item.recommendation)} von Hand gewählt,{" "}
+              {ruleHint(item.recommendation, item.rule_recommendation)}
+            </Text>
+          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setChoiceOpen(true)}
+            disabled={pending !== null}
+            className="min-h-touch justify-center"
+          >
+            <Text variant="bodySm" tone="primary">
+              Mit anderer Decke eindecken
+            </Text>
+          </Pressable>
           <Pressable accessibilityRole="button" onPress={onOpenPlan} className="min-h-touch justify-center">
             <Text variant="bodySm" tone="primary">
               Deckenplan ansehen
@@ -120,6 +159,7 @@ export function BlanketDoneRow({
           </Pressable>
         </View>
       ) : null}
+      <BlanketChoiceSheet open={choiceOpen} onOpenChange={setChoiceOpen} horseId={horse.id} mode="cover" />
     </Card>
   );
 }

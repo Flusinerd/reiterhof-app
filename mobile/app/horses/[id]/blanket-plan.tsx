@@ -1,9 +1,10 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams, type Href } from "expo-router";
-import { History, MapPin, Pencil, Plus } from "lucide-react-native";
+import { Hand, History, MapPin, Pencil, Plus, RotateCcw } from "lucide-react-native";
 import { useState } from "react";
 import { Pressable, RefreshControl, View } from "react-native";
 
+import { BlanketChoiceSheet } from "@/components/blanket-choice-sheet";
 import { BlanketEditSheet } from "@/components/blanket-edit-sheet";
 import { BlanketHistory } from "@/components/blanket-history";
 import { BlanketPhoto } from "@/components/blanket-photo";
@@ -13,16 +14,20 @@ import { HorseError, HorseLoading } from "@/components/horse-query-state";
 import { Badge, Button, Card, Icon, Input, PageHeader, Screen, Section, Sheet, Text } from "@/components/ui";
 import { WeatherCard } from "@/components/weather-card";
 import { errorMessage } from "@/lib/api";
-import { BLANKET_PLAN_EVENT, BLANKET_STATE_EVENT, blanketKeys, usePlan } from "@/lib/api/blankets";
+import { BLANKET_PLAN_EVENT, BLANKET_STATE_EVENT, blanketKeys, blanketsApi, usePlan, usePlanMutation } from "@/lib/api/blankets";
 import { horsesApi, useHorseMutation } from "@/lib/api/horses";
 import { useAuth } from "@/lib/auth";
 import {
+  blanketErrorMessage,
+  deviatesFromRule,
   fillLabel,
   nightLine,
+  overrideUntilText,
   recommendationDetail,
   recommendationTitle,
   ruleBlanketName,
   ruleCondition,
+  ruleHint,
   stateByline,
   stateLabel,
   type Blanket,
@@ -42,6 +47,9 @@ export default function BlanketPlan() {
   });
   const [rulesOpen, setRulesOpen] = useState(false);
   const [editing, setEditing] = useState<{ blanket: Blanket | null } | null>(null);
+  const [choiceOpen, setChoiceOpen] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
+  const resetChoice = usePlanMutation(() => blanketsApi.clearOverride(id));
   const [noteOpen, setNoteOpen] = useState(false);
   const [note, setNote] = useState("");
   const [noteError, setNoteError] = useState<string | null>(null);
@@ -58,7 +66,10 @@ export default function BlanketPlan() {
 
   const p = plan.data;
   const rec = p.recommendation;
+  const ruleRec = p.rule_recommendation ?? rec;
   const canManage = p.can_manage;
+  const hint = ruleHint(rec, ruleRec);
+  const stateDeviates = !rec.manual && deviatesFromRule(p.state, ruleRec);
 
   async function submitNote() {
     setNoteError(null);
@@ -94,9 +105,50 @@ export default function BlanketPlan() {
                 {stateLabel(p.state)} · {stateByline(p.state, timeZone)}
               </Text>
             ) : null}
-            {rec.note ? <Text variant="bodySm">Wunsch: {rec.note}</Text> : null}
+            {rec.manual ? (
+              <View className="flex-row flex-wrap items-center gap-2">
+                <Badge variant="accent" label="Abweichend von Regel" />
+                {p.override ? <Text variant="caption">{overrideUntilText(p.override, p.day)}</Text> : null}
+              </View>
+            ) : stateDeviates ? (
+              <Badge variant="accent" label="Abweichend von Regel" />
+            ) : null}
+            {hint ? <Text variant="secondary">{hint}</Text> : null}
+            {rec.note ? <Text variant="bodySm">{rec.manual ? "Grund" : "Wunsch"}: {rec.note}</Text> : null}
+            {rec.manual && p.override?.set_by ? (
+              <Text variant="caption">Gewählt von {p.override.set_by.name}</Text>
+            ) : null}
           </View>
         </Card>
+        {canManage ? (
+          <View className="flex-row flex-wrap gap-3">
+            <Button
+              label={rec.manual ? "Wahl ändern" : "Decke von Hand wählen"}
+              icon={Hand}
+              variant="secondary"
+              size="sm"
+              onPress={() => setChoiceOpen(true)}
+            />
+            {rec.manual ? (
+              <Button
+                label="Zurück zur Regel"
+                icon={RotateCcw}
+                variant="ghost"
+                size="sm"
+                loading={resetChoice.isPending}
+                onPress={() => {
+                  setResetError(null);
+                  resetChoice.mutate(undefined, { onError: (e) => setResetError(blanketErrorMessage(e)) });
+                }}
+              />
+            ) : null}
+          </View>
+        ) : null}
+        {resetError ? (
+          <Text variant="bodySm" tone="danger" accessibilityRole="alert">
+            {resetError}
+          </Text>
+        ) : null}
       </PageHeader>
 
       {p.weather ? <WeatherCard weather={p.weather} timeZone={timeZone} /> : null}
@@ -119,14 +171,16 @@ export default function BlanketPlan() {
           </Text>
         ) : (
           p.rules.map((r, i) => {
-            const active = rec.rule_index === i;
+            const active = ruleRec.rule_index === i;
             return (
               <Card key={r.id} shape="tile" className={active ? "gap-1 border-primary bg-primary-soft" : "gap-1"}>
                 <View className="flex-row items-center justify-between gap-3">
                   <Text variant="bodyStrong" className="flex-1">
                     {ruleBlanketName(r, p.blankets)}
                   </Text>
-                  {active ? <Badge variant="primary" label="Gilt heute Nacht" /> : null}
+                  {active ? (
+                    <Badge variant="primary" label={rec.manual ? "Regel heute Nacht" : "Gilt heute Nacht"} />
+                  ) : null}
                 </View>
                 <Text variant="secondary">
                   {i + 1}. {ruleCondition(r)}
@@ -224,6 +278,7 @@ export default function BlanketPlan() {
 
       {canManage ? (
         <>
+          <BlanketChoiceSheet open={choiceOpen} onOpenChange={setChoiceOpen} horseId={id} mode="override" />
           <BlanketRulesSheet open={rulesOpen} onOpenChange={setRulesOpen} horseId={id} rules={p.rules} blankets={p.blankets} />
           <BlanketEditSheet
             open={editing !== null}

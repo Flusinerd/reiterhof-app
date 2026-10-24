@@ -117,8 +117,12 @@ type Recommendation struct {
 	RuleIndex *int `json:"rule_index"`
 	// Blanket is set when Status is "blanket".
 	Blanket *Blanket `json:"blanket"`
-	// Note is the owner's wish of the matched rule ("" when there is none).
+	// Note is the owner's wish of the matched rule ("" when there is none), or the note of a
+	// manual choice.
 	Note string `json:"note"`
+	// Manual is true when the owner or an admin picked the blanket by hand, deviating from the
+	// rules (see Override); RuleIndex is then null.
+	Manual bool `json:"manual"`
 }
 
 // Person is a user as embedded in states.
@@ -160,7 +164,11 @@ type horseNight struct {
 	Rules    []Rule
 	Blankets []Blanket
 	State    *State
-	Rec      Recommendation
+	// Rec is the effective recommendation: the manual choice when there is one, else RuleRec.
+	Rec Recommendation
+	// RuleRec is what the rules say, whatever was chosen by hand.
+	RuleRec  Recommendation
+	Override *Override
 }
 
 func (h horseNight) done() bool { return h.State != nil }
@@ -402,12 +410,22 @@ func (s *Service) loadNight(ctx context.Context, stableID, horseID string) (*nig
 		return nil, err
 	}
 
+	overrides, err := s.loadOverrides(ctx, stableID, only, n.Day)
+	if err != nil {
+		return nil, fmt.Errorf("overrides: %w", err)
+	}
+
 	for i := range n.Horses {
 		h := &n.Horses[i]
 		if snap != nil {
 			h.Weather = weatherOf(*snap, loc, n.Day, windowOf(h.Horse.CoverStart, h.Horse.CoverEnd))
 		}
-		h.Rec = recommend(h.Rules, h.Blankets, h.Weather)
+		h.RuleRec = recommend(h.Rules, h.Blankets, h.Weather)
+		if o, ok := overrides[h.Horse.ID]; ok {
+			o.resolveBlanket(h.Blankets)
+			h.Override = &o
+		}
+		h.Rec = applyOverride(h.RuleRec, h.Override)
 	}
 	return n, nil
 }

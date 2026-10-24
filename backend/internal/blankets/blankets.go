@@ -73,6 +73,8 @@ func Register(mux *http.ServeMux, deps httpx.Deps) {
 	route("PUT /api/v1/horses/{id}/blanket-rules", h.putRules)
 	route("GET /api/v1/horses/{id}/blanket-plan", h.plan)
 	route("PUT /api/v1/horses/{id}/cover-window", h.putCoverWindow)
+	route("PUT /api/v1/horses/{id}/blanket-override", h.putOverride)
+	route("DELETE /api/v1/horses/{id}/blanket-override", h.deleteOverride)
 
 	route("POST /api/v1/horses/{id}/blanket-state", h.setState)
 	route("GET /api/v1/horses/{id}/blanket-states", h.history)

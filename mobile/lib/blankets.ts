@@ -78,8 +78,24 @@ export type Recommendation = {
   /** 0-based index into the rules list, null when no rule matched. */
   rule_index: number | null;
   blanket: Blanket | null;
-  /** The owner's wish of the matched rule, "" when there is none. */
+  /** The owner's wish of the matched rule, or the note of a manual choice; "" when there is none. */
   note: string;
+  /** True when the owner or an admin picked the blanket by hand, deviating from the rules (rule_index is null then). */
+  manual?: boolean;
+};
+
+/** Manual blanket choice of the owner or an admin (Decke abweichend von der Regel). */
+export type Override = {
+  /** null = "Keine Decke". */
+  blanket_id: string | null;
+  blanket: Blanket | null;
+  /** First blanket day (YYYY-MM-DD). */
+  day_from: string;
+  /** Last blanket day (inclusive), null = until reset. */
+  day_until: string | null;
+  note: string;
+  set_by: { id: string; name: string } | null;
+  set_at: string;
 };
 
 export type BlanketState = {
@@ -100,7 +116,11 @@ export type HorseRef = { id: string; name: string; box: string | null; color_key
 
 export type TodayHorse = {
   horse: HorseRef;
+  /** Effective recommendation: the manual choice when there is one, else the rules. */
   recommendation: Recommendation;
+  /** What the rules say (equal to recommendation without a manual choice). */
+  rule_recommendation?: Recommendation;
+  override?: Override | null;
   state: BlanketState | null;
   done: boolean;
   is_mine: boolean;
@@ -121,7 +141,11 @@ export type Plan = {
   horse: HorseRef;
   day: string;
   weather: Weather | null;
+  /** Effective recommendation: the manual choice when there is one, else the rules. */
   recommendation: Recommendation;
+  /** What the rules say (equal to recommendation without a manual choice). */
+  rule_recommendation?: Recommendation;
+  override?: Override | null;
   rules: Rule[];
   blankets: Blanket[];
   helper_note: string | null;
@@ -323,6 +347,53 @@ export function recommendationDetail(rec: Recommendation): string {
     case "no_weather":
       return "Vorhersage fehlt noch";
   }
+}
+
+// --- manual choice -------------------------------------------------------------------------
+
+/** Durations offered for a manual choice: nights from tonight on, null = until reset. */
+export const OVERRIDE_DURATIONS: readonly { nights: number | null; label: string }[] = [
+  { nights: 1, label: "Nur heute Nacht" },
+  { nights: 3, label: "3 Nächte" },
+  { nights: 7, label: "7 Nächte" },
+  { nights: null, label: "Bis auf Weiteres" },
+];
+
+/** "Nur heute Nacht", "Bis 02.10." (last night, inclusive) or "Bis auf Weiteres". */
+export function overrideUntilText(o: Pick<Override, "day_until">, today: string): string {
+  if (!o.day_until) return "Bis auf Weiteres";
+  if (o.day_until === today) return "Nur heute Nacht";
+  return `Bis ${o.day_until.slice(8, 10)}.${o.day_until.slice(5, 7)}.`;
+}
+
+/**
+ * Line that keeps the rules visible next to a manual choice: "Regel: Decke 100 g". Null when
+ * the recommendation is not manual or the rules have nothing to say.
+ */
+export function ruleHint(rec: Recommendation, ruleRec: Recommendation | undefined): string | null {
+  if (!rec.manual || !ruleRec) return null;
+  if (ruleRec.status === "no_weather") return "Regel: noch keine Vorhersage";
+  if (ruleRec.status === "no_rule") return "Regel: keine passende Regel";
+  return `Regel: ${recommendationTitle(ruleRec)}`;
+}
+
+/**
+ * True when what was done tonight differs from the rules: covered with another blanket than the
+ * rules name (or although they say none), or checked although the rules want a blanket. Without a
+ * rule answer (no forecast, no rule) nothing deviates.
+ */
+export function deviatesFromRule(state: BlanketState | null, ruleRec: Recommendation | undefined): boolean {
+  if (!state || !ruleRec || (ruleRec.status !== "blanket" && ruleRec.status !== "none")) return false;
+  const ruleBlanket = ruleRec.blanket?.id ?? null;
+  if (state.action === "covered") return state.covered_with !== ruleBlanket;
+  if (state.action === "checked") return ruleBlanket !== null;
+  return false;
+}
+
+/** Blankets for a manual pick with the recommended one first; the others by fill weight as delivered. */
+export function blanketChoices(blankets: readonly Blanket[], recommendedId: string | null): Blanket[] {
+  const first = blankets.filter((b) => b.id === recommendedId);
+  return [...first, ...blankets.filter((b) => b.id !== recommendedId)];
 }
 
 /** Buttons to show for a horse, depending on what the plan recommends. */

@@ -68,7 +68,7 @@ personal data of the caller across tables, as whole table rows (`to_jsonb`, so n
 `consents`, `push_tokens` (masked to first and last four characters), `web_push_subscriptions` (push service host, user
 agent and date only; the endpoint URL is a secret), `reminder_settings`, `reminders`, `presence_visits`,
 `training_sessions` (including GPS tracks), `gait_windows` (raw sensor features of own rides), `week_slots`,
-`observations_reported`, `requests_created`, `requests_helped`, `horses_owned`, `horse_rider_roles`, `blanket_changes`,
+`observations_reported`, `requests_created`, `requests_helped`, `horses_owned`, `horse_rider_roles`, `blanket_changes`, `blanket_choices`,
 `reha_days_done`, `reha_plans_created`, `invites_created` (without the code), `documents_uploaded` and `uploaded_files`
 (paths of documents and observation photos). Only rows the user owns or authored; rows of other people are never
 included. **When you add a table that references `users`, add a section to `privacy.Export` and to

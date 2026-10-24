@@ -5,7 +5,16 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { API_URL, authed } from "../api";
 import { ApiError, parseErrorBody } from "../api-core.ts";
-import type { Blanket, BlanketState, Plan, Rule, StateAction, Today } from "../blankets.ts";
+import type {
+  Blanket,
+  BlanketState,
+  Override,
+  Plan,
+  Recommendation,
+  Rule,
+  StateAction,
+  Today,
+} from "../blankets.ts";
 import { getToken } from "../token";
 
 export const BLANKET_STATE_EVENT = "blanket_state.changed";
@@ -84,6 +93,17 @@ export const blanketsApi = {
   removeBlanket: (horseId: string, id: string) => del(`${horsePath(horseId)}/blankets/${id}`),
   saveRules: (horseId: string, rules: RuleInput[]) =>
     put<{ rules: Rule[] }>(`${horsePath(horseId)}/blanket-rules`, { rules }),
+  /**
+   * Owner or admin: pick a blanket by hand (null = "Keine Decke") from tonight on, for `nights`
+   * nights (1..30) or until reset (null). Replaces an earlier choice.
+   */
+  setOverride: (horseId: string, blanketId: string | null, nights: number | null, note: string) =>
+    put<{ override: Override; recommendation: Recommendation; rule_recommendation: Recommendation }>(
+      `${horsePath(horseId)}/blanket-override`,
+      { blanket_id: blanketId, nights, note },
+    ),
+  /** Owner or admin: back to the rules. */
+  clearOverride: (horseId: string) => del(`${horsePath(horseId)}/blanket-override`),
   /** Owner or admin. Start 15:00 to 23:00, end 04:00 to 15:00, both "HH:MM". */
   saveCoverWindow: (horseId: string, coverStart: string, coverEnd: string) =>
     put<{ cover_start: string; cover_end: string }>(`${horsePath(horseId)}/cover-window`, {
