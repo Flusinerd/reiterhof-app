@@ -29,6 +29,8 @@ export type HelpRequest = {
   horse_color_key: string | null;
   created_by: string;
   creator_name: string;
+  /** Avatar color key of the creator. */
+  creator_color: string | null;
   /** YYYY-MM-DD, stable-local. */
   date: string;
   /** Inclusive last day, or null for a single day. */

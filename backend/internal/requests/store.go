@@ -47,6 +47,7 @@ type Request struct {
 	HorseColorKey *string         `json:"horse_color_key"`
 	CreatedBy     string          `json:"created_by"`
 	CreatorName   string          `json:"creator_name"`
+	CreatorColor  *string         `json:"creator_color"` // avatar color key of the creator
 	Date          string          `json:"date"`     // YYYY-MM-DD, stable-local
 	DateEnd       *string         `json:"date_end"` // inclusive
 	TimeFrom      *string         `json:"time_from"`
@@ -80,7 +81,7 @@ func (r Request) EndDate() string {
 }
 
 const selectRequest = `
-SELECT r.id::text, r.type, r.horse_id::text, h.name, h.color_key, r.created_by::text, u.name,
+SELECT r.id::text, r.type, r.horse_id::text, h.name, h.color_key, r.created_by::text, u.name, u.avatar_color,
        to_char(r.date, 'YYYY-MM-DD'), to_char(r.date_end, 'YYYY-MM-DD'),
        to_char(r.time_from, 'HH24:MI'), to_char(r.time_to, 'HH24:MI'),
        COALESCE(r.location, ''), COALESCE(r.description, ''), r.tasks, r.helpers_needed, r.status,
@@ -93,7 +94,7 @@ LEFT JOIN horses h ON h.id = r.horse_id AND h.stable_id = r.stable_id
 func scanRequest(row pgx.Row) (Request, error) {
 	var r Request
 	var tasks, payload []byte
-	err := row.Scan(&r.ID, &r.Type, &r.HorseID, &r.HorseName, &r.HorseColorKey, &r.CreatedBy, &r.CreatorName,
+	err := row.Scan(&r.ID, &r.Type, &r.HorseID, &r.HorseName, &r.HorseColorKey, &r.CreatedBy, &r.CreatorName, &r.CreatorColor,
 		&r.Date, &r.DateEnd, &r.TimeFrom, &r.TimeTo, &r.Location, &r.Description, &tasks, &r.HelpersNeeded,
 		&r.Status, &r.RecurringRule, &r.SeriesID, &payload, &r.CreatedAt)
 	if err != nil {

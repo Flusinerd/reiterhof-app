@@ -179,6 +179,9 @@ func TestAcceptFlowShowHelper(t *testing.T) {
 	if r.Status != "open" || r.HelpersNeeded != 2 || r.CreatorName != "Anna" || !r.IsCreator {
 		t.Fatalf("created = %+v", r)
 	}
+	if r.CreatorColor == nil || *r.CreatorColor != "rose" {
+		t.Errorf("creator_color = %v, want rose", r.CreatorColor)
+	}
 	if len(r.Tasks) != 2 || r.Tasks[0] != "hold_horse" {
 		t.Errorf("tasks = %v", r.Tasks)
 	}
