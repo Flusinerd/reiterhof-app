@@ -1,7 +1,8 @@
 import { View } from "react-native";
 
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
-import { Badge, Card, Divider, Text } from "@/components/ui";
+import { Text } from "@/components/ui";
+import { RowList } from "@/components/ui/list-row";
 import { useHistory } from "@/lib/api/blankets";
 import { historyDayLabel, stateByline, stateLabel, type BlanketState } from "@/lib/blankets";
 
@@ -42,23 +43,22 @@ export function BlanketHistory({
     );
   }
   return (
-    <Card padded={false}>
-      {groups.map((g, gi) => (
-        <View key={g.day}>
-          {gi > 0 ? <Divider /> : null}
-          <View className="gap-1 px-5 py-4">
-            <View className="flex-row items-center justify-between gap-3">
-              <Text variant="bodyStrong">{historyDayLabel(g.day, history.data.today)}</Text>
-              <Badge label={stateLabel(g.states[0]!)} variant={g.states[0]!.action === "covered" ? "primary" : "neutral"} />
-            </View>
-            {g.states.map((s) => (
-              <Text key={s.id} variant="secondary">
-                {stateLabel(s)} · {stateByline(s, timeZone)}
-              </Text>
-            ))}
+    <RowList>
+      {groups.map((g) => (
+        <View key={g.day} className="gap-0.5 py-3">
+          <View className="flex-row items-center justify-between gap-3">
+            <Text variant="bodyStrong">{historyDayLabel(g.day, history.data.today)}</Text>
+            <Text variant="eyebrow" tone={g.states[0]!.action === "covered" ? "success" : "muted"}>
+              {stateLabel(g.states[0]!)}
+            </Text>
           </View>
+          {g.states.map((s) => (
+            <Text key={s.id} variant="bodySm" tone="muted">
+              {stateLabel(s)} · {stateByline(s, timeZone)}
+            </Text>
+          ))}
         </View>
       ))}
-    </Card>
+    </RowList>
   );
 }

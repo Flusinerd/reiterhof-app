@@ -1,7 +1,7 @@
 import { Check, Undo2 } from "lucide-react-native";
 import { View } from "react-native";
 
-import { Badge, Button, PageHeader, Text } from "@/components/ui";
+import { Button, Icon, PageHeader, Text } from "@/components/ui";
 import type { RehaView } from "@/lib/api/reha";
 import { formatDate } from "@/lib/training";
 
@@ -82,14 +82,24 @@ export function RehaTodayHead({ view, busy, onDone, onUndo }: Props) {
       {view.can_mark_done ? (
         today.done ? (
           <View className="flex-row flex-wrap items-center gap-3">
-            <Badge variant="primary" label={today.done_by ? `Erledigt von ${today.done_by}` : "Heute erledigt"} />
+            <View className="flex-row items-center gap-2">
+              <Icon as={Check} size={18} className="text-success" />
+              <Text variant="bodyStrong" tone="success">
+                {today.done_by ? `Erledigt von ${today.done_by}` : "Heute erledigt"}
+              </Text>
+            </View>
             <Button label="Rückgängig" variant="ghost" size="sm" icon={Undo2} loading={busy} onPress={onUndo} />
           </View>
         ) : (
           <Button label="Heute erledigt" size="lg" icon={Check} fullWidth loading={busy} onPress={onDone} />
         )
       ) : today.done ? (
-        <Badge variant="primary" label="Heute erledigt" className="self-start" />
+        <View className="flex-row items-center gap-2">
+          <Icon as={Check} size={18} className="text-success" />
+          <Text variant="bodyStrong" tone="success">
+            Heute erledigt
+          </Text>
+        </View>
       ) : null}
     </PageHeader>
   );

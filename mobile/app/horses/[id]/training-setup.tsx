@@ -4,7 +4,8 @@ import { ActivityIndicator, View } from "react-native";
 
 import { ActivityModeList } from "@/components/training-activity-modes";
 import { WeekStructureRows } from "@/components/training-week-structure";
-import { Button, Card, Divider, Input, PageHeader, Pill, RangeStepper, Screen, Stepper, Switch, Text } from "@/components/ui";
+import { Button, Input, PageHeader, Pill, RangeStepper, Screen, Stepper, Switch, Text } from "@/components/ui";
+import { RowList } from "@/components/ui/list-row";
 import { trainingError, useProfile, useSaveProfile, type ProfileInput } from "@/lib/api/training";
 import { horseRoutes } from "@/lib/horse-format";
 import { DISCIPLINES, PROFILE_STATUSES, disciplineLabel, statusLabel } from "@/lib/training";
@@ -68,10 +69,10 @@ export default function TrainingSetup() {
   if (profile.isError) {
     return (
       <Screen back>
-        <Card className="gap-3">
+        <View className="gap-3">
           <Text variant="secondary">{trainingError(profile.error)}</Text>
           <Button label="Erneut versuchen" variant="outline" onPress={() => void profile.refetch()} />
-        </Card>
+        </View>
       </Screen>
     );
   }
@@ -162,7 +163,7 @@ export default function TrainingSetup() {
             ) : null}
           </View>
           <View className="gap-1.5">
-            <Text variant="label">Niveau</Text>
+            <Text variant="eyebrow">Niveau</Text>
             <Input
               accessibilityLabel="Niveau"
               placeholder="Niveau, z. B. L (optional)"
@@ -172,7 +173,7 @@ export default function TrainingSetup() {
             />
           </View>
           <View className="gap-1.5">
-            <Text variant="label">Status</Text>
+            <Text variant="eyebrow">Status</Text>
             <View className="flex-row flex-wrap gap-2">
               {PROFILE_STATUSES.map((s) => (
                 <Pill
@@ -214,7 +215,7 @@ export default function TrainingSetup() {
             onChange={setRestDays}
           />
           <View className="gap-2">
-            <Text variant="label">Höchstdauer pro Einheit</Text>
+            <Text variant="eyebrow">Höchstdauer pro Einheit</Text>
             <View className="flex-row flex-wrap gap-2">
               {WIZARD_MAX_MINUTES.map((o) => (
                 <Pill
@@ -240,20 +241,17 @@ export default function TrainingSetup() {
 
       {step === 4 ? (
         <>
-          <Card padded={false}>
+          <RowList>
             <SummaryRow
               label="Disziplin"
               value={[disciplineLabel(draft.discipline), draft.level.trim() ? `Niveau ${draft.level.trim()}` : "", statusLabel(draft.status)]
                 .filter(Boolean)
                 .join(" · ")}
             />
-            <Divider />
             <SummaryRow label="Aktivitäten" value={activitySummary(draft)} />
-            <Divider />
             <SummaryRow label="Rhythmus" value={rhythmSummary(draft)} />
-            <Divider />
             <SummaryRow label="Feste Tage" value={structureSummary(draft)} />
-          </Card>
+          </RowList>
           <Text variant="caption">Turniere und Reitbeteiligungen legst du später im Profil fest.</Text>
         </>
       ) : null}
@@ -285,8 +283,8 @@ export default function TrainingSetup() {
 
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
-    <View className="gap-0.5 px-4 py-3">
-      <Text variant="label">{label}</Text>
+    <View className="gap-0.5 py-3">
+      <Text variant="eyebrow">{label}</Text>
       <Text variant="body">{value}</Text>
     </View>
   );

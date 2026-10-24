@@ -2,7 +2,7 @@ import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 
-import { Button, Card, PageHeader, Pill, RangeStepper, Screen, Switch, Text } from "@/components/ui";
+import { Button, PageHeader, Pill, RangeStepper, Screen, Switch, Text } from "@/components/ui";
 import { trainingError, useProfile, useSaveProfile, type ProfileInput } from "@/lib/api/training";
 import { horseRoutes } from "@/lib/horse-format";
 import {
@@ -45,19 +45,19 @@ export default function RhythmEditor() {
   if (profile.isError) {
     return (
       <Screen back>
-        <Card className="gap-3">
+        <View className="gap-3">
           <Text variant="secondary">{trainingError(profile.error)}</Text>
           <Button label="Erneut versuchen" variant="outline" onPress={() => void profile.refetch()} />
-        </Card>
+        </View>
       </Screen>
     );
   }
   if (data && !data.can_edit) {
     return (
       <Screen back>
-        <Card>
+        <View>
           <Text variant="secondary">Nur Besitzer und Admins können das Profil ändern.</Text>
-        </Card>
+        </View>
       </Screen>
     );
   }
@@ -130,7 +130,7 @@ export default function RhythmEditor() {
         onChange={setRestDays}
       />
       <View className="gap-2">
-        <Text variant="label">Höchstdauer pro Einheit</Text>
+        <Text variant="eyebrow">Höchstdauer pro Einheit</Text>
         <View className="flex-row flex-wrap gap-2">
           {maxMinutesOptions(data.rhythm.max_minutes).map((o) => (
             <Pill

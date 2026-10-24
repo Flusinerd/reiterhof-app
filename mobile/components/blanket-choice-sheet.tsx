@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Pressable, View } from "react-native";
 
 import { BlanketPhoto } from "@/components/blanket-photo";
-import { Badge, Button, Icon, Input, Pill, Sheet, Text } from "@/components/ui";
+import { Button, Icon, Input, Pill, Sheet, Text } from "@/components/ui";
 import { blanketsApi, useSetState, usePlan, usePlanMutation } from "@/lib/api/blankets";
 import {
   blanketChoices,
@@ -59,7 +59,7 @@ function ChoiceRow({
         <Text variant="bodyStrong">{label}</Text>
         {blanket ? <Text variant="caption">{fillLabel(blanket.fill_g)}</Text> : null}
       </View>
-      {isRule ? <Badge variant="neutral" label="Regel" /> : null}
+      {isRule ? <Text variant="eyebrow" tone="brass">Regel</Text> : null}
       {selected ? <Icon as={Check} size={20} className="text-primary" /> : null}
     </Pressable>
   );

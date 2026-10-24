@@ -2,7 +2,7 @@ import { Minus, Plus } from "lucide-react-native";
 import { useState } from "react";
 import { View } from "react-native";
 
-import { Button, Card, Text } from "@/components/ui";
+import { Button, Section, Text } from "@/components/ui";
 import { blanketsApi, usePlanMutation } from "@/lib/api/blankets";
 import {
   COVER_END_MAX,
@@ -51,18 +51,12 @@ export function CoverWindowSection({
   }
 
   return (
-    <Card className="gap-4">
-      <View className="gap-1">
-        <Text variant="bodyStrong">Deckenzeitraum</Text>
-        <Text variant="secondary">
-          Wetter und Empfehlung gelten für diesen Zeitraum.
-        </Text>
-      </View>
+    <Section title="Deckenzeitraum" description="Wetter und Empfehlung gelten für diesen Zeitraum.">
       {canManage ? (
         <>
           {FIELDS.map(({ field, label, min, max }) => (
             <View key={field} className="gap-2">
-              <Text variant="secondary">{label}</Text>
+              <Text variant="eyebrow">{label}</Text>
               <View className="flex-row items-center justify-between gap-4">
                 <Button
                   size="icon"
@@ -72,7 +66,7 @@ export function CoverWindowSection({
                   disabled={shown[field] === min}
                   onPress={() => setDraft({ ...shown, [field]: stepCoverTime(field, shown[field], -1) })}
                 />
-                <Text variant="heroNumberSm" accessibilityLabel={`${shown[field]} Uhr`}>
+                <Text variant="heroNumberSm" tone="brass" accessibilityLabel={`${shown[field]} Uhr`}>
                   {shown[field]}
                 </Text>
                 <Button
@@ -100,9 +94,9 @@ export function CoverWindowSection({
         </>
       ) : (
         <Text variant="body">
-          <Text variant="bodyStrong">{start} bis {end} Uhr</Text>. Nur Besitzer und Admins können das ändern.
+          <Text variant="bodyStrong" tone="brass">{start} bis {end} Uhr</Text>. Nur Besitzer und Admins können das ändern.
         </Text>
       )}
-    </Card>
+    </Section>
   );
 }

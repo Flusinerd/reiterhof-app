@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 
 import { RiderRuleCard } from "@/components/training-rider-rules";
-import { Button, Card, PageHeader, Screen, Text } from "@/components/ui";
+import { Button, PageHeader, Screen, Text } from "@/components/ui";
 import { trainingError, useProfile, useSaveProfile, type ProfileInput } from "@/lib/api/training";
 import { horseRoutes } from "@/lib/horse-format";
 import {
@@ -35,19 +35,19 @@ export default function RidersEditor() {
   if (profile.isError) {
     return (
       <Screen back>
-        <Card className="gap-3">
+        <View className="gap-3">
           <Text variant="secondary">{trainingError(profile.error)}</Text>
           <Button label="Erneut versuchen" variant="outline" onPress={() => void profile.refetch()} />
-        </Card>
+        </View>
       </Screen>
     );
   }
   if (data && !data.can_edit) {
     return (
       <Screen back>
-        <Card>
+        <View>
           <Text variant="secondary">Nur Besitzer und Admins können das Profil ändern.</Text>
-        </Card>
+        </View>
       </Screen>
     );
   }

@@ -2,7 +2,7 @@ import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { ScrollView, View, useWindowDimensions } from "react-native";
 
-import { Button, Card, Input, Pill, Sheet, Text, ToggleGroup, ToggleGroupItem } from "@/components/ui";
+import { Button, Input, Pill, Sheet, Text, ToggleGroup, ToggleGroupItem } from "@/components/ui";
 import { blanketsApi, usePlanMutation } from "@/lib/api/blankets";
 import { RAIN_STEPS, blanketErrorMessage, rainRange, type Blanket, type Rule } from "@/lib/blankets";
 import {
@@ -92,9 +92,9 @@ export function BlanketRulesSheet({ open, onOpenChange, horseId, rules, blankets
           <Text variant="secondary">Noch keine Regeln, also keine Empfehlung.</Text>
         ) : null}
         {drafts.map((d, i) => (
-          <Card key={d.key} shape="tile" className="gap-3 p-4">
+          <View key={d.key} className="gap-3 border-b border-divider pb-5">
             <View className="flex-row items-center justify-between">
-              <Text variant="bodyStrong">Regel {i + 1}</Text>
+              <Text variant="eyebrow" tone="brass">{`Regel ${i + 1}`}</Text>
               <View className="flex-row">
                 <Button size="icon" variant="ghost" icon={ArrowUp} accessibilityLabel={`Regel ${i + 1} nach oben`} disabled={i === 0} onPress={() => setDrafts((l) => moveItem(l, i, -1))} />
                 <Button size="icon" variant="ghost" icon={ArrowDown} accessibilityLabel={`Regel ${i + 1} nach unten`} disabled={i === drafts.length - 1} onPress={() => setDrafts((l) => moveItem(l, i, 1))} />
@@ -161,7 +161,7 @@ export function BlanketRulesSheet({ open, onOpenChange, horseId, rules, blankets
               </View>
             </View>
             <Input value={d.note} onChangeText={(v) => patch(d.key, { note: v })} accessibilityLabel={`Regel ${i + 1}: Wunsch`} placeholder="Wunsch (optional)" maxLength={200} />
-          </Card>
+          </View>
         ))}
         <Button
           label="Regel hinzufügen"
