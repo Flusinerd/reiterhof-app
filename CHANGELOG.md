@@ -3,7 +3,10 @@
 Alle nennenswerten Änderungen an Stallfunk. Versionen folgen [SemVer](https://semver.org/lang/de/),
 die Einträge dem Format von [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
-## [Unreleased]
+## [0.4.0] – 2026-10-25
+
+Eigene Übungsaufgaben und Küren: im Viereck gezeichnet, mit Bahnpunkten und Zeit, geprüft nach den
+allgemeinen Regeln des Kür-Merkblatts. Die App findet sie unter Training → „Aufgaben und Küren“.
 
 ### Neu
 
@@ -103,6 +106,7 @@ um den Tag der Besitzer:innen herum aufgebaut, nicht mehr um Fachbereiche.
 Erste Version: Pferde, Decken mit Wetterregeln, Anfragen, Training mit Tracking und KI-Wochenplan,
 Gesundheitstermine, Reha, Anwesenheit, Erinnerungen, Web-App.
 
+[0.4.0]: https://github.com/flusinerd/reiterhof-app/releases/tag/v0.4.0
 [0.3.0]: https://github.com/flusinerd/reiterhof-app/releases/tag/v0.3.0
 [0.2.0]: https://github.com/flusinerd/reiterhof-app/releases/tag/v0.2.0
 [0.1.0]: https://github.com/flusinerd/reiterhof-app/commits/80a50a2
