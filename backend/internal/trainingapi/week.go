@@ -346,7 +346,7 @@ func (h *handler) buildWeek(ctx context.Context, a access, start time.Time, loc 
 			d.Status = dayEmpty
 		}
 		if d.Status != dayDone && d.Activity != nil {
-			if note := equipmentNote(*d.Activity, equipment, slot.EquipmentOK); note != "" {
+			if note := recommend.EquipmentNote(*d.Activity, equipment, slot.EquipmentOK); note != "" {
 				d.EquipmentNote = &note
 			}
 		}

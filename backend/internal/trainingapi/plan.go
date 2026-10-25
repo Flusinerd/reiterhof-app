@@ -46,10 +46,20 @@ type planDayOut struct {
 	Source string `json:"source"`
 	// Replaced says why the model's proposal for this day was replaced by the rules.
 	Replaced string `json:"replaced,omitempty"`
-	// Focus is the content of the unit in a few words (model only); Exercise the library
-	// exercise for it (null for hack, walker and rest).
+	// Focus is the content of the unit in a few words (model only); Exercise the main library
+	// exercise of the unit (null when it has none, for walker and rest).
 	Focus    string       `json:"focus,omitempty"`
 	Exercise *planExerOut `json:"exercise"`
+	// FocusKey, FocusLabel and FocusWhy are the catalog focus of the unit and the reason for it,
+	// Unit its three parts (Lösen, Arbeiten, Entspannen); all null for rest and walker days.
+	FocusKey   *string  `json:"focus_key"`
+	FocusLabel *string  `json:"focus_label"`
+	FocusWhy   *string  `json:"focus_why"`
+	Unit       *unitOut `json:"unit"`
+	// EquipmentOK is the day's override of the set-up (null: the location's default),
+	// EquipmentNote says in German that the unit is planned without set-up.
+	EquipmentOK   *bool   `json:"equipment_ok"`
+	EquipmentNote *string `json:"equipment_note"`
 	// Level of the unit by its load: recovery, light, normal, demanding ("" for rest; JAN-93).
 	Level      string `json:"level,omitempty"`
 	LevelLabel string `json:"level_label,omitempty"`
@@ -72,6 +82,8 @@ type planOut struct {
 	// OwnerIsMe tells whether the caller owns the horse (only the owner can grant ai_training).
 	OwnerIsMe bool         `json:"owner_is_me"`
 	Days      []planDayOut `json:"days"`
+	// Block is the week's place in the four-week blocks (null without cycle_start).
+	Block *blockOut `json:"block"`
 }
 
 // Limits of a single-day request (JAN-95).
@@ -183,7 +195,7 @@ func (h *handler) planWeek(w http.ResponseWriter, r *http.Request) {
 	}
 	out := planOut{
 		HorseID: a.horseID, Start: week.Start, End: week.End, Source: weekplan.SourceRules,
-		OwnerIsMe: ownerID != nil && *ownerID == a.user.ID, Days: []planDayOut{},
+		OwnerIsMe: ownerID != nil && *ownerID == a.user.ID, Days: []planDayOut{}, Block: week.Block,
 	}
 
 	var entries []weekplan.Entry
@@ -218,8 +230,9 @@ func (h *handler) planWeek(w http.ResponseWriter, r *http.Request) {
 	}
 
 	users := map[string]*personOut{}
+	equipmentOK := map[string]*bool{}
 	for _, d := range week.Days {
-		users[d.Date] = d.User
+		users[d.Date], equipmentOK[d.Date] = d.User, d.EquipmentOK
 	}
 	for _, e := range entries {
 		rec := e.Recommendation
@@ -228,13 +241,18 @@ func (h *handler) planWeek(w http.ResponseWriter, r *http.Request) {
 			Date: key, Weekday: training.DaysBetween(start, e.Date), Activity: rec.Activity, Label: rec.Activity.GermanName(),
 			Minutes: rec.Minutes, Intensity: intensityKey(rec.Intensity), IntensityLabel: rec.Intensity.Label(),
 			Reason: rec.Reason, Note: rec.Note, Source: e.Source, Replaced: e.Replaced, User: users[key], Focus: e.Focus,
-			Level: e.Level,
+			Level: e.Level, EquipmentOK: equipmentOK[key],
 		}
 		if e.Level != "" {
 			pd.LevelLabel = recommend.LevelLabel(e.Level)
 		}
 		if ex := e.Exercise; ex != nil {
 			pd.Exercise = &planExerOut{ID: ex.ID, Title: ex.Title}
+		}
+		if f := focusOfUnit(e.Unit); f != nil {
+			pd.FocusKey, pd.FocusLabel, pd.FocusWhy = &f.Key, &f.Label, &f.Why
+			pd.Unit = unitOutOfPlan(e.Unit)
+			pd.EquipmentNote = noteOut(e.Unit.EquipmentNote)
 		}
 		out.Days = append(out.Days, pd)
 		if e.Source == weekplan.SourceAI {
@@ -301,6 +319,7 @@ func applyDayOverrides(in *weekplan.Input, week weekOut, today, day time.Time, r
 		d := &in.Days[i]
 		if i == idx {
 			d.Open, d.Planned, d.Minutes, d.Rest, d.Exclude = true, "", 0, false, exclude
+			d.FocusKey, d.Exercises = "", nil
 			continue
 		}
 		wasOpen := d.Open
@@ -337,13 +356,15 @@ func (h *handler) askModel(ctx context.Context, in weekplan.Input) ([]weekplan.E
 	return weekplan.Merge(in, proposals), aiUsed
 }
 
-// planInput collects the week (as the week view shows it to an owner), the sessions of the
-// 14 days before it, the reha units, the weather of today and tomorrow, today's ground, the
-// horse's age and level and the candidate exercises of the global library.
+// planInput collects the week (as the week view shows it to an owner), the sessions of the 21
+// days before it, the reha units, the weather of today and tomorrow, today's ground, the horse's
+// age and level, its focuses and the focuses of the people who claimed days, the block of the week,
+// the return to work, the stable's equipment and the exercise library.
 //
 // A day is open when it is today or later and nobody planned an activity for it: status
 // open, today, or planned by someone without an activity. Done days, rest days and days
-// with a planned activity are context; a planned activity counts as a session.
+// with a planned activity are context; a planned activity counts as a session with its focus
+// and exercises.
 func (h *handler) planInput(ctx context.Context, a access, start, today time.Time, loc *time.Location) (weekplan.Input, weekOut, error) {
 	stableID := a.user.StableID
 	week, err := h.buildWeek(ctx, a, start, loc)
@@ -355,11 +376,17 @@ func (h *handler) planInput(ctx context.Context, a access, start, today time.Tim
 		return weekplan.Input{}, weekOut{}, err
 	}
 	end := start.AddDate(0, 0, 6)
-	rows, err := h.querySessions(ctx, stableID, a.horseID,
-		localMidnight(start.AddDate(0, 0, -recommend.RecentDays), loc), localMidnight(end.AddDate(0, 0, 1), loc), "", 0)
+	from := start.AddDate(0, 0, -historyDays)
+	rows, err := h.querySessions(ctx, stableID, a.horseID, localMidnight(from, loc), localMidnight(end.AddDate(0, 0, 1), loc), "", 0)
 	if err != nil {
 		return weekplan.Input{}, weekOut{}, err
 	}
+	slots, err := h.slotsBetween(ctx, stableID, a.horseID, from, end)
+	if err != nil {
+		return weekplan.Input{}, weekOut{}, err
+	}
+	sessions := domainSessions(rows, loc)
+	attachSlots(sessions, slots)
 	plan, err := reha.ActivePlan(ctx, h.deps.Pool, stableID, a.horseID)
 	if err != nil {
 		return weekplan.Input{}, weekOut{}, err
@@ -372,35 +399,36 @@ func (h *handler) planInput(ctx context.Context, a access, start, today time.Tim
 	if err != nil {
 		return weekplan.Input{}, weekOut{}, err
 	}
-	var birthYear *int
-	if err := h.deps.Pool.QueryRow(ctx, `SELECT birth_year FROM horses WHERE id = $1`, a.horseID).Scan(&birthYear); err != nil {
-		return weekplan.Input{}, weekOut{}, err
-	}
 	domain := prof.domain(a.horseName)
-	exercises, err := h.planExercises(ctx, stableID, a.horseID, domain)
+	pc, err := h.loadPlanCtx(ctx, a, prof, domain, start, today, loc)
 	if err != nil {
 		return weekplan.Input{}, weekOut{}, err
 	}
 	in := weekplan.Input{
-		Today: today, Profile: domain, Recent: domainSessions(rows, loc),
+		Today: today, Profile: domain, Recent: sessions,
 		Weather: wx, Tomorrow: tomorrow, Ground: recommend.Ground(ground),
-		Level: training.LevelClass(prof.level), Exercises: exercises,
-	}
-	if birthYear != nil {
-		if age := today.Year() - *birthYear; age >= 0 && age <= 45 {
-			in.AgeYears = age
-		}
+		Level: pc.level, AgeYears: pc.age, Exercises: pc.exercises,
+		Block: pc.block, RestartFrom: pc.restart, Equipment: pc.equipment,
 	}
 	for _, d := range week.Days {
 		day, _ := time.Parse(dateLayout, d.Date)
-		wd := weekplan.Day{Date: day, Rest: d.Status == dayRest}
+		wd := weekplan.Day{Date: day, Rest: d.Status == dayRest, EquipmentOK: d.EquipmentOK}
 		switch {
 		case day.Before(today) || d.Status == dayDone || d.Status == dayRest || d.Status == dayEmpty || d.Show != nil:
 			// A show day is context: the show is the work of the day, no unit or exercise.
 		case d.Activity != nil:
 			wd.Planned = *d.Activity
+			if d.FocusKey != nil {
+				wd.FocusKey = *d.FocusKey
+			}
+			wd.Exercises = unitExerciseIDs(d.Unit)
 		default:
 			wd.Open = true
+			if d.User != nil {
+				if keys := pc.riders[d.User.ID]; len(keys) > 0 {
+					wd.RiderFocuses, wd.RiderName = keys, firstName(d.User.Name)
+				}
+			}
 		}
 		if plan != nil {
 			if al := plan.AllowedOn(day); al != nil {
@@ -414,35 +442,16 @@ func (h *handler) planInput(ctx context.Context, a access, start, today time.Tim
 	return in, week, nil
 }
 
-// planExercises returns the candidates for the model: the exercises of the global library
-// (stable_id NULL; own-stable exercises are free text and stay on the server) in the libraries
-// that fit the allowed activities, in progression order, with whether the horse mastered them.
-func (h *handler) planExercises(ctx context.Context, stableID, horseID string, prof training.Profile) ([]weekplan.Exercise, error) {
-	var libs []string
-	seen := map[string]bool{}
-	for _, al := range prof.Allowed {
-		if al.Mode != training.ModeOn && al.Mode != training.ModeConditional {
-			continue
-		}
-		for _, lib := range training.ExerciseLibraries(al.Activity, prof.Discipline) {
-			if !seen[lib] {
-				seen[lib] = true
-				libs = append(libs, lib)
-			}
+// unitExerciseIDs lists the exercises of a unit plan, the main one first.
+func unitExerciseIDs(u *unitOut) []string {
+	if u == nil {
+		return nil
+	}
+	var ids []string
+	for _, p := range []*unitPartOut{u.Main, u.Warmup, u.Cooldown} {
+		if p != nil && p.Exercise != nil {
+			ids = append(ids, p.Exercise.ID)
 		}
 	}
-	if len(libs) == 0 {
-		return nil, nil
-	}
-	lib, err := h.loadLibrary(ctx, stableID, horseID, libs)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]weekplan.Exercise, 0, len(lib.rows))
-	for _, ex := range lib.pure() {
-		if !ex.Own {
-			out = append(out, ex)
-		}
-	}
-	return out, nil
+	return ids
 }

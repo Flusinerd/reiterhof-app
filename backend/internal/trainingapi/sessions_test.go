@@ -121,9 +121,12 @@ func TestFinishedSessionAndNextProgression(t *testing.T) {
 		t.Fatalf("last exercise: %v", got["next_progression"])
 	}
 
-	// The suggestion for tomorrow skips exercises the horse has mastered (after this much
-	// training only lunging is left, which gets exercises from the lunging library).
-	e.call(seed.UserJan, http.MethodPost, path, `{"activity":"lunge","minutes":20,"focus_rating":3,"exercise_id":"`+exAufwaermen+`"}`, http.StatusCreated)
+	// The suggestion for tomorrow skips exercises the horse has mastered: of the two lunge exercises
+	// the main part gets the one that has not been mastered yet.
+	e.clearLibrary()
+	e.addExercise(exSpec{id: exID(1), library: "lunge", level: "beginner", title: "Aufwärmen im Schritt", tags: []string{"losgelassenheit"}})
+	e.addExercise(exSpec{id: exID(2), library: "lunge", level: "beginner", title: "Handwechsel an der Longe", tags: []string{"losgelassenheit"}})
+	e.call(seed.UserJan, http.MethodPost, path, `{"activity":"lunge","minutes":20,"focus_rating":3,"exercise_id":"`+exID(1)+`"}`, http.StatusCreated)
 	e.rain(true, 5)
 	today := e.call(seed.UserJan, http.MethodGet, "/api/v1/horses/"+luna+"/today?minutes=45", "", http.StatusOK)
 	var lunge map[string]any

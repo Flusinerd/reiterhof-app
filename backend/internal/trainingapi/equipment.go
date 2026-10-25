@@ -35,23 +35,6 @@ type equipmentOut struct {
 	CanEdit bool `json:"can_edit"`
 }
 
-// equipmentNote says in German that a unit is planned without set-up: when its location is shared
-// and the day does not say that set-up is possible, or the day says there is none. "" otherwise
-// (and for activities without a location).
-func equipmentNote(a training.Activity, cfg training.StableEquipment, equipmentOK *bool) string {
-	if !training.IsLocation(a) {
-		return ""
-	}
-	switch {
-	case equipmentOK != nil && !*equipmentOK:
-		return "Heute ohne Aufbau geplant."
-	case equipmentOK == nil && cfg.Of(a).Shared:
-		name, _ := training.LocationName(a)
-		return name + " geteilt: ohne Aufbau geplant."
-	}
-	return ""
-}
-
 // cleanEquipment keeps the known keys of a list once each, in order.
 func cleanEquipment(keys []string) []string {
 	out := []string{}

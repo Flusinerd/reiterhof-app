@@ -450,31 +450,3 @@ func sortByProgression(list []exerciseRow) {
 	}
 	copy(list, sorted)
 }
-
-// exerciseDiscipline is the home library of an activity on this horse, or "" when the activity
-// has no exercises (walker, rest).
-func exerciseDiscipline(a training.Activity, horseDiscipline string) string {
-	if libs := training.ExerciseLibraries(a, horseDiscipline); len(libs) > 0 {
-		return libs[0]
-	}
-	return ""
-}
-
-// suggestExercise picks the first exercise of the library (easiest first, along the
-// progression) that the horse has not mastered yet (no session with focus rating "Sitzt"); if
-// all are mastered, the last one. It returns nil when the library has nothing.
-func (h *handler) suggestExercise(ctx context.Context, stableID, horseID, discipline string) (*exerciseOut, error) {
-	if discipline == "" {
-		return nil, nil
-	}
-	lib, err := h.loadLibrary(ctx, stableID, horseID, []string{discipline})
-	if err != nil || len(lib.rows) == 0 {
-		return nil, err
-	}
-	for i := range lib.rows {
-		if !lib.mastered[lib.rows[i].ID] {
-			return &lib.rows[i].exerciseOut, nil
-		}
-	}
-	return &lib.rows[len(lib.rows)-1].exerciseOut, nil
-}

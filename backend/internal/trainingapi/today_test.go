@@ -32,6 +32,10 @@ func recs(out map[string]any) []map[string]any {
 func TestTodayRainRecommendsHall(t *testing.T) {
 	e := newEnv(t)
 	e.rain(true, 6)
+	// A show is three days away: only a rehearsal (tag turnier) may be planned for the main part.
+	e.clearLibrary()
+	e.addExercise(exSpec{id: exID(1), library: "dressage", level: "beginner", title: "Rückwärtsrichten", tags: []string{"turnier"}})
+	e.addExercise(exSpec{id: exID(2), library: "dressage", level: "beginner", title: "Zirkel", tags: []string{"losgelassenheit"}})
 	e.call(seed.UserJan, http.MethodPut, "/api/v1/horses/"+luna+"/training-profile", validProfile, http.StatusOK) // show on 28th, jumping off
 
 	got := e.call(seed.UserJan, http.MethodGet, "/api/v1/horses/"+luna+"/today?minutes=45", "", http.StatusOK)
@@ -61,9 +65,13 @@ func TestTodayRainRecommendsHall(t *testing.T) {
 	if len(dots) != 7 || obj(dots[6])["is_today"] != true || obj(dots[6])["date"] != "2026-03-25" || obj(dots[0])["date"] != "2026-03-19" {
 		t.Fatalf("dots = %v", dots)
 	}
-	// the hall exercise comes from the library (easiest not yet mastered dressage exercise)
+	// the hall exercise is the main exercise of the unit, from the library: three days before the
+	// show the focus is turnier, and only the rehearsal is planned
 	if ex := obj(r[0]["exercise"]); ex["title"] != "Rückwärtsrichten" || len(list(ex["steps"])) == 0 {
 		t.Fatalf("exercise = %v", r[0]["exercise"])
+	}
+	if f := obj(r[0]["focus"]); f["key"] != "turnier" || f["label"] != "Turniervorbereitung" || f["why"] != "Turnier am 28.03.: Aufgabe und Parcours üben." {
+		t.Fatalf("focus = %v", r[0]["focus"])
 	}
 	if got["can_log"] != true || got["has_profile"] != true {
 		t.Fatalf("flags = %v", got)

@@ -240,15 +240,19 @@ func TestPlanWeekFocusExerciseAndPromptData(t *testing.T) {
 	chat.answer = `{"days":[{"day":"mi","activity":"hall","minutes":45,"focus_key":"turnier","focus":"Übergänge Schritt-Trab","main":"` + key + `","reason":"Nach dem Ausritt gestern ruhige Arbeit in der Halle."}]}`
 	got := e.call(seed.UserJan, http.MethodPost, planPath, "", http.StatusOK)
 	wed := planDays(got)["2026-03-25"]
-	if wed["source"] != "ai" || wed["focus"] != "Übergänge Schritt-Trab" || obj(wed["exercise"])["title"] != "Übergänge" || wed["replaced"] != nil {
+	if wed["source"] != "ai" || wed["focus"] != "Übergänge Schritt-Trab" || obj(wed["exercise"])["title"] != "Übergänge" ||
+		wed["focus_key"] != "turnier" || wed["focus_label"] != "Turniervorbereitung" || wed["replaced"] != nil {
 		t.Fatalf("wednesday = %v", wed)
+	}
+	if main := obj(obj(wed["unit"])["main"]); obj(main["exercise"])["title"] != "Übergänge" {
+		t.Errorf("unit = %v", wed["unit"])
 	}
 	chat.answer = strings.Replace(chat.answer, `"main"`, `"exercise"`, 1)
 	if got := e.call(seed.UserJan, http.MethodPost, planPath, "", http.StatusOK); obj(planDays(got)["2026-03-25"]["exercise"])["title"] != "Übergänge" {
 		t.Errorf("the key exercise: %v", planDays(got)["2026-03-25"])
 	}
 	// Friday is the day before the show: rest, nothing planned.
-	if fri := planDays(got)["2026-03-27"]; fri["source"] != "rules" || fri["focus"] != nil {
+	if fri := planDays(got)["2026-03-27"]; fri["source"] != "rules" || fri["focus"] != nil || fri["unit"] != nil {
 		t.Errorf("friday = %v", fri)
 	}
 }

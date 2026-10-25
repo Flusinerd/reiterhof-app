@@ -15,6 +15,7 @@ import (
 
 	"github.com/Flusinerd/reiterhof-app/backend/internal/httpx"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/training"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/training/recommend"
 )
 
 // Disciplines accepted in the profile (also used by the recommender).
@@ -727,7 +728,8 @@ func validateProfile(in profileIn, riders []string) (validProfile, error) {
 
 // validateStructure checks the owner's week structure (JAN-93): known day kinds, a day
 // activity only for "activity" and only one the profile allows, quotas between 0 and 7 for
-// allowed activities, and no more fixed demands than days in a week.
+// allowed activities (at most 2 demanding units and 2 jumping units a week), and no more fixed
+// demands than days in a week.
 func validateStructure(r training.Rhythm, allowed []training.AllowedActivity) error {
 	isAllowed := func(a training.Activity) bool {
 		for _, al := range allowed {
@@ -757,8 +759,11 @@ func validateStructure(r training.Rhythm, allowed []training.AllowedActivity) er
 	}
 	q := r.Quotas
 	units := q.Demanding + q.Recovery
-	if q.Demanding < 0 || q.Demanding > 7 || q.Recovery < 0 || q.Recovery > 7 {
+	if q.Recovery < 0 || q.Recovery > 7 || q.Demanding < 0 || q.Demanding > 7 {
 		return errors.New("quotas must be between 0 and 7")
+	}
+	if q.Demanding > recommend.DefaultDemandingMax {
+		return fmt.Errorf("quotas.demanding must be between 0 and %d: a horse has at most %d demanding units a week", recommend.DefaultDemandingMax, recommend.DefaultDemandingMax)
 	}
 	for a, n := range q.Activities {
 		if !isAllowed(a) {
@@ -766,6 +771,9 @@ func validateStructure(r training.Rhythm, allowed []training.AllowedActivity) er
 		}
 		if n < 0 || n > 7 {
 			return errors.New("quotas must be between 0 and 7")
+		}
+		if a == training.ActivityJumping && n > recommend.JumpingMax {
+			return fmt.Errorf("quota for %q must be between 0 and %d: jumping is limited to %d units a week", a, recommend.JumpingMax, recommend.JumpingMax)
 		}
 		units += n
 	}
