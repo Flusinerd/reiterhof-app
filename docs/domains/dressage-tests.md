@@ -22,8 +22,8 @@ more where the spec says "research"):
 
 - FN/DRV „Merkblatt Dressur-Kür“, gültig ab 01/2024, and its „Anlage“ (pferdesport-deutschland.de shop
   downloads, sample ids 162 and 161).
-- „Leitfaden Dressurprüfung der Klasse L* – Kür“ (FNverlag score sheet, Stand 1.1.2018, as published by
-  clubs): required movements and time windows of L*.
+- FN score sheets and Leitfäden are not used as a source for shipped data (see "Requirements are
+  entered by the user").
 - Arena geometry: de.wikipedia.org „Dressurviereck“, FEI dressage rules (arena annex).
 
 ## Arena
@@ -72,9 +72,10 @@ that asks for it, the figures it can be ridden on (and per figure the constraint
 straight or curved lines, lengthening only on straight lines, canter voltes in true canter), its rein
 (`left`, `right`, `either`, `both` = must be shown on both reins) and the linked catalog exercises
 (`exercise_ids`, so mastery comes from the training sessions: a movement is mastered when a linked
-exercise has a session rated `focus_rating` 3). Research: the movements per class E, A, L*, L** from
-FN sources (Richtlinien, published Leitfäden, FN magazine articles, reiter1x1/ehorses/zuegel-und-buegel
-as secondary sources only where they match a primary one); every class entry names its source.
+exercise has a session rated `focus_rating` 3). The lowest class per movement comes from the FN
+Richtlinien für Reiten und Fahren (Band 1/2) as described in FN magazine articles and Wikipedia, not from
+test texts or score sheets; every entry names its source, and a movement without a source has no class
+(it is offered from L** up and marked "Klasse nicht belegt").
 
 ## Speeds and duration
 
@@ -94,7 +95,7 @@ Generator (pure, deterministic for a given seed, `seed` returned and accepted fo
 1. Movements of the class whose lowest class ≤ class; when the horse has sessions, only mastered
    movements plus at most 2 that are the `next` of the level progression (0.3.0 `Progress`); without
    sessions all movements of the class.
-2. Required structure as in every FN test (facts, no text): enter at A, halt and salute at X or G,
+2. Structure (general dressage convention, own wording, never modelled on a specific FN test): enter at A, halt and salute at X or G,
    work on both reins in balance (±20 % path length per rein), each gait on both reins, a free walk on
    a long rein in classes E/A, a halt at the end facing C, leave at A on a long rein. Order of gaits:
    trot, walk, canter, trot, as common in tests; canter work on each rein starts after a trot phase.
@@ -102,7 +103,7 @@ Generator (pure, deterministic for a given seed, `seed` returned and accepted fo
 4. Chain figures so each starts where the last ended (connectors along the track count as "ganze
    Bahn"). Search: greedy with backtracking over the figure options, scoring variety (no figure twice
    in a row, not only standard lines), balance of reins, and the target duration: short 3–4 min,
-   normal 5–6 min (classes E/A) or 6–7 min (L, L**) — research and source the typical durations.
+   normal 5–6 min (E/A) or 6–7 min (L, L**). These are the app's own targets, not FN figures.
 5. Output: numbered lines like an FN test but in our own words: `{n, letters: "A–X", text: "Einreiten
    im Arbeitstrab, bei X halten, grüßen", gait, tempo, rein, seconds, figure, path: [[x,y],…]}`.
 
@@ -111,15 +112,13 @@ Generator (pure, deterministic for a given seed, `seed` returned and accepted fo
 `POST /api/v1/horses/{id}/dressage-tests` with `{kind: "freestyle", class: "A"|"L*"|"L**"|…, arena,
 requirements?: [...], seed?}`.
 
-- **Requirements per class** (`dressage.FreestyleClasses`): required movements with counts and reins,
-  time window per arena size, allowed extras and forbidden "higher class" movements. Shipped only for
-  classes with a source; L* from the Leitfaden: Mittelschritt (≥ 40 m continuous), Kurzkehrt (right
-  and/or left), versammelter Trab, Volte im Trab (right and/or left), Mitteltrab, versammelter Galopp,
-  Volte im Galopp right, Volte im Galopp left, Mittelgalopp, Außengalopp right, Außengalopp left,
-  einfacher Galoppwechsel right–left and left–right; time 3½–4 min in 20×40, 4½–5 min in 20×60.
-  Research the other classes (A, L**, M*) from published Leitfäden; a class without a source is offered
-  with "Anforderungen selbst eintragen": the user picks the required movements from the movement list
-  and enters the time window.
+- **Requirements are entered by the user.** The required movements and the time window of a freestyle
+  class are part of FN's score sheets (Leitfäden/Notenbögen, © FNverlag) and are **not shipped**, not
+  even as a list. "Anforderungen" is an editor: the user picks the required movements from the app's own
+  movement list (with count and rein) and enters the time window from their own copy of the
+  Aufgabenheft; the editor says so ("Aus deinem Aufgabenheft übernehmen"). Saved requirement sets are
+  per stable and can be reused for the next freestyle of the same class (`freestyle_requirements`
+  table: stable_id, class, label, movements jsonb, min_seconds, max_seconds, created_by).
 - **Rules** from the Kür leaflet and its annex, enforced by `dressage.CheckFreestyle` and explained in
   the result: salute at the start and the end on the centre line facing C; required walk only on
   straight and/or curved lines (not as lateral work or „Viereck verkleinern“), at least the required
@@ -148,7 +147,7 @@ updated_at)`; index on (horse_id, created_at).
 
 | Route | |
 | --- | --- |
-| `GET /api/v1/dressage/catalog` | arena sizes with letters, movements (key, label, gait, tempo, lowest class), freestyle classes with requirements, time windows and sources |
+| `GET /api/v1/dressage/catalog` | arena sizes with letters, movements (key, label, gait, tempo, lowest class), freestyle classes (key, label) and the stable's saved requirement sets |
 | `POST /api/v1/horses/{id}/dressage-tests` | generate; `{save: false}` returns the plan without storing (preview), `save: true` stores |
 | `GET /api/v1/horses/{id}/dressage-tests` | saved tests, newest first |
 | `GET/PUT/DELETE /api/v1/dressage-tests/{id}` | read; PUT `{title, plan}` stores the user's edits (reordered or removed lines) after `CheckFreestyle`/`CheckPractice` (400 with the German reasons when a rule breaks); delete |
