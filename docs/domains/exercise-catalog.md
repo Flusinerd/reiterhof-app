@@ -232,7 +232,7 @@ Rows cite their sources by URL; the lists give the page, the number of rows of 0
 ### Merkblätter, rule books, training articles and science
 
 - Burger, Universität Bern / Agroscope: Vielseitig trainiert (Brennpunkt Pferd, HAFL, 2019) (2 rows): <https://alumni.bfh.ch/dam/jcr:7dc00f6f-7387-4071-9e88-38b1406834a0/burger-vielseitig-trainiert-brennpunkt-pferd-2019.pdf>
-- Cavallo: Geführte GHP für Einsteiger (stations of the Gelassenheitsprüfung; only the gentle methods are used) (5 rows): <https://www.cavallo.de/pferdeverhalten/gefuehrte-ghp-fuer-einsteiger/>
+- Cavallo: Geführte GHP für Einsteiger (stations of the Gelassenheitsprüfung; only the gentle methods are used) (6 rows): <https://www.cavallo.de/pferdeverhalten/gefuehrte-ghp-fuer-einsteiger/>
 - Cavallo: Gymnastik an der Longe (1 row): <https://www.cavallo.de/reittraining/gymnastik-an-der-longe/>
 - Cavallo: Vier Übungen für besseres Seitwärts am Boden (3 rows): <https://www.cavallo.de/reittraining/vier-uebungen-fuer-besseres-seitwaerts-am-boden/>
 - EWU Regelbuch 2024 (definitions of the manoeuvres, trail dimensions, rules for the trail class) (19 rows): <https://berlinbrandenburg.ewu-bund.com/wp-content/uploads/2024/02/EWU-Regelbuch_2024.pdf>

@@ -387,7 +387,7 @@ INSERT INTO exercises (id, stable_id, discipline, level, goal_tags, title, summa
      "Die Linien abgehen und Dinge von außen, zum Beispiel Werbetafeln oder Blumenkübel, als Orientierung nutzen.",
      "Vor dem Einreiten einmal außen herum reiten, am besten auf beiden Händen, die Ecken ausreiten und mit guter Vorwärtstendenz.",
      "Will das Pferd an einer Stelle nicht vorbei, es nicht hineinschauen lassen: schenkelweichartig vorbeireiten, Kopf weg vom Richterhaus, ruhig bleiben und weiterreiten.",
-     "Am Ende der Aufgabe kann noch einmal am Häuschen vorbeigeritten werden, um positiv zu enden."
+     "Am Ende der Aufgabe noch einmal am Häuschen vorbeireiten, um positiv zu enden."
    ]', 'main', 15, 'light', '{}', '{}', '{}', '{https://magazin.pferdesport-deutschland.de/project/turnierreiten-03-2025/,https://magazin.pferdesport-deutschland.de/project/10-tipps-08-2019/}'),
 -- https://magazin.pferdesport-deutschland.de/project/der-weg-des-aufgabenreitens-06-2021/
 -- https://magazin.pferdesport-deutschland.de/project/turnierreiten-03-2025/
@@ -574,8 +574,8 @@ INSERT INTO exercises (id, stable_id, discipline, level, goal_tags, title, summa
 -- https://magazin.pferdesport-deutschland.de/project/springausbildung-fuer-reiter-und-pferd-teil-3-springgymnastik-und-springreihen-06-2017/
 ('00000000-0000-4000-8000-000000000908', NULL, 'jumping', 'beginner', '{springgymnastik,balance,aufmerksamkeit}', 'Vom Kreuz zum Steilsprung und Oxer', 'Aus einem einfachen Kreuz wächst Schritt für Schritt ein Steilsprung und ein Hochweitsprung: mittig, ruhig und gerade.',
    '[
-     "Mit einem Kreuzsprung beginnen, denn es erzieht Pferd und Reiter, in der Mitte zu bleiben; etwa 2,50 Meter davor ein niedriges Cavaletti oder Bodenrick legen und aus ruhigem, kontrolliertem Tempo von einer langen Linie im Leichttraben anreiten.",
-     "Nach der Landung das Pferd sofort loben und auf geradem Weg vom Galopp über den Trab in den Schritt übergehen; bei jungen oder unerfahrenen Pferden Fangständer verwenden, denn sie geben dem Pferd eine optische Orientierungshilfe und verhindern ein seitliches Ausbrechen.",
+     "Mit einem Kreuzsprung beginnen, denn es erzieht Pferd und Reiter, in der Mitte zu bleiben; bei jungen oder unerfahrenen Pferden Fangständer verwenden, denn sie geben dem Pferd eine optische Orientierungshilfe und verhindern ein seitliches Ausbrechen.",
+     "Etwa 2,50 Meter vor dem Kreuz ein niedriges Cavaletti oder Bodenrick legen und aus ruhigem, kontrolliertem Tempo von einer langen Linie im Leichttraben anreiten; nach der Landung das Pferd sofort loben und auf geradem Weg vom Galopp über den Trab in den Schritt übergehen.",
      "Aus dem Kreuz einen niedrigen Steilsprung mit Vorlegestange aufbauen: Das Cavaletti etwa 10 bis 20 Zentimeter weiter vom Sprung weglegen.",
      "Für das Springen aus dem Galopp das vorgelegte Cavaletti etwa drei Meter vor das Hindernis legen.",
      "Im nächsten Schritt den Steilsprung zum Hochweitsprung umbauen und die Vorlegestange geringfügig dichter heranlegen; Weg, Tempo, Rhythmus und der gleichmäßig weiche Kontakt zum Pferdemaul bleiben gleich."
@@ -717,6 +717,7 @@ INSERT INTO exercises (id, stable_id, discipline, level, goal_tags, title, summa
 -- https://magazin.pferdesport-deutschland.de/project/abwechslungsreiches-training-11-12-2024/
 -- https://magazin.pferdesport-deutschland.de/project/10-tipps-07-2024/
 -- https://magazin.pferdesport-deutschland.de/project/young-pm-tipps-zum-fuehren-03-2019/
+-- https://www.cavallo.de/pferdeverhalten/gefuehrte-ghp-fuer-einsteiger/
 -- https://www.land-oberoesterreich.gv.at/Mediendateien/Formulare/Dokumente%20SGD%20Abt_ESV/Volkblattartikel_Wenn%20Pferde%20in%20die%20Jahre%20kommen_19.11.2022.pdf
 ('00000000-0000-4000-8000-000000000921', NULL, 'groundwork', 'beginner', '{losgelassenheit,mobilitaet,vertrauen}', 'Spaziergang an der Hand', 'Ein ruhiger Spaziergang bringt Bewegung, Abwechslung und Vertrauen, auch als Pause nach intensiver Arbeit.',
    '[
@@ -724,7 +725,7 @@ INSERT INTO exercises (id, stable_id, discipline, level, goal_tags, title, summa
      "Natürliche Reaktionen wie Ohrenspiel oder ein kurzes Stocken zulassen und ruhig weitergehen.",
      "Anderen Pferden und Menschen mit möglichst großem Sicherheitsabstand begegnen und sich nach Möglichkeit von vorne begegnen.",
      "Als Aktivpause nach einem intensiven Training eignet sich ein Spaziergang, denn das Pferd soll sich auch in der Pause weiter bewegen."
-   ]', 'any', 10, 'light', '{}', '{}', '{senior}', '{https://magazin.pferdesport-deutschland.de/project/abwechslungsreiches-training-11-12-2024/,https://magazin.pferdesport-deutschland.de/project/10-tipps-07-2024/,https://magazin.pferdesport-deutschland.de/project/young-pm-tipps-zum-fuehren-03-2019/,https://www.land-oberoesterreich.gv.at/Mediendateien/Formulare/Dokumente%20SGD%20Abt_ESV/Volkblattartikel_Wenn%20Pferde%20in%20die%20Jahre%20kommen_19.11.2022.pdf}'),
+   ]', 'any', 10, 'light', '{}', '{}', '{senior}', '{https://magazin.pferdesport-deutschland.de/project/abwechslungsreiches-training-11-12-2024/,https://magazin.pferdesport-deutschland.de/project/10-tipps-07-2024/,https://magazin.pferdesport-deutschland.de/project/young-pm-tipps-zum-fuehren-03-2019/,https://www.cavallo.de/pferdeverhalten/gefuehrte-ghp-fuer-einsteiger/,https://www.land-oberoesterreich.gv.at/Mediendateien/Formulare/Dokumente%20SGD%20Abt_ESV/Volkblattartikel_Wenn%20Pferde%20in%20die%20Jahre%20kommen_19.11.2022.pdf}'),
 -- https://magazin.pferdesport-deutschland.de/project/young-pm-tipps-zum-fuehren-03-2019/
 -- https://magazin.pferdesport-deutschland.de/project/sicher-unterwegs-im-gelaende-10-2019/
 -- https://magazin.pferdesport-deutschland.de/project/10-tipps-08-2021/
@@ -782,7 +783,7 @@ INSERT INTO exercises (id, stable_id, discipline, level, goal_tags, title, summa
    '[
      "Sich mit Präsenz frontal auf die Pferdeschulter zubewegen und wenn nötig die Hände heben, bis die Schulter weicht; zunächst einen kleinen Umweg wählen und das Pferd mit der Vorhand folgen lassen.",
      "Zum Folgen das Pferd mit etwas Abstand am Strick führen, aus der Bewegung die Körpervorderseite zum Pferd drehen und die Gerte vor der Pferdebrust vorbei in Richtung der abgewandten Schulter führen.",
-     "Sich dann im 90-Grad-Winkel rückwärts vom Pferd wegbewegen: Das Pferd dreht die Vorhand zu dir und kommt auf dich zu.",
+     "Sich dann im 90-Grad-Winkel rückwärts vom Pferd wegbewegen: Das Pferd dreht die Vorhand zum Menschen und kommt auf ihn zu.",
      "Die Übung hilft auch, wenn das Pferd abgelenkt ist und sich wieder auf den Menschen konzentrieren soll; beim ersten Nachgeben sofort loben."
    ]', 'main', 10, 'light', '{}', '{whip}', '{}', '{https://www.cavallo.de/reittraining/vier-uebungen-fuer-besseres-seitwaerts-am-boden/,https://magazin.pferdesport-deutschland.de/project/lernverhalten-von-pferden-07-2020/,https://www.lpbb.de/files/lpbb/images/Ausbildung/Abzeichen/Merkblatt_Bodenarbeit_Stand_Oktober_2019_APO2020.pdf}'),
 -- https://www.lpbb.de/files/lpbb/images/Ausbildung/Abzeichen/Merkblatt_Bodenarbeit_Stand_Oktober_2019_APO2020.pdf
@@ -936,14 +937,14 @@ INSERT INTO exercises (id, stable_id, discipline, level, goal_tags, title, summa
      "Prüfen, ob der Kappzaum passt: Der Metallbügel im gepolsterten Nasenriemen hält ihn stabil am Pferdekopf, und richtig und fest verschnallt rutscht er nicht ins Auge.",
      "Longe und Ausbinder im Kappzaum verschnallen: So bleibt das Pferdemaul völlig unangetastet; das eignet sich für junge Pferde und für Pferde, die empfindlich im Maul sind oder Angst vor der Reiterhand oder dem Ausbinder haben.",
      "Mit Longe, Peitsche, Stimme und der eigenen Position einwirken und die Peitsche ständig mitführen, auf Höhe des Sprunggelenks gehalten.",
-     "Eine leichte Verbindung halten: Kleine Paraden stellen den Kontakt her, der Impuls bleibt nicht zu stark, denn auf Druck erfolgt Gegendruck."
+     "Eine leichte Verbindung halten: Kleine Paraden stellen den Kontakt her; den Impuls nicht zu stark geben, denn auf Druck erfolgt Gegendruck."
    ]', 'main', 15, 'light', '{}', '{lunge,kappzaum,side_reins}', '{young}', '{https://www.hooforia.com/reitausbildung/bodenarbeit/longieren-sinnvoll-eingesetzt-hilft-es-pferd-und-reiter/}'),
 -- https://www.cavallo.de/reittraining/gymnastik-an-der-longe/
 -- https://magazin.pferdesport-deutschland.de/project/10-tipps-11-12-2020/
 ('00000000-0000-4000-8000-000000000946', NULL, 'lunge', 'intermediate', '{aufmerksamkeit,durchlaessigkeit,mobilitaet}', 'Fließender Handwechsel', 'Der fließende Handwechsel macht das Pferd aufmerksam und geschmeidig und verteilt die Belastung gleichmäßig.',
    '[
      "Das Pferd durch ein Stimmsignal aufmerksam machen und einladen, nach innen abzuwenden: mit entspannter Körperhaltung rückwärtsgehen und das Pferd zu sich bitten, die Longe bleibt dabei leicht gespannt.",
-     "Beim einfachen Wechsel das Pferd anhalten, sobald es auf gerader Linie vor dir angekommen ist, per Stimmsignal oder indem die Hände mit gesenkter Peitsche ausgestreckt und angehoben werden.",
+     "Beim einfachen Wechsel das Pferd anhalten, sobald es auf gerader Linie vor dem Longenführer angekommen ist: per Stimmsignal oder mit ausgestreckten, angehobenen Händen und gesenkter Peitsche.",
      "Die Peitsche unter der Longe hindurch wechseln und mit der anderen Hand greifen, die Vorhand in die neue Richtung weichen lassen und das Pferd wieder auf den Zirkel schicken; mehrmals auf beiden Seiten üben.",
      "Beim fließenden Wechsel nicht anhalten, sondern Longen- und Peitschenhand beim Rückwärtsgehen wechseln und das Pferd gleich in die neue Richtung wenden lassen; darauf achten, dass die Vorhand sauber und weit genug weicht.",
      "Als Faustregel alle fünf bis sieben Minuten die Richtung ändern."
@@ -994,7 +995,7 @@ INSERT INTO exercises (id, stable_id, discipline, level, goal_tags, title, summa
 -- https://magazin.pferdesport-deutschland.de/project/10-tipps-09-2024/
 ('00000000-0000-4000-8000-000000000951', NULL, 'hack', 'beginner', '{losgelassenheit,takt,mobilitaet}', 'Aufwärmen auf dem Platz vor dem Ausritt', 'Auf dem Platz aufwärmen und Übergänge, Wendungen und leichten Sitz prüfen: So starten Pferd und Reiter sicher ins Gelände.',
    '[
-     "Die Aufwärmphase kann alternativ auf dem Außenplatz durchgeführt werden, bevor es ins Gelände geht.",
+     "Die Aufwärmphase alternativ auf dem Außenplatz durchführen, bevor es ins Gelände geht.",
      "Prüfen, ob das Pferd so sicher an den Hilfen steht, dass der Reiter jederzeit die Grundgangarten kontrollieren und Übergänge sowie Wendungen reiten kann.",
      "Den leichten Sitz mit kurzem Bügel in allen drei Gangarten ausbalancieren: Wer das sicher kann, ist bereit für den Ausritt.",
      "Die Hufe vor dem Ausritt gründlich kontrollieren und auskratzen."
@@ -1003,7 +1004,7 @@ INSERT INTO exercises (id, stable_id, discipline, level, goal_tags, title, summa
 -- https://magazin.pferdesport-deutschland.de/project/10-tipps-04-2025/
 ('00000000-0000-4000-8000-000000000952', NULL, 'hack', 'beginner', '{losgelassenheit,mobilitaet}', 'Abkühlen im Schritt nach dem Ausritt', 'Zum Abschluss ruhig im Schritt am hingegebenen Zügel reiten: Das Pferd kühlt ab und entspannt.',
    '[
-     "Abschließend mindestens zehn Minuten Schritt reiten und nach dem Galoppieren zuvor einen längeren Trababschnitt einplanen.",
+     "Abschließend mindestens zehn Minuten Schritt reiten; nach dem Galoppieren zuerst einen längeren Trababschnitt einplanen.",
      "Das lange Schrittreiten am langen oder hingegebenen Zügel fördert die Losgelassenheit.",
      "Nach dem Ausritt die Beine des Pferdes abkühlen.",
      "Die Hufe vor und nach jedem Ausritt gründlich kontrollieren und auskratzen."
@@ -1070,8 +1071,8 @@ INSERT INTO exercises (id, stable_id, discipline, level, goal_tags, title, summa
    '[
      "Auf Takt, Fleiß und Raumgriff achten: Das sind die Kriterien für einen guten Schritt, und Losgelassenheit ist dafür die Voraussetzung.",
      "Mit der Hand der Nickbewegung folgen, damit das Pferd den Ganaschenwinkel öffnet und die Stirn-Nasenlinie vor die Senkrechte kommt.",
-     "Den Schritt wechselseitig treiben: Wenn das rechte Hinterbein vorfußt, treibt der rechte Schenkel, links analog; aktiv aus dem Schenkel unterstützen bei weicher Hand und ruhigem Oberkörper.",
-     "Bergauf, bergab, auf Sand oder Gras, auf tiefem oder trockenem Boden fordert das Gleichgewicht und fördert die Losgelassenheit; das kommt dem Schritt zugute.",
+     "Den Schritt wechselseitig treiben: Wenn das rechte Hinterbein vorfußt, treibt der rechte Schenkel, links entsprechend; weder anschieben noch zu passiv sein, sondern aktiv aus dem Schenkel unterstützen, bei weicher Hand und ruhigem Oberkörper.",
+     "Wechselnde Böden fordern das Gleichgewicht und fördern die Losgelassenheit: bergauf, bergab, auf Sand oder Gras, auf tiefem oder trockenem Boden; das kommt dem Schritt zugute.",
      "Planvoll und konzentriert schreiten, vom längeren zum kürzeren Zügel, auf geraden und gebogenen Linien."
    ]', 'main', 20, 'light', '{}', '{}', '{}', '{https://magazin.pferdesport-deutschland.de/project/10-tipps-06-2020/,https://magazin.pferdesport-deutschland.de/project/10-tipps-08-2020/}'),
 -- https://magazin.pferdesport-deutschland.de/project/10-tipps-08-2020/
@@ -1160,9 +1161,9 @@ INSERT INTO exercises (id, stable_id, discipline, level, goal_tags, title, summa
 -- https://magazin.pferdesport-deutschland.de/project/10-tipps-01-2021/
 ('00000000-0000-4000-8000-000000000967', NULL, 'hack', 'intermediate', '{kraft,balance,mobilitaet,gelaende}', 'Klettern am Hang', 'Dosiertes Klettern stärkt Rücken- und Bauchmuskeln und macht das Pferd geschickt, geschmeidig und locker.',
    '[
-     "Am Hang immer senkrecht zum Hang klettern und die Belastung vernünftig dosieren.",
+     "Immer senkrecht zum Hang klettern und die Belastung vernünftig dosieren.",
      "Im leichten Sitz mit kurzem Bügel reiten, mit längerem Zügel und offenem Ganaschenwinkel, damit das Pferd seinen Hals als Balancierstange nutzen kann.",
-     "Bergauf eher zulegen, bergab eher aufnehmen wollen."
+     "Bodenwellen, Hügel und Hänge so oft es geht einbeziehen: bergauf eher zulegen, bergab eher aufnehmen wollen."
    ]', 'main', 20, 'normal', '{00000000-0000-4000-8000-000000000954}', '{}', '{}', '{https://magazin.pferdesport-deutschland.de/project/10-tipps-08-2020/,https://magazin.pferdesport-deutschland.de/project/10-tipps-09-2021/,https://magazin.pferdesport-deutschland.de/project/10-tipps-01-2021/}'),
 
 -- --- western ---
@@ -1214,7 +1215,7 @@ INSERT INTO exercises (id, stable_id, discipline, level, goal_tags, title, summa
 ('00000000-0000-4000-8000-000000000974', NULL, 'western', 'beginner', '{durchlaessigkeit,balance,aufmerksamkeit}', 'Back up aus dem Halt', 'Das Rückwärts lehrt das Pferd, von vorwärts auf rückwärts umzudenken, und kräftigt Bauch, Rumpf und Hinterhand.',
    '[
      "Das Rückwärts zuerst am Boden vorbereiten und erst dann unter dem Reiter üben; das Pferd lernt dabei, bei Tempoverlangsamungen und beim Anhalten aus dem Vorwärts auf rückwärts umzudenken.",
-     "Zum Rückwärtsrichten den Pferderücken entlasten, indem das Gewicht mehr auf die Beine verlagert wird; weit hinten im Sattel einsetzen und mit beiden Beinen am Gurt treiben; als Stimmkommando „Back“.",
+     "Zum Rückwärtsrichten den Pferderücken entlasten und das Gewicht mehr auf die Beine verlagern; sich weit hinten in den Sattel setzen und mit beiden Beinen am Gurt treiben; als Stimmkommando „Back“.",
      "Geht das Pferd nicht sofort rückwärts, und nur dann, leicht an den Zügeln zupfen.",
      "Das Back up ist eine Rückwärtsbewegung im Zweitakt mit diagonaler Fußfolge; der saubere Zweitakt ist zu Beginn noch nicht zwingend, der Ablauf ruhig und ohne Hektik.",
      "Beim ersten Schritt rückwärts die Aufforderung beenden und das Pferd loben."
@@ -1342,7 +1343,7 @@ INSERT INTO exercises (id, stable_id, discipline, level, goal_tags, title, summa
      "Der Spin ist eine 360-Grad-Drehung um ein stationäres inneres Hinterbein; das äußere Hinterbein und die beiden Vorderbeine sorgen für den Antrieb, und die Vorderbeine kreuzen voreinander.",
      "Beim Spin verlagert das Pferd sein Gewicht auf das innere Hinterbein, das während der Drehung fest am Platz stehen bleibt.",
      "Mit der Hinterhandwendung beginnen und Drehungen in kleinen Reprisen über einen längeren Zeitraum üben, denn die Muskulatur braucht Zeit.",
-     "Die Übung nur mit einem Pferd üben, das die Hinterhandwendung sicher beherrscht."
+     "Den Spin nur mit einem Pferd üben, das die Hinterhandwendung sicher beherrscht."
    ]', 'main', 10, 'demanding', '{00000000-0000-4000-8000-000000000983}', '{}', '{}', '{https://berlinbrandenburg.ewu-bund.com/wp-content/uploads/2024/02/EWU-Regelbuch_2024.pdf,https://www.wehorse.com/de/blog/westernreiten,https://www.thegentletouch.de/post/kreinberg-artikel-im-quarter-horse-journal}'),
 -- https://berlinbrandenburg.ewu-bund.com/wp-content/uploads/2024/02/EWU-Regelbuch_2024.pdf
 -- https://magazin.pferdesport-deutschland.de/project/10-tipps-08-2022/
