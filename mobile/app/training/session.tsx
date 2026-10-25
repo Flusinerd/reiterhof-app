@@ -141,7 +141,7 @@ export default function TrainingSession() {
         leading={<Icon as={BookOpen} size={20} className="text-muted" />}
         title="Übungen"
         accessibilityLabel="Übungen öffnen"
-        onPress={() => router.push("/training/exercises" as Href)}
+        onPress={() => router.push(`/training/exercises${params.horse ? `?horse=${params.horse}` : ""}` as Href)}
       />
     </Screen>
   );
