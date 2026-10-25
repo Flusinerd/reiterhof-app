@@ -11,7 +11,9 @@ import (
 // lists the own ones only, and deleting the account removes them.
 func TestRiderFocusesAreExportedAndDeleted(t *testing.T) {
 	e := setup(t)
-	e.exec(`INSERT INTO rider_focuses (stable_id, horse_id, user_id, keys) VALUES ($1, $2, $3, '{gelassenheit}'), ($1, $2, $4, '{takt,anlehnung}')`,
+	// The demo data has a focus of Mia already: the statement replaces it.
+	e.exec(`INSERT INTO rider_focuses (stable_id, horse_id, user_id, keys) VALUES ($1, $2, $3, '{gelassenheit}'), ($1, $2, $4, '{takt,anlehnung}')
+	        ON CONFLICT (horse_id, user_id) DO UPDATE SET keys = EXCLUDED.keys`,
 		seed.StableB, seed.HorseLuna, seed.UserMia, seed.UserJan)
 
 	rec := e.do(seed.UserMia, "GET", "/api/v1/me/export", nil)

@@ -11,6 +11,16 @@ library, JAN-59 week view, JAN-60 "Nur eintragen", JAN-61 finish screen, JAN-89 
 - Migration `0060_training_sessions.up.sql`: `sessions.exercise_id` and CHECK constraints for
   activity, feel and focus rating. Tables `training_profiles`, `exercises`, `sessions`, `week_slots`
   and `reha_plans` come from `0003`.
+- Planning (M9): focuses, unit plans (Lösen, Arbeiten, Entspannen), four-week blocks, return to work, stable
+  equipment and the level goal. The concept and the numbers are in [training-planning.md](training-planning.md), the
+  specification; this file says what the backend does (see "Focuses and level goal", "Unit plan and blocks" and
+  "Equipment"). The pure rules are in `training/recommend` (`PlanUnit`, `BlockFor`, structure groups 6 to 10) and
+  `training/weekplan`; `training/focus.go` and `training/exercise.go` hold the catalog, the phases, the unit split,
+  the equipment and the progress.
+- Migration `0330_exercise_metadata.up.sql`: exercise `phase`, `minutes`, `intensity`, `requires`, `equipment`, `suits`,
+  `summary`, `sources`; `exercises.discipline` now names the library. Migration `0350_training_focus.up.sql`:
+  `training_profiles.focuses`, `cycle_start`, `goal_level`, `goal_until`, the table `rider_focuses`,
+  `week_slots.focus_key`, `unit_plan`, `equipment_ok`, `sessions.focus_key` and `stables.training_equipment`.
 - Mobile screens: `app/(tabs)/training.tsx` (Was heute?), `app/training/session.tsx` (chooser GPS/indoor, see [tracking.md](tracking.md)),
   `app/training/session/finish.tsx` ("Wie war's?", see "Finish step"), `app/training/week.tsx` (week with draft), `app/horses/[id]/training-setup.tsx`
   (profile wizard), `app/horses/[id]/training-profile.tsx` (overview) and the section editors
@@ -62,16 +72,19 @@ Errors use the standard envelope (`validation_failed`, `forbidden`, `not_found`,
 | Route | Purpose |
 | --- | --- |
 | `GET /training/horses` | Horse switcher: horses the user owns or rides, `role`, `profile_status`, `has_profile` |
-| `GET /horses/{id}/training-profile` | Profile (`can_edit`, `rider_rules`); a horse without row returns the defaults with `exists:false` |
-| `PUT /horses/{id}/training-profile` | Owner/admin only. Full replace; `rider_rules` omitted keeps the stored rules |
-| `GET /horses/{id}/today?minutes=45` | Recommendations, hidden activities, 7-day dots, context line, active reha phase |
-| `POST /horses/{id}/sessions` | Quick log or finished session, returns `{session, next_progression}` |
+| `GET /training/focuses` | The focus catalog `{focuses: [{key, label, group, phase, description, signs, fits}]}` (static data, `training.Focuses`) |
+| `GET /horses/{id}/training-profile` | Profile (`can_edit`, `rider_rules`); a horse without row returns the defaults with `exists:false`. Also `focuses`, `cycle_start`, `goal_level`, `goal_until`, `phase`, `focus_hints`, `warnings`, `progress`, see [Focuses and level goal](#focuses-and-level-goal) |
+| `PUT /horses/{id}/training-profile` | Owner/admin only. Full replace; `rider_rules`, `focuses`, `cycle_start`, `goal_level` and `goal_until` omitted keep their stored value |
+| `GET/PUT/DELETE /horses/{id}/my-focus` | The caller's own focuses for this horse, `{keys}` (at most 2); owner, admin and riders with `take_week_slots` or `log_sessions` |
+| `GET/PUT /stables/training-equipment` | Facility equipment per location of the stable; every member reads, only admins write, see [Equipment](#equipment) |
+| `GET /horses/{id}/today?minutes=45` | Recommendations with `focus` and `unit`, hidden activities, 7-day dots, context line, active reha phase; `phase`, `restart_week`, `block`, `progress` |
+| `POST /horses/{id}/sessions` | Quick log or finished session, returns `{session, next_progression}`; optional `focus_key` (what the unit trained) |
 | `GET /horses/{id}/sessions?limit=&before=` | Newest first; riders see `visible_to_rider` sessions and their own |
-| `GET /horses/{id}/week?start=YYYY-MM-DD` | Monday to Sunday (any day of the week works as `start`), load segments, assessment |
-| `PUT /horses/{id}/week/{day}` | Claim a day (`{}` = "Ich"), plan, rest day or release (`status: open`); optional `focus` (max 80) and `exercise_id` (global or own stable). Fields not sent (or `null`) keep their value, so "Ich" on a planned day keeps activity, note, focus and exercise; `focus: ""` / `exercise_id: ""` clear that field (JAN-95); a rest day clears activity, focus and exercise. Returns the week (days carry `focus`, `exercise {id, title}`) |
-| `POST /horses/{id}/week/plan?start=&day=` | Owner/admin only. Proposal for the open days of the week (rules, with the owner's consent a language model); stores nothing. With `day=YYYY-MM-DD` only that day is planned again; optional body `{draft: [{date, activity or "rest", minutes}], exclude: [activity]}` (empty body and `{}` are fine), see [Week plan](#week-plan) |
-| `GET /exercises?discipline=&level=&tag=` | Global (`stable_id NULL`) and own-stable exercises, easiest first along the progression |
-| `GET /exercises/{id}` | With `steps` and the follow-up exercise (`next_exercise_id`, `next`) |
+| `GET /horses/{id}/week?start=YYYY-MM-DD` | Monday to Sunday (any day of the week works as `start`), load segments, assessment; days carry `focus_key`, `focus_label`, `unit`, `equipment_ok`, `equipment_note`, the answer `block` |
+| `PUT /horses/{id}/week/{day}` | Claim a day (`{}` = "Ich"), plan, rest day or release (`status: open`); optional `focus` (max 80) and `exercise_id` (global or own stable). Fields not sent (or `null`) keep their value, so "Ich" on a planned day keeps activity, note, focus and exercise; `focus: ""` / `exercise_id: ""` clear that field (JAN-95); a rest day clears activity, focus and exercise. Also `focus_key` (`""` clears, unknown is `400`), `unit` (explicit unit plan, validated exercise ids; `{}` clears) and `equipment_ok` (`true`, `false`, `null`); omitted keeps the stored value, and with a `unit` the slot's `exercise_id` is its main exercise. Returns the week (days carry `focus`, `exercise {id, title}`, `focus_key`, `unit`) |
+| `POST /horses/{id}/week/plan?start=&day=` | Owner/admin only. Proposal for the open days of the week (rules, with the owner's consent a language model); stores nothing. With `day=YYYY-MM-DD` only that day is planned again; optional body `{draft: [{date, activity or "rest", minutes}], exclude: [activity]}` (empty body and `{}` are fine); entries add `focus_key`, `focus_label`, `focus_why`, `unit`, `equipment_ok`, `equipment_note`, the answer `block`; see [Week plan](#week-plan) |
+| `GET /exercises?library=&level=&tag=&phase=&focus=&horse=` | Global (`stable_id NULL`) and own-stable exercises, easiest first along the progression; `library` (alias `discipline`), `phase` (warmup, main and cooldown also list `any`), `focus` (a catalog key: the exercises with its tags), `horse` adds `available` (does the stable have the equipment); items carry `library`, `phase`, `minutes`, `intensity`, `suits`, `summary`, `equipment` |
+| `GET /exercises/{id}` | With `steps` and the follow-up exercise (`next_exercise_id`, `next`), `requires [{id, title}]`, `sources [url]` and `alternatives [{id, title, equipment}]` |
 
 ### Profile
 
@@ -91,7 +104,8 @@ decoding a stored profile the API always starts from that default. `status` is `
 `light`, `normal`, `demanding` or `activity` (with an allowed `activity`). At most `rest_days_max` days may be
 `rest`. `quotas` are units per week (Monday to Sunday): `{demanding, recovery, activities: {hall: 2, ...}}`, each
 0-7, activities must be allowed, and all quota units plus `rest_days_min` must fit into seven days. `demanding`
-and the activity quotas are also maximums, `recovery` is a minimum only. Like the other rhythm keys, missing
+and the activity quotas are also maximums, `recovery` is a minimum only. A horse has at most two demanding and
+two jumping units a week: `demanding` is 0 to 2 and the quota of `jumping` at most 2, more is `400`. Like the other rhythm keys, missing
 `days` or `quotas` (or `days: []`) mean the default: free days, no quotas. The app edits both in the section
 "Feste Tage und Ziele" of the training profile (see "App" below).
 
@@ -101,16 +115,30 @@ minutes × factor): active recovery below 20, light below 30, normal below 45, d
 **Structure rules** (`recommend.structureFor`, applied by `Recommend`, `Check` and the week plan) come after
 the safety rules (profile, rider rules, reha, show, pause, frozen ground) and turn into a rest day, activities
 that are out and a minute window per activity. In order; a group is dropped when nothing would be left after
-it, except the load limit:
+it, except the load limit, jumping, the load cap of the Entlastungswoche, the first week of the return to work and
+the limits of young horses, which turn the day into a rest day or cut the minutes:
 
 1. The owner's rule for the weekday (fixed rule, not a preference).
 2. Default rules, only on free days: no demanding unit after a demanding day; after two days with at least
    normal load only a light unit (or less).
 3. Needs of the week (week plan only): when the open days left, or the sessions `sessions_max` still allows,
-   are needed for missing rest days (`rest_days_min`) or quota units, the day fills one of them.
-4. Quota maximums: no more demanding units and no more units of an activity than set.
+   are needed for missing rest days (`rest_days_min`), quota units or, with three or more allowed activities, a
+   third kind of activity, the day fills one of them.
+4. Quota maximums: at most two demanding units a week (the quota can only lower it, a horse of 18 or older has one)
+   and no more units of an activity than set.
 5. Load limit: when the 14 days before the week have at least 3 sessions, the week's load may be at most
    1.2 × their weekly average (at least 90); when no unit fits, the day becomes a rest day.
+6. Jumping: at most two units a week and never on two days in a row (also not before a unit fixed for the next
+   day); when nothing else is left the day is a rest day ("Springen nicht an zwei Tagen hintereinander – heute
+   Ruhetag.").
+7. Variety: the activity of the day before, or of a unit fixed for the day after, is out when two other activities
+   remain ("Halle war gestern schon dran – heute etwas anderes."); `Recommend` also scores doing it again lower.
+8. Block: in the Entlastungswoche no demanding unit ("Entlastungswoche: diese Woche nichts Forderndes.") and the
+   week's load at most 0.8 × the weekly average of the three weeks before.
+9. Return to work (`Input.RestartFrom`): week 1 light units only, weeks 2 and 3 nothing demanding
+   ("Wiederantrainieren, Woche 1: nur leichte Einheiten.").
+10. Young horses (under 6): units of at most 30 minutes ("Junge Pferde trainieren höchstens 30 Minuten.") and at most
+    4 units a week; this cap wins over a demanding day of the owner. Seniors (18 and older): one demanding unit a week.
 
 **App** (JAN-94). A horse without a profile (`exists: false`) gets the **wizard** `training-setup` (owner and admin
 only; everybody else and horses with a profile are sent to the overview). Five steps with a progress `Stepper`,
@@ -132,6 +160,82 @@ show and the time of each class (Prüfung, "Prüfung hinzufügen") with `TimeFie
 ("ab 08:30 Uhr") and one line per class ("09:30 Dressur L"); a show day cannot be edited there (only claimed). A rider sees a
 read-only text and the own rider rules ("Meine Regeln").
 
+### Focuses and level goal
+
+The focus catalog is static data, `training.Focuses` (15 focuses: the six points of the Skala der Ausbildung and
+Durchlässigkeit, practice focuses such as Gelassenheit, Kondition, Springen and Gelände, and Turniervorbereitung
+`turnier`); the planning spec lists them with tags and activities. `GET /training/focuses` returns
+`{focuses: [{key, label, group: scale|practice, phase: 0-3, description, signs, fits: [activity]}]}`.
+
+- **Horse phase** (`training.Phase(levelClass, ageYears, status)`): `gewoehnung`, `schubkraft` or `tragkraft`. The
+  profile answer has `phase`, `focus_hints` (the scale focuses of the phase that are not chosen yet) and `warnings
+  [{key, text}]` for chosen focuses above the phase ("Versammlung setzt Schwung und Geraderichtung voraus."); such a
+  focus is accepted but planned at most once a week.
+- **Focuses of the horse:** `focuses [{key, until}]` in the profile, at most 3, known and distinct keys, `until` a date
+  (inclusive; a focus whose date is past is ignored by the planner) or absent. The first focuses that are saved set
+  `cycle_start` to the Monday of the current week when it is empty (the start of the four-week blocks); an owner can
+  send `cycle_start` (a date, moved to the Monday of its week) or `null` to clear it. A request without these fields keeps them.
+- **Own focus** (`/my-focus`): `{keys: [key]}` (at most 2) per person and horse, the owner's and a rider's alike;
+  `GET` and `PUT` answer `{keys, catalog_phase, phase}`, `PUT {"keys": []}` and `DELETE` (204) clear it. The planner
+  puts the focuses of the person who rides in front of the horse's. They are part of the data export and are deleted
+  with the account.
+- **Level goal:** `goal_level` (`intermediate|advanced`, `null` = the class above the level of the profile) and
+  `goal_until` (a date) are stored. The profile answer has `progress {level, goal_level, goal_until, mastered, total,
+  next: [{id, title}], ready, text}` (null without a goal): of the lessons of the goal level in the horse's home
+  libraries (phase main or any) `mastered` have a session rated "Sitzt", `next` are up to three unmastered lessons whose
+  prerequisites sit, `ready` is at least 80 % of at least three lessons. When ready, `warnings` has `level_up` ("Luna
+  hat 4 von 5 M-Lektionen gefestigt – Einstufung auf M anpassen?"). "Was heute?" carries `progress {text, next}`.
+
+### Unit plan and blocks
+
+A unit of hall, arena, lunge, jumping, groundwork or hack (not walker, not rest) has one **focus** (`focus_key`, a
+catalog key) and three parts: Lösen (`warmup`), Arbeiten (`main`) and Entspannen (`cooldown`), each with minutes and
+at most one exercise. The answers carry it as `unit {warmup, main, cooldown}`, each part `{exercise: {id, title} |
+null, minutes, exercise_minutes?, why?, instead_of?: {id, title}}`; a part without minutes and exercise is absent.
+`exercise_minutes` is the typical duration of the exercise when it is shorter than the part (the rest is free
+work); `why` and `instead_of` say that the planner took another exercise than the one that fitted best, because of the
+equipment or for a goal lesson. `week_slots.unit_plan` stores `{warmup: {exercise_id, minutes}, main: {...}, cooldown:
+{...}}`; the slot's `exercise_id` stays the main exercise for older clients. `PUT /week/{day}` takes `unit` with
+minutes 0-240 per part and 600 in all, exercises the stable can see, in its own shape or the answer's (`exercise
+{id, title}`).
+
+**Planner** (`recommend.PlanUnit`, pure; `weekplan.Merge` plans every day with it, "Was heute?" every recommendation):
+the minutes of the parts come from `training.UnitSplit` (Lösen about a third, Entspannen a sixth of the unit, seniors
+and nights below 5 °C add minutes); the focus from the rotation (the rider's, then the horse's focuses, the one trained
+or planned longest ago first; a focus above the phase at most once a week; `turnier` within 14 days before a show;
+a fallback per activity when none fits); the exercise of each part by score (tags of the focus, follow-up of a mastered
+exercise, retry after "Schwer", used lately, intensity of the unit, goal lessons), among the exercises of the activity's
+libraries (`training.ExerciseLibraries`) that fit the part, the horse's level, prerequisites, the day after cavaletti, the
+week before a show and the facility equipment. Numbers and texts: [training-planning.md](training-planning.md), the comment
+at the top of `training/recommend/unit.go`. Every focus comes with a German reason (`focus.why`, `focus_why`).
+
+**Blocks:** four weeks from `training_profiles.cycle_start`: weeks 1 to 3 build, week 4 is the Entlastungswoche
+(`block {week: 1-4, deload}` in `today`, `week` and `week/plan`; null without a start or before it). A block starts
+again when one of its completed weeks so far had fewer sessions than `rhythm.sessions_min` (`recommend.BlockFor`).
+**Return to work:** after 14 or more days without a session the first week has light units only, the weeks 2 and 3
+nothing demanding (`restart_week` 1 to 3 in `today`, else 0; `recommend.RestartAnchor`). Both only change what is
+planned, never what was logged.
+
+### Equipment
+
+`GET /stables/training-equipment` (every member) answers `{set, locations: {hall, arena, lunge, jumping, groundwork:
+{equipment: [key], shared}}, keys: {facility, personal}, can_edit}`. Facility equipment (`poles`, `cavaletti`, `jumps`,
+`obstacles`) is set up in a location: the planner only plans exercises whose facility equipment the location has.
+Personal equipment (`lunge`, `side_reins`, `double_lunge`, `kappzaum`, `tarp`, `umbrella`, `cones`, `flag`, `whip`,
+`neck_ring`, `trailer`) is always there and only listed on the exercises. A location the stable never saved has its
+default: hall, arena and groundwork `poles`, jumping `jumps` and `poles`, lunge nothing, nothing shared; `set` is false
+until the first `PUT`. `PUT {locations: {hall: {equipment: [...], shared}, ...}}` (admins only, `403` otherwise)
+replaces the stored equipment: a location left out has its default, an unknown location or key is `400`.
+
+`shared` means the location is used together with others: it is planned without set-up ("Halle geteilt: ohne Aufbau
+geplant."). `equipment_ok` of a day (`PUT /week/{day}`: `true`, `false`, `null` = the location's default) overrides that:
+`true` allows set-up in a shared location, `false` means nothing is set up that day ("Heute ohne Aufbau geplant.");
+days and recommendations carry `equipment_ok` and `equipment_note`. When the best exercise needs equipment that is not
+available the part carries `instead_of` and a reason ("Ohne Stangen in der Longierhalle: Handwechsel an der Longe statt
+Trabstangen."). `GET /exercises?horse={id}` adds `available` to every item, `GET /exercises/{id}` lists `alternatives
+[{id, title, equipment}]` (same library, phase equal or any, at least two shared tags, no facility equipment, a level at
+or below, at most 5, most shared tags first).
+
 ### Today
 
 Input for `recommend.Recommend`: profile, sessions of the last 14 days, the latest
@@ -144,11 +248,17 @@ session days are calendar dates in that zone.
 Context line: `Regen, 6 °C · Boden nass · Turnier in 3 Tagen · Reha: Phase 2`, each part only when
 known (weather snapshot, ground not dry, next show within 14 days, active reha phase).
 
-Each recommendation may carry `exercise` (with steps): for hall and arena the dressage
-library (jumping library for jumping horses), for jumping, groundwork and lunge the matching library. It is
-the first exercise, easiest first along the progression, that the horse has not mastered yet
-(no session with focus rating "Sitzt" for it). On the day of a show there is no exercise: the show is the
-work of the day.
+Besides the profile and the sessions the planner gets the age and level of the horse, the block of the week, the
+return to work, the library with the horse's ratings, the stable's equipment, the day's `equipment_ok` (from its week
+slot) and the own focuses of the person who asks. The sessions reach back to the Monday three weeks before this week
+(Entlastungswoche, load limit); a session without a `focus_key` takes the focus and the exercises of the unit plan of
+its day's slot.
+
+Each recommendation for an activity with a unit carries `focus {key, label, why}`, `unit` (see "Unit plan and blocks"),
+`exercise` (the main exercise of the unit, with steps), `equipment_ok` (only for activities with a location) and
+`equipment_note`; all are null or absent for the walker and rest. On the day of a show there is no unit and no
+exercise: the show is the work of the day. The answer also has `phase`, `restart_week`, `block` and `progress {text,
+next}` (null without a goal level).
 
 Dots (`week`): the last seven days, today last; `kind` is `trained` (a session or done slot),
 `rest` (planned rest day or the mandatory rest day after a show) or `nothing`; `intensity` is the
@@ -186,7 +296,9 @@ now, at most 14 days back), tracked data `gait_shares` (`walk|trot|canter|halt`,
 most 1), `rein_changes` (ordered segments `{rein: left|right, minutes}`, the number of rein changes
 is the segment count minus one), `distance_m`, and `feel` (`fresh|loose|tired|tense`),
 `focus_rating` (1 Schwer, 2 Besser, 3 Sitzt), `exercise_id`, `note`, `visible_to_rider` (default
-true). `source` is `tracked` when gait shares, rein changes or a distance are sent, else `quick`.
+true). `source` is `tracked` when gait shares, rein changes or a distance are sent, else `quick`. `focus_key` (optional,
+a key of the focus catalog, else `400`) says what the unit trained; sessions are returned with it (null without one)
+and the focus rotation reads it.
 
 `feeling` (`hard|good|easy`, "Schwer", "Gut", "Sehr locker"; optional, `null` for quick logs and older app
 versions; anything else is `400`) is how the session felt for the rider, asked by "Wie war's?" after the ride.
@@ -231,7 +343,9 @@ when the show is removed), the claim (who goes to the show) and the note stay, a
 activity, activity_label, rest, minutes, done}`. `segments` are the 7
 load levels and `assessment` is the German sentence from `load.Assess`. Hidden sessions (riders) still
 count for status and load but reveal neither user nor activity. Days are calendar days in the
-stable's timezone, so DST weeks still have seven days.
+stable's timezone, so DST weeks still have seven days. A planned day carries `focus_key`, `focus_label`, `unit`,
+`equipment_ok` and `equipment_note` (null otherwise; a show day, a rest day and a hidden session show none of them);
+the answer has `block {week, deload}`.
 
 ## Week plan
 
@@ -241,9 +355,12 @@ stable's timezone, so DST weeks still have seven days.
 - **Open days:** today or later and no activity planned: status `open`, `today`, or `planned` by someone without an
   activity (the proposal keeps that person, `user`). Done days, show days, rest days (planned or after a show) and
   days with a planned activity are context; a planned activity counts as a session for the following days.
-- **Rules:** `weekplan.Rules` asks `recommend.Recommend` day by day with the sessions of the 14 days before plus the
-  units planned so far, so variety, recent load and the weekly maximum apply across the week. Weather and ground are
-  only known for today. The active reha plan gives each day its unit.
+- **Rules:** `weekplan.Rules` asks `recommend.Recommend` day by day with the sessions of the 21 days before plus the
+  units planned so far (simulated sessions with their focus and exercises), so variety, recent load, the weekly
+  maximum, the focus rotation and the exercise pick apply across the week; every unit is planned with
+  `recommend.PlanUnit`. Weather and ground are only known for today and tomorrow. The active reha plan gives each day
+  its unit. A day claimed by a person with own focuses is planned with them, days planned by someone else count with
+  their focus and exercises.
 - **Language model:** used when `REITERHOF_MISTRAL_API_KEY` is set and the horse's **owner** has the `ai_training`
   consent (whoever plans; an admin planning someone else's horse needs that owner's consent) and stated to be 16 or
   older (`users.age_confirmed_at`; Mistral's terms forbid personal data of children below the age of digital
@@ -254,29 +371,39 @@ stable's timezone, so DST weeks still have seven days.
   ago, activity, minutes, load, canter share, feel and the library exercise with its rating (hard, better, solid),
   shows as days from today, the reha unit per day, the weather of today and tomorrow and today's ground, and the
   candidate exercises: the **global** library (own-stable exercises are free text and stay on the server) in the
-  libraries that fit the allowed activities (`training.ExerciseLibrary`), in progression order, with short keys
-  `E1`, `E2`, ..., level, title, tags, mastered and the key of the follow-up exercise. No names, ids, free text or
-  dates; a test checks this.
+  libraries that fit the allowed activities (`training.ExerciseLibraries`), in progression order, with short keys
+  `E1`, `E2`, ..., level, phase, minutes, intensity, title, tags, the keys of the prerequisites, the facility equipment,
+  mastered, practised and the key of the follow-up exercise. It also sends the horse's phase, the goal level, the block,
+  `restart_week`, the focus catalog (key, tags, activities), the horse's focuses in order (with `above_phase`), the
+  focuses of the person who claimed a day (keys), the facility equipment and the equipment that is available per
+  activity (`shared`), `equipment_ok` per day and the focus key of the sessions. No names, ids, free text or dates; a test
+  checks this.
 - **System prompt** (`weekplan.SystemPrompt`, JAN-92): role (riding instructor in the FN system, welfare first),
   the input, every activity with German name, meaning, intensity and sensible duration, then the planning rules:
   unit levels, the week structure (the owner's rules and quotas are binding; on free days no two demanding days in a
-  row and a light unit after two days of normal or demanding load; rest days minimum, active recovery, load limit,
-  rhythm),
-  content by the training scale (Takt and Losgelassenheit first; Anlehnung, Schwung, Durchlässigkeit for
-  intermediate; Geraderichtung and Versammlung only for advanced, fit horses, at most twice a week), discipline,
-  age, shows, weather, reha and pause; how to pick focus and exercise; rules for the German reason (third person,
+  row and a light unit after two days of normal or demanding load; at most two demanding units, one for seniors;
+  rest days minimum, active recovery, load limit and the Entlastungswoche, variety, jumping and cavaletti limits,
+  return to work, young and senior horses), the focus of a unit (the rotation, fallbacks, the training scale
+  Skala der Ausbildung), the unit of three parts with an exercise each (libraries, level, prerequisites, equipment,
+  the week before a show), discipline, shows, weather, reha and pause; rules for the German reason (third person,
   concrete cause, no "du") with examples; a checklist before answering. The answer is
-  `{"days":[{"day","activity","minutes","focus","exercise","reason"}]}`. `weekplan.Parse` drops unknown or closed
-  days and unknown activities; an unknown exercise key becomes no exercise.
+  `{"days":[{"day","activity","minutes","focus_key","focus","warmup","main","cooldown","reason"}]}`. `weekplan.Parse`
+  drops unknown or closed days and unknown activities; an unknown focus key becomes no focus and an unknown exercise
+  key no exercise (the rules pick); the key `exercise` of the earlier format counts as `main`.
 - **Checking:** `recommend.Check` tests each proposal against the hard rules (visibility, reha phase, rest after a
   show, pause/reha/show/frozen-ground filters, `rhythm.sessions_max`, the structure rules above) and fits the minutes (reha range, rhythm
   maximum, the activity's sensible range from `recommend.MinutesRange`, e.g. lunge 15-30, hall 30-60, hack 30-120,
   pause 20, before a show 30). A failing proposal is replaced by the rules (`replaced` says why);
-  days the model left out come from the rules. A proposed exercise stays only when its library fits the activity;
-  days from the rules get the first exercise of their library the horse has not mastered, and no focus.
+  days the model left out come from the rules. The unit of an accepted day is planned by `recommend.PlanUnit`: a
+  proposed focus key is taken when it is one of the rotation's candidates, a proposed exercise when the rules allow
+  it for its part (library of the activity, phase, level, prerequisites, equipment, the week before a show, and for
+  the main part tags that meet the focus, no exercise twice); otherwise the rules pick and `replaced` says why
+  ("Übung „Volte“ ersetzt: braucht Stangen."). Days from the rules get the rules' focus and exercises.
 - **Response:** `{horse_id, start, end, source: ai|rules, ai_status, owner_is_me, days: [{date, weekday, activity
   (or rest), label, minutes, intensity, intensity_label, reason, note, source, replaced, user, focus, exercise
-  {id, title}, level, level_label}]}` (`level` is the unit level, absent for rest). `ai_status`:
+  {id, title}, focus_key, focus_label, focus_why, unit, equipment_ok, equipment_note, level, level_label}], block}`
+  (`level` is the unit level, absent for rest; `exercise` is the main exercise of the unit; `focus_*` and `unit` are
+  null for rest and walker; `block` is null without a block start). `ai_status`:
   `used`, `not_configured`, `no_consent`, `owner_under_16`, `limit` (HTTP 429: free credits, rate or capacity limit; the client retries once after
   `Retry-After`, at most 5 s), `failed` (error, timeout 90 s, unusable answer), `nothing_to_plan`. Failures fall back to
   the rules and are logged without content: status plus Mistral's error type, code and (for 401/402/403/429/5xx)
@@ -311,7 +438,13 @@ stable's timezone, so DST weeks still have seven days.
 
 `internal/seed/training.go`: profiles for all seven demo horses (the three minimal rows are filled
 only while `discipline` is still empty, so local edits survive), a reha plan for Fanta (with abort
-criteria), 20 sessions in the two weeks before the day of seeding and three planned week slots for Luna.
+criteria), 20 sessions in the two weeks before the day of seeding (all but the walker's with the `focus_key` they
+trained) and three planned week slots for Luna, two of them with a focus and a unit plan. Luna has the focuses
+`losgelassenheit` and `geraderichten`, Fanta `kondition`, both the current Monday as `cycle_start` (the demo starts
+in "Aufbauwoche 1 von 4"); Mia has the own focus `gelassenheit` for Luna; the demo stable has hall `poles, cavaletti`, arena
+`poles`, lunge nothing, jumping `jumps, poles` and groundwork `poles, obstacles`, none of them shared. Focuses, block
+start, equipment and the unit plans are only filled while they are still empty, so local edits survive; Luna keeps the
+default level goal.
 
 ## Exercise library
 
@@ -331,6 +464,16 @@ vergrößern" (813) get the aim `seitengaenge` (before, the filter "Seitengänge
 matching skipped them), and the jumping library gets its own Schenkelweichen (846, beginner, followed by
 Trabstangen), because hall and arena days of jumping horses use the jumping library and had no leg-yield.
 The library now has 42 exercises (9 jumping).
+
+Migration `0330_exercise_metadata.up.sql` (planning, M9): the column `discipline` now names the **library**
+(`dressage`, `cavaletti`, `jumping`, `western`, `groundwork`, `lunge`, `hack`; poles and cavaletti are their own
+library) and every exercise has a `phase` (`warmup`, `main`, `cooldown` or `any`: the part of the unit), `minutes`
+(typical duration), `intensity` (`light`, `normal`, `demanding`), `requires` (prerequisite exercises), `equipment`
+(keys of `training.EquipmentKeys`), `suits` (`young`, `senior`), a one-sentence `summary` and its `sources` (urls). Which
+libraries an activity uses: `training.ExerciseLibraries(activity, horseDiscipline)` (hall and arena: dressage and
+cavaletti, for jumping horses jumping, cavaletti and dressage, for western horses western, cavaletti and dressage;
+jumping: jumping and cavaletti; lunge: lunge and cavaletti; groundwork; hack; walker and rest none), the first one is
+the home library. Catalog rows added later and their coverage: [exercise-catalog.md](exercise-catalog.md).
 
 ## Open points
 

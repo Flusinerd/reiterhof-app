@@ -378,7 +378,9 @@ real `*push.Notifier`). In tests pass `Notify: push.NewNotifier(pool, fake, nil)
 
 Pure packages (no HTTP, no DB, no clock; "today" is always an input):
 
-- `training`: shared types (`Activity`, `Profile`, `RiderRules`, `Session`, `Intensity`, ...).
+- `training`: shared types (`Activity`, `Profile`, `RiderRules`, `Session`, `Intensity`, ...), the focus catalog
+  and the horse's phase (`focus.go`: `Focuses`, `Phase`, `UnitSplit`), the exercise view with the libraries of an
+  activity, the stable's equipment, the level goal and its progress (`exercise.go`).
 - `training/load` (JAN-62): `Score(minutes, activity, canterShare)` = minutes x intensity
   factor (table in the package doc), `Classify` (light < 30, medium 30-60, intense > 60),
   `DayLoad`, `WeekLoad` (7 segments) and `Assess` (one German sentence vs. the rhythm).
@@ -394,11 +396,17 @@ Pure packages (no HTTP, no DB, no clock; "today" is always an input):
   rules plus the weekly maximum and returns the rule-based replacement when it fails.
   Both apply the week structure (JAN-93, `structure.go`): unit levels by load, the owner's
   weekday rules and quotas, default structure rules, the week's needs when a whole week is
-  planned (`Input.Ahead`) and the load limit (+20 % over the two weeks before).
-- `training/weekplan` (JAN-89, JAN-92): plans the open days of a week (activity, minutes, focus, exercise). `Rules` uses the recommender day by
-  day (each planned unit becomes a simulated session for the next days); `Prompt`/`Parse` build the
-  language model's input (no names, ids, free text or dates) and read its JSON answer; `Merge`
-  checks every proposal with `recommend.Check` and lets the rules fill the rest. `Day.Minutes` gives a
+  planned (`Input.Ahead`) and the load limit (+20 % over the two weeks before); groups 6 to 10 add jumping,
+  variety, the Entlastungswoche, return to work and young and senior horses. `PlanUnit` (`unit.go`) plans the focus
+  and the three parts (Lösen, Arbeiten, Entspannen) of a unit with an exercise each; `BlockFor` and
+  `RestartAnchor` (`block.go`) are the rules of the four-week blocks and the return to work. All of it is pure and
+  deterministic; the specification is [domains/training-planning.md](domains/training-planning.md).
+- `training/weekplan` (JAN-89, JAN-92): plans the open days of a week (activity, minutes, focus, the unit with an
+  exercise per part). `Rules` uses the recommender day by day (each planned unit becomes a simulated session with
+  its focus and exercises for the next days); `Prompt`/`Parse` build the language model's input (no names, ids, free
+  text, dates or own-stable exercises) and read its JSON answer; `Merge` checks every proposal with
+  `recommend.Check`, plans the unit with `recommend.PlanUnit` (the model's focus and exercises are taken when the
+  rules allow them) and lets the rules fill the rest. `Day.Minutes` gives a
   planned closed day its duration and `Day.Exclude` lists the activities the owner rejected for an open
   day (JAN-95, re-planning a single day).
 - German reason texts are UI text and live in these packages; everything else is English.
