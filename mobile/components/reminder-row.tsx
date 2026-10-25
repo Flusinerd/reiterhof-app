@@ -1,10 +1,10 @@
-import { Check } from "lucide-react-native";
+import { Check, EyeOff } from "lucide-react-native";
 import { Pressable, View } from "react-native";
 
 import { Button, Text } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { isInternalRoute } from "@/lib/notifications-core";
-import { rowMeta, rowTime, type ReminderItem } from "@/lib/reminders";
+import { dismissAction, rowMeta, rowTime, type ReminderItem } from "@/lib/reminders";
 import { reminderText } from "@/lib/today";
 
 export type ReminderRowProps = {
@@ -22,13 +22,15 @@ export type ReminderRowProps = {
 
 /**
  * One reminder as a line of the timeline, the same look as on "Heute": the time in brass (red
- * "fällig" when overdue), title, text and kind. Tapping opens the screen of the reminder;
- * "Erledigt" (stored reminders only) is a quiet check button on the right and removes it.
+ * "fällig" when overdue), title, text and kind. Tapping opens the screen of the reminder; the quiet
+ * button on the right (stored reminders only) removes it: "Erledigt", or "Ausblenden" for a push about an
+ * appointment, which is completed in the health list or the reha plan and only hidden here.
  */
 export function ReminderRow({ item, timeZone, today, last = false, dismissing = false, onOpen, onDismiss }: ReminderRowProps) {
   const target = isInternalRoute(item.screen) ? item.screen : null;
   const time = rowTime(item, timeZone, today);
   const text = reminderText(item.kind, item.title, item.body);
+  const dismiss = dismissAction(item);
 
   const content = (
     <>
@@ -65,9 +67,9 @@ export function ReminderRow({ item, timeZone, today, last = false, dismissing = 
         <Button
           size="icon"
           variant="ghost"
-          icon={Check}
+          icon={dismiss.hidesOnly ? EyeOff : Check}
           loading={dismissing}
-          accessibilityLabel={`Erledigt: ${item.title}`}
+          accessibilityLabel={`${dismiss.verb}: ${item.title}`}
           onPress={() => onDismiss(item)}
         />
       ) : null}

@@ -200,7 +200,10 @@ Shared storage for photos and documents; see also "Files" in `architecture.md`.
   - "Heute für <Name>": up to three rows with hairlines, each with one action: training today from the week plan ("Starten" when it is the
     user's, one primary button), tonight's blanket ("Ändern" for owner and admin, opens the blanket choice), the next health item
     ("Erledigt" for owner and admin when overdue or due within a week). Empty rows are left out; the training row is only for owner, admin
-    and riders (the week endpoint says `403` to others).
+    and riders (the week endpoint says `403` to others). After "Erledigt" the row keeps the item for the rest of the visit as a
+    success state (eyebrow "Gesundheit · erledigt" in success tone, "Nächster Termin 24.01.2027", ghost "Rückgängig"; `RowsInput.justDone`,
+    taken from the answer of the server, cleared when the user leaves the page), so a second tap cannot mark the *next* appointment done.
+    A medication course has no button here; it ends on the health screen.
   - "Diese Woche": seven marks (done, planned, show day in brass, rest, empty), tap opens `/training/week?horse=`.
   - `Segmented` with Tagebuch (the diary, "Mehr laden", notes as italic quotes, observation photos as thumbnails, "Auffälligkeit melden"),
     Gesundheit (compact health list, "Alle Termine", the observations with "Reha-Plan erstellen" for owner and admin, see
@@ -214,6 +217,14 @@ Shared storage for photos and documents; see also "Files" in `architecture.md`.
   per kind such as "6 Monate" / "1 Jahr" or "Eigenes" with number and unit, reminder days as chips "4 Wochen vorher" …
   "am Tag" plus the time; "Erledigt"), `documents`
   (photo/PDF upload), `edit`, and `/horses/new`.
+- **"Erledigt" on the health screen** (`lib/health-done.ts`): the tapped row turns into its result in place: a check mark, "Heute erledigt"
+  (success tone; "von Anna" when somebody else did it) and "Nächster Termin: 24.01.2027" (or "Abgeschlossen"), and a ghost button
+  "Rückgängig" (`DELETE .../done`) instead of "Erledigt". The rows keep their order while the user is on the screen (`useFrozenOrder`,
+  a done item does not jump away under the finger; a new visit sorts afresh). The call carries the due date the app showed; a conflict
+  (`due_date_changed`) refreshes the list and says so under the row, as does every other error. A medication course shows
+  **"Gabe beenden"** (only with an end date; without one it never ends), which asks in a sheet first ("{Name} endet heute. Du bekommst
+  dafür keine Erinnerungen mehr."), then ends the course today; its result reads "Gabe beendet" and "Endet heute. Keine Erinnerungen mehr."
+  The health screen can be pulled to refresh and refreshes when it comes back into focus.
 - Upload helper `lib/upload.ts`: `uploadFile({uri, name, mimeType, size, file})`, `fileSource(url)`,
   `openStoredFile(url)` (download link, then `Linking.openURL`), `uploadErrorMessage(err)`. Every picker call uses
   `PHOTO_PICKER_OPTIONS` (images, iOS "compatible" representation, so no HEIC) and turns the asset into the upload

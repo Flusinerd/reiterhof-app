@@ -103,6 +103,9 @@ export type HealthItem = {
   remind_time: string;
   /** Negative when overdue. */
   days_until_due: number | null;
+  /** The stable-local day of the last "erledigt" (YYYY-MM-DD), null without. While it is today, a second one changes nothing and it can be undone. */
+  last_done_on: string | null;
+  last_done_by: { id: string; name: string } | null;
   /** Other horses with the same kind of appointment due about now (JAN-54); absent if none. */
   bundle?: { kind: string; count: number; horses: { id: string; name: string }[] };
 };
@@ -219,7 +222,14 @@ export const horsesApi = {
   updateHealthItem: (itemId: string, input: HealthInput) =>
     authed.patch<HealthItem>(`/api/v1/health-items/${itemId}`, input),
   removeHealthItem: (itemId: string) => send<void>("DELETE", `/api/v1/health-items/${itemId}`),
-  markDone: (itemId: string) => authed.post<HealthItem>(`/api/v1/health-items/${itemId}/done`),
+  /**
+   * "Erledigt". Once per day on the server: a repeat answers with the unchanged item. `seenDueDate` is the date the
+   * app showed ("" = none); 409 `due_date_changed` when somebody else moved it meanwhile. For a medication it ends the course.
+   */
+  markDone: (itemId: string, seenDueDate: string | null) =>
+    authed.post<HealthItem>(`/api/v1/health-items/${itemId}/done`, { due_date: seenDueDate ?? "" }),
+  /** Takes today's "erledigt" back (the date and the reminders return); 409 `undo_expired` for an earlier day. */
+  undoDone: (itemId: string) => send<HealthItem>("DELETE", `/api/v1/health-items/${itemId}/done`),
 
   diary: (id: string, before?: string, limit = 20) =>
     authed.get<DiaryPage>(
@@ -266,7 +276,19 @@ export const useMembers = () =>
 export function useHorseMutation<TVars, TResult>(
   fn: (vars: TVars) => Promise<TResult>,
   effects: (vars: TVars, result: TResult) => Effect[],
-  mutationKey?: MutationKey,
+  options: {
+    mutationKey?: MutationKey;
+    /** What a failed call may still have changed (a 409 because somebody else changed the item first). */
+    errorEffects?: (vars: TVars) => Effect[];
+    /** Runs when the call succeeded, before the refresh: write the answer somewhere the screen shows at once. */
+    onSuccess?: (result: TResult, vars: TVars) => void;
+  } = {},
 ) {
-  return useEffectMutation({ mutationFn: fn, mutationKey, effects });
+  return useEffectMutation({
+    mutationFn: fn,
+    mutationKey: options.mutationKey,
+    effects,
+    errorEffects: options.errorEffects,
+    onSuccess: options.onSuccess,
+  });
 }

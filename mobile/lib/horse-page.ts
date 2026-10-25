@@ -4,6 +4,7 @@
 
 import type { Override, Recommendation } from "./blankets.ts";
 import { recommendationTitle } from "./blankets.ts";
+import { isCourse } from "./health-done.ts";
 import {
   ageText,
   dueDetailText,
@@ -120,7 +121,7 @@ export function horseWeekStrip(days: readonly PageDay[], today: string): StripIt
 
 // --- "Heute für <Name>" --------------------------------------------------------------------
 
-export type RowAction = { label: string; kind: "start" | "blanket" | "done"; itemId?: string };
+export type RowAction = { label: string; kind: "start" | "blanket" | "done" | "undo"; itemId?: string };
 
 export type TodayRow = {
   key: "training" | "blanket" | "health";
@@ -160,6 +161,14 @@ export type RowsInput = {
   blanket: RowBlanket | null;
   health: readonly RowHealthItem[] | null;
   canManage: boolean;
+  /**
+   * The health item marked done while the user is on the page, as the server answered ("erledigt" returns
+   * the item with its new date). Its row keeps showing the result (and the undo) until the user leaves,
+   * instead of moving on to the next appointment under the finger, where a second tap on "Erledigt" would
+   * mark a different appointment done. Taken from the answer, not from the refetched list, so the row is
+   * right from the first frame. Ignored when the item is gone from the list.
+   */
+  justDone?: RowHealthItem | null;
 };
 
 function nextPlannedText(days: readonly PageDay[], today: string): string | undefined {
@@ -238,7 +247,23 @@ function blanketRow(b: RowBlanket, horseId: string, canManage: boolean): TodayRo
   };
 }
 
-function healthRow(items: readonly RowHealthItem[], horseId: string, canManage: boolean): TodayRow | null {
+/** The row of an item that was just marked done: the result in success tone and the undo. */
+function doneRow(item: RowHealthItem, horseId: string, canManage: boolean): TodayRow {
+  const name = item.label || healthKindLabel(item.kind);
+  const course = isCourse(item);
+  return {
+    key: "health",
+    eyebrow: "Gesundheit · erledigt",
+    eyebrowTone: "success",
+    title: `${name} ${course ? "beendet" : "erledigt"}`,
+    detail: course ? "Keine Erinnerungen mehr" : item.due_date ? `Nächster Termin ${formatDate(item.due_date)}` : "Abgeschlossen",
+    action: canManage ? { label: "Rückgängig", kind: "undo", itemId: item.id } : undefined,
+    route: horseRoutes.health(horseId),
+  };
+}
+
+function healthRow(items: readonly RowHealthItem[], horseId: string, canManage: boolean, justDone?: RowHealthItem | null): TodayRow | null {
+  if (justDone && items.some((i) => i.id === justDone.id)) return doneRow(justDone, horseId, canManage);
   const next = items
     .filter((i) => i.due_date && i.days_until_due !== null && !i.daily_time)
     .sort((a, b) => (a.days_until_due ?? 0) - (b.days_until_due ?? 0))[0];
@@ -252,7 +277,11 @@ function healthRow(items: readonly RowHealthItem[], horseId: string, canManage: 
     eyebrowTone: level === "overdue" ? "danger" : level === "soon" ? "accent" : "muted",
     title: `${name} ${dueText(days)}`,
     detail: level === "overdue" ? dueDetailText(days).replace(/ überfällig$/, "") : formatDate(next.due_date),
-    action: canManage && (level === "overdue" || level === "soon") ? { label: "Erledigt", kind: "done", itemId: next.id } : undefined,
+    // A medication course ends with "Gabe beenden" on the health screen, which asks first.
+    action:
+      canManage && !isCourse(next) && (level === "overdue" || level === "soon")
+        ? { label: "Erledigt", kind: "done", itemId: next.id }
+        : undefined,
     route: horseRoutes.health(horseId),
   };
 }
@@ -266,7 +295,7 @@ export function buildHorseRows(input: RowsInput): TodayRow[] {
     if (r) rows.push(r);
   }
   if (input.health) {
-    const r = healthRow(input.health, input.horseId, input.canManage);
+    const r = healthRow(input.health, input.horseId, input.canManage, input.justDone);
     if (r) rows.push(r);
   }
   return rows;

@@ -17,7 +17,8 @@ export function HorseTodayRows({
 }: {
   rows: readonly TodayRow[];
   busy?: TodayRow["key"] | null;
-  onAction: (action: RowAction) => void;
+  /** May return a promise: the row's button stays busy until it settles. */
+  onAction: (action: RowAction) => void | Promise<unknown>;
 }) {
   return (
     <View>
@@ -47,7 +48,7 @@ export function HorseTodayRows({
             <Button
               label={row.action.label}
               size="sm"
-              variant={row.action.kind === "start" ? "primary" : "outline"}
+              variant={row.action.kind === "start" ? "primary" : row.action.kind === "undo" ? "ghost" : "outline"}
               loading={busy === row.key}
               onPress={() => onAction(row.action as RowAction)}
             />

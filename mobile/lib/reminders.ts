@@ -86,6 +86,19 @@ export function kindLabel(kind: string): string {
   return KIND_LABELS[kind] ?? "Erinnerung";
 }
 
+/**
+ * Kinds whose item is completed elsewhere: the appointment in the health list, the course "Gabe beenden",
+ * the check-up in the reha plan. The check on the stored row of such a push only hides the push, so it
+ * says "Ausblenden"; "Erledigt" would promise that the appointment is done.
+ */
+const HIDE_ONLY_KINDS = new Set(["health_due", "medication", "reha_checkup"]);
+
+/** What the check button of a stored reminder is called and whether it only hides the push. */
+export function dismissAction(item: Pick<ReminderItem, "kind">): { verb: "Ausblenden" | "Erledigt"; hidesOnly: boolean } {
+  const hidesOnly = HIDE_ONLY_KINDS.has(item.kind);
+  return { verb: hidesOnly ? "Ausblenden" : "Erledigt", hidesOnly };
+}
+
 // --- time and day formatting ---------------------------------------------------------------
 
 const WEEKDAYS = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
