@@ -19,7 +19,7 @@ const (
 func PracticeWindow(class, length string) (lo, hi float64) {
 	switch {
 	case length == LengthShort:
-		return 180, 240
+		return 210, 300
 	case ClassRank(class) >= ClassRank("L"):
 		return 360, 420
 	}

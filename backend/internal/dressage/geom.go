@@ -171,3 +171,42 @@ func bows(side float64, y0, y1 float64, loops int, depth float64) []Point {
 	}
 	return out
 }
+
+// reverses reports whether next starts heading back the way prev ended (a turn of more than 120° on the
+// spot), which no horse can ride between two lines. Paths shorter than a step are ignored.
+func reverses(prev, next []Point) bool {
+	end, okEnd := lastHeading(prev)
+	start, okStart := firstHeading(next)
+	if !okEnd || !okStart {
+		return false
+	}
+	d := math.Abs(math.Remainder(start-end, 2*math.Pi))
+	return d > 2*math.Pi/3
+}
+
+func lastHeading(p []Point) (float64, bool) {
+	for i := len(p) - 1; i > 0; i-- {
+		if dx, dy := p[i][0]-p[i-1][0], p[i][1]-p[i-1][1]; math.Hypot(dx, dy) > 0.05 {
+			return math.Atan2(dy, dx), true
+		}
+	}
+	return 0, false
+}
+
+func firstHeading(p []Point) (float64, bool) {
+	for i := 1; i < len(p); i++ {
+		if dx, dy := p[i][0]-p[i-1][0], p[i][1]-p[i-1][1]; math.Hypot(dx, dy) > 0.05 {
+			return math.Atan2(dy, dx), true
+		}
+	}
+	return 0, false
+}
+
+// turnsOnTheSpot reports whether option b cannot follow option a because the rider would have to turn
+// back on the spot. A Kurzkehrt is that turn, so it is exempt on either side.
+func turnsOnTheSpot(a, b *Option) bool {
+	if a == nil || b == nil || a.Kind == "kurzkehrt" || b.Kind == "kurzkehrt" {
+		return false
+	}
+	return reverses(a.Path, b.Path)
+}

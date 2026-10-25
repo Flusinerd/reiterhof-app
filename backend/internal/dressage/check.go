@@ -52,6 +52,16 @@ func structureChecks(lib *Library, p *Plan) []Check {
 		}
 	}
 	out = append(out, check("chain", chain, true, msg))
+	// No line may start by turning back on the spot where the previous one ended.
+	flow, flowMsg := true, "Jede Zeile lässt sich aus der vorigen heraus reiten."
+	for i := 1; i < len(p.Lines) && chain; i++ {
+		if turnsOnTheSpot(lib.ByID[p.Lines[i-1].Option], lib.ByID[p.Lines[i].Option]) {
+			flow = false
+			flowMsg = fmt.Sprintf("Zeile %d würde bei %s auf der Stelle kehrtmachen; dazwischen fehlt eine Wendung.", i+1, nodeLabel(p.Lines[i].Start))
+			break
+		}
+	}
+	out = append(out, check("flow", flow, true, flowMsg))
 	n := len(p.Lines)
 	openOK := n >= 3 && lib.ByID[p.Lines[0].Option] != nil && lib.ByID[p.Lines[0].Option].Kind == kindEinreiten
 	out = append(out, check("opening", openOK, true, ternary(openOK,

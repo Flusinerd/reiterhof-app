@@ -150,6 +150,9 @@ func (e *engine) candidates(ph *phase, changes int, first bool, target, phaseSta
 		if isSpecial(o.Kind) || !o.allows(ph.gait) {
 			continue
 		}
+		if e.prev != nil && turnsOnTheSpot(e.lib.ByID[e.prev.Option], o) {
+			continue
+		}
 		canterChangeKind := o.Kind == "diagonale_einfacher_wechsel" || o.Kind == "aussengalopp_kurzseite"
 		switch {
 		case canterChangeKind && !(ph.canterChange && e.mayChange(ph, changes)):
