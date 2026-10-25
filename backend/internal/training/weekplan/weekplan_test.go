@@ -113,7 +113,9 @@ func TestMergeAcceptsAndReplaces(t *testing.T) {
 	props := map[string]Proposal{
 		"2026-09-30": {Activity: training.ActivityLunge, Minutes: 30, Reason: "Nach dem Ausritt gestern etwas Leichtes."},
 		"2026-10-01": {Activity: training.ActivityJumping, Minutes: 40, Reason: "Springen"},
-		"2026-10-02": {Activity: training.ActivityHall, Minutes: 200},
+		// A hack, not the hall: Thursday's replacement is the hall and the same activity is not planned
+		// on two days in a row (variety).
+		"2026-10-02": {Activity: training.ActivityHack, Minutes: 200},
 		"2026-10-03": {Activity: training.ActivityRest},
 	}
 	es := Merge(in, props)
@@ -125,7 +127,7 @@ func TestMergeAcceptsAndReplaces(t *testing.T) {
 		wed.Recommendation.Reason != "Nach dem Ausritt gestern etwas Leichtes." {
 		t.Errorf("wed = %+v", wed)
 	}
-	if thu.Source != SourceRules || thu.Recommendation.Activity == training.ActivityJumping || !strings.Contains(thu.Replaced, "Springen ausgeblendet") {
+	if thu.Source != SourceRules || thu.Recommendation.Activity != training.ActivityHall || !strings.Contains(thu.Replaced, "Springen ausgeblendet") {
 		t.Errorf("thu = %+v", thu)
 	}
 	if fri.Source != SourceAI || fri.Recommendation.Minutes != 60 || fri.Recommendation.Reason != "Vorschlag der KI." {

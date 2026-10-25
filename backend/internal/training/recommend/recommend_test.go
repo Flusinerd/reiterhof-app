@@ -66,12 +66,19 @@ func TestDeterministicTieBreak(t *testing.T) {
 	if !reflect.DeepEqual(r1, r2) {
 		t.Fatal("not deterministic")
 	}
-	want := []training.Activity{training.ActivityHall, training.ActivityArena, training.ActivityHack}
+	// A week without a hack prefers it (WeightHackWeek); once the week has one, the canonical
+	// order of the activities breaks the ties.
+	want := []training.Activity{training.ActivityHack, training.ActivityHall, training.ActivityArena}
 	if !reflect.DeepEqual(acts(r1), want) {
 		t.Errorf("got %v want %v", acts(r1), want)
 	}
 	if len(r1.Hidden) != 0 {
 		t.Errorf("hidden: %v", r1.Hidden)
+	}
+	in.Recent = []training.Session{sess(-2, training.ActivityHack, 20)}
+	r3 := Recommend(in)
+	if want := []training.Activity{training.ActivityHall, training.ActivityArena, training.ActivityLunge}; !reflect.DeepEqual(acts(r3), want) {
+		t.Errorf("with a hack in the week: got %v want %v", acts(r3), want)
 	}
 }
 
@@ -109,8 +116,9 @@ func TestIntenseRecentLoadPrefersLight(t *testing.T) {
 		t.Fatalf("got %v", acts(r))
 	}
 	contains(t, r.Recommendations[0].Reason, "intensiv")
-	if acts(r)[2] != training.ActivityJumping {
-		t.Errorf("jumping should be last: %v", acts(r))
+	// Jumping never comes on two days in a row: it is out the day after jumping.
+	if want := []training.Activity{training.ActivityWalker, training.ActivityHall}; !reflect.DeepEqual(acts(r), want) {
+		t.Errorf("got %v, want %v (no jumping the day after jumping)", acts(r), want)
 	}
 }
 
@@ -433,7 +441,8 @@ func TestRiderRestrictions(t *testing.T) {
 
 	in.Rider.MayHackAlone = true
 	got := acts(Recommend(in))
-	if !reflect.DeepEqual(got, []training.Activity{training.ActivityHall, training.ActivityHack}) {
+	// The week has no hack yet, so the hack comes first (WeightHackWeek).
+	if !reflect.DeepEqual(got, []training.Activity{training.ActivityHack, training.ActivityHall}) {
 		t.Errorf("with hack: %v", got)
 	}
 }
