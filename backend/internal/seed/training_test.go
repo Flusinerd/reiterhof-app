@@ -117,4 +117,12 @@ func TestSeedKeepsLocalTrainingEdits(t *testing.T) {
 	if key != "takt" || !shared {
 		t.Errorf("a second run overwrote local edits: focus %q, shared %v", key, shared)
 	}
+	// Running the seed again adds no second row of the rider focus, the slots, the sessions and the
+	// profiles keep their number (the counts of the other tables are in TestRunIsIdempotent).
+	for table, want := range map[string]int{"rider_focuses": 1, "sessions": 20, "week_slots": 3, "training_profiles": 7} {
+		var got int
+		if err := pool.QueryRow(ctx, "SELECT count(*) FROM "+table).Scan(&got); err != nil || got != want {
+			t.Errorf("%s rows = %d (%v), want %d", table, got, err, want)
+		}
+	}
 }
