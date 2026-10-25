@@ -207,7 +207,7 @@ function Round() {
           className="h-[72px]"
           loading={pending === actions.primary.action}
           disabled={busy && pending !== actions.primary.action}
-          onPress={() => void act(actions.primary.action)}
+          onPress={() => act(actions.primary.action)}
         />
         <View className="flex-row gap-3">
           <Button label="Andere Decke" variant="outline" className="flex-1" disabled={busy} onPress={() => setChoiceOpen(true)} />
@@ -233,7 +233,7 @@ function Round() {
                 className="flex-1"
                 loading={pending === a.action}
                 disabled={busy && pending !== a.action}
-                onPress={() => void act(a.action)}
+                onPress={() => act(a.action)}
               />
             ))}
           </View>

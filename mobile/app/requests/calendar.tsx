@@ -50,7 +50,7 @@ export default function HelperCalendar() {
       ) : query.isError ? (
         <Card className="gap-3">
           <Text variant="body">{requestErrorMessage(query.error)}</Text>
-          <Button label="Erneut versuchen" variant="outline" onPress={() => void query.refetch()} />
+          <Button label="Erneut versuchen" variant="outline" onPress={() => query.refetch()} />
         </Card>
       ) : requests.length === 0 ? (
         <View className="gap-3">
@@ -80,7 +80,7 @@ export default function HelperCalendar() {
         ))
       )}
 
-      <Button label="Kalenderdatei teilen" icon={Share2} variant="outline" fullWidth onPress={() => void shareCalendarFeed()} />
+      <Button label="Kalenderdatei teilen" icon={Share2} variant="outline" fullWidth onPress={() => shareCalendarFeed()} />
     </Screen>
   );
 }

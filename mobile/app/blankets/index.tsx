@@ -21,6 +21,8 @@ import {
 } from "@/lib/blankets";
 import { horseRoutes } from "@/lib/horse-format";
 import { useColors } from "@/lib/theme";
+import { mutationKeys } from "@/lib/query-keys";
+import { usePendingVariables, useSubmitOnce } from "@/lib/use-pending";
 import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 
 /** "Mittwoch, 30. September" */
@@ -39,19 +41,20 @@ export default function Blankets() {
   const { me } = useAuth();
   const today = useToday();
   useRefreshOnFocus([blanketKeys.all]);
-  const setState = useSetState();
-  const [pending, setPending] = useState<{ horseId: string; action: StateAction } | null>(null);
+  // The row moves to "Erledigt" at once and comes back with the error when the call fails.
+  const setState = useSetState({ optimistic: true });
+  // Every horse whose state is being sent shows its own spinner, however many are in flight.
+  const sending = usePendingVariables<{ horseId: string; action: StateAction }>(mutationKeys.blanketState);
+  const pendingOf = (horseId: string) => sending.find((v) => v.horseId === horseId)?.action ?? null;
+  const once = useSubmitOnce();
   const [error, setError] = useState<string | null>(null);
   const timeZone = me?.stable?.timezone ?? "Europe/Berlin";
   const openPlan = (horseId: string) => router.push(horseRoutes.blanketPlan(horseId) as Href);
 
+  /** The promise keeps the tapped button busy; a repeat for the same horse right after a success is ignored. */
   function act(horseId: string, action: StateAction) {
     setError(null);
-    setPending({ horseId, action });
-    setState.mutate(
-      { horseId, action },
-      { onError: (e) => setError(errorMessage(e)), onSettled: () => setPending(null) },
-    );
+    return once.run(horseId, () => setState.mutateAsync({ horseId, action })).catch((e) => setError(errorMessage(e)));
   }
 
   const data = today.data;
@@ -123,7 +126,7 @@ export default function Blankets() {
                     item={item}
                     timeZone={timeZone}
                     last={i === open.length - 1}
-                    pending={pending?.horseId === item.horse.id ? pending.action : null}
+                    pending={pendingOf(item.horse.id)}
                     onAction={(a) => act(item.horse.id, a)}
                     onOpenPlan={() => openPlan(item.horse.id)}
                   />
@@ -146,7 +149,7 @@ export default function Blankets() {
                     item={item}
                     timeZone={timeZone}
                     last={i === done.length - 1}
-                    pending={pending?.horseId === item.horse.id ? pending.action : null}
+                    pending={pendingOf(item.horse.id)}
                     onAction={(a) => act(item.horse.id, a)}
                     onOpenPlan={() => openPlan(item.horse.id)}
                   />

@@ -63,9 +63,17 @@ export function usePresenceCheckIn(): PresenceCheckIn {
     if (!(await consent.ensure("presence_sharing"))) visibilityMutation.mutate("hidden");
   }
 
+  // True from the tap on, also while the consent is checked before the call (the first feedback of the tap).
+  const [checking, setChecking] = useState(false);
   async function arriveOrLeave(arrive: boolean): Promise<void> {
-    if (arrive) await confirmPresenceSharing();
-    toggleVisit.mutate(arrive);
+    if (checking || toggleVisit.isPending) return;
+    setChecking(true);
+    try {
+      if (arrive) await confirmPresenceSharing();
+      await toggleVisit.mutateAsync(arrive).catch(() => undefined); // the error is shown by onError
+    } finally {
+      setChecking(false);
+    }
   }
 
   return {
@@ -75,7 +83,7 @@ export function usePresenceCheckIn(): PresenceCheckIn {
     arriveOrLeave,
     confirmPresenceSharing,
     changeVisibility: (v) => visibilityMutation.mutate(v),
-    toggling: toggleVisit.isPending,
+    toggling: checking || toggleVisit.isPending,
     changingVisibility: visibilityMutation.isPending,
     error,
     sheet: consent.sheet,

@@ -25,6 +25,7 @@ import { bundleText, horseNamesText } from "@/lib/observations";
 import type { Effect } from "@/lib/query-effects";
 import { mutationKeys } from "@/lib/query-keys";
 import { useFrozenOrder } from "@/lib/use-frozen-order";
+import { usePendingIds } from "@/lib/use-pending";
 import { usePullToRefresh } from "@/lib/use-pull-to-refresh";
 import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 
@@ -62,7 +63,12 @@ export default function Health() {
     mutationKey: mutationKeys.healthUndo,
     errorEffects: healthChanged,
   });
-  const remove = useHorseMutation((itemId: string) => horsesApi.removeHealthItem(itemId), healthChanged);
+  const remove = useHorseMutation((itemId: string) => horsesApi.removeHealthItem(itemId), healthChanged, {
+    mutationKey: mutationKeys.healthRemove,
+  });
+  // Rows whose "Erledigt" or "Rückgängig" is running, also when it was started on the horse page.
+  const doing = usePendingIds(mutationKeys.healthDone, (item: HealthItem) => item.id);
+  const undoing = usePendingIds(mutationKeys.healthUndo, (item: HealthItem) => item.id);
   const [sheet, setSheet] = useState<{ item: HealthItem | null } | null>(null);
   const [ending, setEnding] = useState<HealthItem | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -209,10 +215,10 @@ export default function Health() {
                 {canManage || item.kind === "farrier" ? (
                   <View className="-ml-4 flex-row flex-wrap">
                     {state ? (
-                      <View className="ml-4 flex-row flex-wrap items-center gap-3">
-                        <View className="flex-row items-center gap-2">
+                      <View className="ml-4 shrink flex-row flex-wrap items-center gap-3">
+                        <View className="shrink flex-row items-center gap-2">
                           <Icon as={Check} size={18} className="text-success" />
-                          <View>
+                          <View className="shrink">
                             <Text variant="bodyStrong" tone="success">
                               {state.title}
                             </Text>
@@ -225,6 +231,7 @@ export default function Health() {
                             icon={Undo2}
                             size="sm"
                             variant="ghost"
+                            loading={undoing.has(item.id)}
                             onPress={() => run(item, () => undo.mutateAsync(item))}
                           />
                         ) : null}
@@ -235,6 +242,7 @@ export default function Health() {
                         icon={Check}
                         size="sm"
                         variant="ghost"
+                        loading={doing.has(item.id)}
                         onPress={() => markDone(item)}
                       />
                     ) : null}
@@ -264,6 +272,7 @@ export default function Health() {
         onOpenChange={(open) => !open && setSheet(null)}
         item={sheet?.item ?? null}
         saving={save.isPending}
+        deleting={remove.isPending}
         error={error}
         onSave={async (input) => {
           setError(null);

@@ -204,8 +204,8 @@ export default function NewObservation() {
         ) : null}
         {photos.length < MAX_PHOTOS ? (
           <View className="flex-row gap-3">
-            <Button label="Aufnehmen" icon={Camera} variant="outline" className="flex-1" onPress={() => void takePhoto()} />
-            <Button label="Aus Fotos" icon={ImageIcon} variant="outline" className="flex-1" onPress={() => void pickPhotos()} />
+            <Button label="Aufnehmen" icon={Camera} variant="outline" className="flex-1" onPress={() => takePhoto()} />
+            <Button label="Aus Fotos" icon={ImageIcon} variant="outline" className="flex-1" onPress={() => pickPhotos()} />
           </View>
         ) : null}
         <Text variant="caption">Max. {MAX_PHOTOS} Fotos.</Text>
@@ -234,7 +234,7 @@ export default function NewObservation() {
         size="lg"
         fullWidth
         loading={sending}
-        onPress={() => void submit()}
+        onPress={() => submit()}
       />
       {consent.sheet}
     </Screen>

@@ -24,11 +24,15 @@ import {
   requestTitle,
   statusBadge,
   taskChips,
+  withMyReminder,
+  withThanked,
   type HelpRequest,
   type ReminderOption,
 } from "@/lib/requests";
 import { addToDeviceCalendar } from "@/lib/requests-calendar";
 import { requestErrorMessage } from "@/lib/requests-errors";
+import { mutationKeys } from "@/lib/query-keys";
+import { usePendingIds } from "@/lib/use-pending";
 import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 
 /** A fact of the request: the label in the eyebrow style on the left, the value on the right, a hairline below. */
@@ -82,6 +86,9 @@ export default function RequestDetail() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
+  // Errors of the small changes appear in their own section, where the user tapped.
+  const [remindError, setRemindError] = useState<string | null>(null);
+  const [thankError, setThankError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
@@ -107,19 +114,45 @@ export default function RequestDetail() {
     errorEffects: () => [{ type: "request" }], // a conflict (full, cancelled) means the view was stale
   });
 
+  /** Shows a change at once (before the answer) and gives the previous state back when it fails. */
+  async function showAtOnce(change: (request: HelpRequest) => HelpRequest) {
+    await queryClient.cancelQueries({ queryKey: requestKeys.detail(id) });
+    const previous = queryClient.getQueryData<HelpRequest>(requestKeys.detail(id));
+    if (previous) queryClient.setQueryData(requestKeys.detail(id), change(previous));
+    return { previous };
+  }
+  function giveBack(context: { previous?: HelpRequest } | undefined) {
+    if (context?.previous) queryClient.setQueryData(requestKeys.detail(id), context.previous);
+  }
+
   const remind = useEffectMutation({
     mutationFn: (value: ReminderOption) => requestsApi.setReminder(id, reminderAt(value, r?.date ?? "", r?.time_from ?? null)),
-    onMutate: () => setError(null),
+    onMutate: (value) => {
+      setRemindError(null);
+      return showAtOnce((old) => withMyReminder(old, reminderAt(value, old.date, old.time_from)));
+    },
     onSuccess: storeDetail,
-    onError: (e) => setError(requestErrorMessage(e)),
+    onError: (e, _value, context) => {
+      giveBack(context);
+      setRemindError(requestErrorMessage(e));
+    },
     effects: () => [{ type: "request" }],
   });
 
   const thank = useEffectMutation({
     mutationFn: (userId: string) => requestsApi.thank(id, userId),
-    onError: (e) => setError(requestErrorMessage(e)),
+    mutationKey: mutationKeys.requestThank,
+    onMutate: (userId) => {
+      setThankError(null);
+      return showAtOnce((old) => withThanked(old, userId));
+    },
+    onError: (e, _userId, context) => {
+      giveBack(context);
+      setThankError(requestErrorMessage(e));
+    },
     effects: () => [{ type: "request" }],
   });
+  const thanking = usePendingIds(mutationKeys.requestThank, (userId: string) => userId);
 
   if (query.isPending) {
     return (
@@ -132,7 +165,7 @@ export default function RequestDetail() {
     return (
       <Screen back>
         <PageHeader title="Anfrage nicht gefunden" description={requestErrorMessage(query.error)} />
-        <Button label="Erneut versuchen" variant="outline" onPress={() => void query.refetch()} />
+        <Button label="Erneut versuchen" variant="outline" onPress={() => query.refetch()} />
       </Screen>
     );
   }
@@ -154,15 +187,17 @@ export default function RequestDetail() {
   ];
 
   // The one primary action of the page: accept, else mark as done.
+  // The promise keeps the button busy until the page shows the result; the error is shown by `onError`.
+  const act = (call: () => Promise<HelpRequest>) => action.mutateAsync(call).catch(() => undefined);
   const primary = r.can_accept
-    ? { label: acceptLabel(r.type), icon: HandHeart, run: () => action.mutate(() => requestsApi.accept(r.id)) }
+    ? { label: acceptLabel(r.type), icon: HandHeart, run: () => act(() => requestsApi.accept(r.id)) }
     : involved && active
-      ? { label: "Erledigt", icon: CheckCheck, run: () => action.mutate(() => requestsApi.done(r.id)) }
+      ? { label: "Erledigt", icon: CheckCheck, run: () => act(() => requestsApi.done(r.id)) }
       : null;
 
-  const quiet: { icon: LucideIcon; label: string; tone?: "danger"; run: () => void }[] = [
+  const quiet: { icon: LucideIcon; label: string; tone?: "danger"; run: () => unknown }[] = [
     ...(r.is_helper && active
-      ? [{ icon: UserMinus, label: "Abmelden", run: () => action.mutate(() => requestsApi.withdraw(r.id)) }]
+      ? [{ icon: UserMinus, label: "Abmelden", run: () => act(() => requestsApi.withdraw(r.id)) }]
       : []),
     ...(r.status !== "cancelled" && involved ? [{ icon: Calendar, label: "In Kalender", run: () => void exportToCalendar() }] : []),
     ...(canManage && active ? [{ icon: X, label: "Anfrage absagen", tone: "danger" as const, run: () => setCancelOpen(true) }] : []),
@@ -222,10 +257,16 @@ export default function RequestDetail() {
                 key={o.value}
                 label={o.label}
                 selected={currentReminder(r.my_remind_at, r.date, r.time_from) === o.value}
+                disabled={remind.isPending}
                 onPress={() => remind.mutate(o.value)}
               />
             ))}
           </View>
+          {remindError ? (
+            <Text variant="bodySm" tone="danger" accessibilityRole="alert">
+              {remindError}
+            </Text>
+          ) : null}
           {currentReminder(r.my_remind_at, r.date, r.time_from) === null && r.my_remind_at ? (
             <Text variant="secondary">Aktuell: {formatInstant(r.my_remind_at)}</Text>
           ) : null}
@@ -254,6 +295,11 @@ export default function RequestDetail() {
       ) : null}
 
       <Section title="Helfer" description={helperStatusText(r.helpers_count, r.helpers_needed, r.type)}>
+        {thankError ? (
+          <Text variant="bodySm" tone="danger" accessibilityRole="alert">
+            {thankError}
+          </Text>
+        ) : null}
         {r.helpers.length === 0 ? (
           <Text variant="body" tone="muted">
             Noch niemand.
@@ -274,7 +320,7 @@ export default function RequestDetail() {
                     Bedankt
                   </Text>
                 ) : r.is_creator && r.status !== "cancelled" ? (
-                  <Pill label="Danke" icon={Heart} onPress={() => thank.mutate(h.user_id)} />
+                  <Pill label="Danke" icon={Heart} disabled={thanking.has(h.user_id)} onPress={() => thank.mutate(h.user_id)} />
                 ) : null}
               </View>
             ))}

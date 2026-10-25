@@ -1,7 +1,7 @@
 // API calls and react-query hooks for blankets, rules, the plan and day states
 // (backend: internal/blankets; docs/domains/blankets.md).
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { API_URL, authed } from "../api";
 import { ApiError, parseErrorBody } from "../api-core.ts";
@@ -15,6 +15,8 @@ import type {
   StateAction,
   Today,
 } from "../blankets.ts";
+import { withState } from "../blankets.ts";
+import { useAuth } from "../auth";
 import { blanketKeys, mutationKeys } from "../query-keys.ts";
 import { getToken } from "../token";
 import { useEffectMutation } from "./mutation";
@@ -123,13 +125,33 @@ export const useHistory = (horseId: string, days = 14) =>
  * Sets the day state of a horse. Refreshes the blankets, the reminder center (the blanket check) and, when
  * blanket requests were closed, the requests, and stays pending until that is done: the buttons of a row do
  * not come back before the row shows its new state.
+ *
+ * With `optimistic` the board shows the new state at once (the row moves to "Erledigt") and gives the old
+ * one back when the call fails. The round does not use it: it advances by the refetched board.
  */
-export function useSetState() {
+export function useSetState({ optimistic = false }: { optimistic?: boolean } = {}) {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
   return useEffectMutation({
     mutationFn: (v: { horseId: string; action: StateAction; coveredWith?: string }) =>
       blanketsApi.setState(v.horseId, v.action, v.coveredWith),
     mutationKey: mutationKeys.blanketState,
+    onMutate: async (v) => {
+      if (!optimistic) return { previous: undefined };
+      await queryClient.cancelQueries({ queryKey: blanketKeys.today });
+      const previous = queryClient.getQueryData<Today>(blanketKeys.today);
+      if (previous) {
+        const by = user ? { id: user.id, name: user.name } : null;
+        queryClient.setQueryData(blanketKeys.today, withState(previous, v.horseId, v.action, by, new Date().toISOString(), v.coveredWith));
+      }
+      return { previous };
+    },
+    onError: (_error, _vars, context) => {
+      if (context?.previous) queryClient.setQueryData(blanketKeys.today, context.previous);
+    },
     effects: (_vars, result) => [{ type: "blanketState", closedRequests: result.closed_requests.length > 0 }],
+    // The board shows what the server has after a failure, too (somebody else may have been first).
+    errorEffects: () => [{ type: "blanketState", closedRequests: false }],
   });
 }
 

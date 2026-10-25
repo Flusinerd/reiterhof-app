@@ -24,7 +24,7 @@ export function MapConsentGate({ children, height = 280 }: { children: ReactNode
           Die Karte lädt Kartenkacheln von Apple, Google oder OpenFreeMap. Der Dienst sieht dabei deine IP-Adresse und die Gegend
           deiner Strecke. Die Aufzeichnung läuft auch ohne Karte.
         </Text>
-        {granted === false ? <Button label="Karte anzeigen" variant="outline" size="sm" onPress={() => void consent.ensure("maps")} /> : null}
+        {granted === false ? <Button label="Karte anzeigen" variant="outline" size="sm" onPress={() => consent.ensure("maps")} /> : null}
       </View>
       {consent.sheet}
     </>

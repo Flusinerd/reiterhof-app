@@ -25,14 +25,14 @@ export function StartRequests() {
   const { user } = useAuth();
   const today = useMemo(() => toIsoDate(new Date()), []);
   const list = useQuery({ queryKey: requestKeys.list(PARAMS), queryFn: () => requestsApi.list(PARAMS) });
-  const { accept, acceptingId, error } = useAcceptRequest();
+  const { accept, accepting, error } = useAcceptRequest();
 
   if (list.isPending) return <ActivityIndicator color={c.primary.DEFAULT} className="self-start" />;
   if (list.isError) {
     return (
       <View className="gap-3">
         <Text variant="body">{requestErrorMessage(list.error)}</Text>
-        <Button label="Erneut versuchen" variant="outline" size="sm" onPress={() => void list.refetch()} />
+        <Button label="Erneut versuchen" variant="outline" size="sm" onPress={() => list.refetch()} />
       </View>
     );
   }
@@ -52,7 +52,7 @@ export function StartRequests() {
           today={today}
           userId={user?.id}
           last={i === requests.length - 1}
-          accepting={acceptingId === r.id}
+          accepting={accepting.has(r.id)}
           onOpen={() => router.push({ pathname: "/requests/[id]", params: { id: r.id } })}
           onAccept={() => accept(r.id)}
         />

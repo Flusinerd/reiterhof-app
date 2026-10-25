@@ -278,7 +278,7 @@ export default function BlanketPlan() {
                 {noteError}
               </Text>
             ) : null}
-            <Button label="Speichern" fullWidth loading={saveNote.isPending} onPress={() => void submitNote()} />
+            <Button label="Speichern" fullWidth loading={saveNote.isPending} onPress={() => submitNote()} />
           </Sheet>
         </>
       ) : null}

@@ -124,7 +124,7 @@ export function HorseDiary({ horse, timeZone }: { horse: Horse; timeZone: string
           variant="outline"
           size="sm"
           loading={diary.isFetchingNextPage}
-          onPress={() => void diary.fetchNextPage()}
+          onPress={() => diary.fetchNextPage()}
         />
       ) : null}
     </View>

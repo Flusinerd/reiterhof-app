@@ -25,7 +25,7 @@ export function PresenceButton() {
         accessibilityHint="Lange drücken zeigt, wer im Stall ist."
         loading={presence.toggling}
         disabled={presence.overview.isPending}
-        onPress={() => void presence.arriveOrLeave(!presence.here)}
+        onPress={() => presence.arriveOrLeave(!presence.here)}
         onLongPress={() => router.push("/presence")}
       />
       {presence.sheet}

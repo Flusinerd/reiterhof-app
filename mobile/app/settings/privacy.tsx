@@ -106,7 +106,7 @@ export default function PrivacySettings() {
             <Text variant="body" tone="danger">
               {(consents.error instanceof ApiError ? consentErrorMessage(consents.error.code) : null) ?? errorMessage(consents.error)}
             </Text>
-            <Button label="Erneut versuchen" variant="outline" onPress={() => void consents.refetch()} />
+            <Button label="Erneut versuchen" variant="outline" onPress={() => consents.refetch()} />
           </View>
         ) : (
           <RowList>
@@ -129,7 +129,7 @@ export default function PrivacySettings() {
       </Section>
 
       <Section title="Deine Daten" description="Alle über dich gespeicherten Daten als JSON-Datei.">
-        <Button label="Daten exportieren" icon={Download} variant="outline" fullWidth loading={exporting} onPress={() => void exportData()} />
+        <Button label="Daten exportieren" icon={Download} variant="outline" fullWidth loading={exporting} onPress={() => exportData()} />
       </Section>
 
       <Section title="Rechtliches">

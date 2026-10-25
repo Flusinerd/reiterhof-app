@@ -195,6 +195,15 @@ async function send<T>(method: "PUT" | "DELETE", path: string, body?: unknown): 
   return (text ? JSON.parse(text) : undefined) as T;
 }
 
+/** A delete of something that is gone already (the first call worked, a repeat answers 404) counts as done. */
+async function deleted(call: Promise<void>): Promise<void> {
+  try {
+    await call;
+  } catch (err) {
+    if (!(err instanceof ApiError && err.status === 404)) throw err;
+  }
+}
+
 // --- endpoints -----------------------------------------------------------------------------
 
 export const horsesApi = {
@@ -206,7 +215,7 @@ export const horsesApi = {
   setRider: (horseId: string, userId: string, rules: string[]) =>
     send<Rider>("PUT", `/api/v1/horses/${horseId}/riders/${userId}`, { rules }),
   removeRider: (horseId: string, userId: string) =>
-    send<void>("DELETE", `/api/v1/horses/${horseId}/riders/${userId}`),
+    deleted(send<void>("DELETE", `/api/v1/horses/${horseId}/riders/${userId}`)),
 
   emergency: (id: string) => authed.get<EmergencyCard>(`/api/v1/horses/${id}/emergency`),
   addContact: (id: string, c: Omit<Contact, "id">) =>
@@ -214,14 +223,14 @@ export const horsesApi = {
   updateContact: (id: string, contactId: string, c: Partial<Omit<Contact, "id">>) =>
     authed.patch<Contact>(`/api/v1/horses/${id}/emergency-contacts/${contactId}`, c),
   removeContact: (id: string, contactId: string) =>
-    send<void>("DELETE", `/api/v1/horses/${id}/emergency-contacts/${contactId}`),
+    deleted(send<void>("DELETE", `/api/v1/horses/${id}/emergency-contacts/${contactId}`)),
 
   health: (id: string) => authed.get<HealthResponse>(`/api/v1/horses/${id}/health`),
   addHealthItem: (id: string, input: HealthInput) =>
     authed.post<HealthItem>(`/api/v1/horses/${id}/health-items`, input),
   updateHealthItem: (itemId: string, input: HealthInput) =>
     authed.patch<HealthItem>(`/api/v1/health-items/${itemId}`, input),
-  removeHealthItem: (itemId: string) => send<void>("DELETE", `/api/v1/health-items/${itemId}`),
+  removeHealthItem: (itemId: string) => deleted(send<void>("DELETE", `/api/v1/health-items/${itemId}`)),
   /**
    * "Erledigt". Once per day on the server: a repeat answers with the unchanged item. `seenDueDate` is the date the
    * app showed ("" = none); 409 `due_date_changed` when somebody else moved it meanwhile. For a medication it ends the course.
@@ -242,7 +251,7 @@ export const horsesApi = {
   updateDocument: (id: string, docId: string, input: { kind?: string; title?: string }) =>
     authed.patch<HorseDocument>(`/api/v1/horses/${id}/documents/${docId}`, input),
   removeDocument: (id: string, docId: string) =>
-    send<void>("DELETE", `/api/v1/horses/${id}/documents/${docId}`),
+    deleted(send<void>("DELETE", `/api/v1/horses/${id}/documents/${docId}`)),
 };
 
 // --- query keys and hooks ------------------------------------------------------------------

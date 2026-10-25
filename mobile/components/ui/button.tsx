@@ -1,8 +1,10 @@
 import type { LucideIcon } from "lucide-react-native";
 import { cva, type VariantProps } from "class-variance-authority";
-import { ActivityIndicator, Pressable, type PressableProps } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Pressable, type GestureResponderEvent, type PressableProps } from "react-native";
 
 import { cn } from "@/lib/cn";
+import { runPress, type PressGuard } from "@/lib/press-guard";
 import { useColors, type Palette } from "@/lib/theme";
 
 import { Icon } from "./icon";
@@ -63,7 +65,7 @@ function spinnerColor(c: Palette, variant: ButtonVariant): string {
 export type ButtonVariant = NonNullable<VariantProps<typeof buttonVariants>["variant"]>;
 export type ButtonSize = NonNullable<VariantProps<typeof buttonVariants>["size"]>;
 
-export type ButtonProps = Omit<PressableProps, "children" | "disabled"> & {
+export type ButtonProps = Omit<PressableProps, "children" | "disabled" | "onPress"> & {
   /** German label. Optional only for `size="icon"`, where `accessibilityLabel` is required. */
   label?: string;
   variant?: ButtonVariant;
@@ -76,6 +78,12 @@ export type ButtonProps = Omit<PressableProps, "children" | "disabled"> & {
   /** Stretch to the container width. */
   fullWidth?: boolean;
   className?: string;
+  /**
+   * Return the promise of the work the press starts (`onPress={() => save()}`): the button shows its
+   * spinner until it settles and ignores every press meanwhile, also a second tap that arrives before
+   * React has re-rendered. A handler that returns nothing is a plain action.
+   */
+  onPress?: (event: GestureResponderEvent) => unknown;
 };
 
 /**
@@ -92,21 +100,38 @@ export function Button({
   disabled = false,
   fullWidth = false,
   className,
+  onPress,
   ...props
 }: ButtonProps) {
   const c = useColors();
-  const isDisabled = disabled || loading;
+  const guard = useRef<PressGuard>({ locked: false });
+  const mounted = useRef(true);
+  const [running, setRunning] = useState(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  const busy = loading || running;
+  const isDisabled = disabled || busy;
   const iconSize = size === "sm" ? 16 : 20;
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={{ disabled: isDisabled, busy: loading }}
+      accessibilityState={{ disabled: isDisabled, busy }}
       disabled={isDisabled}
       className={cn(buttonVariants({ variant, size, fullWidth, disabled: isDisabled }), className)}
       {...props}
+      onPress={(event) =>
+        runPress(guard.current, () => onPress?.(event), {
+          start: () => setRunning(true),
+          end: () => mounted.current && setRunning(false),
+        })
+      }
     >
-      {loading ? (
+      {busy ? (
         <ActivityIndicator size="small" color={spinnerColor(c, variant)} />
       ) : icon ? (
         <Icon as={icon} size={iconSize} className={iconColorClass[variant]} />

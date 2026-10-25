@@ -82,7 +82,7 @@ export function ConsentSheet({ kind, onDone }: ConsentSheetProps) {
               {error}
             </Text>
           ) : null}
-          <Button label={copy.accept} fullWidth loading={busy} onPress={() => void accept()} />
+          <Button label={copy.accept} fullWidth loading={busy} onPress={() => accept()} />
           <Button label="Nicht jetzt" variant="outline" fullWidth disabled={busy} onPress={() => finish(false)} />
           <Button
             label="Mehr erfahren"
@@ -124,7 +124,9 @@ export function useConsentPrompt(): {
     async (wanted: ConsentKind, onBeforePrompt?: () => void) => {
       let items;
       try {
-        items = (await queryClient.fetchQuery({ queryKey: CONSENTS_KEY, queryFn: privacyApi.consents, staleTime: 0 })).items;
+        // A minute-old answer is as good as a fresh one (a change in the settings invalidates it, and the server
+        // still refuses what lacks a consent): no round trip before the first feedback of a tap.
+        items = (await queryClient.fetchQuery({ queryKey: CONSENTS_KEY, queryFn: privacyApi.consents, staleTime: 60_000 })).items;
       } catch {
         items = undefined; // offline: ask; the server call reports the problem if it persists
       }

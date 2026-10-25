@@ -35,7 +35,7 @@ export default function Requests() {
   const list = useQuery({ queryKey: requestKeys.list(params), queryFn: () => requestsApi.list(params) });
   useRefreshOnFocus([requestKeys.all]);
   const thanks = useQuery({ queryKey: requestKeys.thanks, queryFn: requestsApi.myThanks });
-  const { accept, acceptingId, error } = useAcceptRequest();
+  const { accept, accepting, error } = useAcceptRequest();
 
   const open = list.data?.open_count ?? 0;
   const requests = list.data?.requests ?? [];
@@ -91,7 +91,7 @@ export default function Requests() {
       ) : list.isError ? (
         <Card className="gap-3">
           <Text variant="body">{requestErrorMessage(list.error)}</Text>
-          <Button label="Erneut versuchen" variant="outline" onPress={() => void list.refetch()} />
+          <Button label="Erneut versuchen" variant="outline" onPress={() => list.refetch()} />
         </Card>
       ) : requests.length === 0 ? (
         <Text variant="body" tone="muted">
@@ -110,7 +110,7 @@ export default function Requests() {
                   userId={user?.id}
                   withDay={false}
                   last={i === group.items.length - 1}
-                  accepting={acceptingId === r.id}
+                  accepting={accepting.has(r.id)}
                   onOpen={() => router.push({ pathname: "/requests/[id]", params: { id: r.id } })}
                   onAccept={() => accept(r.id)}
                 />

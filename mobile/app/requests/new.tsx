@@ -123,8 +123,12 @@ export default function NewRequest() {
     if (type !== "show_helper" && tasks.length > 0) input.tasks = tasks;
     const rule = dateEnd ? "" : buildRule(recurrence, date);
     if (rule) input.recurring_rule = rule;
-    // The per-call callback runs after the lists are refreshed: the detail page opens on a list that has the request.
-    create.mutate(input, { onSuccess: (created) => router.replace({ pathname: "/requests/[id]", params: { id: created.id } }) });
+    // The promise locks the button from the tap on, so a fast second tap cannot create the request twice. It
+    // settles after the lists are refreshed: the detail page opens on a list that has the request.
+    return create
+      .mutateAsync(input)
+      .then((created) => router.replace({ pathname: "/requests/[id]", params: { id: created.id } }))
+      .catch(() => undefined); // the error is shown by onError
   }
 
   function addTask() {

@@ -39,17 +39,16 @@ export function QuickLogSheet({
     onOpenChange(next);
   };
 
+  // The promise locks the button from the tap on (a second tap would log the ride twice); the error shows below.
   const save = () => {
     if (!activity || !minutes) return;
-    create.mutate(
-      { activity, minutes },
-      {
-        onSuccess: () => {
-          close(false);
-          onSaved?.();
-        },
-      },
-    );
+    return create
+      .mutateAsync({ activity, minutes })
+      .then(() => {
+        close(false);
+        onSaved?.();
+      })
+      .catch(() => undefined);
   };
 
   return (

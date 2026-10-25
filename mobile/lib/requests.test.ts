@@ -32,7 +32,10 @@ import {
   toIsoDate,
   toQuery,
   typeMeta,
+  withMyReminder,
+  withThanked,
   REQUEST_TYPES,
+  type HelpRequest,
 } from "./requests.ts";
 
 test("every type has a German label, an icon and an accept text", () => {
@@ -239,4 +242,20 @@ test("addMonths and monthTitle wrap over year borders", () => {
   assert.deepEqual(addMonths(2026, 12, 1), { year: 2027, month: 1 });
   assert.deepEqual(addMonths(2026, 1, -1), { year: 2025, month: 12 });
   assert.equal(monthTitle(2026, 10), "Oktober 2026");
+});
+
+test("optimistic updates of the request detail: thank a helper, set the own reminder", () => {
+  const request = {
+    helpers: [
+      { user_id: "a", name: "Anna", avatar_color: null, thanked: false },
+      { user_id: "b", name: "Ben", avatar_color: null, thanked: false },
+    ],
+    my_remind_at: null,
+  } as unknown as HelpRequest;
+  const thanked = withThanked(request, "b");
+  assert.deepEqual(thanked.helpers.map((h) => h.thanked), [false, true]);
+  assert.equal(request.helpers[1]?.thanked, false, "the cached request is not changed in place");
+  assert.equal(withThanked(request, "unknown").helpers.every((h) => !h.thanked), true);
+  assert.equal(withMyReminder(request, "2026-10-01T16:00:00.000Z").my_remind_at, "2026-10-01T16:00:00.000Z");
+  assert.equal(withMyReminder({ ...request, my_remind_at: "x" }, null).my_remind_at, null);
 });

@@ -17,7 +17,8 @@ export type ReminderRowProps = {
   dismissing?: boolean;
   /** Called with the route when the row is tapped (only for items with an internal screen). */
   onOpen: (screen: string) => void;
-  onDismiss: (item: ReminderItem) => void;
+  /** May return a promise: the button stays busy until it settles. */
+  onDismiss: (item: ReminderItem) => void | Promise<unknown>;
 };
 
 /**

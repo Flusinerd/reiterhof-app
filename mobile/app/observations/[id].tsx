@@ -79,7 +79,7 @@ export default function ObservationDetail() {
                 key={m.path}
                 accessibilityRole="imagebutton"
                 accessibilityLabel={`Foto ${i + 1} öffnen`}
-                onPress={() => void openStoredFile(m.url).catch((e) => setError(errorMessage(e)))}
+                onPress={() => openStoredFile(m.url).catch((e) => setError(errorMessage(e)))}
               >
                 <AuthImage
                   url={m.url}
@@ -105,7 +105,7 @@ export default function ObservationDetail() {
             variant={o.status === "watch" ? "primary" : "outline"}
             fullWidth
             loading={setStatus.isPending}
-            onPress={() => void change()}
+            onPress={() => change()}
           />
         ) : (
           <Text variant="caption">Status ändern nur Besitzer, Admins und Melder.</Text>

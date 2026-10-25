@@ -9,6 +9,7 @@ import { RowList } from "@/components/ui/list-row";
 import { errorMessage } from "@/lib/api";
 import { horsesApi, useEmergency, useHorseMutation, type Contact } from "@/lib/api/horses";
 import { horseRoutes, telUrl } from "@/lib/horse-format";
+import { mutationKeys } from "@/lib/query-keys";
 import { usePullToRefresh } from "@/lib/use-pull-to-refresh";
 
 type CallRowProps = { label: string; name: string | null | undefined; phone: string | null | undefined; onEdit?: () => void };
@@ -36,7 +37,7 @@ function CallRow({ label, name, phone, onEdit }: CallRowProps) {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`${name ?? label} anrufen`}
-          onPress={() => void Linking.openURL(url)}
+          onPress={() => Linking.openURL(url)}
           className="flex-1 flex-row items-center gap-3 active:opacity-70"
         >
           {body}
@@ -77,6 +78,7 @@ export default function Emergency() {
   const remove = useHorseMutation(
     (contactId: string) => horsesApi.removeContact(id, contactId),
     () => [{ type: "emergency", horseId: id }],
+    { mutationKey: mutationKeys.contactRemove },
   );
   const [draft, setDraft] = useState<ContactDraft | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -224,12 +226,14 @@ export default function Emergency() {
                 {error}
               </Text>
             ) : null}
-            <Button label="Speichern" fullWidth loading={save.isPending} onPress={saveDraft} />
+            <Button label="Speichern" fullWidth loading={save.isPending} disabled={remove.isPending} onPress={saveDraft} />
             {draft.id ? (
               <Button
                 label="Kontakt löschen"
                 variant="ghost"
                 fullWidth
+                loading={remove.isPending}
+                disabled={save.isPending}
                 onPress={() => confirmRemove(draft as Contact)}
               />
             ) : null}

@@ -21,6 +21,8 @@ import {
   uploadFile,
   type UploadInput,
 } from "@/lib/upload";
+import { mutationKeys } from "@/lib/query-keys";
+import { usePendingIds } from "@/lib/use-pending";
 import { usePullToRefresh } from "@/lib/use-pull-to-refresh";
 
 /** Documents of a horse (JAN-53): equine passport, vaccination record, insurance, other. */
@@ -39,7 +41,9 @@ export default function Documents() {
   const remove = useHorseMutation(
     (docId: string) => horsesApi.removeDocument(id, docId),
     () => [{ type: "documents", horseId: id }],
+    { mutationKey: mutationKeys.documentRemove },
   );
+  const removing = usePendingIds(mutationKeys.documentRemove, (docId: string) => docId);
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<string>("passport");
   const [title, setTitle] = useState("");
@@ -177,13 +181,14 @@ export default function Documents() {
               detail={formatDate(doc.created_at)}
               accessibilityLabel={`${doc.title} öffnen`}
               chevron={false}
-              onPress={() => void openStoredFile(doc.url).catch((e) => setError(errorMessage(e)))}
+              onPress={() => openStoredFile(doc.url).catch((e) => setError(errorMessage(e)))}
               trailing={
                 canManage ? (
                   <Button
                     size="icon"
                     variant="ghost"
                     icon={Trash2}
+                    loading={removing.has(doc.id)}
                     accessibilityLabel={`${doc.title} löschen`}
                     onPress={() => confirmRemove(doc)}
                   />
@@ -206,9 +211,9 @@ export default function Documents() {
             {error}
           </Text>
         ) : null}
-        <Button label="Foto aufnehmen" icon={Camera} variant="outline" fullWidth loading={busy} onPress={() => void takePhoto()} />
-        <Button label="Aus Fotos wählen" icon={ImageIcon} variant="outline" fullWidth loading={busy} onPress={() => void pickPhoto()} />
-        <Button label="Datei wählen (PDF)" icon={Paperclip} fullWidth loading={busy} onPress={() => void pickFile()} />
+        <Button label="Foto aufnehmen" icon={Camera} variant="outline" fullWidth loading={busy} onPress={() => takePhoto()} />
+        <Button label="Aus Fotos wählen" icon={ImageIcon} variant="outline" fullWidth loading={busy} onPress={() => pickPhoto()} />
+        <Button label="Datei wählen (PDF)" icon={Paperclip} fullWidth loading={busy} onPress={() => pickFile()} />
       </Sheet>
       {consent.sheet}
     </Screen>

@@ -105,7 +105,7 @@ export function Settings({ back }: { back: boolean }) {
             <Text variant="secondary">
               Ohne deine Erlaubnis kommen keine Mitteilungen, egal was du unten einstellst. Erinnerungen siehst du trotzdem in der Übersicht.
             </Text>
-            <Button label="Erlauben" variant="outline" size="sm" onPress={() => void allowPush()} />
+            <Button label="Erlauben" variant="outline" size="sm" onPress={() => allowPush()} />
           </View>
         ) : null}
         <WebPushCard />
@@ -116,7 +116,7 @@ export function Settings({ back }: { back: boolean }) {
             <Text variant="body" tone="danger">
               {errorMessage(settings.error)}
             </Text>
-            <Button label="Erneut versuchen" variant="outline" onPress={() => void settings.refetch()} />
+            <Button label="Erneut versuchen" variant="outline" onPress={() => settings.refetch()} />
           </View>
         ) : (
           <RowList>
@@ -164,7 +164,7 @@ export function Settings({ back }: { back: boolean }) {
             onPress={() => router.push("/settings/privacy" as Href)}
           />
         </RowList>
-        <Button label="Abmelden" icon={LogOut} variant="outline" fullWidth loading={signingOut} onPress={() => void leave()} />
+        <Button label="Abmelden" icon={LogOut} variant="outline" fullWidth loading={signingOut} onPress={() => leave()} />
       </Section>
       {prompt.sheet}
     </Screen>

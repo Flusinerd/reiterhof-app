@@ -49,7 +49,7 @@ export function ReminderTimeCard() {
         <Text variant="body" tone="danger">
           {reminderErrorMessage(query.error)}
         </Text>
-        <Button label="Erneut versuchen" variant="outline" onPress={() => void query.refetch()} />
+        <Button label="Erneut versuchen" variant="outline" onPress={() => query.refetch()} />
       </View>
     );
   }

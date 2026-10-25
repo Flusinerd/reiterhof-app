@@ -415,6 +415,41 @@ export function stateLabel(state: BlanketState): string {
   return actionLabel(state.action);
 }
 
+/**
+ * Tonight's board as it will look once `action` is recorded for the horse (optimistic update: the row
+ * moves to "Erledigt" before the answer arrives). The state is provisional (no id, the name of the blanket
+ * of "mit anderer Decke" unknown); the refetch after the write replaces it. Returns `today` unchanged
+ * when the horse is not on the board.
+ */
+export function withState(
+  today: Today,
+  horseId: string,
+  action: StateAction,
+  by: { id: string; name: string } | null,
+  nowIso: string,
+  coveredWith: string | null = null,
+): Today {
+  const target = today.horses.find((h) => h.horse.id === horseId);
+  if (!target) return today;
+  const state: BlanketState = {
+    id: "pending",
+    horse_id: horseId,
+    day: today.day,
+    action,
+    covered_with: action === "covered" ? coveredWith : null,
+    covered_with_name: null,
+    changed_at: nowIso,
+    changed_by: by,
+    automatic: false,
+  };
+  const wasDone = target.done;
+  return {
+    ...today,
+    progress: { ...today.progress, done: wasDone ? today.progress.done : today.progress.done + 1 },
+    horses: today.horses.map((h) => (h.horse.id === horseId ? { ...h, state, done: true } : h)),
+  };
+}
+
 /** "Mia, 19:04", "Hof, 12:30" for automatic states (time in the stable's time zone). */
 export function stateByline(state: BlanketState, timeZone: string): string {
   const time = formatClock(state.changed_at, timeZone);
