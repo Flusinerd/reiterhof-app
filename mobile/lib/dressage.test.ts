@@ -29,6 +29,7 @@ import {
   setSummary,
   shareText,
   spokenSeconds,
+  splitChecks,
   toggleMovement,
   updateMovement,
   type PlanLine,
@@ -249,4 +250,20 @@ test("classes: ceiling by goal or level and the default", () => {
   assert.equal(defaultClass(all, "advanced"), "L**");
   assert.equal(defaultClass(["A", "L*"], "beginner"), "A");
   assert.equal(defaultClass(["A", "L*", "L**"], "intermediate"), "A");
+});
+
+test("checks are split into rules and advice, failing ones first", () => {
+  const plan = normalizePlan({
+    lines: [],
+    checks: [
+      { key: "chain", ok: true, rule: true, text: "a" },
+      { key: "time", ok: false, rule: true, text: "b" },
+      { key: "balance", ok: true, rule: false, text: "c" },
+      { key: "finale", ok: false, rule: false, text: "d" },
+      { key: "old", ok: true, text: "e" },
+    ],
+  })!;
+  const { rules, advice } = splitChecks(plan.checks);
+  assert.deepEqual(rules.map((k) => k.key), ["time", "chain", "old"]);
+  assert.deepEqual(advice.map((k) => k.key), ["finale", "balance"]);
 });

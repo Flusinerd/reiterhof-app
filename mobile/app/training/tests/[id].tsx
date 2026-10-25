@@ -31,8 +31,10 @@ import {
   requirementRows,
   requirementSummary,
   shareText,
+  splitChecks,
   spokenSeconds,
   type Plan,
+  type PlanCheck,
 } from "@/lib/dressage";
 import { getPreview, newSeed, setPreview, type Preview } from "@/lib/dressage-preview";
 import { cn } from "@/lib/cn";
@@ -154,7 +156,9 @@ export default function DressagePlan() {
   const music = musicParts(plan.music);
   const balance = reinBalanceText(plan.reins);
   const reqs = requirementRows(plan.requirements);
-  const failedChecks = plan.checks.filter((k) => !k.ok);
+  const { rules, advice } = splitChecks(plan.checks);
+  const failedRules = rules.filter((k) => !k.ok).length;
+  const failedAdvice = advice.filter((k) => !k.ok).length;
 
   // "Neu würfeln" needs the request: the preview has it, a stored practice test can be rebuilt from its fields.
   const rerollRequest: Omit<GenerateBody, "save"> | null = isPreview
@@ -346,18 +350,21 @@ export default function DressagePlan() {
         </Text>
       ) : null}
 
-      {plan.checks.length > 0 && !dirty ? (
-        <Section title="Regeln" description={failedChecks.length === 0 ? "Alle Regeln sind eingehalten." : `${failedChecks.length} ${failedChecks.length === 1 ? "Regel ist" : "Regeln sind"} nicht eingehalten.`}>
-          <View className="gap-2">
-            {[...failedChecks, ...plan.checks.filter((k) => k.ok)].map((k) => (
-              <View key={k.key} className="flex-row items-start gap-2">
-                <Icon as={k.ok ? Check : CircleAlert} size={18} className={k.ok ? "mt-0.5 text-success" : "mt-0.5 text-accent-text"} />
-                <Text variant="bodySm" tone={k.ok ? "muted" : "accent"} className="flex-1">
-                  {k.text}
-                </Text>
-              </View>
-            ))}
-          </View>
+      {rules.length > 0 && !dirty ? (
+        <Section
+          title="Regeln"
+          description={failedRules === 0 ? "Alle Regeln sind eingehalten." : `${failedRules} ${failedRules === 1 ? "Regel ist" : "Regeln sind"} nicht eingehalten.`}
+        >
+          <CheckList checks={rules} />
+        </Section>
+      ) : null}
+
+      {advice.length > 0 && !dirty ? (
+        <Section
+          title="Hinweise"
+          description={failedAdvice === 0 ? "Auch die Hinweise zur Gestaltung passen." : `${failedAdvice} ${failedAdvice === 1 ? "Hinweis" : "Hinweise"} zur Gestaltung.`}
+        >
+          <CheckList checks={advice} />
         </Section>
       ) : null}
 
@@ -420,5 +427,21 @@ export default function DressagePlan() {
         {!isPreview ? <Button label="Löschen" icon={Trash2} variant="ghost" size="sm" onPress={confirmRemove} /> : null}
       </View>
     </Screen>
+  );
+}
+
+/** Rows of checks: a tick for a passed one, a warning for a failed one. */
+function CheckList({ checks }: { checks: PlanCheck[] }) {
+  return (
+    <View className="gap-2">
+      {checks.map((k) => (
+        <View key={k.key} className="flex-row items-start gap-2">
+          <Icon as={k.ok ? Check : CircleAlert} size={18} className={k.ok ? "mt-0.5 text-success" : "mt-0.5 text-accent-text"} />
+          <Text variant="bodySm" tone={k.ok ? "muted" : "accent"} className="flex-1" accessibilityLabel={`${k.text}, ${k.ok ? "erfüllt" : "nicht erfüllt"}`}>
+            {k.text}
+          </Text>
+        </View>
+      ))}
+    </View>
   );
 }

@@ -130,7 +130,8 @@ export type PlanLine = {
   path: Point[];
 };
 
-export type PlanCheck = { key: string; ok: boolean; text: string };
+/** `rule` marks a rule of the Kür leaflet (a failing one is an error, the server refuses to store it); the others are advice. */
+export type PlanCheck = { key: string; ok: boolean; rule: boolean; text: string };
 export type PlanRequirement = { key: string; label: string; count: number; met: boolean };
 
 export type Plan = {
@@ -186,7 +187,7 @@ export function normalizePlan(body: unknown): Plan | null {
     reins: { left: num(reins.left), right: num(reins.right) },
     gaits: { walk: num(gaits.walk), trot: num(gaits.trot), canter: num(gaits.canter) },
     music: arr<Record<string, unknown>>(p.music).map((m) => ({ gait: String(m.gait ?? ""), seconds: num(m.seconds) })),
-    checks: arr<Record<string, unknown>>(p.checks).map((c) => ({ key: String(c.key ?? ""), ok: c.ok === true, text: String(c.text ?? "") })),
+    checks: arr<Record<string, unknown>>(p.checks).map((c) => ({ key: String(c.key ?? ""), ok: c.ok === true, rule: c.rule !== false, text: String(c.text ?? "") })),
     requirements: arr<Record<string, unknown>>(p.requirements).map((r) => ({
       key: String(r.key ?? ""),
       label: String(r.label ?? r.key ?? ""),
@@ -251,6 +252,12 @@ export function reinBalanceText(reins: { left: number; right: number }): string 
   const detail = `links ${p.left} %, rechts ${p.right} %`;
   if (p.left >= 40 && p.left <= 60) return `Beide Hände ausgewogen: ${detail}`;
   return `${p.left > p.right ? "Linke" : "Rechte"} Hand überwiegt: ${detail}`;
+}
+
+/** Rules and advice of a plan, the failing ones first (they are what the rider has to look at). */
+export function splitChecks(checks: readonly PlanCheck[]): { rules: PlanCheck[]; advice: PlanCheck[] } {
+  const ordered = (list: PlanCheck[]) => [...list.filter((k) => !k.ok), ...list.filter((k) => k.ok)];
+  return { rules: ordered(checks.filter((k) => k.rule)), advice: ordered(checks.filter((k) => !k.rule)) };
 }
 
 /** One row of the checklist of required movements. */

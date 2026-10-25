@@ -65,8 +65,8 @@ export default function NewDressageTest() {
   const [length, setLength] = useState<"short" | "normal">("normal");
   const [focus, setFocus] = useState<string | null>(null);
   const [movements, setMovements] = useState<RequirementMovement[]>([]);
-  const [minTen, setMinTen] = useState(21);
-  const [maxTen, setMaxTen] = useState(24);
+  const [minTen, setMinTen] = useState(30);
+  const [maxTen, setMaxTen] = useState(36);
   const [setId, setSetId] = useState<string | null>(null);
   const [label, setLabel] = useState("");
   const [savedHint, setSavedHint] = useState(false);
