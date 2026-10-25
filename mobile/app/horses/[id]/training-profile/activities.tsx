@@ -83,7 +83,11 @@ export default function ActivitiesEditor() {
       return;
     }
     setError(null);
-    save.mutate(result.input as ProfileInput, { onSuccess: () => router.back() });
+    // A promise keeps the button locked until the save settles (a fast double tap sends one request); the error shows from the mutation state.
+    return save
+      .mutateAsync(result.input as ProfileInput)
+      .then(() => router.back())
+      .catch(() => undefined);
   };
 
   const shownError = error ?? (save.isError ? trainingError(save.error) : null);
