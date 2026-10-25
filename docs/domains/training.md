@@ -6,6 +6,8 @@ library, JAN-59 week view, JAN-60 "Nur eintragen", JAN-61 finish screen, JAN-89 
 - Backend: `backend/internal/trainingapi` (HTTP + SQL). The rules live in the pure packages
   `internal/training`, `training/load` (load score, week segments, assessment) and
   `training/recommend` (recommender); see "Training logic" in [architecture.md](../architecture.md).
+- Practice tests and freestyles (Aufgaben und Küren), their generator, rules and routes: [dressage-tests.md](dressage-tests.md)
+  (backend `internal/dressage`, `trainingapi/dressage.go`, migration `0370`).
 - Migration `0320_session_feeling.up.sql`: `sessions.feeling` (`hard|good|easy`, nullable), see "Sessions".
 - Migration `0240_week_slot_focus.up.sql`: `week_slots.focus`, `week_slots.exercise_id` (JAN-92).
 - Migration `0060_training_sessions.up.sql`: `sessions.exercise_id` and CHECK constraints for

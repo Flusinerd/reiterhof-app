@@ -64,6 +64,8 @@ func Export(ctx context.Context, q DB, userID string, now time.Time) (map[string
 		{"reminders", `SELECT to_jsonb(r) FROM reminders r WHERE r.user_id = $1 ORDER BY r.due_at`},
 		{"presence_visits", `SELECT to_jsonb(p) FROM presence p WHERE p.user_id = $1 ORDER BY p.arrived_at`},
 		{"training_sessions", `SELECT to_jsonb(s) FROM sessions s WHERE s.user_id = $1 ORDER BY s.started_at`},
+		{"dressage_tests_created", `SELECT to_jsonb(d) FROM dressage_tests d WHERE d.created_by = $1 ORDER BY d.created_at`},
+		{"freestyle_requirements_created", `SELECT to_jsonb(f) FROM freestyle_requirements f WHERE f.created_by = $1 ORDER BY f.created_at`},
 		{"week_slots", `SELECT to_jsonb(w) FROM week_slots w WHERE w.user_id = $1 ORDER BY w.day`},
 		{"observations_reported", `SELECT to_jsonb(o) FROM observations o WHERE o.reported_by = $1 ORDER BY o.created_at`},
 		{"requests_created", `SELECT to_jsonb(r) FROM requests r WHERE r.created_by = $1 ORDER BY r.date, r.created_at`},

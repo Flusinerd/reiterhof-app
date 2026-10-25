@@ -61,6 +61,7 @@ func Register(mux *http.ServeMux, deps httpx.Deps) {
 	route("POST /api/v1/horses/{id}/week/plan", h.planWeek)
 	route("GET /api/v1/exercises", h.listExercises)
 	route("GET /api/v1/exercises/{id}", h.getExercise)
+	h.registerDressage(route)
 }
 
 // access is what the requesting user may do with one horse's training data.

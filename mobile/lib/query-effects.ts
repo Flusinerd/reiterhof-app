@@ -11,6 +11,7 @@
 import {
   blanketKeys,
   CONSENTS_KEY,
+  dressageKeys,
   horseKeys,
   ME_KEY,
   observationKeys,
@@ -45,6 +46,8 @@ export type Effect =
   | { type: "myFocus"; horseId: string }
   /** The stable's training equipment: availability of exercises and the plans of every horse. */
   | { type: "trainingEquipment" }
+  /** A practice test or freestyle was saved, edited or deleted, or a requirement set changed (the catalog lists the sets). */
+  | { type: "dressageTests"; horseId: string }
   /** A reha plan or day changed. */
   | { type: "reha"; horseId: string }
   /** An observation was reported or its status changed; horseId is unknown for some calls. */
@@ -113,6 +116,9 @@ export function effectKeys(e: Effect): Key[] {
       return [trainingKeys.myFocus(e.horseId), trainingKeys.weekOf(e.horseId), trainingKeys.todayOf(e.horseId)];
     case "trainingEquipment":
       return [trainingKeys.equipment(), trainingKeys.exercises(), trainingKeys.weekOfAll(), ["training", "today"]];
+    case "dressageTests":
+      // The week planner links a saved test to a show day.
+      return [dressageKeys.list(e.horseId), dressageKeys.detailOfAll(), dressageKeys.catalog(), trainingKeys.weekOf(e.horseId)];
     case "reha":
       return [rehaKeys.horse(e.horseId), trainingKeys.all, requestKeys.all, reminderKeys.all, observationKeys.all];
     case "observation":

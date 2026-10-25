@@ -3,6 +3,31 @@
 Alle nennenswerten Änderungen an Stallfunk. Versionen folgen [SemVer](https://semver.org/lang/de/),
 die Einträge dem Format von [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## [0.4.0] – 2026-10-25
+
+Eigene Übungsaufgaben und Küren: im Viereck gezeichnet, mit Bahnpunkten und Zeit, geprüft nach den
+allgemeinen Regeln des Kür-Merkblatts. Die App findet sie unter Training → „Aufgaben und Küren“.
+
+### Neu
+
+- **Übungsaufgaben**: Die App erstellt eine eigene Aufgabe für zu Hause (Klasse E, A, L oder L**, Viereck 20×40 oder
+  20×60, kurz oder normal) mit Buchstaben, Weg und Zeit je Zeile. Bei Pferden mit Einheiten nur aus gefestigten und den
+  nächsten Lektionen, auf Wunsch mit Schwerpunkt; „Neu würfeln“ liefert eine andere Aufgabe. Eine kurze Aufgabe hat
+  höchstens 18, eine normale höchstens 26 Zeilen; Trab, Schritt mit freiem Schritt an der Diagonale und je ein
+  Galoppblock auf jeder Hand folgen in fester Reihenfolge.
+- **Küren**: Die Kür zeigt die Pflichtlektionen, die man aus dem eigenen Aufgabenheft einträgt (je Stall speicherbar),
+  in der eingetragenen Zeit und prüft die Regeln des Kür-Merkblatts (Gruß, Schrittstrecke, Verstärkungen, Volten,
+  Kurzkehrt, Lektionen höherer Klassen). Dazu Hinweise zur Choreografie und Musikteile je Gangart.
+- **Bearbeiten**: Zeilen umsortieren oder entfernen; verletzt das eine Regel, nennt die App den Grund auf Deutsch.
+- Die App liefert keine Aufgabentexte und keine Pflichtlektionen offizieller Prüfungen (Urheberrecht FNverlag).
+
+### Behoben
+
+- „Woche planen“ und das Speichern der Trainingsprofil-Seiten (Rhythmus, Aktivitäten, Reitbeteiligungen,
+  Feste Tage, Turniere) schickten bei einem schnellen Doppeltipp zwei Anfragen; jetzt eine.
+- Stall: Fiel „Wer ist da“ aus, stand dort dauerhaft „Wird geladen …“; jetzt eine Meldung, ein Tipp
+  lädt neu.
+
 ## [0.3.0] – 2026-10-25
 
 Die KI-Trainingsplanung ist neu aufgebaut: Sie folgt der Skala der Ausbildung, plant jede Einheit als
@@ -81,6 +106,7 @@ um den Tag der Besitzer:innen herum aufgebaut, nicht mehr um Fachbereiche.
 Erste Version: Pferde, Decken mit Wetterregeln, Anfragen, Training mit Tracking und KI-Wochenplan,
 Gesundheitstermine, Reha, Anwesenheit, Erinnerungen, Web-App.
 
+[0.4.0]: https://github.com/flusinerd/reiterhof-app/releases/tag/v0.4.0
 [0.3.0]: https://github.com/flusinerd/reiterhof-app/releases/tag/v0.3.0
 [0.2.0]: https://github.com/flusinerd/reiterhof-app/releases/tag/v0.2.0
 [0.1.0]: https://github.com/flusinerd/reiterhof-app/commits/80a50a2

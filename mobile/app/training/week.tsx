@@ -85,17 +85,16 @@ export default function TrainingWeek() {
     if (!activeId || !data) return;
     const requested = data.start;
     apply.reset();
-    plan.mutate(
-      { start: requested },
-      {
-        onSuccess: (res) => {
-          if (res.start !== requested || res.horse_id !== activeId) return;
-          const { days, ...meta } = res;
-          setLastPlan(meta);
-          setDraft(days.length > 0 ? { meta, days } : null);
-        },
-      },
-    );
+    // Returned, so that the button stays locked until the request settles: a fast double tap sends one request.
+    return plan
+      .mutateAsync({ start: requested })
+      .then((res) => {
+        if (res.start !== requested || res.horse_id !== activeId) return;
+        const { days, ...meta } = res;
+        setLastPlan(meta);
+        setDraft(days.length > 0 ? { meta, days } : null);
+      })
+      .catch(() => undefined); // the error shows from the mutation state
   };
 
   // ?plan=1 (from the training tab) plans once as soon as the week is there.
@@ -135,7 +134,7 @@ export default function TrainingWeek() {
     setStart(addDays(data.start, days));
   };
   const allowAI = async () => {
-    if (await consent.ensure("ai_training")) planWeek();
+    if (await consent.ensure("ai_training")) await planWeek();
   };
   const discard = () => {
     apply.reset();
