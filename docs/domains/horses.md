@@ -94,8 +94,39 @@ Extra contacts (owner or admin): `POST /api/v1/horses/{id}/emergency-contacts {l
 | --- | --- |
 | `GET /api/v1/horses/{id}/health` | `{today, items, summary, can_manage}`; items ordered by due date (undated last); `summary` has the keys `vaccination, farrier, deworming, dentist`, each the item of that kind due first or `null`; every item has `days_until_due` (negative = overdue), counted from `today` in the stable's time zone; items of the kinds `vet`, `vaccination`, `dentist` that are due soon also carry `bundle {kind, count, horses[{id,name}]}` (other horses with the same kind due within 14 days, see [observations.md](observations.md#bundling-appointments-jan-54)) |
 | `POST /api/v1/horses/{id}/health-items` | `kind` (vaccination, farrier, deworming, dentist, physio, medication, vet), `label`, `due_date` (YYYY-MM-DD), `interval_count` + `interval_unit` (`day`, `week`, `month`, `year`; at most about ten years, `0` clears), `note`, `daily_time` (HH:MM), `remind_days` (0..365 days before the due date, at most 5, default `[7, 1]`, `[]` = no reminder), `remind_time` (HH:MM, default `08:00`). The older `interval_days` is still accepted (= `interval_count` with unit `day`) and returned for day and week intervals (else `null`). |
-| `PATCH /api/v1/health-items/{id}`, `DELETE /api/v1/health-items/{id}` | owner or admin |
-| `POST /api/v1/health-items/{id}/done` | "erledigt": `due_date` moves forward by the interval; if that is still not after today (very overdue), by further intervals; without a due date the interval counts from today; without interval the due date is cleared. Months and years keep the day of the month and fall back to the last day of a shorter month (31.08. + 6 months = 28.02.), always counted from the old due date, so the day does not drift (`health.Interval.After`) |
+| `PATCH /api/v1/health-items/{id}`, `DELETE /api/v1/health-items/{id}` | owner or admin. Both dismiss the item's stored reminders (below); a PATCH that moves the due date also clears the "erledigt" marker |
+| `POST /api/v1/health-items/{id}/done` | owner or admin. "erledigt": `due_date` moves forward by the interval; if that is still not after today (very overdue), by further intervals; without a due date the interval counts from today; without interval the due date is cleared. Months and years keep the day of the month and fall back to the last day of a shorter month (31.08. + 6 months = 28.02.), always counted from the old due date, so the day does not drift (`health.Interval.After`). **Once per stable-local day**, see below. Optional body `{"due_date": "YYYY-MM-DD"}` (`""` = none): the due date the app showed |
+| `DELETE /api/v1/health-items/{id}/done` | owner or admin. Takes back today's "erledigt" (restores the due date and the reminders it dismissed) |
+
+Every item carries `last_done_on` (the stable-local day of the last "erledigt", `null` without) and `last_done_by`
+(`{id, name}` or `null`). Migration `0360` added them (plus `last_done_at`, `previous_due_date`, internal).
+
+**"Erledigt" is idempotent per day** (`done` locks the row, `FOR UPDATE`): the first call moves the due date and stores
+`previous_due_date`, `last_done_on` (today in the stable's time zone), `last_done_by`; every further call on the same
+stable-local day, from the same or another phone, answers `200` with the unchanged item and writes nothing, so a double tap
+or a retry cannot push the date another interval out (before, every call advanced it once more). A call on the next day
+advances again. With the optional `due_date` body the call is refused with `409 due_date_changed` when the item has another
+due date by now (somebody else changed it); a repeat of an "erledigt" already done today wins over that check, so the second
+tap of the same app is not an error.
+
+`DELETE .../done` restores `previous_due_date` and un-dismisses the reminder rows the "erledigt" dismissed (found by
+`last_done_at`; rows a user dismissed earlier stay dismissed). Nothing to undo (never done, or the date was edited by hand
+since) answers `200` with the unchanged item, so a repeated undo is fine; an "erledigt" of an earlier day stays:
+`409 undo_expired`. A PATCH that changes `due_date` clears `last_done_on`, `last_done_by` and the stored previous date.
+
+**Medication** (kind `medication` or an item with `daily_time`): the due date is the last day of the course, so "erledigt"
+means **"Gabe beenden"**: it ends the course today (an end date further away moves up to today, one in the past stays, no end
+date stays empty) instead of clearing the date, which used to let the daily reminders run on forever. Reminders stop: today's
+medication reminder is not sent once the course was ended today (job: `doneToday`), the computed medication item of today
+leaves the reminder center and Heute, and from tomorrow on the course is over. The undo brings all of it back.
+
+**Stored reminders**: `done`, a PATCH that changes the due date, interval, daily time or reminder days/time, and `DELETE`
+dismiss the item's stored `reminders` rows (`source_table = 'health_items'`, all users) in the same transaction; they
+describe a state that no longer holds, and a deleted item has no foreign key to them. The rows stay (dismissed), so the
+claim of the reminder job and its unique index keep working.
+
+**Realtime**: every change (create, PATCH, DELETE, done, undo; a repeated done changes nothing and sends nothing) publishes
+`health.changed {horse_id}` inside its transaction (`health.EventChanged`).
 
 **Reminder job** (`health.Reminders`, scheduler job `health-reminders` in `cmd/api`, every 15 minutes):
 

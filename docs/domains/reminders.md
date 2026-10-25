@@ -54,13 +54,17 @@ today's date (the stable-local calendar day; from 04:00 on it is the blanket day
 
 **Stored items**: the user's own `reminders` rows that are not dismissed and whose time (`sent_at`, else `due_at`) lies in the window.
 They are placed at `sent_at` when it exists (what the user experienced), otherwise at `due_at`. `dismissible = true`.
+The health module keeps them true: marking an item done ("Gabe beenden" for a medication), moving its due date, changing its
+interval, daily time or reminder days and deleting it dismiss the item's stored rows for **all** users in the same transaction
+(`dismissed_at`; the rows stay, so the job's claim and unique index keep working), and the undo of a "done" restores exactly
+those rows. Otherwise "Fällig: Luna, Wurmkur: morgen" would stay in the list, and on Heute, after the item was dealt with.
 
 **Computed items** (not rows yet, `computed = true`, `dismissible = false`, id `c:<kind>:<source>:<date>`), for the user's own
 horses (owner or rider) or requests:
 
 | Kind | Source | Placed at |
 | --- | --- | --- |
-| `medication` | `health_items` with `daily_time` (course not over) | today at that time |
+| `medication` | `health_items` with `daily_time` (course not over, not ended today) | today at that time |
 | `health_due` | `health_items` without `daily_time` due in the window, **overdue ones too** (listed under "Heute") | due date, all day |
 | `reha_checkup` | active `reha_plans` with `checkup_date` in the window | checkup date, all day |
 | `helper` | open/assigned requests the user helps with (`request_assignees`), date in the window | date and `time_from` (all day without) |

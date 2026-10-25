@@ -17,7 +17,12 @@ import (
 
 	"github.com/Flusinerd/reiterhof-app/backend/internal/auth"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/httpx"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/realtime"
 )
+
+// EventChanged is the realtime event after every change to the health items of a horse
+// (create, edit, delete, done, undo). Data: {horse_id}.
+const EventChanged = "health.changed"
 
 // Kinds are the accepted values of health_items.kind.
 var Kinds = []string{"vaccination", "farrier", "deworming", "dentist", "physio", "medication", "vet"}
@@ -40,7 +45,8 @@ var SummaryKinds = []string{"vaccination", "farrier", "deworming", "dentist"}
 //	POST   /api/v1/horses/{id}/health-items     owner/admin
 //	PATCH  /api/v1/health-items/{id}            owner/admin
 //	DELETE /api/v1/health-items/{id}            owner/admin
-//	POST   /api/v1/health-items/{id}/done       owner/admin, moves due_date forward
+//	POST   /api/v1/health-items/{id}/done       owner/admin, moves due_date forward (once per day)
+//	DELETE /api/v1/health-items/{id}/done       owner/admin, undoes today's "erledigt"
 func Register(mux *http.ServeMux, deps httpx.Deps) {
 	h := &handler{deps: deps}
 	route := func(pattern string, fn http.HandlerFunc) {
@@ -51,6 +57,7 @@ func Register(mux *http.ServeMux, deps httpx.Deps) {
 	route("PATCH /api/v1/health-items/{id}", h.patch)
 	route("DELETE /api/v1/health-items/{id}", h.delete)
 	route("POST /api/v1/health-items/{id}/done", h.done)
+	route("DELETE /api/v1/health-items/{id}/done", h.undoDone)
 }
 
 type handler struct{ deps httpx.Deps }
@@ -77,9 +84,21 @@ type Item struct {
 	RemindTime string `json:"remind_time"`
 	// DaysUntilDue is negative when overdue; null without a due date.
 	DaysUntilDue *int `json:"days_until_due"`
+	// LastDoneOn is the stable-local day (YYYY-MM-DD) of the last "erledigt"; null if there was none
+	// or the due date was edited by hand since. While it is today, a second "erledigt" changes
+	// nothing and DELETE .../done takes it back.
+	LastDoneOn *string `json:"last_done_on"`
+	// LastDoneBy is who marked the item done that day.
+	LastDoneBy *Person `json:"last_done_by"`
 	// Bundle is set by GET /horses/{id}/health for vet, vaccination and dentist items due within
 	// 14 days when other horses have the same kind due about then (JAN-54); absent otherwise.
 	Bundle *Bundle `json:"bundle,omitempty"`
+}
+
+// Person is a member as shown next to an item.
+type Person struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 // Response is the body of GET /horses/{id}/health.
@@ -94,15 +113,23 @@ type Response struct {
 }
 
 const itemColumns = `i.id, i.horse_id, i.kind, i.label, to_char(i.due_date, 'YYYY-MM-DD'), i.interval_count,
-	i.interval_unit, i.note, to_char(i.daily_time, 'HH24:MI'), i.remind_days, to_char(i.remind_time, 'HH24:MI')`
+	i.interval_unit, i.note, to_char(i.daily_time, 'HH24:MI'), i.remind_days, to_char(i.remind_time, 'HH24:MI'),
+	to_char(i.last_done_on, 'YYYY-MM-DD'), i.last_done_by, (SELECT u.name FROM users u WHERE u.id = i.last_done_by)`
 
 func scanItem(row pgx.Row) (Item, error) {
 	var it Item
 	var remind []int32
+	var doneBy, doneByName *string
 	err := row.Scan(&it.ID, &it.HorseID, &it.Kind, &it.Label, &it.DueDate, &it.IntervalCount, &it.IntervalUnit,
-		&it.Note, &it.DailyTime, &remind, &it.RemindTime)
+		&it.Note, &it.DailyTime, &remind, &it.RemindTime, &it.LastDoneOn, &doneBy, &doneByName)
 	if err != nil {
 		return it, err
+	}
+	if doneBy != nil {
+		it.LastDoneBy = &Person{ID: *doneBy}
+		if doneByName != nil {
+			it.LastDoneBy.Name = *doneByName
+		}
 	}
 	it.RemindDays = make([]int, len(remind))
 	for i, d := range remind {
@@ -371,20 +398,42 @@ func (h *handler) create(w http.ResponseWriter, r *http.Request) {
 	if in.RemindTime != nil {
 		remindTime = *in.RemindTime
 	}
-	it, err := scanItem(h.deps.Pool.QueryRow(r.Context(), `WITH i AS (
-			INSERT INTO health_items (stable_id, horse_id, kind, label, due_date, interval_count, interval_unit, note,
-				daily_time, remind_days, remind_time)
-			VALUES ($1, $2, $3, $4, NULLIF($5, '')::date, NULLIF($6::int, 0), $7, NULLIF($8, ''), NULLIF($9, '')::time,
-				$10, $11::time)
-			RETURNING *)
-		SELECT `+itemColumns+` FROM i`,
-		user.StableID, horseID, *in.Kind, *in.Label, in.DueDate, in.IntervalCount, unit, in.Note, in.DailyTime,
-		remindDays, remindTime))
+	var it Item
+	err := pgx.BeginFunc(r.Context(), h.deps.Pool, func(tx pgx.Tx) error {
+		var err error
+		it, err = scanItem(tx.QueryRow(r.Context(), `WITH i AS (
+				INSERT INTO health_items (stable_id, horse_id, kind, label, due_date, interval_count, interval_unit, note,
+					daily_time, remind_days, remind_time)
+				VALUES ($1, $2, $3, $4, NULLIF($5, '')::date, NULLIF($6::int, 0), $7, NULLIF($8, ''), NULLIF($9, '')::time,
+					$10, $11::time)
+				RETURNING *)
+			SELECT `+itemColumns+` FROM i`,
+			user.StableID, horseID, *in.Kind, *in.Label, in.DueDate, in.IntervalCount, unit, in.Note, in.DailyTime,
+			remindDays, remindTime))
+		if err != nil {
+			return err
+		}
+		return publish(r.Context(), tx, user.StableID, horseID)
+	})
 	if err != nil {
 		h.fail(w, "create", err)
 		return
 	}
 	h.respond(w, r, http.StatusCreated, it, user.StableID)
+}
+
+// publish sends health.changed inside the transaction, so it only goes out when the change commits.
+func publish(ctx context.Context, tx pgx.Tx, stableID, horseID string) error {
+	return realtime.Publish(ctx, tx, stableID, EventChanged, map[string]any{"horse_id": horseID})
+}
+
+// dismissReminders hides the stored reminders (the pushes listed in the reminder center) of an item
+// for everybody: they describe a state that no longer holds once the item was done, moved or deleted.
+// A computed item of the new state shows up on its own where it belongs.
+func dismissReminders(ctx context.Context, tx pgx.Tx, itemID string, now time.Time) error {
+	_, err := tx.Exec(ctx, `UPDATE reminders SET dismissed_at = $2
+		WHERE source_table = 'health_items' AND source_id = $1 AND dismissed_at IS NULL`, itemID, now)
+	return err
 }
 
 func (h *handler) respond(w http.ResponseWriter, r *http.Request, status int, it Item, stableID string) {
@@ -460,17 +509,79 @@ func (h *handler) patch(w http.ResponseWriter, r *http.Request) {
 	if in.RemindTime != nil {
 		add("remind_time = $%d::time", *in.RemindTime)
 	}
-	if len(sets) == 0 {
-		sets = append(sets, "label = label")
+	var it Item
+	err := pgx.BeginFunc(r.Context(), h.deps.Pool, func(tx pgx.Tx) error {
+		cur, err := lockSchedule(r.Context(), tx, r.PathValue("id"), user.StableID)
+		if err != nil {
+			return err
+		}
+		dueMoved, otherChange := cur.changedBy(&in)
+		if dueMoved {
+			// A hand-edited due date is a fresh start: today's "erledigt" and its undo no longer apply.
+			sets = append(sets, "last_done_on = NULL", "last_done_at = NULL", "last_done_by = NULL", "previous_due_date = NULL")
+		}
+		if len(sets) == 0 {
+			sets = append(sets, "label = label")
+		}
+		it, err = scanItem(tx.QueryRow(r.Context(), `WITH i AS (
+				UPDATE health_items SET `+strings.Join(sets, ", ")+` WHERE id = $1 AND stable_id = $2 RETURNING *)
+			SELECT `+itemColumns+` FROM i`, args...))
+		if err != nil {
+			return err
+		}
+		if dueMoved || otherChange {
+			if err := dismissReminders(r.Context(), tx, it.ID, h.deps.Now()); err != nil {
+				return err
+			}
+		}
+		return publish(r.Context(), tx, user.StableID, horseID)
+	})
+	if errors.Is(err, pgx.ErrNoRows) { // deleted while this request ran
+		httpx.WriteError(w, http.StatusNotFound, "not_found", "health item not found")
+		return
 	}
-	it, err := scanItem(h.deps.Pool.QueryRow(r.Context(), `WITH i AS (
-			UPDATE health_items SET `+strings.Join(sets, ", ")+` WHERE id = $1 AND stable_id = $2 RETURNING *)
-		SELECT `+itemColumns+` FROM i`, args...))
 	if err != nil {
 		h.fail(w, "patch", err)
 		return
 	}
 	h.respond(w, r, http.StatusOK, it, user.StableID)
+}
+
+// schedule is what a stored reminder of an item is about: when it is due, repeats and reminds.
+type schedule struct {
+	due        string // YYYY-MM-DD, "" = none
+	count      int    // 0 = no interval
+	unit       string
+	daily      string // HH:MM, "" = none
+	remindDays []int
+	remindTime string
+}
+
+// lockSchedule locks the item row for the rest of the transaction and reads its schedule.
+func lockSchedule(ctx context.Context, tx pgx.Tx, id, stableID string) (schedule, error) {
+	var s schedule
+	var days []int32
+	err := tx.QueryRow(ctx, `SELECT COALESCE(to_char(due_date, 'YYYY-MM-DD'), ''), COALESCE(interval_count, 0), interval_unit,
+			COALESCE(to_char(daily_time, 'HH24:MI'), ''), remind_days, to_char(remind_time, 'HH24:MI')
+		FROM health_items WHERE id = $1 AND stable_id = $2 FOR UPDATE`, id, stableID).
+		Scan(&s.due, &s.count, &s.unit, &s.daily, &days, &s.remindTime)
+	for _, d := range days {
+		s.remindDays = append(s.remindDays, int(d))
+	}
+	return s, err
+}
+
+// changedBy tells whether a PATCH moves the due date and whether it changes anything else a stored
+// reminder was about (interval, daily time, reminder days or time). Sending the current value again
+// is no change, so editing only the label keeps today's "erledigt" and the reminders.
+func (s schedule) changedBy(in *input) (dueMoved, other bool) {
+	dueMoved = in.DueDate != nil && *in.DueDate != s.due
+	other = (in.IntervalCount != nil && *in.IntervalCount != s.count) ||
+		(in.IntervalUnit != nil && *in.IntervalUnit != s.unit) ||
+		(in.DailyTime != nil && *in.DailyTime != s.daily) ||
+		(in.RemindDays != nil && !slices.Equal(*in.RemindDays, s.remindDays)) ||
+		(in.RemindTime != nil && *in.RemindTime != s.remindTime)
+	return dueMoved, other
 }
 
 func (h *handler) delete(w http.ResponseWriter, r *http.Request) {
@@ -482,8 +593,27 @@ func (h *handler) delete(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if _, err := h.deps.Pool.Exec(r.Context(), `DELETE FROM health_items WHERE id = $1 AND stable_id = $2`,
-		r.PathValue("id"), user.StableID); err != nil {
+	err := pgx.BeginFunc(r.Context(), h.deps.Pool, func(tx pgx.Tx) error {
+		tag, err := tx.Exec(r.Context(), `DELETE FROM health_items WHERE id = $1 AND stable_id = $2`,
+			r.PathValue("id"), user.StableID)
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() == 0 {
+			return pgx.ErrNoRows // deleted while this request ran
+		}
+		// The reminder rows have no foreign key to the item; without this they would stay behind
+		// in the reminder center as entries without a target.
+		if err := dismissReminders(r.Context(), tx, r.PathValue("id"), h.deps.Now()); err != nil {
+			return err
+		}
+		return publish(r.Context(), tx, user.StableID, horseID)
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		httpx.WriteError(w, http.StatusNotFound, "not_found", "health item not found")
+		return
+	}
+	if err != nil {
 		h.fail(w, "delete", err)
 		return
 	}
@@ -536,7 +666,159 @@ func NextDue(prev *time.Time, iv *Interval, today time.Time) *time.Time {
 	return &next
 }
 
+// DueAfterDone is the due date of an item once it was done today. An item that repeats follows
+// NextDue. For a medication course the due date is the last day of the course: "done" ends the
+// course today (an end date further away moves up to today, one in the past or none stays) instead
+// of clearing the date, which would let the daily reminders run on forever.
+func DueAfterDone(due *time.Time, iv *Interval, course bool, today time.Time) *time.Time {
+	if !course {
+		return NextDue(due, iv, today)
+	}
+	if due != nil && due.After(today) {
+		return &today
+	}
+	return due
+}
+
+var (
+	errDueDateChanged = errors.New("due date changed")
+	errUndoExpired    = errors.New("undo expired")
+)
+
+// doneInput is the optional body of POST /health-items/{id}/done.
+type doneInput struct {
+	// DueDate is the due date the app showed ("" = none). If the item has another one by now,
+	// somebody else changed it and nothing is done: 409 due_date_changed.
+	DueDate *string `json:"due_date"`
+}
+
+// doneState is what "erledigt" and its undo need to know about a locked item.
+type doneState struct {
+	due        *time.Time // UTC midnight
+	interval   *Interval
+	course     bool    // medication: due date = last day of the course
+	lastDoneOn *string // YYYY-MM-DD
+	lastDoneAt *time.Time
+}
+
+func (s doneState) dueString() string {
+	if s.due == nil {
+		return ""
+	}
+	return s.due.Format("2006-01-02")
+}
+
+// lockForDone locks the item row for the rest of the transaction and reads its state.
+func lockForDone(ctx context.Context, tx pgx.Tx, id, stableID string) (doneState, error) {
+	var (
+		s     doneState
+		count *int
+		unit  string
+	)
+	err := tx.QueryRow(ctx, `SELECT due_date, interval_count, interval_unit, kind = 'medication' OR daily_time IS NOT NULL,
+			to_char(last_done_on, 'YYYY-MM-DD'), last_done_at
+		FROM health_items WHERE id = $1 AND stable_id = $2 FOR UPDATE`, id, stableID).
+		Scan(&s.due, &count, &unit, &s.course, &s.lastDoneOn, &s.lastDoneAt)
+	if err != nil {
+		return s, err
+	}
+	if s.due != nil {
+		d := time.Date(s.due.Year(), s.due.Month(), s.due.Day(), 0, 0, 0, 0, time.UTC)
+		s.due = &d
+	}
+	if count != nil {
+		s.interval = &Interval{Count: *count, Unit: unit}
+	}
+	return s, nil
+}
+
+func loadItem(ctx context.Context, tx pgx.Tx, id, stableID string) (Item, error) {
+	return scanItem(tx.QueryRow(ctx, `SELECT `+itemColumns+` FROM health_items i WHERE i.id = $1 AND i.stable_id = $2`, id, stableID))
+}
+
+// done handles POST /health-items/{id}/done. It is idempotent per stable-local day: the first call
+// moves the due date (and remembers the old one for the undo), every further call that day answers
+// with the unchanged item, so a second tap, a retry or a second phone cannot push the date another
+// interval out.
 func (h *handler) done(w http.ResponseWriter, r *http.Request) {
+	horseID, ok := h.itemHorse(w, r)
+	if !ok {
+		return
+	}
+	user, ok := h.horse(w, r, horseID, true)
+	if !ok {
+		return
+	}
+	var in doneInput
+	if r.ContentLength != 0 && !httpx.ReadJSON(w, r, &in) {
+		return
+	}
+	if in.DueDate != nil && *in.DueDate != "" {
+		if _, err := time.Parse("2006-01-02", *in.DueDate); err != nil {
+			invalid(w, "due_date must be YYYY-MM-DD")
+			return
+		}
+	}
+	today, err := h.stableToday(r.Context(), user.StableID)
+	if err != nil {
+		h.fail(w, "today", err)
+		return
+	}
+	day := today.Format("2006-01-02")
+	id := r.PathValue("id")
+
+	var it Item
+	err = pgx.BeginFunc(r.Context(), h.deps.Pool, func(tx pgx.Tx) error {
+		cur, err := lockForDone(r.Context(), tx, id, user.StableID)
+		if err != nil {
+			return err
+		}
+		if cur.lastDoneOn != nil && *cur.lastDoneOn == day {
+			it, err = loadItem(r.Context(), tx, id, user.StableID)
+			return err
+		}
+		// Checked after the repeat above: the second tap of the same app also carries the old date.
+		if in.DueDate != nil && *in.DueDate != cur.dueString() {
+			return errDueDateChanged
+		}
+		var next *string
+		if n := DueAfterDone(cur.due, cur.interval, cur.course, today); n != nil {
+			s := n.Format("2006-01-02")
+			next = &s
+		}
+		// One timestamp for the item and the reminder rows it dismisses: the undo finds them by it.
+		now := h.deps.Now()
+		it, err = scanItem(tx.QueryRow(r.Context(), `WITH i AS (
+				UPDATE health_items SET previous_due_date = due_date, due_date = $3::date, last_done_on = $4::date,
+					last_done_at = $5, last_done_by = $6
+				WHERE id = $1 AND stable_id = $2 RETURNING *)
+			SELECT `+itemColumns+` FROM i`, id, user.StableID, next, day, now, user.ID))
+		if err != nil {
+			return err
+		}
+		if err := dismissReminders(r.Context(), tx, id, now); err != nil {
+			return err
+		}
+		return publish(r.Context(), tx, user.StableID, horseID)
+	})
+	switch {
+	case errors.Is(err, errDueDateChanged):
+		httpx.WriteError(w, http.StatusConflict, "due_date_changed", "the due date changed since the item was loaded")
+	case errors.Is(err, pgx.ErrNoRows): // deleted while this request ran
+		httpx.WriteError(w, http.StatusNotFound, "not_found", "health item not found")
+	case err != nil:
+		h.fail(w, "done", err)
+	default:
+		annotate(&it, today)
+		httpx.WriteJSON(w, http.StatusOK, it)
+	}
+}
+
+// undoDone handles DELETE /health-items/{id}/done: it takes back today's "erledigt" and restores the
+// due date from before. Nothing to undo (never done, or the date was edited by hand since) answers
+// with the unchanged item, so a repeated undo is fine; an "erledigt" of an earlier day stays: 409
+// undo_expired.
+func (h *handler) undoDone(w http.ResponseWriter, r *http.Request) {
 	horseID, ok := h.itemHorse(w, r)
 	if !ok {
 		return
@@ -550,38 +832,48 @@ func (h *handler) done(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, "today", err)
 		return
 	}
-	var (
-		due   *time.Time
-		count *int
-		unit  string
-	)
-	err = h.deps.Pool.QueryRow(r.Context(), `SELECT due_date, interval_count, interval_unit FROM health_items
-		WHERE id = $1 AND stable_id = $2`, r.PathValue("id"), user.StableID).Scan(&due, &count, &unit)
-	if err != nil {
-		h.fail(w, "load item", err)
-		return
+	day := today.Format("2006-01-02")
+	id := r.PathValue("id")
+
+	var it Item
+	err = pgx.BeginFunc(r.Context(), h.deps.Pool, func(tx pgx.Tx) error {
+		cur, err := lockForDone(r.Context(), tx, id, user.StableID)
+		if err != nil {
+			return err
+		}
+		if cur.lastDoneOn == nil {
+			it, err = loadItem(r.Context(), tx, id, user.StableID)
+			return err
+		}
+		if *cur.lastDoneOn != day {
+			return errUndoExpired
+		}
+		it, err = scanItem(tx.QueryRow(r.Context(), `WITH i AS (
+				UPDATE health_items SET due_date = previous_due_date, previous_due_date = NULL, last_done_on = NULL,
+					last_done_at = NULL, last_done_by = NULL
+				WHERE id = $1 AND stable_id = $2 RETURNING *)
+			SELECT `+itemColumns+` FROM i`, id, user.StableID))
+		if err != nil {
+			return err
+		}
+		if cur.lastDoneAt != nil {
+			// The reminders the "erledigt" hid are true again; ones dismissed at another time stay dismissed.
+			if _, err := tx.Exec(r.Context(), `UPDATE reminders SET dismissed_at = NULL
+				WHERE source_table = 'health_items' AND source_id = $1 AND dismissed_at = $2`, id, *cur.lastDoneAt); err != nil {
+				return err
+			}
+		}
+		return publish(r.Context(), tx, user.StableID, horseID)
+	})
+	switch {
+	case errors.Is(err, errUndoExpired):
+		httpx.WriteError(w, http.StatusConflict, "undo_expired", "only today's \"erledigt\" can be undone")
+	case errors.Is(err, pgx.ErrNoRows): // deleted while this request ran
+		httpx.WriteError(w, http.StatusNotFound, "not_found", "health item not found")
+	case err != nil:
+		h.fail(w, "undo done", err)
+	default:
+		annotate(&it, today)
+		httpx.WriteJSON(w, http.StatusOK, it)
 	}
-	if due != nil {
-		d := time.Date(due.Year(), due.Month(), due.Day(), 0, 0, 0, 0, time.UTC)
-		due = &d
-	}
-	var interval *Interval
-	if count != nil {
-		interval = &Interval{Count: *count, Unit: unit}
-	}
-	next := NextDue(due, interval, today)
-	var nextStr *string
-	if next != nil {
-		s := next.Format("2006-01-02")
-		nextStr = &s
-	}
-	it, err := scanItem(h.deps.Pool.QueryRow(r.Context(), `WITH i AS (
-			UPDATE health_items SET due_date = $3::date WHERE id = $1 AND stable_id = $2 RETURNING *)
-		SELECT `+itemColumns+` FROM i`, r.PathValue("id"), user.StableID, nextStr))
-	if err != nil {
-		h.fail(w, "done", err)
-		return
-	}
-	annotate(&it, today)
-	httpx.WriteJSON(w, http.StatusOK, it)
 }

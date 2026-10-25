@@ -320,14 +320,15 @@ func storedKey(kind, table, source string, due time.Time, w window) string {
 // ownHorses is the SQL condition "the user owns or rides horse h".
 const ownHorses = `(h.owner_id = $2 OR EXISTS (SELECT 1 FROM horse_riders r WHERE r.horse_id = h.id AND r.user_id = $2))`
 
-// healthItems lists, for the user's horses, permanent medication of today and health items
-// that are due (or overdue) within the window.
+// healthItems lists, for the user's horses, permanent medication of today (not once it was marked
+// done today, "Gabe beenden") and health items that are due (or overdue) within the window.
 func (b *builder) healthItems(ctx context.Context) error {
 	rows, err := b.pool.Query(ctx, `
 		SELECT hi.id::text, h.id::text, h.name, hi.kind, hi.label, hi.due_date, COALESCE(to_char(hi.daily_time, 'HH24:MI'), '')
 		FROM health_items hi JOIN horses h ON h.id = hi.horse_id
 		WHERE hi.stable_id = $1 AND `+ownHorses+`
-		  AND ((hi.daily_time IS NOT NULL AND (hi.due_date IS NULL OR hi.due_date >= $3::date))
+		  AND ((hi.daily_time IS NOT NULL AND (hi.due_date IS NULL OR hi.due_date >= $3::date)
+		        AND hi.last_done_on IS DISTINCT FROM $3::date)
 		    OR (hi.daily_time IS NULL AND hi.due_date IS NOT NULL AND hi.due_date < $4::date))
 		ORDER BY hi.due_date NULLS LAST, h.name, hi.id`,
 		b.u.StableID, b.u.ID, pgDate(b.w.today), pgDate(b.w.end))
