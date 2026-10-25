@@ -192,9 +192,10 @@ export default function FocusesEditor() {
                     />
                   </View>
                   <View className="gap-1 pl-11">
+                    <Text variant="caption">Bis (optional)</Text>
                     <DateField
                       accessibilityLabel={`Bis, ${label}`}
-                      placeholder="Bis (optional)"
+                      placeholder="Kein Datum"
                       clearable
                       minimumDate={new Date()}
                       value={f.until}
