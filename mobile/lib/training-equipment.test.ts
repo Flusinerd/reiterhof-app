@@ -34,16 +34,16 @@ test("every key of the fixed lists has a German label", () => {
   assert.deepEqual(FACILITY_KEYS.map(equipmentLabel), ["Stangen", "Cavaletti", "Sprünge", "Gelassenheitsparcours"]);
   assert.deepEqual(PERSONAL_KEYS.map(equipmentLabel), [
     "Longe",
-    "Ausbinder",
+    "Ausbindezügel",
     "Doppellonge",
     "Kappzaum",
     "Plane",
     "Schirm",
-    "Pylonen",
-    "Fahne",
+    "Hütchen",
+    "Flatterband",
     "Gerte",
     "Halsring",
-    "Hänger",
+    "Anhänger",
   ]);
   assert.equal(equipmentLabel("flutter_curtain"), "Flutter curtain", "unknown keys stay readable");
   assert.equal(equipmentLabel(""), "");
@@ -55,10 +55,10 @@ test("every key of the fixed lists has a German label", () => {
 test("the five locations are the activities with a place; labels are German", () => {
   assert.deepEqual(LOCATIONS.map((l) => l.key), ["hall", "arena", "lunge", "jumping", "groundwork"]);
   assert.equal(locationLabel("hall"), "Halle");
-  assert.equal(locationLabel("arena"), "Außenplatz");
-  assert.equal(locationLabel("lunge"), "Longierhalle/-zirkel");
+  assert.equal(locationLabel("arena"), "Platz");
+  assert.equal(locationLabel("lunge"), "Longierhalle");
   assert.equal(locationLabel("jumping"), "Springplatz");
-  assert.equal(locationLabel("groundwork"), "Bodenarbeit");
+  assert.equal(locationLabel("groundwork"), "Bodenarbeitsplatz");
   assert.equal(locationLabel("hack"), "hack");
 });
 
@@ -89,7 +89,7 @@ test("the admin toggles the equipment of a location and sees a summary", () => {
   assert.equal(locationSummary({ equipment: [], shared: true }), "Nichts zum Aufbauen · geteilt");
   assert.equal(
     equipmentOverview(locationsWithDefaults(undefined)),
-    "Halle: Stangen · Außenplatz: Stangen · Longierhalle/-zirkel: nichts · Springplatz: Stangen, Sprünge · Bodenarbeit: Stangen",
+    "Halle: Stangen · Platz: Stangen · Longierhalle: nichts · Springplatz: Stangen, Sprünge · Bodenarbeitsplatz: Stangen",
   );
 });
 

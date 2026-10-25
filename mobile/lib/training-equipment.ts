@@ -31,16 +31,16 @@ const LABELS: Record<string, string> = {
   jumps: "Sprünge",
   obstacles: "Gelassenheitsparcours",
   lunge: "Longe",
-  side_reins: "Ausbinder",
+  side_reins: "Ausbindezügel",
   double_lunge: "Doppellonge",
   kappzaum: "Kappzaum",
   tarp: "Plane",
   umbrella: "Schirm",
-  cones: "Pylonen",
-  flag: "Fahne",
+  cones: "Hütchen",
+  flag: "Flatterband",
   whip: "Gerte",
   neck_ring: "Halsring",
-  trailer: "Hänger",
+  trailer: "Anhänger",
 };
 
 /** German word of an equipment key; an unknown key is made readable ("side_reins" -> "Side reins"). */
@@ -74,10 +74,10 @@ export type LocationKey = "hall" | "arena" | "lunge" | "jumping" | "groundwork";
 
 export const LOCATIONS: readonly { key: LocationKey; label: string }[] = [
   { key: "hall", label: "Halle" },
-  { key: "arena", label: "Außenplatz" },
-  { key: "lunge", label: "Longierhalle/-zirkel" },
+  { key: "arena", label: "Platz" },
+  { key: "lunge", label: "Longierhalle" },
   { key: "jumping", label: "Springplatz" },
-  { key: "groundwork", label: "Bodenarbeit" },
+  { key: "groundwork", label: "Bodenarbeitsplatz" },
 ];
 
 export function locationLabel(key: string): string {
@@ -133,7 +133,7 @@ export function locationSummary(location: LocationEquipment): string {
   return location.shared ? `${what} · geteilt` : what;
 }
 
-/** One line for all locations: "Halle: Stangen · Außenplatz: Stangen · …". */
+/** One line for all locations: "Halle: Stangen · Platz: Stangen · …". */
 export function equipmentOverview(locations: Record<LocationKey, LocationEquipment>): string {
   return LOCATIONS.map((l) => `${l.label}: ${equipmentList(locations[l.key].equipment) || "nichts"}`).join(" · ");
 }
