@@ -118,6 +118,8 @@ export function pathToSvg(points: readonly Point[], fit: Fit): string {
 
 export type PlanLine = {
   n: number;
+  /** Key of the figure variant; the server needs it to rebuild an edited plan (PUT), so it must survive a round trip. */
+  option?: string;
   letters: string;
   text: string;
   gait: Gait | string;
@@ -160,6 +162,7 @@ export function normalizePlan(body: unknown): Plan | null {
   if (!Array.isArray(p.lines)) return null;
   const lines = arr<Record<string, unknown>>(p.lines).map((l, i) => ({
     n: num(l.n, i + 1),
+    option: typeof l.option === "string" && l.option !== "" ? l.option : undefined,
     letters: String(l.letters ?? ""),
     text: String(l.text ?? ""),
     gait: String(l.gait ?? ""),

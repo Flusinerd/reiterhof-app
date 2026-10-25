@@ -175,6 +175,10 @@ test("normalizePlan reads a preview and a stored test, and survives missing part
   assert.equal(plan.arena, "20x60");
   assert.deepEqual(plan.checks, []);
   assert.deepEqual(plan.lines[0]!.path, [[10, 0], [10, 30]]);
+  const withOption = normalizePlan({ ...raw, lines: [{ ...raw.lines[0], option: "einreiten:X" }] })!;
+  assert.equal(withOption.lines[0]!.option, "einreiten:X");
+  assert.equal(JSON.parse(JSON.stringify(withOption)).lines[0].option, "einreiten:X");
+  assert.equal(plan.lines[0]!.option, undefined);
   const stored = normalizePlan({ id: "t1", title: "x", plan: raw })!;
   assert.equal(stored.seed, 7);
   assert.equal(normalizePlan({ nothing: true }), null);

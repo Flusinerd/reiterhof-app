@@ -51,7 +51,9 @@ export default function DressagePlan() {
   const isPreview = id === "preview";
 
   const [preview, setPreviewState] = useState<Preview | null>(() => (isPreview ? getPreview() : null));
-  const saved = useDressageTest(isPreview ? undefined : id);
+  // While a delete runs the test must not be fetched again (the effect of the delete refreshes it, and it is gone).
+  const [deleting, setDeleting] = useState(false);
+  const saved = useDressageTest(isPreview || deleting ? undefined : id);
   const horseId = isPreview ? (preview?.horseId ?? horse ?? "") : (saved.data?.horse_id ?? horse ?? "");
 
   const generate = useGenerateTest(horseId);
@@ -146,6 +148,7 @@ export default function DressagePlan() {
     );
   }
 
+  const dirty = !isPreview && draft !== null;
   const arenaWidth = Math.min(screenWidth - 48, 400);
   const freestyle = plan.kind === "freestyle";
   const music = musicParts(plan.music);
@@ -180,8 +183,9 @@ export default function DressagePlan() {
     if (!preview) return;
     const { stored } = await save.mutateAsync({ ...preview.request, seed: preview.plan.seed, save: true });
     setPreview(null);
-    if (stored) router.replace({ pathname: "/training/tests/[id]", params: { id: stored.id, horse: horseId } });
-    else router.back();
+    // Back from the saved test leads to the list, not to the form that made it.
+    router.dismissTo({ pathname: "/training/tests", params: { horse: horseId } });
+    if (stored) router.push({ pathname: "/training/tests/[id]", params: { id: stored.id, horse: horseId } });
   };
 
   const saveDraft = async () => {
@@ -228,11 +232,19 @@ export default function DressagePlan() {
       {
         text: "Löschen",
         style: "destructive",
-        onPress: () => void remove.mutateAsync(id).then(() => router.back(), (e) => Alert.alert("Das hat nicht geklappt", dressageError(e))),
+        onPress: () => {
+          setDeleting(true);
+          void remove.mutateAsync(id).then(
+            () => router.back(),
+            (e) => {
+              setDeleting(false);
+              Alert.alert("Das hat nicht geklappt", dressageError(e));
+            },
+          );
+        },
       },
     ]);
 
-  const dirty = !isPreview && draft !== null;
 
   return (
     <Screen back>
@@ -265,7 +277,7 @@ export default function DressagePlan() {
         </View>
       ) : null}
 
-      {balance ? (
+      {balance && !dirty ? (
         <Text variant="secondary" tone={balance.startsWith("Beide") ? "success" : "accent"}>
           {balance}
         </Text>
@@ -313,7 +325,7 @@ export default function DressagePlan() {
         </RowList>
       </Section>
 
-      {freestyle && reqs.length > 0 ? (
+      {freestyle && reqs.length > 0 && !dirty ? (
         <Section title="Anforderungen" description={requirementSummary(plan.requirements)}>
           <View className="gap-2">
             {reqs.map((r) => (
@@ -328,7 +340,13 @@ export default function DressagePlan() {
         </Section>
       ) : null}
 
-      {plan.checks.length > 0 ? (
+      {dirty ? (
+        <Text variant="secondary" tone="muted">
+          Die Regeln, die Zeit und die Anforderungen prüft der Server beim Speichern.
+        </Text>
+      ) : null}
+
+      {plan.checks.length > 0 && !dirty ? (
         <Section title="Regeln" description={failedChecks.length === 0 ? "Alle Regeln sind eingehalten." : `${failedChecks.length} ${failedChecks.length === 1 ? "Regel ist" : "Regeln sind"} nicht eingehalten.`}>
           <View className="gap-2">
             {[...failedChecks, ...plan.checks.filter((k) => k.ok)].map((k) => (
@@ -343,7 +361,7 @@ export default function DressagePlan() {
         </Section>
       ) : null}
 
-      {freestyle && music.length > 0 ? (
+      {freestyle && music.length > 0 && !dirty ? (
         <Section title="Musikteile" description="So kannst du die Musik schneiden.">
           <View className="gap-2">
             {music.map((p, i) => (
@@ -356,22 +374,7 @@ export default function DressagePlan() {
       ) : null}
 
       <View className="gap-3">
-        {isPreview ? (
-          <Button label="Speichern" fullWidth onPress={() => savePreview().catch(() => undefined)} />
-        ) : dirty ? (
-          <View className="gap-2">
-            <Button label="Speichern" fullWidth onPress={() => saveDraft().catch(() => undefined)} />
-            <Button label="Verwerfen" variant="ghost" fullWidth onPress={cancelEditing} />
-          </View>
-        ) : savedNow ? (
-          <View className="flex-row items-center gap-2">
-            <Icon as={Check} size={18} className="text-success" />
-            <Text variant="bodyStrong" tone="success">
-              Gespeichert
-            </Text>
-          </View>
-        ) : null}
-
+        {/* The reasons of the server stand right above the action that caused them. */}
         {save.isError ? (
           <Text variant="secondary" tone="danger" accessibilityRole="alert">
             {dressageError(save.error)}
@@ -386,6 +389,22 @@ export default function DressagePlan() {
           <Text variant="secondary" tone="danger" accessibilityRole="alert">
             {dressageError(generate.error)}
           </Text>
+        ) : null}
+
+        {isPreview ? (
+          <Button label="Speichern" fullWidth onPress={() => savePreview().catch(() => undefined)} />
+        ) : dirty ? (
+          <View className="gap-2">
+            <Button label="Speichern" fullWidth onPress={() => saveDraft().catch(() => undefined)} />
+            <Button label="Verwerfen" variant="ghost" fullWidth onPress={cancelEditing} />
+          </View>
+        ) : savedNow ? (
+          <View className="flex-row items-center gap-2">
+            <Icon as={Check} size={18} className="text-success" />
+            <Text variant="bodyStrong" tone="success">
+              Gespeichert
+            </Text>
+          </View>
         ) : null}
 
         <View className="flex-row flex-wrap gap-2">
