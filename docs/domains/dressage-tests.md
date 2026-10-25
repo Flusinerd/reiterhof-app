@@ -98,12 +98,13 @@ Generator (pure, deterministic for a given seed, `seed` returned and accepted fo
 2. Structure (general dressage convention, own wording, never modelled on a specific FN test): enter at A, halt and salute at X or G,
    work on both reins in balance (±20 % path length per rein), each gait on both reins, a free walk on
    a long rein in classes E/A, a halt at the end facing C, leave at A on a long rein. Order of gaits:
-   trot, walk, canter, trot, as common in tests; canter work on each rein starts after a trot phase.
+   trot on both reins, walk (with the free walk on a diagonal), canter on the first rein, trot with the change
+   of rein, canter on the second rein, trot; each canter is one block that starts after a trot line.
 3. A focus prefers movements whose linked exercises carry the focus's tags.
 4. Chain figures so each starts where the last ended (connectors along the track count as "ganze
-   Bahn"). Search: greedy with backtracking over the figure options, scoring variety (no figure twice
-   in a row, not only standard lines), balance of reins, and the target duration: short 3–4 min,
-   normal 5–6 min (E/A) or 6–7 min (L, L**). These are the app's own targets, not FN figures.
+   Bahn"). Search: depth-first with backtracking over the figure options, scoring variety (no figure twice
+   in a row, not only standard lines), balance of reins, and the target duration (`PracticeWindow`): short
+   3:30–5:00, normal 5:00–6:00 (E/A) or 5:30–7:00 (L, L**). These are the app's own targets, not FN figures.
 5. Output: numbered lines like an FN test but in our own words: `{n, letters: "A–X", text: "Einreiten
    im Arbeitstrab, bei X halten, grüßen", gait, tempo, rein, seconds, figure, path: [[x,y],…]}`.
 
@@ -217,16 +218,39 @@ Package `backend/internal/dressage` (pure), routes in `backend/internal/training
   medium and extended tempi except Mitteltrab, canter voltes of 10 m, serpentines in walk, half walk pirouette)
   has no class and is offered from L** with "Klasse nicht belegt". **Decision**: a movement that the user
   requires in a freestyle is allowed whatever its class (the class rule is for the extras).
-- Practice generator: nine phases (trot, trot with a change of rein, walk, walk with the change and a free walk
-  across the arena, trot, canter, trot with the change, canter, trot back to A) with the app's own shares of the
-  time; from class L in half of the seeds the second canter phase is followed by a canter phase with simple
-  changes of lead. Randomised depth-first search with backtracking inside each phase, scored for variety (no
-  figure family twice in a row), focus, movements not yet used and the time left; up to 250 attempts per plan
-  until all rules pass and the duration is inside the window (±2 s). **Decision**: with sessions only the
-  movements with a mastered exercise, plus at most two whose exercise is among the next lessons of the level
-  progression, plus the movements without a linked exercise (gaits, halt, the common figures). Kurzkehrt and
-  Kurzkehrt-based changes are not placed by the practice generator (the structure has one change of rein in
-  walk); they are in the library, the catalog and the freestyle.
+- Practice generator (`practice.go`): ten blocks in this order, each filled by a depth-first search with
+  backtracking over the figures of the library: trot on the first rein, trot with the change of rein and
+  work on the other rein (figures only after the change), medium walk, free walk on a diagonal (from L also
+  across the arena) and medium walk again, one trot track line to the letter of the canter, canter on the first
+  rein as one block (entry at a letter, one or two figures, back to trot), trot with the change of rein, canter
+  on the second rein as one block, a last trot line to A, then the salute and the exit. No gait changes inside a
+  canter block. From class L the second canter block shows a simple change of lead (diagonal or counter canter
+  to the next letter) in about half of the seeds; it ends on the first rein and the last trot follows on it.
+  The search builds the plan line by line; a plan is accepted when `CheckPractice` has no failing rule, the
+  duration is inside `PracticeWindow`, both reins have 40–60 % of the time and the line limit holds (120
+  attempts with other random choices per seed, the same seed always gives the same plan).
+  **Decision** (own quality rules, not from a source): short tests have at most 18 lines, normal tests at most
+  26 (entry and exit included); two track lines of one gait never follow each other (one track line covers up to
+  four letters) and a track line is at least 6 s of riding; a figure is not repeated on the same letters and a
+  volte does not follow a circle at the same letter; each movement shows at most twice per gait (a circle in
+  trot, in walk and in canter counts separately; plain gaits and the salute are not counted), at most two
+  lateral lines per rein, at most one serpentine per test; the rein back is only a walk figure, centre lines are
+  only changes of rein and rein back is no change of rein. A canter block has one or two figures (a change of
+  lead counts as one). Short tests show a subset: per gait the core movements of the class
+  (`CoreMovements`: for example A in trot circle, volte 10 m, medium trot and leg yield) plus at most two other
+  movements, normal tests plus at most four; the extras are drawn at random, the focus movements always come
+  first and mastered movements are twice as likely. The core lists are the app's own choice from the movements
+  of the class (E: circle and leg yield in trot, circle in walk and canter; L adds volte 8 m, serpentine, Viereck
+  and the change of lead; L** the lateral work). **Decision**: the generator no longer uses the freestyle
+  engine; PracticeWindow of the normal test in L and L** starts at 5:30 (before 6:00) because 26 lines in the
+  20×40 arena last about 14 s each. With sessions only the movements with a mastered exercise, plus at most two
+  whose exercise is among the next lessons of the level progression, plus the movements without a linked
+  exercise (gaits, halt, the common figures); a gait without any such figure still rides circles. Kurzkehrt and
+  Kurzkehrt-based changes are not placed by the practice generator; they are in the library, the catalog and the
+  freestyle.
+- Freestyle generator: unchanged search; afterwards track lines that follow each other in one gait and tempo are
+  merged into one line when the library has a track line of that length (up to four letters) and the merged plan
+  breaks no rule.
 - Rules of `CheckFreestyle` (own words, from the Kür leaflet): `chain`, `opening` (entry and salute on the centre
   line), `closing`, `class`, `gaits` (all three shown), `walk` (required walk on straight and curved lines only,
   as long as the user's minimum), `lengthening` (trot lengthenings on straight lines), `canter_voltes` (true
@@ -279,8 +303,8 @@ Package `backend/internal/dressage` (pure), routes in `backend/internal/training
 
 - Go, pure: arena coordinates and distances (letters, centre line points, lengths of figures with a
   tolerance), figure chaining (every line starts where the previous ended), practice generator for each
-  class and size (structure rules, balance, duration window, determinism by seed, only mastered plus
-  next), freestyle generator and `CheckFreestyle` for every rule above with a failing and a passing
+  class and size (structure rules, line limits, phases in order, canter blocks, limits per movement, core plus
+  extras, balance, duration window, determinism and variety by seed, only mastered plus next), freestyle generator and `CheckFreestyle` for every rule above with a failing and a passing
   case, catalog test (every movement has a source, every class requirement maps to movements, no FN
   test name in titles).
 - API tests: generate preview and save, access (owner, rider, stranger), PUT with a rule break → 400.

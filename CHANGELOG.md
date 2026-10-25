@@ -9,7 +9,9 @@ die Einträge dem Format von [Keep a Changelog](https://keepachangelog.com/de/1.
 
 - **Übungsaufgaben**: Die App erstellt eine eigene Aufgabe für zu Hause (Klasse E, A, L oder L**, Viereck 20×40 oder
   20×60, kurz oder normal) mit Buchstaben, Weg und Zeit je Zeile. Bei Pferden mit Einheiten nur aus gefestigten und den
-  nächsten Lektionen, auf Wunsch mit Schwerpunkt; „Neu würfeln“ liefert eine andere Aufgabe.
+  nächsten Lektionen, auf Wunsch mit Schwerpunkt; „Neu würfeln“ liefert eine andere Aufgabe. Eine kurze Aufgabe hat
+  höchstens 18, eine normale höchstens 26 Zeilen; Trab, Schritt mit freiem Schritt an der Diagonale und je ein
+  Galoppblock auf jeder Hand folgen in fester Reihenfolge.
 - **Küren**: Die Kür zeigt die Pflichtlektionen, die man aus dem eigenen Aufgabenheft einträgt (je Stall speicherbar),
   in der eingetragenen Zeit und prüft die Regeln des Kür-Merkblatts (Gruß, Schrittstrecke, Verstärkungen, Volten,
   Kurzkehrt, Lektionen höherer Klassen). Dazu Hinweise zur Choreografie und Musikteile je Gangart.
