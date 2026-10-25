@@ -236,6 +236,18 @@ Package `backend/internal/dressage` (pure), routes in `backend/internal/training
   `gaits_both_reins`, `balance` (each rein at least 40 %), advice `duration`.
 - **Decision**: the duration of a freestyle with many required movements can exceed a tight window; the plan
   is returned with the failing `time` check and the user edits it or loosens the window.
+- Wire format as the app uses it (checked end to end): `GET /horses/{id}/dressage-tests` answers `{tests: [{id, kind,
+  class, arena, title, focus_key, seconds, lines, created_by, created_at}]}`; a preview (`save: false`) and a stored
+  test answer with the same envelope `{id (null for a preview), horse_id, kind, class, arena, title, focus_key, seed,
+  requirements, plan, saved, ...}` (the plan is under `plan`, not the body itself); `GET /dressage/requirements`
+  answers `{requirements: [...]}`; an inline `requirements` object needs no `label`. A `music` part counts lines:
+  `from` and `to` are line numbers, not seconds (the app adds up the seconds itself). Every line carries `option`,
+  and a PUT must send it back (without it the answer is `400 "Zeile 1: unbekannte Figur"`). Errors answer
+  `{error: {code, message}, reasons?: [...]}` with `message` = the reasons joined by a space; 403 for a horse the caller
+  may not use (list, generate, read, edit) and for deleting the test of someone else (code `forbidden`, English text,
+  the app shows its own German one).
+- **Decision**: a freestyle needs at least about 5 minutes for five required movements (all gaits on both reins,
+  salute, free walk); a shorter window always fails the `time` check. The app's editor starts with 5:00 to 6:00.
 - Open: the `turnier` link (`unit.main.test_id`) is not built. Shows have no class or test list yet
   (`shows[].tests` of "Copyright" does not exist), the unit plan stores no test id and the planner is the language
   model prompt; it needs those three together.
@@ -246,13 +258,16 @@ Package `backend/internal/dressage` (pure), routes in `backend/internal/training
   (title, class, arena, duration), primary action "Neue Aufgabe".
 - **New** (`app/training/tests/new.tsx`): Segmented "Übungsaufgabe / Kür", class picker (default from
   the profile level; classes above the goal level are hidden), arena 20×40 / 20×60, for practice
-  "kurz / normal" and an optional focus, for Kür the requirements (prefilled from the class, editable
-  when the class has no source). "Erstellen" shows the preview.
+  "kurz / normal" and an optional focus, for Kür the requirements editor (nothing is prefilled, see "Requirements are
+  entered by the user": movements from the catalog with count and rein, time window in steps of 10 s, saved sets of the
+  class as pills, "Set für den Stall speichern"). "Erstellen" shows the preview, "Speichern" there stores the test with
+  the seed of the preview and returns to the list.
 - **Plan view** (`app/training/tests/[id].tsx`, also used for the preview): the arena drawn as SVG
-  (react-native-svg, already a dependency? check; if not, a pinned addition via `npx expo install`)
+  (react-native-svg)
   with letters, the path of the selected line highlighted, the full path faint; below the numbered
-  lines (letters in Fraunces, text, mm:ss); for Kür the requirement checklist, rule checks and the
-  music parts; actions: "Speichern" (preview), "Neu würfeln", "Zeilen bearbeiten" (reorder/remove with
+  lines (letters in Fraunces, text, mm:ss); for Kür the requirement checklist, "Regeln" (checks with `rule: true`, the
+  failing ones first) and "Hinweise" (advice about the choreography) and the music parts; while lines are edited the
+  server's checks are hidden (they would be stale) and the reasons of a refused save stand above "Speichern"; actions: "Speichern" (preview), "Neu würfeln", "Zeilen bearbeiten" (reorder/remove with
   re-check), "Teilen" (plain text via the share sheet), "Abspielen" (animates a dot along the path at
   real speed or 2× for learning the test).
 - The official tests: a quiet row "Offizielle Aufgaben" linking to the FN Regelwerke app/fnverlag.de
