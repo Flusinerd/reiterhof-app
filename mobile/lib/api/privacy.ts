@@ -1,10 +1,11 @@
 import { authed } from "../api";
 import type { ConsentItem, ConsentKind, ConsentList } from "../consent-core.ts";
 import { LEGAL_TEXT_VERSION } from "../consent-legal-texts.ts";
+import { CONSENTS_KEY } from "../query-keys.ts";
 
 // Mirrors docs/domains/privacy.md.
 
-export const CONSENTS_KEY = ["consents"] as const;
+export { CONSENTS_KEY };
 
 export const privacyApi = {
   consents: () => authed.get<ConsentList>("/api/v1/me/consents"),

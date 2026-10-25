@@ -1,6 +1,6 @@
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams, type Href } from "expo-router";
-import { Camera, Eye, Image as ImageIcon, Info, Send, Siren, X } from "lucide-react-native";
+import { Camera, Check, Eye, Image as ImageIcon, Info, Send, Siren, X } from "lucide-react-native";
 import { useRef, useState } from "react";
 import { Alert, Image, Pressable, View } from "react-native";
 
@@ -59,6 +59,8 @@ export default function NewObservation() {
   const [photos, setPhotos] = useState<UploadInput[]>([]);
   const [urgency, setUrgency] = useState<Urgency>("info");
   const [sending, setSending] = useState(false);
+  // Set once the report is stored: the form gives way to a result, so nobody sends the same report twice.
+  const [sent, setSent] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Uploaded photos by local uri, so a retry after a failed report does not upload them again.
   const uploaded = useRef(new Map<string, string>());
@@ -127,11 +129,21 @@ export default function NewObservation() {
         // The card is already in the cache; replace this screen so "back" returns to where the user came from.
         router.replace(horseRoutes.emergency(horseId) as Href);
       } else {
-        router.back();
+        const horseName = horses.data?.find((h) => h.id === horseId)?.name;
+        setSent(`${categoryLabel(category)}${horseName ? ` bei ${horseName}` : ""}.`);
       }
     } finally {
       setSending(false);
     }
+  }
+
+  if (sent) {
+    return (
+      <Screen back>
+        <PageHeader eyebrow="Pferdeakte" title="Gemeldet" description={`${sent} Besitzer und Reitbeteiligungen sind informiert.`} />
+        <Button label="Fertig" size="lg" fullWidth icon={Check} onPress={() => router.back()} />
+      </Screen>
+    );
   }
 
   const urgent = urgency === "urgent";
@@ -204,8 +216,8 @@ export default function NewObservation() {
         ) : null}
         {photos.length < MAX_PHOTOS ? (
           <View className="flex-row gap-3">
-            <Button label="Aufnehmen" icon={Camera} variant="outline" className="flex-1" onPress={() => void takePhoto()} />
-            <Button label="Aus Fotos" icon={ImageIcon} variant="outline" className="flex-1" onPress={() => void pickPhotos()} />
+            <Button label="Aufnehmen" icon={Camera} variant="outline" className="flex-1" onPress={() => takePhoto()} />
+            <Button label="Aus Fotos" icon={ImageIcon} variant="outline" className="flex-1" onPress={() => pickPhotos()} />
           </View>
         ) : null}
         <Text variant="caption">Max. {MAX_PHOTOS} Fotos.</Text>
@@ -234,7 +246,7 @@ export default function NewObservation() {
         size="lg"
         fullWidth
         loading={sending}
-        onPress={() => void submit()}
+        onPress={() => submit()}
       />
       {consent.sheet}
     </Screen>

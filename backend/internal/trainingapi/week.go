@@ -601,6 +601,7 @@ func (h *handler) putWeekDay(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, r, err)
 		return
 	}
+	h.hintChanged(ctx, a)
 	out, err := h.buildWeek(ctx, a, mondayOf(day), loc)
 	if err != nil {
 		h.fail(w, r, err)

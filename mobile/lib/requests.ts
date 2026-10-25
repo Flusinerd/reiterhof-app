@@ -329,6 +329,16 @@ export function reminderAt(option: ReminderOption, date: string, timeFrom: strin
   return new Date(p.year, p.month - 1, p.day, h - 2, m).toISOString();
 }
 
+/** The request as it will look once `userId` is thanked (optimistic update; the server confirms). */
+export function withThanked(request: HelpRequest, userId: string): HelpRequest {
+  return { ...request, helpers: request.helpers.map((h) => (h.user_id === userId ? { ...h, thanked: true } : h)) };
+}
+
+/** The request as it will look with the viewer's own reminder at `remindAt` (null = off). */
+export function withMyReminder(request: HelpRequest, remindAt: string | null): HelpRequest {
+  return { ...request, my_remind_at: remindAt };
+}
+
 /** The options a helper can still pick: their time lies ahead ("off" always does). */
 export function reminderChoices(date: string, timeFrom: string | null, now: Date = new Date()) {
   return REMINDER_OPTIONS.filter((o) => {

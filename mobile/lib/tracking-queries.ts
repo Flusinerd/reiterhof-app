@@ -3,7 +3,8 @@
 // "GET /exercises/{id}").
 import { useQuery } from "@tanstack/react-query";
 
-import { trainingApi, trainingKeys, type ExerciseQuery } from "./api/training";
+import { trainingApi, type ExerciseQuery } from "./api/training";
+import { trainingKeys } from "./query-keys.ts";
 
 /**
  * The exercises of the library (global and own stable), easiest first; filtering is local except for
@@ -20,7 +21,7 @@ export const useExerciseList = (query: ExerciseQuery = {}, enabled = true) =>
 /** One exercise with steps and follow-up; shares its cache key with the finish screen. */
 export const useExercise = (id: string | undefined) =>
   useQuery({
-    queryKey: ["training", "exercise", id],
+    queryKey: trainingKeys.exercise(id),
     queryFn: () => trainingApi.exercise(id!),
     enabled: !!id,
   });

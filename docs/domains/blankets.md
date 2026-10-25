@@ -142,7 +142,7 @@ Open horses first, then done ones, each group by name. `total` = all horses of t
 
 After commit: `blanket_state.changed` `{horse_id, day}` (state recorded), `blanket_plan.changed`
 `{horse_id}` (blankets or rules changed), and `request.changed` `{id, kind: "done"}` for closed
-requests. The app refetches (`useInvalidateOnEvents`).
+requests. The app marks the blanket and reminder queries stale (`RealtimeBridge`, `eventKeys` in `mobile/lib/query-effects.ts`).
 
 ## Requests close automatically (JAN-39)
 

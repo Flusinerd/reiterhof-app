@@ -81,6 +81,8 @@ type dueItem struct {
 	dailyTime                           *string
 	remindDays                          []int32
 	remindHour, remindMinute            int
+	// doneToday is set when somebody marked the item done today ("Gabe beenden" of a medication).
+	doneToday bool
 }
 
 func (s *Reminders) runStable(ctx context.Context, stableID string, loc *time.Location) error {
@@ -89,9 +91,10 @@ func (s *Reminders) runStable(ctx context.Context, stableID string, loc *time.Lo
 	today := time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
 
 	rows, err := s.Pool.Query(ctx, `SELECT i.id, i.horse_id, h.name, i.kind, i.label, i.due_date, to_char(i.daily_time, 'HH24:MI'),
-			i.remind_days, extract(hour FROM i.remind_time)::int, extract(minute FROM i.remind_time)::int
+			i.remind_days, extract(hour FROM i.remind_time)::int, extract(minute FROM i.remind_time)::int,
+			i.last_done_on = $2::date
 		FROM health_items i JOIN horses h ON h.id = i.horse_id
-		WHERE i.stable_id = $1 AND (i.due_date IS NOT NULL OR i.daily_time IS NOT NULL)`, stableID)
+		WHERE i.stable_id = $1 AND (i.due_date IS NOT NULL OR i.daily_time IS NOT NULL)`, stableID, today.Format("2006-01-02"))
 	if err != nil {
 		return err
 	}
@@ -99,11 +102,13 @@ func (s *Reminders) runStable(ctx context.Context, stableID string, loc *time.Lo
 	for rows.Next() {
 		var it dueItem
 		var due *time.Time
+		var doneToday *bool
 		if err := rows.Scan(&it.id, &it.horseID, &it.horseName, &it.kind, &it.label, &due, &it.dailyTime,
-			&it.remindDays, &it.remindHour, &it.remindMinute); err != nil {
+			&it.remindDays, &it.remindHour, &it.remindMinute, &doneToday); err != nil {
 			rows.Close()
 			return err
 		}
+		it.doneToday = doneToday != nil && *doneToday
 		if due != nil {
 			it.dueDate = time.Date(due.Year(), due.Month(), due.Day(), 0, 0, 0, 0, time.UTC)
 		}
@@ -167,6 +172,10 @@ func (s *Reminders) medication(ctx context.Context, stableID string, loc *time.L
 	}
 	// A course with an end date (due_date) stops after that day.
 	if !it.dueDate.IsZero() && time.Date(y, m, d, 0, 0, 0, 0, time.UTC).After(it.dueDate) {
+		return nil
+	}
+	// "Gabe beenden" (done) today: no further reminder today, even one that is not sent yet.
+	if it.doneToday {
 		return nil
 	}
 	title := "Medikament: " + it.horseName

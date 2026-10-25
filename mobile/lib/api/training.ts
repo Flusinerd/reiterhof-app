@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { ApiError, authed, errorMessage } from "../api";
 import { retryServerErrors } from "../api-core.ts";
+import { trainingKeys } from "../query-keys.ts";
 import {
   trainingErrorText,
   type Activity,
@@ -23,10 +24,12 @@ import type { Block, FocusEntry, FocusWarning, HorsePhase, ProfileFocus, Unit } 
 import type { GoalLevel, LevelProgress, TodayProgress } from "../training-goal";
 import { planApplyBody, type PlanDay, type PlanResponse, type ReproposeOptions, type TakeDayBody } from "../training-plan";
 import type { DayRuleApi, QuotasApi } from "../training-profile";
+import { useEffectMutation } from "./mutation";
 
 export type { ReproposeOptions, TakeDayBody };
 export type { Block, FocusEntry, FocusWarning, HorsePhase, ProfileFocus, Unit };
 export type { LevelProgress, StableEquipment, TodayProgress };
+export { trainingKeys };
 
 // --- types (mirror backend/internal/trainingapi) -----------------------------------------
 
@@ -319,21 +322,7 @@ export const trainingApi = {
     authed.put<unknown>("/api/v1/stables/training-equipment", equipmentBody(locations)),
 };
 
-// --- query keys ----------------------------------------------------------------------------
-
-export const trainingKeys = {
-  all: ["training"] as const,
-  horses: () => ["training", "horses"] as const,
-  today: (horse: string, minutes?: number) => ["training", "today", horse, minutes ?? 0] as const,
-  week: (horse: string, start?: string) => ["training", "week", horse, start ?? "current"] as const,
-  profile: (horse: string) => ["training", "profile", horse] as const,
-  sessions: (horse: string) => ["training", "sessions", horse] as const,
-  focuses: () => ["training", "focuses"] as const,
-  myFocus: (horse: string) => ["training", "my-focus", horse] as const,
-  equipment: () => ["training", "equipment"] as const,
-  /** Every exercise list (any horse, any focus); the lists themselves are keyed in lib/tracking-queries.ts. */
-  exercises: () => ["training", "exercises"] as const,
-};
+// --- hooks (the query keys live in lib/query-keys.ts) ------------------------------------------
 
 // The optional endpoints (focuses, my focus, equipment) answer 403 or 404 on an older backend and for
 // people without access: `retryServerErrors` spares them the retries that would only delay the screen.
@@ -388,31 +377,23 @@ export const useTrainingEquipment = (enabled = true) =>
     retry: retryServerErrors,
   });
 
-/** After a session or slot change: week, today, sessions and horse list are stale; the profile when `profile` is set (its progress counts sessions). */
-export function useInvalidateTraining() {
-  const client = useQueryClient();
-  return (horse: string, also?: { profile?: boolean }) => {
-    void client.invalidateQueries({ queryKey: ["training", "week", horse] });
-    void client.invalidateQueries({ queryKey: ["training", "today", horse] });
-    void client.invalidateQueries({ queryKey: trainingKeys.sessions(horse) });
-    void client.invalidateQueries({ queryKey: trainingKeys.horses() });
-    if (also?.profile) void client.invalidateQueries({ queryKey: trainingKeys.profile(horse) });
-  };
-}
-
+/**
+ * A logged session changes the week and today of the horse, the horse list, the diary and the reminder
+ * center (the day is done); the mutation ends when they are fresh, so "Ins Tagebuch" is there when the
+ * screen closes.
+ */
 export function useCreateSession(horse: string) {
-  const invalidate = useInvalidateTraining();
-  return useMutation({
+  return useEffectMutation({
     mutationFn: (body: SessionInput) => trainingApi.createSession(horse, body),
-    onSuccess: () => invalidate(horse, { profile: true }),
+    effects: () => [{ type: "session", horseId: horse }],
   });
 }
 
+/** Claims, releases or plans one day of the week. */
 export function useTakeDay(horse: string) {
-  const invalidate = useInvalidateTraining();
-  return useMutation({
+  return useEffectMutation({
     mutationFn: ({ day, ...body }: { day: string } & TakeDayBody) => trainingApi.takeDay(horse, day, body),
-    onSuccess: () => invalidate(horse),
+    effects: () => [{ type: "weekSlots", horseId: horse }],
   });
 }
 
@@ -431,70 +412,56 @@ export function useReproposeDay(horse: string) {
   });
 }
 
-/** Stores the plan days one after another, then refreshes the week. */
+/**
+ * Stores the plan days one after another, then refreshes the week. Days stored before a failure stay
+ * stored, so the week is refreshed on failure too.
+ */
 export function useApplyPlan(horse: string) {
-  const invalidate = useInvalidateTraining();
-  return useMutation({
+  return useEffectMutation({
     mutationFn: async (days: PlanDay[]) => {
       for (const d of days) {
         const body = planApplyBody(d);
         if (body) await trainingApi.takeDay(horse, d.date, body);
       }
     },
-    onSettled: () => invalidate(horse),
+    effects: () => [{ type: "weekSlots", horseId: horse }],
+    errorEffects: () => [{ type: "weekSlots", horseId: horse }],
   });
 }
 
 /** Saves the profile (also its focuses and level goal); the answer replaces the cached profile, plans and today are stale. */
 export function useSaveProfile(horse: string) {
   const client = useQueryClient();
-  const invalidate = useInvalidateTraining();
-  return useMutation({
+  return useEffectMutation({
     mutationFn: (body: ProfileInput) => trainingApi.saveProfile(horse, body),
     onSuccess: (profile) => {
       client.setQueryData(trainingKeys.profile(horse), profile);
-      invalidate(horse);
     },
+    effects: () => [{ type: "trainingProfile", horseId: horse }],
   });
 }
 
 /** Saves the person's own focuses on the horse ("Mein Schwerpunkt"). */
 export function useSetMyFocus(horse: string) {
-  const client = useQueryClient();
-  const invalidate = useInvalidateTraining();
-  return useMutation({
+  return useEffectMutation({
     mutationFn: (keys: string[]) => trainingApi.setMyFocus(horse, keys),
-    onSuccess: () => {
-      void client.invalidateQueries({ queryKey: trainingKeys.myFocus(horse) });
-      invalidate(horse);
-    },
+    effects: () => [{ type: "myFocus", horseId: horse }],
   });
 }
 
 /** "Kein eigener Schwerpunkt": removes the person's own focuses on the horse. */
 export function useClearMyFocus(horse: string) {
-  const client = useQueryClient();
-  const invalidate = useInvalidateTraining();
-  return useMutation({
+  return useEffectMutation({
     mutationFn: () => trainingApi.clearMyFocus(horse),
-    onSuccess: () => {
-      void client.invalidateQueries({ queryKey: trainingKeys.myFocus(horse) });
-      invalidate(horse);
-    },
+    effects: () => [{ type: "myFocus", horseId: horse }],
   });
 }
 
 /** Saves the stable's equipment (admins); exercises (availability), plans and today of every horse are stale. */
 export function useSaveTrainingEquipment() {
-  const client = useQueryClient();
-  return useMutation({
+  return useEffectMutation({
     mutationFn: (locations: Record<LocationKey, LocationEquipment>) => trainingApi.saveEquipment(locations),
-    onSuccess: () => {
-      void client.invalidateQueries({ queryKey: trainingKeys.equipment() });
-      void client.invalidateQueries({ queryKey: trainingKeys.exercises() });
-      void client.invalidateQueries({ queryKey: ["training", "week"] });
-      void client.invalidateQueries({ queryKey: ["training", "today"] });
-    },
+    effects: () => [{ type: "trainingEquipment" }],
   });
 }
 

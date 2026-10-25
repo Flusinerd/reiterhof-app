@@ -25,6 +25,8 @@ type Props = {
   /** The item to edit, or null to add a new one. */
   item: HealthItem | null;
   saving: boolean;
+  /** The item is being deleted (after the confirmation); blocks both buttons. */
+  deleting?: boolean;
   /** German error text of the last attempt. */
   error?: string | null;
   onSave: (input: HealthInput) => void;
@@ -45,7 +47,7 @@ function itemInterval(item: HealthItem | null): Interval {
 }
 
 /** Add / edit sheet for a health item (due date, interval, reminders, daily medication time). */
-export function HorseHealthSheet({ open, onOpenChange, item, saving, error, onSave, onDelete }: Props) {
+export function HorseHealthSheet({ open, onOpenChange, item, saving, deleting = false, error, onSave, onDelete }: Props) {
   const [kind, setKind] = useState("farrier");
   const [label, setLabel] = useState("");
   const [due, setDue] = useState("");
@@ -222,8 +224,10 @@ export function HorseHealthSheet({ open, onOpenChange, item, saving, error, onSa
           {problem ?? error}
         </Text>
       ) : null}
-      <Button label="Speichern" fullWidth loading={saving} onPress={submit} />
-      {item && onDelete ? <Button label="Termin löschen" variant="ghost" fullWidth onPress={onDelete} /> : null}
+      <Button label="Speichern" fullWidth loading={saving} disabled={deleting} onPress={submit} />
+      {item && onDelete ? (
+        <Button label="Termin löschen" variant="ghost" fullWidth loading={deleting} disabled={saving} onPress={onDelete} />
+      ) : null}
     </Sheet>
   );
 }

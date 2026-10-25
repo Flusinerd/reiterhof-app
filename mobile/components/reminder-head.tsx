@@ -1,7 +1,8 @@
-import { router, type Href } from "expo-router";
+import type { Href } from "expo-router";
 import { Shirt } from "lucide-react-native";
 
 import { Button, PageHeader } from "@/components/ui";
+import { pushOnce } from "@/lib/navigation";
 import { blanketHero, type BlanketCheck } from "@/lib/reminders";
 
 /**
@@ -27,7 +28,7 @@ export function ReminderHead({ check }: { check: BlanketCheck | undefined }) {
         icon={Shirt}
         variant={check.state === "due" ? "primary" : "outline"}
         size="sm"
-        onPress={() => router.push("/blankets" as Href)}
+        onPress={() => pushOnce("/blankets" as Href)}
       />
     </PageHeader>
   );

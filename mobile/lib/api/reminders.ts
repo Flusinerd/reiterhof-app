@@ -4,6 +4,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { authed } from "../api";
+import { reminderKeys } from "../query-keys.ts";
 import type {
   NotificationKind,
   NotificationSettings,
@@ -13,12 +14,7 @@ import type {
 
 export type ReminderRange = "today" | "week";
 
-export const reminderKeys = {
-  all: ["reminders"] as const,
-  list: (range: ReminderRange) => ["reminders", "list", range] as const,
-  notifications: ["settings", "notifications"] as const,
-  reminderTime: ["settings", "reminder-time"] as const,
-};
+export { reminderKeys };
 
 export const remindersApi = {
   list: (range: ReminderRange = "week") => authed.get<RemindersResponse>(`/api/v1/reminders?range=${range}`),

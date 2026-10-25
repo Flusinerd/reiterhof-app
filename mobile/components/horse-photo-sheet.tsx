@@ -21,14 +21,19 @@ export function useHorsePhotoSheet(horse: Pick<Horse, "id" | "name" | "photo_url
   const [visible, setVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const consent = useConsentPrompt();
-  const save = useHorseMutation((photoPath: string) => horsesApi.update(horse.id, { photo_path: photoPath }));
+  // The upload is part of the mutation (null removes the photo), so `busy` covers the seconds it takes: the
+  // buttons show their spinner and a second pick cannot start a second upload.
+  const save = useHorseMutation(
+    async (file: UploadInput | null) =>
+      horsesApi.update(horse.id, { photo_path: file ? (await uploadFile(file)).path : "" }),
+    () => [{ type: "horseUpdated", horseId: horse.id }],
+  );
   const busy = save.isPending;
 
   async function attach(file: UploadInput) {
     setError(null);
     try {
-      const saved = await uploadFile(file);
-      await save.mutateAsync(saved.path);
+      await save.mutateAsync(file);
       setVisible(false);
     } catch (err) {
       setError(uploadErrorMessage(err));
@@ -70,7 +75,7 @@ export function useHorsePhotoSheet(horse: Pick<Horse, "id" | "name" | "photo_url
         style: "destructive",
         onPress: () =>
           void save
-            .mutateAsync("")
+            .mutateAsync(null)
             .then(() => setVisible(false))
             .catch((e) => setError(errorMessage(e))),
       },
@@ -81,7 +86,7 @@ export function useHorsePhotoSheet(horse: Pick<Horse, "id" | "name" | "photo_url
     <>
       <Sheet
         open={visible}
-        onOpenChange={setVisible}
+        onOpenChange={(open) => !busy && setVisible(open)} // not while the photo is being saved: the error would be invisible
         title={`Foto von ${horse.name}`}
         description="Alle im Stall sehen das Foto."
       >
@@ -90,8 +95,8 @@ export function useHorsePhotoSheet(horse: Pick<Horse, "id" | "name" | "photo_url
             {error}
           </Text>
         ) : null}
-        <Button label="Foto aufnehmen" icon={Camera} variant="outline" fullWidth loading={busy} onPress={() => void takePhoto()} />
-        <Button label="Aus Fotos wählen" icon={ImageIcon} variant="outline" fullWidth loading={busy} onPress={() => void pickPhoto()} />
+        <Button label="Foto aufnehmen" icon={Camera} variant="outline" fullWidth loading={busy} onPress={takePhoto} />
+        <Button label="Aus Fotos wählen" icon={ImageIcon} variant="outline" fullWidth loading={busy} onPress={pickPhoto} />
         {horse.photo_url ? (
           <Button label="Foto entfernen" icon={Trash2} variant="ghost" fullWidth disabled={busy} onPress={confirmRemove} />
         ) : null}

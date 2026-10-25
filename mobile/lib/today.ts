@@ -287,3 +287,25 @@ export function todaySummary(view: TodayView): string {
   if (open === 0) return "Für heute ist alles erledigt.";
   return open === 1 ? "Eine Sache steht heute an." : `${open} Dinge stehen heute an.`;
 }
+
+/** What "Heute" needs to know about each query behind it (a React Query result fits). */
+export type TodaySource = { isPending: boolean; isError: boolean; data: unknown; error: unknown };
+
+export type TodayLoad =
+  | { state: "loading" }
+  /** A query failed and has no earlier answer to fall back on: its empty list would read as "all done". */
+  | { state: "failed"; error: unknown }
+  /** Everything is there. `stale` when a later refresh failed, so the view comes from the cache. */
+  | { state: "ready"; stale: boolean };
+
+/**
+ * Whether the view of "Heute" may be built. A failed query is no empty answer: without this check the
+ * screen says "Für heute ist alles erledigt." (or offers "Pferd anlegen") after a failed request and hides
+ * what is due.
+ */
+export function todayLoad(sources: readonly TodaySource[]): TodayLoad {
+  const failed = sources.find((s) => s.isError && s.data === undefined);
+  if (failed) return { state: "failed", error: failed.error };
+  if (sources.some((s) => s.isPending)) return { state: "loading" };
+  return { state: "ready", stale: sources.some((s) => s.isError) };
+}

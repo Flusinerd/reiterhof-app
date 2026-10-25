@@ -5,6 +5,7 @@ import { View } from "react-native";
 
 import { Button, Input, PageHeader, Screen, Text } from "@/components/ui";
 import { api, errorMessage } from "@/lib/api";
+import { invalidateEffects } from "@/lib/api/mutation";
 import { ME_KEY, useAuth } from "@/lib/auth";
 
 /**
@@ -31,6 +32,7 @@ export default function Name() {
     setBusy(true);
     try {
       queryClient.setQueryData(ME_KEY, await api.updateMe({ name: trimmed }));
+      void invalidateEffects(queryClient, [{ type: "profile" }]); // members, presence and requests show the name
       if (editing && router.canGoBack()) router.back();
       else router.replace(hasStable ? "/(tabs)" : "/(auth)/join");
     } catch (e) {

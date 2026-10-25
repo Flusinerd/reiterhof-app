@@ -1,10 +1,10 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { Minus, Plus } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
 
 import { Button, Text } from "@/components/ui";
-import { blanketKeys } from "@/lib/api/blankets";
+import { useEffectMutation } from "@/lib/api/mutation";
 import { reminderKeys, remindersApi, useReminderTime } from "@/lib/api/reminders";
 import {
   REMINDER_TIME_MAX,
@@ -30,17 +30,16 @@ export function ReminderTimeCard() {
     if (draft !== null && draft === saved) setDraft(null);
   }, [draft, saved]);
 
-  const save = useMutation({
+  const save = useEffectMutation({
     mutationFn: (time: string) => remindersApi.setReminderTime(time),
     onMutate: () => setError(null),
     onSuccess: (info) => {
       queryClient.setQueryData(reminderKeys.reminderTime, info);
       setDraft(null);
-      // The blanket tab and the reminder center show the time too.
-      void queryClient.invalidateQueries({ queryKey: blanketKeys.all });
-      void queryClient.invalidateQueries({ queryKey: reminderKeys.all });
     },
     onError: (e) => setError(reminderErrorMessage(e)),
+    // The blanket tab and the reminder center show the time too.
+    effects: () => [{ type: "reminderTime" }],
   });
 
   if (query.isPending) return <Text variant="body" tone="muted">Wird geladen ...</Text>;
@@ -50,7 +49,7 @@ export function ReminderTimeCard() {
         <Text variant="body" tone="danger">
           {reminderErrorMessage(query.error)}
         </Text>
-        <Button label="Erneut versuchen" variant="outline" onPress={() => void query.refetch()} />
+        <Button label="Erneut versuchen" variant="outline" onPress={() => query.refetch()} />
       </View>
     );
   }

@@ -156,6 +156,7 @@ func (h *handler) createContact(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, "create contact", err)
 		return
 	}
+	h.hint(r.Context(), user.StableID, id)
 	httpx.WriteJSON(w, http.StatusCreated, c)
 }
 
@@ -187,6 +188,7 @@ func (h *handler) patchContact(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, "patch contact", err)
 		return
 	}
+	h.hint(r.Context(), user.StableID, id)
 	httpx.WriteJSON(w, http.StatusOK, c)
 }
 
@@ -209,5 +211,6 @@ func (h *handler) deleteContact(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusNotFound, "not_found", "contact not found")
 		return
 	}
+	h.hint(r.Context(), user.StableID, id)
 	w.WriteHeader(http.StatusNoContent)
 }

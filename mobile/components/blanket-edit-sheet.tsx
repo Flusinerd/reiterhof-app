@@ -141,8 +141,8 @@ export function BlanketEditSheet({ open, onOpenChange, horseId, blanket }: Props
               <BlanketPhoto url={null} size={88} />
             )}
             <View className="flex-1 gap-2">
-              <Button label="Foto aufnehmen" icon={Camera} variant="outline" size="sm" fullWidth onPress={() => void take("camera")} />
-              <Button label="Aus Fotos" icon={ImageIcon} variant="outline" size="sm" fullWidth onPress={() => void take("library")} />
+              <Button label="Foto aufnehmen" icon={Camera} variant="outline" size="sm" fullWidth onPress={() => take("camera")} />
+              <Button label="Aus Fotos" icon={ImageIcon} variant="outline" size="sm" fullWidth onPress={() => take("library")} />
             </View>
           </View>
           {photo.kind !== "remove" && (photo.kind === "new" || blanket?.photo_url) ? (
@@ -172,7 +172,7 @@ export function BlanketEditSheet({ open, onOpenChange, horseId, blanket }: Props
             {error}
           </Text>
         ) : null}
-        <Button label="Speichern" fullWidth loading={save.isPending} disabled={busy} onPress={() => void submit()} />
+        <Button label="Speichern" fullWidth loading={save.isPending} disabled={busy} onPress={() => submit()} />
         {blanket ? (
           <Button label="Decke löschen" icon={Trash2} variant="ghost" fullWidth loading={remove.isPending} disabled={busy} onPress={confirmRemove} />
         ) : null}

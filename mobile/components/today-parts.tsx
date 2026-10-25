@@ -1,13 +1,14 @@
-import { router, type Href } from "expo-router";
+import type { Href } from "expo-router";
 import { Pressable, useColorScheme, View } from "react-native";
 
 import { Avatar, Button, Text } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { colorsForKey } from "@/lib/color-keys";
+import { pushOnce } from "@/lib/navigation";
 import { nextAction, nextEyebrow, type TodayEntry } from "@/lib/today";
 
 function open(screen: string) {
-  if (screen) router.push(screen as Href);
+  if (screen) pushOnce(screen as Href);
 }
 
 /** The one next task, on the raised surface with its single primary action. */

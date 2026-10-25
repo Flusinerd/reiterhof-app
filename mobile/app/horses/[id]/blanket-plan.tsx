@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { router, useLocalSearchParams, type Href } from "expo-router";
+import { useLocalSearchParams, type Href } from "expo-router";
 import { Hand, History, Pencil, Plus, RotateCcw } from "lucide-react-native";
 import { useState } from "react";
 import { RefreshControl, View } from "react-native";
@@ -15,7 +15,7 @@ import { Button, Input, PageHeader, Screen, Section, Sheet, Text } from "@/compo
 import { ListRow, RowList } from "@/components/ui/list-row";
 import { WeatherCard } from "@/components/weather-card";
 import { errorMessage } from "@/lib/api";
-import { BLANKET_PLAN_EVENT, BLANKET_STATE_EVENT, blanketKeys, blanketsApi, usePlan, usePlanMutation } from "@/lib/api/blankets";
+import { blanketKeys, blanketsApi, usePlan, usePlanMutation } from "@/lib/api/blankets";
 import { horsesApi, useHorseMutation } from "@/lib/api/horses";
 import { useAuth } from "@/lib/auth";
 import {
@@ -33,7 +33,7 @@ import {
   stateLabel,
   type Blanket,
 } from "@/lib/blankets";
-import { useInvalidateOnEvents } from "@/lib/realtime";
+import { pushOnce } from "@/lib/navigation";
 import { useColors } from "@/lib/theme";
 
 /** Deckenplan of a horse (JAN-30): tonight's recommendation, rules, blankets, helper note, history. */
@@ -43,10 +43,6 @@ export default function BlanketPlan() {
   const queryClient = useQueryClient();
   const { me } = useAuth();
   const plan = usePlan(id);
-  useInvalidateOnEvents({
-    [BLANKET_STATE_EVENT]: [blanketKeys.plan(id), blanketKeys.history(id)],
-    [BLANKET_PLAN_EVENT]: [blanketKeys.plan(id)],
-  });
   const [rulesOpen, setRulesOpen] = useState(false);
   const [editing, setEditing] = useState<{ blanket: Blanket | null } | null>(null);
   const [choiceOpen, setChoiceOpen] = useState(false);
@@ -55,7 +51,10 @@ export default function BlanketPlan() {
   const [noteOpen, setNoteOpen] = useState(false);
   const [note, setNote] = useState("");
   const [noteError, setNoteError] = useState<string | null>(null);
-  const saveNote = useHorseMutation((text: string) => horsesApi.update(id, { helper_note: text }));
+  const saveNote = useHorseMutation(
+    (text: string) => horsesApi.update(id, { helper_note: text }),
+    () => [{ type: "horseUpdated", horseId: id }], // also refreshes the plan (the note shows there)
+  );
   const timeZone = me?.stable?.timezone ?? "Europe/Berlin";
 
   if (!plan.data) {
@@ -77,7 +76,6 @@ export default function BlanketPlan() {
     setNoteError(null);
     try {
       await saveNote.mutateAsync(note.trim());
-      await queryClient.invalidateQueries({ queryKey: blanketKeys.plan(id) });
       setNoteOpen(false);
     } catch (e) {
       setNoteError(errorMessage(e));
@@ -246,7 +244,7 @@ export default function BlanketPlan() {
             icon={History}
             variant="ghost"
             size="sm"
-            onPress={() => router.push(`/blankets/history/${id}` as Href)}
+            onPress={() => pushOnce(`/blankets/history/${id}` as Href)}
           />
         }
       >
@@ -281,7 +279,7 @@ export default function BlanketPlan() {
                 {noteError}
               </Text>
             ) : null}
-            <Button label="Speichern" fullWidth loading={saveNote.isPending} onPress={() => void submitNote()} />
+            <Button label="Speichern" fullWidth loading={saveNote.isPending} onPress={() => submitNote()} />
           </Sheet>
         </>
       ) : null}

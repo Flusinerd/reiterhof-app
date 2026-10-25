@@ -6,6 +6,7 @@ import {
   blanketHero,
   countItems,
   dayHeading,
+  dismissAction,
   groupByDay,
   isValidReminderTime,
   itemDay,
@@ -45,6 +46,15 @@ test("kind labels", () => {
   assert.equal(kindLabel("medication"), "Medikament");
   assert.equal(kindLabel("training_plan"), "Training");
   assert.equal(kindLabel("something_new"), "Erinnerung");
+});
+
+test("the check of a push about an appointment hides it, it does not complete it", () => {
+  for (const kind of ["health_due", "medication", "reha_checkup"]) {
+    assert.deepEqual(dismissAction({ kind }), { verb: "Ausblenden", hidesOnly: true }, kind);
+  }
+  for (const kind of ["last_person", "helper", "training_plan", "weather_warning", "something_new"]) {
+    assert.deepEqual(dismissAction({ kind }), { verb: "Erledigt", hidesOnly: false }, kind);
+  }
 });
 
 test("dayHeading", () => {

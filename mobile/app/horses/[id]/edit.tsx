@@ -14,7 +14,10 @@ export default function EditHorse() {
   const horse = useHorse(id);
   const card = useEmergency(id);
   const members = useMembers();
-  const update = useHorseMutation((input: Parameters<typeof horsesApi.update>[1]) => horsesApi.update(id, input));
+  const update = useHorseMutation(
+    (input: Parameters<typeof horsesApi.update>[1]) => horsesApi.update(id, input),
+    () => [{ type: "horseUpdated", horseId: id }],
+  );
   const [error, setError] = useState<string | null>(null);
 
   const failed = horse.error ?? card.error;

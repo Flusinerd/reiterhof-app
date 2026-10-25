@@ -22,6 +22,7 @@ import {
 import { useExerciseList } from "@/lib/tracking-queries";
 import { errorMessage } from "@/lib/api";
 import { useColors } from "@/lib/theme";
+import { usePullToRefresh } from "@/lib/use-pull-to-refresh";
 
 /**
  * Exercise library (JAN-58): browse and filter by focus, phase (Lösen, Arbeiten, Entspannen),
@@ -38,6 +39,7 @@ export default function ExerciseLibrary() {
   // The filter pills come from the whole list; a chosen focus asks the server for its own list.
   const list = useExerciseList({ horse });
   const focused = useExerciseList({ horse, focus: filter.focus }, !!filter.focus);
+  const refresh = usePullToRefresh([list]);
 
   const all = list.data ?? [];
   const options = useMemo(() => filterOptions(all), [all]);
@@ -48,7 +50,7 @@ export default function ExerciseLibrary() {
   const waiting = !!filter.focus && focused.isPending;
 
   return (
-    <Screen back>
+    <Screen back refreshControl={refresh}>
       <PageHeader eyebrow="Training" title="Übungen" description="Nach Schwerpunkt, Phase und Niveau." />
 
       {list.isPending ? (

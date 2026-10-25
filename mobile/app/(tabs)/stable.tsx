@@ -1,15 +1,16 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { router, type Href } from "expo-router";
+import type { Href } from "expo-router";
 import { ChevronRight, Fence, Plus } from "lucide-react-native";
 import { Pressable, RefreshControl, View } from "react-native";
 
 import { PresenceButton } from "@/components/app-menu";
+import { LoadFailed, NotCurrent } from "@/components/load-notice";
 import { BlanketBoard, PresenceRow } from "@/components/stable-parts";
 import { StartRequests } from "@/components/start-requests";
 import { WeatherWarnings } from "@/components/weather-warnings";
 import { Button, Icon, PageHeader, Screen, SectionTitle, Text } from "@/components/ui";
 import { ListRow, RowList } from "@/components/ui/list-row";
-import { BLANKET_STATE_EVENT, blanketKeys, useToday } from "@/lib/api/blankets";
+import { blanketKeys, useToday } from "@/lib/api/blankets";
 import { PRESENCE_KEY } from "@/lib/api/presence";
 import { requestKeys } from "@/lib/api/requests";
 import { useTrainingEquipment } from "@/lib/api/training";
@@ -17,9 +18,10 @@ import { weatherKeys } from "@/lib/api/weather";
 import { useAuth } from "@/lib/auth";
 import { progressLabel } from "@/lib/blankets";
 import { horseRoutes } from "@/lib/horse-format";
-import { useInvalidateOnEvents } from "@/lib/realtime";
+import { pushOnce } from "@/lib/navigation";
 import { boardLine, blanketBoard, boardMineLine } from "@/lib/stable-tab";
 import { useColors } from "@/lib/theme";
+import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 
 /**
  * "Stall": what concerns everybody. Warnings on top, who is here, tonight's blankets as a board,
@@ -33,7 +35,7 @@ export default function Stable() {
   const isAdmin = !!me?.user.is_admin;
   const equipment = useTrainingEquipment(isAdmin);
   const today = useToday();
-  useInvalidateOnEvents({ [BLANKET_STATE_EVENT]: [blanketKeys.today] });
+  useRefreshOnFocus([blanketKeys.today, PRESENCE_KEY, requestKeys.all]);
   const mineIds = new Set([...(me?.roles.owned_horse_ids ?? []), ...(me?.roles.rider_horse_ids ?? [])]);
   const data = today.data;
   const openHorses = data?.horses.filter((h) => !h.done).length ?? 0;
@@ -68,7 +70,7 @@ export default function Stable() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={data ? `Decken: ${progressLabel(data.progress)} versorgt. Übersicht öffnen` : "Decken, Übersicht öffnen"}
-                onPress={() => router.push("/blankets" as Href)}
+                onPress={() => pushOnce("/blankets" as Href)}
                 className="min-h-touch flex-row items-center gap-1 active:opacity-70"
               >
                 <Text variant="bodyStrong" tone="brass">
@@ -82,7 +84,8 @@ export default function Stable() {
           </SectionTitle>
           {data ? (
             <>
-              <BlanketBoard horses={data.horses} mineIds={mineIds} onOpen={(id) => router.push(horseRoutes.blanketPlan(id) as Href)} />
+              {today.isError ? <NotCurrent onRetry={() => today.refetch()} /> : null}
+              <BlanketBoard horses={data.horses} mineIds={mineIds} onOpen={(id) => pushOnce(horseRoutes.blanketPlan(id) as Href)} />
               <View className="gap-0.5">
                 <Text variant="secondary">{boardLine(data)}</Text>
                 {mineLine ? (
@@ -91,8 +94,10 @@ export default function Stable() {
                   </Text>
                 ) : null}
               </View>
-              {openHorses > 0 ? <Button label="Runde starten" fullWidth onPress={() => router.push("/blankets/round" as Href)} /> : null}
+              {openHorses > 0 ? <Button label="Runde starten" fullWidth onPress={() => pushOnce("/blankets/round" as Href)} /> : null}
             </>
+          ) : today.isError ? (
+            <LoadFailed title="Die Decken konnten nicht geladen werden." error={today.error} onRetry={() => today.refetch()} />
           ) : (
             <Text variant="secondary">Wird geladen …</Text>
           )}
@@ -101,12 +106,12 @@ export default function Stable() {
 
       <View className="gap-1">
         <SectionTitle
-          action={<Button label="Neu" icon={Plus} variant="ghost" size="sm" className="-mr-4" accessibilityLabel="Neue Bitte um Hilfe" onPress={() => router.push("/requests/new" as Href)} />}
+          action={<Button label="Neu" icon={Plus} variant="ghost" size="sm" className="-mr-4" accessibilityLabel="Neue Bitte um Hilfe" onPress={() => pushOnce("/requests/new" as Href)} />}
         >
           Bitte um Hilfe
         </SectionTitle>
         <StartRequests />
-        <Button label="Alle Anfragen" variant="ghost" size="sm" className="-ml-4" onPress={() => router.push("/requests" as Href)} />
+        <Button label="Alle Anfragen" variant="ghost" size="sm" className="-ml-4" onPress={() => pushOnce("/requests" as Href)} />
       </View>
 
       {isAdmin && equipment.data ? (
@@ -116,7 +121,7 @@ export default function Stable() {
             title="Ausstattung fürs Training"
             detail={equipment.data.set ? "Was ihr aufbauen könnt" : "Noch nicht eingetragen"}
             accessibilityLabel="Ausstattung fürs Training"
-            onPress={() => router.push("/stable/training-equipment" as Href)}
+            onPress={() => pushOnce("/stable/training-equipment" as Href)}
           />
         </RowList>
       ) : null}

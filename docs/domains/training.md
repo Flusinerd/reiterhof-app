@@ -115,6 +115,8 @@ Errors use the standard envelope (`validation_failed`, `forbidden`, `not_found`,
 | `GET /exercises?library=&level=&tag=&phase=&focus=&horse=` | Global (`stable_id NULL`) and own-stable exercises, easiest first along the progression; `library` (alias `discipline`), `phase` (warmup, main and cooldown also list `any`), `focus` (a catalog key: the exercises with its tags), `horse` adds `available` (does the stable have the equipment); items carry `library`, `phase`, `minutes`, `intensity`, `suits`, `summary`, `equipment` |
 | `GET /exercises/{id}` | With `steps` and the follow-up exercise (`next_exercise_id`, `next`), `requires [{id, title}]`, `sources [url]` and `alternatives [{id, title, equipment}]` |
 
+Every write (`POST .../sessions`, `PUT .../week/{day}`, `PUT .../training-profile`) publishes the realtime event `training.changed {horse_id}` (`trainingapi.EventChanged`; sessions inside the transaction, the others after the write). `POST .../week/plan` stores nothing and publishes nothing.
+
 ### Profile
 
 `discipline` is one of `dressage, jumping, eventing, leisure, western, young_horse` (required).
@@ -343,7 +345,10 @@ tracked; "Gefühl" chips (Schwer, Gut, Sehr locker, tap again to clear); "Übung
 plan as one tick row; the note ("Notiz für Mia …" when someone else owns or rides the horse, else "Notiz …"),
 for an owner with a rider the switch "Mia sieht die Einheit" (`visible_to_rider`); the one button "Ins
 Tagebuch", and a quiet "Etwas aufgefallen?". Without a next progression the screen closes after saving,
-with one it shows "Als Nächstes" first.
+with one it shows "Als Nächstes" first. Both ways leave with `router.dismissTo` to the training screen of the same
+horse that is still below in the stack (`/training?horse=<id>`); its week is fresh already, because
+`useCreateSession` waits for its effects before the screen is left. "Nur eintragen" (`QuickLogSheet`) closes its sheet
+the same way and the training screen says "Eingetragen: Halle, 45 Min." until the horse is switched.
 
 - The exercise row starts out ticked when the indoor tracker ticked at least one step (the tracker passes
   `steps_done`, e.g. `0,2`, or `-` for none, in the finish params) and when no tracker data exists. The

@@ -499,6 +499,23 @@ tx.Commit(ctx) // the event is sent on commit; a rollback sends nothing
 keep `data` to ids. Naming: `<domain>.changed` (`presence.changed`, `blanket_state.changed`,
 `request.changed`, ...). The type `resync` is reserved (see below).
 
+**Events** (all carry ids only; the apps map each to the queries it changes, see `mobile/lib/query-effects.ts`):
+
+| Event | Data | Published by |
+| --- | --- | --- |
+| `blanket_state.changed` | `horse_id`, `day` | blanket state set, auto-uncover |
+| `blanket_plan.changed` | `horse_id` | blanket rules, overrides, cover window, plan CRUD |
+| `request.changed` | `id`, `kind` | requests create/update/accept/withdraw/done/cancel, closing by a blanket state |
+| `presence.changed` | | check-in/out, stale job, privacy delete, admin CLI |
+| `observation.changed` | `id`, `horse_id` | observation reported or status changed |
+| `reha.changed` | `horse_id` | reha plan created, edited, ended, day marked |
+| `health.changed` | `horse_id` | health item created, edited, deleted, done or undone (`internal/health`) |
+| `training.changed` | `horse_id` | session logged, week day planned/taken/released, training profile saved (`internal/trainingapi`) |
+| `horse.changed` | `horse_id` | horse created or edited (name, photo, owner), rider set/removed, emergency contact changed (`internal/horses`) |
+| `resync` | | synthetic, sent by the hub to all clients after it re-established its database connection |
+
+A change that is only a repeat (a second "erledigt" the same day, an empty PATCH) publishes nothing.
+
 **Subscribe:** every process runs one `realtime.Hub` (started in `cmd/api`, exposed as
 `deps.Events`, a no-op in tests unless you pass a hub: `hub := realtime.NewHub(pool, nil);
 go hub.Run(ctx); <-hub.Ready()`). It holds one dedicated `LISTEN` connection and reconnects
@@ -515,8 +532,15 @@ refetches). No replay: clients refetch after (re)connecting.
 accepted (it would end up in access logs and proxies). The clients use `expo/fetch` streaming
 (native) and `fetch` (browser), which both send the header.
 
-**Mobile:** `useStableEvents(types, handler)` and `useInvalidateOnEvents({ "request.changed":
-[["requests"]] })` in `mobile/lib/realtime.ts`; one shared connection, closed in the background.
+**Mobile:** `useStableEvents(types, handler)` in `mobile/lib/realtime.ts` (one shared connection, reference
+counted, closed in the background, a `resync` after every reconnect). The app subscribes **once**:
+`RealtimeBridge` (`components/realtime-bridge.tsx`), mounted by the root layout while somebody is signed in
+to a stable, marks the queries an event changed as stale; which ones is the table `eventKeys` in
+`mobile/lib/query-effects.ts` (scoped by `data.horse_id`; a `resync` marks everything stale). Screens do not
+subscribe themselves, so a screen that was never opened is fresh when it shows up. A new event needs a line
+in that table, a test in `query-effects.test.ts` and an entry in the event table above. The same bridge
+refreshes the reminder center (and what the push is about) when a push arrives while the app is open
+(`useRefreshOnPush`, native only).
 
 ## Files
 

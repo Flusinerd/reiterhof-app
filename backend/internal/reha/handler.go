@@ -206,6 +206,14 @@ func parseDate(s string) (time.Time, bool) {
 	return d, err == nil
 }
 
+// sameDay reports whether two optional calendar dates are the same (both unset counts as the same).
+func sameDay(a, b *time.Time) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return a.Format(DateLayout) == b.Format(DateLayout)
+}
+
 // validate trims and checks the plan; the message is English.
 func (in *planInput) validate(today time.Time) string {
 	in.Diagnosis = strings.TrimSpace(in.Diagnosis)
@@ -293,6 +301,9 @@ func (h *handler) create(w http.ResponseWriter, r *http.Request) {
 		// Only one plan is active per horse: the previous one ends now.
 		if _, err := tx.Exec(ctx, `UPDATE reha_plans SET active = false, ended_at = $3
 			WHERE stable_id = $1 AND horse_id = $2::uuid AND active`, a.user.StableID, a.horseID, h.deps.Now()); err != nil {
+			return err
+		}
+		if err := dismissCheckupReminders(ctx, tx, a.user.StableID, a.horseID, "", h.deps.Now()); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `INSERT INTO reha_plans (stable_id, horse_id, diagnosis, vet, start_date, phases, checkup_date,
@@ -403,6 +414,12 @@ func (h *handler) patch(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
+		if !sameDay(cur.CheckupDate, in.Checkup) {
+			// The stored push still names the old checkup date.
+			if err := dismissCheckupReminders(ctx, tx, a.user.StableID, a.horseID, cur.ID, h.deps.Now()); err != nil {
+				return err
+			}
+		}
 		return realtime.Publish(ctx, tx, a.user.StableID, "reha.changed", map[string]any{"horse_id": a.horseID})
 	})
 	if h.failAPI(w, r, err) {
@@ -435,6 +452,9 @@ func (h *handler) end(w http.ResponseWriter, r *http.Request) {
 		}
 		if _, err := tx.Exec(ctx, `UPDATE training_profiles SET status = 'fit'
 			WHERE stable_id = $1 AND horse_id = $2::uuid AND status = 'reha'`, a.user.StableID, a.horseID); err != nil {
+			return err
+		}
+		if err := dismissCheckupReminders(ctx, tx, a.user.StableID, a.horseID, p.ID, h.deps.Now()); err != nil {
 			return err
 		}
 		return realtime.Publish(ctx, tx, a.user.StableID, "reha.changed", map[string]any{"horse_id": a.horseID})

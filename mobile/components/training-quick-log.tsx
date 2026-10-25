@@ -23,7 +23,8 @@ export function QuickLogSheet({
   hidden: readonly Activity[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSaved?: () => void;
+  /** Called after the sheet closed, with what was logged (the screen behind says so). */
+  onSaved?: (saved: { activity: Activity; minutes: number }) => void;
 }) {
   const [activity, setActivity] = useState<Activity | null>(null);
   const [minutes, setMinutes] = useState<number | null>(null);
@@ -39,17 +40,16 @@ export function QuickLogSheet({
     onOpenChange(next);
   };
 
+  // The promise locks the button from the tap on (a second tap would log the ride twice); the error shows below.
   const save = () => {
     if (!activity || !minutes) return;
-    create.mutate(
-      { activity, minutes },
-      {
-        onSuccess: () => {
-          close(false);
-          onSaved?.();
-        },
-      },
-    );
+    return create
+      .mutateAsync({ activity, minutes })
+      .then(() => {
+        close(false);
+        onSaved?.({ activity, minutes });
+      })
+      .catch(() => undefined);
   };
 
   return (

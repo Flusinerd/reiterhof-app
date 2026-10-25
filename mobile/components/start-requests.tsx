@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { router } from "expo-router";
 import { useMemo } from "react";
 import { ActivityIndicator, View } from "react-native";
 
@@ -7,10 +6,10 @@ import { RequestRow } from "@/components/request-row";
 import { Button, Text } from "@/components/ui";
 import { requestKeys, requestsApi } from "@/lib/api/requests";
 import { useAuth } from "@/lib/auth";
+import { pushOnce } from "@/lib/navigation";
 import type { ListParams } from "@/lib/requests";
 import { toIsoDate } from "@/lib/requests";
 import { requestErrorMessage } from "@/lib/requests-errors";
-import { useInvalidateOnEvents } from "@/lib/realtime";
 import { useColors } from "@/lib/theme";
 import { useAcceptRequest } from "@/lib/use-accept-request";
 
@@ -26,15 +25,14 @@ export function StartRequests() {
   const { user } = useAuth();
   const today = useMemo(() => toIsoDate(new Date()), []);
   const list = useQuery({ queryKey: requestKeys.list(PARAMS), queryFn: () => requestsApi.list(PARAMS) });
-  useInvalidateOnEvents({ "request.changed": [requestKeys.all] });
-  const { accept, acceptingId, error } = useAcceptRequest();
+  const { accept, accepting, error } = useAcceptRequest();
 
   if (list.isPending) return <ActivityIndicator color={c.primary.DEFAULT} className="self-start" />;
   if (list.isError) {
     return (
       <View className="gap-3">
         <Text variant="body">{requestErrorMessage(list.error)}</Text>
-        <Button label="Erneut versuchen" variant="outline" size="sm" onPress={() => void list.refetch()} />
+        <Button label="Erneut versuchen" variant="outline" size="sm" onPress={() => list.refetch()} />
       </View>
     );
   }
@@ -54,8 +52,8 @@ export function StartRequests() {
           today={today}
           userId={user?.id}
           last={i === requests.length - 1}
-          accepting={acceptingId === r.id}
-          onOpen={() => router.push({ pathname: "/requests/[id]", params: { id: r.id } })}
+          accepting={accepting.has(r.id)}
+          onOpen={() => pushOnce({ pathname: "/requests/[id]", params: { id: r.id } })}
           onAccept={() => accept(r.id)}
         />
       ))}

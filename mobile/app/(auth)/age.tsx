@@ -90,13 +90,13 @@ export default function Age() {
           <Text variant="bodySm" tone="muted">
             Der Link in der Mail gilt 7 Tage. Nichts angekommen? Spam-Ordner prüfen oder die Mail erneut senden.
           </Text>
-          <Button label="Status prüfen" size="lg" fullWidth loading={busy} onPress={() => void refresh()} />
+          <Button label="Status prüfen" size="lg" fullWidth loading={busy} onPress={() => refresh()} />
           <Button
             variant="outline"
             label={resendLabel(secondsLeft)}
             fullWidth
             disabled={secondsLeft > 0 || busy}
-            onPress={() => void sendToParent(user?.parent_email ?? undefined)}
+            onPress={() => sendToParent(user?.parent_email ?? undefined)}
           />
           <Button variant="ghost" label="Andere Adresse" fullWidth disabled={busy} onPress={() => setMode("parent")} />
           {error ? (
@@ -107,7 +107,7 @@ export default function Age() {
         </View>
         <Divider />
         <View className="gap-2">
-          <Button variant="ghost" label="Ich bin doch 16 oder älter" fullWidth disabled={busy} onPress={() => void over16()} />
+          <Button variant="ghost" label="Ich bin doch 16 oder älter" fullWidth disabled={busy} onPress={() => over16()} />
           <Button variant="ghost" label="Datenschutz und Konto" fullWidth onPress={() => router.push("/settings/privacy")} />
           <Button variant="ghost" label="Abmelden" fullWidth onPress={signOut} />
         </View>
@@ -138,7 +138,7 @@ export default function Age() {
             onSubmitEditing={() => void sendToParent()}
             className="h-14"
           />
-          <Button label="Mail senden" size="lg" fullWidth loading={busy} onPress={() => void sendToParent()} />
+          <Button label="Mail senden" size="lg" fullWidth loading={busy} onPress={() => sendToParent()} />
           <Button variant="ghost" label="Zurück" fullWidth disabled={busy} onPress={() => setMode("choose")} />
           {error ? (
             <Text variant="bodySm" tone="danger" accessibilityRole="alert">
@@ -158,7 +158,7 @@ export default function Age() {
         description="Standort, Fotos und Mitteilungen brauchen deine Einwilligung. Unter 16 muss ein Elternteil zustimmen."
       />
       <View className="gap-3">
-        <Button label="Ich bin 16 oder älter" size="lg" fullWidth loading={busy} onPress={() => void over16()} />
+        <Button label="Ich bin 16 oder älter" size="lg" fullWidth loading={busy} onPress={() => over16()} />
         <Button label="Ich bin jünger als 16" size="lg" variant="outline" fullWidth disabled={busy} onPress={() => setMode("parent")} />
         {error ? (
           <Text variant="bodySm" tone="danger" accessibilityRole="alert">

@@ -1,4 +1,5 @@
 import { authed, type PresenceVisibility } from "../api";
+import { PRESENCE_KEY } from "../query-keys.ts";
 
 // Mirrors docs/domains/presence.md. Times are RFC 3339 strings.
 
@@ -43,8 +44,7 @@ export type PresenceOverview = {
   recent: PresenceRecent[];
 };
 
-export const PRESENCE_KEY = ["presence"] as const;
-export const PRESENCE_EVENT = "presence.changed";
+export { PRESENCE_KEY };
 
 export const presenceApi = {
   overview: () => authed.get<PresenceOverview>("/api/v1/presence"),

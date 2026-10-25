@@ -187,6 +187,52 @@ test("health row far away has no button; soon has one", () => {
   assert.equal(soon.action?.kind, "done");
 });
 
+// "Erledigt" on the horse page (UX-03): the row keeps the result and the undo while the user is on the page.
+// The server has moved the date of the Wurmkur (now in 3 months) and the Impfung is the next item by date.
+const wormed: RowHealthItem = { id: "h1", kind: "deworming", label: "Wurmkur", due_date: "2027-01-24", daily_time: null, days_until_due: 92 };
+const vaccination: RowHealthItem = { id: "h3", kind: "vaccination", label: "Impfung", due_date: "2026-10-29", daily_time: null, days_until_due: 5 };
+
+test("after erledigt the row keeps the acknowledged item, with the next date and the undo", () => {
+  const input = { horseId: "H", today, days: null, blanket: null, health: [vaccination, wormed], canManage: true };
+  // Without the acknowledgement the row moves on to the Impfung and offers "Erledigt" for it (the second tap that marked a different item).
+  const moved = buildHorseRows(input)[0];
+  assert.equal(moved.title, "Impfung in 5 Tagen");
+  assert.deepEqual(moved.action, { label: "Erledigt", kind: "done", itemId: "h3" });
+  // With it the row shows the result.
+  const [row] = buildHorseRows({ ...input, justDone: wormed });
+  assert.equal(row.key, "health");
+  assert.equal(row.eyebrow, "Gesundheit · erledigt");
+  assert.equal(row.eyebrowTone, "success");
+  assert.equal(row.title, "Wurmkur erledigt");
+  assert.equal(row.detail, "Nächster Termin 24.01.2027");
+  assert.deepEqual(row.action, { label: "Rückgängig", kind: "undo", itemId: "h1" });
+  assert.equal(row.route, "/horses/H/health");
+});
+
+test("the acknowledged row of a one-off appointment says it is finished; a rider gets no undo", () => {
+  const oneOff: RowHealthItem = { id: "v", kind: "vet", label: "Kontrolle", due_date: null, daily_time: null, days_until_due: null };
+  const [row] = buildHorseRows({ horseId: "H", today, days: null, blanket: null, health: [oneOff], canManage: true, justDone: oneOff });
+  assert.equal(row.title, "Kontrolle erledigt");
+  assert.equal(row.detail, "Abgeschlossen");
+  const [rider] = buildHorseRows({ horseId: "H", today, days: null, blanket: null, health: [oneOff], canManage: false, justDone: oneOff });
+  assert.equal(rider.action, undefined);
+});
+
+test("an acknowledged item that is gone falls back to the normal row", () => {
+  const [row] = buildHorseRows({ horseId: "H", today, days: null, blanket: null, health: [vaccination], canManage: true, justDone: wormed });
+  assert.equal(row.title, "Impfung in 5 Tagen");
+});
+
+test("a medication course has no done button on the horse page (it ends on the health screen, after asking)", () => {
+  const course: RowHealthItem = { id: "c", kind: "medication", label: "Equioxx", due_date: "2026-10-26", daily_time: null, days_until_due: 2 };
+  const [row] = buildHorseRows({ horseId: "H", today, days: null, blanket: null, health: [course], canManage: true });
+  assert.equal(row.title, "Equioxx in 2 Tagen");
+  assert.equal(row.action, undefined);
+  const [ended] = buildHorseRows({ horseId: "H", today, days: null, blanket: null, health: [course], canManage: true, justDone: course });
+  assert.equal(ended.title, "Equioxx beendet");
+  assert.equal(ended.detail, "Keine Erinnerungen mehr");
+});
+
 test("diary day labels", () => {
   assert.equal(diaryDay("2026-10-24", today), "Heute");
   assert.equal(diaryDay("2026-10-23", today), "Gestern");

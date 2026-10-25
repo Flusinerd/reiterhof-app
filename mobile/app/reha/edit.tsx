@@ -136,9 +136,11 @@ export default function RehaEdit() {
       return;
     }
     setError(null);
-    const done = { onSuccess: () => router.back(), onError: (e: unknown) => setError(rehaError(e)) };
-    if (editingPlan) update.mutate(result.input, done);
-    else create.mutate({ ...result.input, ...(observation ? { observation_id: observation } : {}) }, done);
+    // The promise locks the button from the tap on: a second tap would end the plan just made.
+    const save = editingPlan
+      ? update.mutateAsync(result.input)
+      : create.mutateAsync({ ...result.input, ...(observation ? { observation_id: observation } : {}) });
+    return save.then(() => router.back()).catch((e: unknown) => setError(rehaError(e)));
   };
 
   return (

@@ -1,11 +1,13 @@
 // Reha plan endpoints (docs/domains/reha.md) with React Query keys and hooks.
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { API_URL, ApiError, authed, errorMessage } from "../api";
-import { parseErrorBody } from "../api-core.ts";
+import { ApiError, authed, errorMessage } from "../api";
+import { rehaKeys } from "../query-keys.ts";
 import type { PlanInput, PlanState } from "../reha.ts";
 import { rehaErrorText } from "../reha.ts";
-import { getToken } from "../token";
+import { useEffectMutation } from "./mutation";
+
+export { rehaKeys };
 
 // --- types (mirror backend/internal/reha) --------------------------------------------------------
 
@@ -81,23 +83,6 @@ export type RehaView = {
   history: RehaPlan[];
 };
 
-// --- transport for DELETE (the shared client offers GET, POST, PATCH and PUT) ------------------
-
-async function del<T>(path: string): Promise<T> {
-  const token = getToken();
-  const headers: Record<string, string> = { Accept: "application/json" };
-  if (token) headers.Authorization = `Bearer ${token}`;
-  let res: Response;
-  try {
-    res = await fetch(`${API_URL.replace(/\/+$/, "")}${path}`, { method: "DELETE", headers });
-  } catch {
-    throw new ApiError(0, "network", "Network request failed");
-  }
-  const text = await res.text();
-  if (!res.ok) throw parseErrorBody(res.status, text);
-  return (text ? JSON.parse(text) : undefined) as T;
-}
-
 // --- calls -------------------------------------------------------------------------------------
 
 const horsePath = (horse: string) => `/api/v1/horses/${encodeURIComponent(horse)}`;
@@ -111,12 +96,7 @@ export const rehaApi = {
   update: (plan: string, body: Partial<PlanInput>) => authed.patch<RehaView>(planPath(plan), body),
   end: (plan: string) => authed.post<RehaView>(`${planPath(plan)}/end`),
   markDone: (plan: string, day: string) => authed.post<RehaView>(`${planPath(plan)}/days/${day}/done`),
-  unmarkDone: (plan: string, day: string) => del<RehaView>(`${planPath(plan)}/days/${day}/done`),
-};
-
-export const rehaKeys = {
-  all: ["reha"] as const,
-  horse: (horse: string) => ["reha", horse] as const,
+  unmarkDone: (plan: string, day: string) => authed.delete<RehaView>(`${planPath(plan)}/days/${day}/done`),
 };
 
 export const useReha = (horse: string | undefined) =>
@@ -126,26 +106,19 @@ export const useReha = (horse: string | undefined) =>
     enabled: !!horse,
   });
 
-/** After a change of the plan: the reha view, "Was heute?", the week and the horse list are stale. */
-export function useInvalidateReha() {
-  const client = useQueryClient();
-  return (horse: string) => {
-    void client.invalidateQueries({ queryKey: rehaKeys.horse(horse) });
-    void client.invalidateQueries({ queryKey: ["training"] });
-    void client.invalidateQueries({ queryKey: ["requests"] });
-  };
-}
-
-/** Runs a mutation that returns the new view and stores it as the horse's reha view. */
+/**
+ * Runs a mutation that returns the new view and stores it as the horse's reha view. A change of the plan
+ * also changes "Was heute?", the week, the horse list, the vet checkup in the reminder center and the
+ * observation that links to the plan (lib/query-effects.ts).
+ */
 function useViewMutation<V>(horse: string, fn: (v: V) => Promise<RehaView>) {
   const client = useQueryClient();
-  const invalidate = useInvalidateReha();
-  return useMutation({
+  return useEffectMutation({
     mutationFn: fn,
     onSuccess: (view) => {
       client.setQueryData(rehaKeys.horse(horse), view);
-      invalidate(horse);
     },
+    effects: () => [{ type: "reha", horseId: horse }],
   });
 }
 

@@ -111,7 +111,7 @@ export default function PresenceScreen() {
           fullWidth
           loading={presence.toggling}
           disabled={overview.isPending}
-          onPress={() => void presence.arriveOrLeave(!open)}
+          onPress={() => presence.arriveOrLeave(!open)}
         />
         {presence.error ? (
           <Text variant="bodySm" tone="danger" accessibilityRole="alert">

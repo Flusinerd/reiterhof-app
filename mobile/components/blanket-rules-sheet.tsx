@@ -176,7 +176,7 @@ export function BlanketRulesSheet({ open, onOpenChange, horseId, rules, blankets
           {error}
         </Text>
       ) : null}
-      <Button label="Speichern" fullWidth loading={save.isPending} onPress={() => void submit()} />
+      <Button label="Speichern" fullWidth loading={save.isPending} onPress={() => submit()} />
     </Sheet>
   );
 }

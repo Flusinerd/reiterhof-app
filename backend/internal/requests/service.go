@@ -560,6 +560,9 @@ func (s *Service) Done(ctx context.Context, u auth.User, id string) (Request, er
 			if _, err := tx.Exec(ctx, `UPDATE requests SET status = 'done' WHERE id = $1::uuid`, id); err != nil {
 				return err
 			}
+			if err := dismissHelperReminders(ctx, tx, id, s.now()); err != nil {
+				return err
+			}
 			changed = true
 		}
 		after, err = s.get(ctx, tx, u.StableID, u.ID, id, td)
@@ -643,6 +646,9 @@ func (s *Service) Cancel(ctx context.Context, u auth.User, id, scope string) (Re
 			}
 			hrows.Close()
 			if _, err := tx.Exec(ctx, `UPDATE requests SET status = 'cancelled' WHERE id = $1::uuid`, rid); err != nil {
+				return err
+			}
+			if err := dismissHelperReminders(ctx, tx, rid, s.now()); err != nil {
 				return err
 			}
 			done = append(done, c)

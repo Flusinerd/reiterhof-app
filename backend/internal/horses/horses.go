@@ -426,6 +426,7 @@ func (h *handler) create(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, "create", err)
 		return
 	}
+	h.hint(r.Context(), user.StableID, id)
 	h.writeHorse(w, r, user, id, http.StatusCreated)
 }
 
@@ -511,6 +512,7 @@ func (h *handler) patch(w http.ResponseWriter, r *http.Request) {
 		if in.PhotoPath != nil {
 			h.dropPhoto(r.Context(), user.StableID, oldPhoto, *in.PhotoPath)
 		}
+		h.hint(r.Context(), user.StableID, id)
 	}
 	h.writeHorse(w, r, user, id, http.StatusOK)
 }
@@ -564,6 +566,7 @@ func (h *handler) putRider(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, "put rider", err)
 		return
 	}
+	h.hint(r.Context(), user.StableID, horseID)
 	httpx.WriteJSON(w, http.StatusOK, Rider{UserID: riderID, Name: name, ColorKey: color, Rules: rules})
 }
 
@@ -586,6 +589,7 @@ func (h *handler) deleteRider(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusNotFound, "not_found", "rider not found")
 		return
 	}
+	h.hint(r.Context(), user.StableID, horseID)
 	w.WriteHeader(http.StatusNoContent)
 }
 

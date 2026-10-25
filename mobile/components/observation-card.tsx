@@ -1,9 +1,10 @@
-import { router, type Href } from "expo-router";
+import type { Href } from "expo-router";
 import { Pressable, View } from "react-native";
 
 import { AuthImage } from "@/components/auth-image";
 import { Text } from "@/components/ui";
 import type { Observation } from "@/lib/api/observations";
+import { pushOnce } from "@/lib/navigation";
 import { observationEyebrow, observationRoute, observationTitle, reportedText } from "@/lib/observations";
 
 /**
@@ -28,7 +29,7 @@ export function ObservationCard({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${observationTitle(o)} öffnen`}
-        onPress={() => router.push(observationRoute(o.id) as Href)}
+        onPress={() => pushOnce(observationRoute(o.id) as Href)}
         className="min-h-[64px] flex-row items-start gap-3 active:opacity-70"
       >
         <View className="flex-1 gap-0.5">

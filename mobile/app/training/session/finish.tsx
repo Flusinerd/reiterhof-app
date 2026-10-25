@@ -97,7 +97,9 @@ function Finish({ params }: { params: FinishParams }) {
   const gaits = gaitShareRows(params.gaitShares);
   const rein = reinSummary(params.reinChanges);
   const exerciseTicked = practised ?? exercisePractised(params.stepsDone);
-  const leave = () => router.replace("/training");
+  // Back to the training screen of this horse that is still below in the stack (a `replace` stacked a second
+  // one that showed the first horse). The week there is refreshed already: `create` waits for its effects.
+  const leave = () => router.dismissTo({ pathname: "/training", params: { horse: params.horse } });
 
   if (saved) {
     return (
@@ -146,13 +148,15 @@ function Finish({ params }: { params: FinishParams }) {
       ...(extras?.track ? { track: extras.track } : {}),
       ...(extras?.gait_windows ? { gait_windows: extras.gait_windows } : {}),
     };
-    create.mutate(body, {
-      onSuccess: (created) => {
+    // The promise locks the button from the tap on: a second tap would store the session twice.
+    return create
+      .mutateAsync(body)
+      .then((created) => {
         void clearFinishExtras();
         if (created.next_progression) setSaved(created);
         else leave();
-      },
-    });
+      })
+      .catch(() => undefined); // the error is shown from the mutation state
   };
 
   return (

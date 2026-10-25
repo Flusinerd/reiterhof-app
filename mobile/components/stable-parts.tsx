@@ -1,13 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { router } from "expo-router";
 import { ChevronRight } from "lucide-react-native";
 import { Pressable, View } from "react-native";
 
 import { Avatar, Icon, Text } from "@/components/ui";
-import { presenceApi, PRESENCE_EVENT, PRESENCE_KEY } from "@/lib/api/presence";
+import { presenceApi, PRESENCE_KEY } from "@/lib/api/presence";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/cn";
-import { useInvalidateOnEvents } from "@/lib/realtime";
+import { pushOnce } from "@/lib/navigation";
 import { blanketBoard, herePeople, presenceFaces, presenceParts, type BoardHorse, type BoardStatus } from "@/lib/stable-tab";
 import type { TodayHorse } from "@/lib/blankets";
 
@@ -27,7 +26,6 @@ function Face({ name, colorKey, first }: { name: string; colorKey: string | null
 export function PresenceRow() {
   const { user } = useAuth();
   const { data } = useQuery({ queryKey: PRESENCE_KEY, queryFn: presenceApi.overview });
-  useInvalidateOnEvents({ [PRESENCE_EVENT]: [PRESENCE_KEY] });
 
   const people = herePeople(data, user);
   const { faces, extra } = presenceFaces(people, 4);
@@ -41,7 +39,7 @@ export function PresenceRow() {
         accessibilityRole="button"
         accessibilityLabel={`Anwesenheit: ${spoken}`}
         accessibilityHint="Zeigt, wer im Stall ist"
-        onPress={() => router.push("/presence")}
+        onPress={() => pushOnce("/presence")}
         className="min-h-[56px] flex-row items-center gap-3 active:opacity-70"
       >
         {faces.length > 0 ? (
