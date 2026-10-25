@@ -18,6 +18,7 @@ PATCH, numbers: `0` clears.
 | list/read horses, emergency card, health items | every member of the stable |
 | create a horse | every member (the creator becomes owner; only admins may set `owner_id`) |
 | change a horse, emergency data and contacts, riders, health items | owner or admin (`auth.CanManageHorse`) |
+| delete a horse for good | owner or admin (`auth.CanManageHorse`) |
 | change the owner (`owner_id`) | admin only |
 | read documents (list and file) | owner, riders of the horse, admins |
 | write documents | owner or admin |
@@ -34,6 +35,7 @@ the check.
 | `GET /api/v1/horses/{id}` | same shape |
 | `POST /api/v1/horses` | `name` required; `box, sex (mare/gelding/stallion), birth_year (1970..now), breed, color_key, weight_kg (20..1500), helper_note`, emergency fields, `photo_path`, `owner_id` (admin) |
 | `PATCH /api/v1/horses/{id}` | any of the above; emergency fields: `emergency_note, emergency_medication, permanent_medication, allergies, insurance, vet_name, vet_phone`; `photo_path` (see Photo) |
+| `DELETE /api/v1/horses/{id}` | body `{confirm_name}`; deletes the horse for good, `204`; see "Deleting a horse" |
 | `GET /api/v1/horses/{id}/diary` | see Diary |
 | `PUT /api/v1/horses/{id}/riders/{userId}` | body `{rules: [...]}` (omitted: defaults); replaces the rules; the owner cannot be a rider |
 | `DELETE /api/v1/horses/{id}/riders/{userId}` | `204` |
@@ -64,9 +66,51 @@ Optional (migration `0310`, `horses.photo_path`). The app uploads an image with 
 must be an existing JPEG, PNG or WebP of the caller's stable (`400 validation_failed` otherwise, a PDF is refused). The horse JSON
 carries `photo_url` (`/api/v1/files/<path>`, `null` without photo); every member of the stable may load the file, like blanket
 photos. When the photo is replaced or removed, the old file is deleted unless another record (document, observation, blanket,
-horse) still points to it (`files.Referenced`). There is no route that deletes a horse, so there is no file clean-up on deletion.
+horse) still points to it (`files.Referenced`). Deleting the horse removes the photo as well (see "Deleting a horse").
 A horse photo shows the stable's animal, not a person; it needs no entry of its own in the processing register. The privacy export
 (`to_jsonb(horses)` of owned horses) contains `photo_path`. Without a photo the app shows the horse's color with its initial.
+
+## Deleting a horse
+
+Decision of the owner of the product: a horse is deleted **permanently**, there is no archive. Code: `horses.Delete`
+(`internal/horses/delete.go`), used by the route and by `stallfunk-admin horse delete ID|NAME [--stable ID] [--yes]`.
+
+**Route** `DELETE /api/v1/horses/{id}` with body `{"confirm_name": "<name of the horse>"}`: owner of the horse or admin of its stable
+(`403 forbidden` for everybody else, `404` for a horse of another stable or an unknown id). `confirm_name` has to equal the horse's
+name, ignoring case and surrounding spaces (`horses.NameMatches`); a wrong, empty or missing one gives `400 validation_failed` with a
+German message and deletes nothing. Answer `204`; a second call is `404`. The admin CLI asks for a `y` instead of the name (`--yes` skips it).
+
+**One transaction** (`FOR UPDATE` on the horse row):
+
+- The foreign keys with `ON DELETE CASCADE` remove `horse_riders`, `rider_focuses`, `blankets` (with their `blanket_rules`,
+  `blanket_states`, `blanket_overrides`), `observations`, `health_items`, `emergency_contacts`, `horse_documents`,
+  `training_profiles`, `sessions` (with `gait_windows`), `week_slots`, `reha_plans` (with `reha_days`) and `dressage_tests`.
+  A test lists every foreign key to `horses` from `pg_constraint` and fails for a table that is added later and not covered.
+- `requests.horse_id` is `ON DELETE SET NULL`: help requests stay as they are (with their helpers and thanks), without a horse.
+- `reminders` has no foreign key to its source, so the rows of the horse are deleted explicitly: `source_table = 'health_items'`
+  (the horse's items), `'reha_plans'` (its plans) and `'blanket_weather'` (`source_id` = the horse). Reminders of requests, the
+  stable-wide ones (`blanket_night`, `blanket_checkout`, `training_plan`, `weather_warnings`) and every other horse's stay.
+- `presence`, `push_tokens` and the other tables have no horse reference. Realtime events are not stored.
+- `horse.changed {horse_id}` is published inside the transaction (ids only), so other members' apps refresh their lists.
+
+**Files**: before the delete the paths of the horse's photo, document files, observation images and blanket photos are collected;
+after the commit each one is removed unless another record still points to it (`files.Referenced`, a client may attach one upload
+twice). Best effort: a failure is logged (`horses: remove file of deleted horse`) and leaves an orphaned file, never an error.
+
+**Privacy**: the export and the account deletion join the horse tables, so they work without the deleted horse; the tests of
+`internal/privacy` cover it. A deleted horse's data is gone from the database at once and from the backups with the normal
+rotation (see `docs/legal`).
+
+**App**: "Pferd löschen" is the last row of `/horses/[id]/edit` (owner and admin only, in danger color without a button frame). It
+opens `components/horse-delete-sheet.tsx`: what is deleted, "Das lässt sich nicht rückgängig machen.", the field "Zum Bestätigen den
+Namen eingeben" and "Endgültig löschen", enabled only while the name matches (`lib/horse-delete.ts`); the button spins until
+done and a failure shows inline. On success `leaveDeletedHorse()` pops the stack to its first screen and replaces it with Heute (no screen
+of the horse stays below), which shows "Luna wurde gelöscht." (`lib/flash.ts`, `components/flash-notice.tsx`). The cache follows the
+effect `horseDeleted {horseId}` (`lib/query-effects.ts`): the horse drops out of the cached horse list and training horses first
+(the horse tab is named after the user's only horse and switches to "Pferde"), then the horse's own queries (record, emergency,
+health, documents, diary, training, blanket plan, observations, reha, tests) are removed, and horses, training horses, blankets,
+reminders, requests, `me` and presence are refetched. The realtime event of the own delete refetches nothing (`deletedHorses`), since
+the horse's queries would answer 404. Other members who look at the horse see "Dieses Pferd gibt es nicht (mehr)."
 
 ## Diary (`internal/diary`)
 
@@ -80,7 +124,7 @@ Who sees what: observations every member of the stable (like `GET /horses/{id}/o
 (owner and admin all, riders the sessions marked visible plus their own, other members none). A horse of another stable is a `404`.
 Health items keep no history (marking one done moves its due date), so they are not part of the diary.
 
-Horse writes (create, PATCH including photo and owner, rider set or removed, emergency contact added, edited or removed) publish the
+Horse writes (create, PATCH including photo and owner, delete, rider set or removed, emergency contact added, edited or removed) publish the
 realtime event `horse.changed {horse_id}` after the write (`horses.EventChanged`); an empty PATCH publishes nothing.
 
 ## Emergency card (JAN-49)

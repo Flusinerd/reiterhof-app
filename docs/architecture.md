@@ -114,14 +114,15 @@ tool `stallfunk-admin` (`backend/cmd/admin`, commands in `internal/admincli`) co
 instead of hand-written SQL:
 
 - Commands: `stable list|create|update`, `user list|create|promote|demote|move|delete`,
-  `invite create|list`, `horse list|transfer`, `sessions revoke`, `mail test`,
+  `invite create|list`, `horse list|transfer|delete`, `sessions revoke`, `mail test`,
   `weather refresh`, `migrate status|up`; `stallfunk-admin help` lists the flags. Standard
   library `flag` only. `--json` prints list output as JSON, `--yes` skips the confirmation
-  of `user delete|demote|move` and `horse transfer`.
+  of `user delete|demote|move` and `horse transfer|delete`.
 - It reads the same environment as the API. `--env-file` parses a systemd
   `EnvironmentFile` (`admincli.ParseEnvFile`); without the flag `/etc/reiterhof/api.env` is
   used when it exists. Variables that are already set win.
-- It reuses the API code instead of duplicating rules: `privacy.DeleteAccount` (same
+- It reuses the API code instead of duplicating rules: `horses.Delete` (`horse delete`: same cascade, reminder clean-up and
+  file removal as the route), `privacy.DeleteAccount` (same
   blocking errors `owns_horses` / `last_admin`, same anonymisation), `auth.CreateInvite`
   and `auth.NormalizeEmail`, the auth mailer (`mail test`, which refuses to fall back to the
   log mailer), `weather.Service` plus `blankets.CheckWeatherChange` (`weather refresh`),
@@ -511,7 +512,7 @@ keep `data` to ids. Naming: `<domain>.changed` (`presence.changed`, `blanket_sta
 | `reha.changed` | `horse_id` | reha plan created, edited, ended, day marked |
 | `health.changed` | `horse_id` | health item created, edited, deleted, done or undone (`internal/health`) |
 | `training.changed` | `horse_id` | session logged, week day planned/taken/released, training profile saved (`internal/trainingapi`) |
-| `horse.changed` | `horse_id` | horse created or edited (name, photo, owner), rider set/removed, emergency contact changed (`internal/horses`) |
+| `horse.changed` | `horse_id` | horse created, edited (name, photo, owner) or deleted, rider set/removed, emergency contact changed (`internal/horses`) |
 | `resync` | | synthetic, sent by the hub to all clients after it re-established its database connection |
 
 A change that is only a repeat (a second "erledigt" the same day, an empty PATCH) publishes nothing.

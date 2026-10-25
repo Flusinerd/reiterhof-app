@@ -315,7 +315,7 @@ Der Wrapper `/usr/local/bin/stallfunk-admin` startet `/opt/reiterhof/stallfunk-a
 `reiterhof`: Nur dieser Benutzer (und root) darf `api.env` lesen, und er hat keine Rechte über die
 Datenbank der API hinaus. Einstellungen kommen deshalb nur aus der Datei, nicht aus der Shell.
 `--json` gibt Listen als JSON aus, `--yes` überspringt die Rückfrage bei `user delete`,
-`user demote`, `user move` und `horse transfer`.
+`user demote`, `user move`, `horse transfer` und `horse delete`.
 
 **Häufige Aufgaben**
 
@@ -341,6 +341,7 @@ stallfunk-admin user promote anna@example.org
 stallfunk-admin user demote anna@example.org      # verweigert für den letzten Admin eines Stalls
 stallfunk-admin user move anna@example.org --stable <stall-id>
 stallfunk-admin horse transfer Luna --to anna@example.org
+stallfunk-admin horse delete Luna --stable <stall-id>  # endgültig, mit allen Daten und Dateien; fragt vorher
 stallfunk-admin sessions revoke anna@example.org  # erzwingt neue Anmeldung
 
 # Konto löschen (wie in der App: anonymisiert; blockiert, solange Pferde gehören oder letzter Admin)
