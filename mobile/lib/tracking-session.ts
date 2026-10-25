@@ -52,6 +52,8 @@ export type TrackingOptions = {
   horse: string;
   activity: string;
   exerciseId?: string;
+  /** Focus (catalog key) of the unit the session starts from; the finish screen records it with the session. */
+  focusKey?: string;
   targetMinutes?: number;
   /** A restored session (see `useStoredSession`); it comes back paused. */
   initial?: Snapshot | null;
@@ -92,7 +94,7 @@ export type TrackingSession = {
  * lib/tracking.ts; this hook only wires the sensors to them. Untested on real devices.
  */
 export function useTrackingSession(options: TrackingOptions): TrackingSession {
-  const { mode, horse, activity, exerciseId, targetMinutes, initial } = options;
+  const { mode, horse, activity, exerciseId, focusKey, targetMinutes, initial } = options;
 
   const [state, setStateValue] = useState<TrackState>(() =>
     initial ? restoreSnapshot(initial) : createState(mode, Date.now()),
@@ -183,13 +185,14 @@ export function useTrackingSession(options: TrackingOptions): TrackingSession {
       activity,
       mode,
       ...(exerciseId ? { exerciseId } : {}),
+      ...(focusKey ? { focusKey } : {}),
       ...(targetMinutes ? { targetMinutes } : {}),
       state: stateRef.current,
       windows: allWindows(),
       checked: checkedRef.current,
       savedAt: Date.now(),
     });
-  }, [activity, allWindows, exerciseId, horse, mode, targetMinutes]);
+  }, [activity, allWindows, exerciseId, focusKey, horse, mode, targetMinutes]);
 
   useEffect(() => {
     const id = setInterval(persist, SNAPSHOT_INTERVAL_MS);
@@ -309,6 +312,7 @@ export function useTrackingSession(options: TrackingOptions): TrackingSession {
       params.exercise = exerciseId;
       params.steps_done = encodeStepsDone(checkedRef.current); // the finish screen starts out ticked like this
     }
+    if (focusKey) params.focus = focusKey;
 
     const points = gaitPoints(final, done);
     let shares: Record<string, number> = {};
@@ -342,7 +346,7 @@ export function useTrackingSession(options: TrackingOptions): TrackingSession {
     });
     await clearSnapshot();
     return { params };
-  }, [activity, allWindows, exerciseId, horse, mode, setState, stopSensor]);
+  }, [activity, allWindows, exerciseId, focusKey, horse, mode, setState, stopSensor]);
 
   const discard = useCallback(async () => {
     begun.current = false;
