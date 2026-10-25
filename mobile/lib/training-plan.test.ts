@@ -13,6 +13,13 @@ import {
   editedPlanDay,
   nextStep,
   openPlanDays,
+  pickActivity,
+  pickCustomFocus,
+  pickFocusKey,
+  pickMinutes,
+  pickNoFocus,
+  pickRest,
+  pickUnitExercise,
   planApplyBody,
   planDayNote,
   planStatusText,
@@ -455,4 +462,117 @@ test("dayEditFrom reads focus key, unit and equipment_ok of newer backends", () 
   assert.equal(fromPlan.focusKey, "schwung");
   assert.deepEqual(fromPlan.unit, unit);
   assert.equal("equipmentOk" in fromPlan, false);
+});
+
+// --- what the sheet does to an edit ----------------------------------------------------
+
+const hall: DayEdit = {
+  status: "planned",
+  activity: "hall",
+  minutes: 45,
+  focus: "Übergänge",
+  exercise: { id: "m1", title: "Schulterherein" },
+  userId: null,
+  focusKey: "takt",
+  unit,
+};
+
+test("choosing a focus: a new key takes the model's words with it, the same key keeps them", () => {
+  assert.deepEqual(pickFocusKey(hall, "anlehnung").focusKey, "anlehnung");
+  assert.equal(pickFocusKey(hall, "anlehnung").focus, "");
+  assert.equal(pickFocusKey(hall, "takt").focus, "Übergänge");
+  assert.equal(pickFocusKey({ ...hall, focusKey: undefined }, "takt").focusKey, "takt");
+  // No focus: a key that was there is removed explicitly, otherwise nothing is sent.
+  const none = pickNoFocus(hall, "takt");
+  assert.equal(none.focusKey, null);
+  assert.equal(none.focus, "");
+  assert.equal(pickNoFocus(hall, undefined).focusKey, undefined);
+  assert.equal(pickNoFocus(hall, null).focusKey, undefined);
+  // Eigener Text: the catalog focus goes, the text stays.
+  const custom = pickCustomFocus(hall, "takt");
+  assert.equal(custom.focusKey, null);
+  assert.equal(custom.focus, "Übergänge");
+  assert.equal(pickCustomFocus({ ...hall, focusKey: undefined }, undefined).focusKey, undefined);
+  assert.equal(dayEditBody(custom).focus_key, "");
+  assert.equal(dayEditBody(custom).focus, "Übergänge");
+  assert.equal("focus_key" in dayEditBody(pickNoFocus({ ...hall, focusKey: undefined }, undefined)), false);
+});
+
+test("changing the minutes shares them among the parts anew and keeps the exercises", () => {
+  const longer = pickMinutes(hall, 60);
+  assert.equal(longer.minutes, 60);
+  assert.deepEqual(longer.unit?.warmup, { exercise: { id: "w1", title: "Cavaletti auf dem Zirkel" }, minutes: 20 });
+  assert.deepEqual(longer.unit?.main, { exercise: { id: "m1", title: "Schulterherein" }, minutes: 30 });
+  assert.deepEqual(longer.unit?.cooldown, { exercise: null, minutes: 10 });
+  assert.deepEqual(longer.exercise, { id: "m1", title: "Schulterherein" });
+  // Without a unit only the minutes change.
+  const plain = pickMinutes({ ...hall, unit: undefined }, 60);
+  assert.equal(plain.minutes, 60);
+  assert.equal(plain.unit, undefined);
+  assert.deepEqual(plain.exercise, hall.exercise);
+});
+
+test("changing the activity keeps what still fits and re-splits the unit", () => {
+  // Hall to arena: same libraries, so the exercises stay; 45 is offered there too.
+  const arena = pickActivity(hall, "arena", "dressage");
+  assert.equal(arena.activity, "arena");
+  assert.equal(arena.minutes, 45);
+  assert.deepEqual(arena.exercise, { id: "m1", title: "Schulterherein" });
+  assert.equal(arena.unit?.main?.exercise?.id, "m1");
+  // Hall to lunge: other libraries, the exercises go; 45 is no lunge duration, so the default is taken.
+  const lunge = pickActivity(hall, "lunge", "dressage");
+  assert.equal(lunge.minutes, 25);
+  assert.equal(lunge.exercise, null);
+  assert.deepEqual(lunge.unit, {
+    warmup: { exercise: null, minutes: 10 },
+    main: { exercise: null, minutes: 10 },
+    cooldown: { exercise: null, minutes: 5 },
+  });
+  // A jumping horse: the hall uses jumping, cavaletti and dressage, the jumping place only the first two.
+  assert.equal(pickActivity(hall, "jumping", "jumping").exercise, null);
+  assert.equal(pickActivity({ ...hall, activity: "arena" }, "hall", "jumping").exercise?.id, "m1");
+  // Walker has no unit plan.
+  const walker = pickActivity(hall, "walker", "dressage");
+  assert.equal(walker.unit, undefined);
+  assert.equal(walker.exercise, null);
+  // Without a unit, from rest: the exercise logic of old.
+  const fromRest = pickActivity({ ...hall, status: "rest", activity: null, minutes: 0, unit: undefined, exercise: null }, "hall", "dressage");
+  assert.equal(fromRest.status, "planned");
+  assert.equal(fromRest.minutes, 45);
+  assert.equal(fromRest.exercise, null);
+  assert.equal(fromRest.unit, undefined);
+  assert.deepEqual(pickActivity({ ...hall, unit: undefined }, "arena", "dressage").exercise, hall.exercise);
+});
+
+test("an exercise for a part: the main part is the day's single exercise too", () => {
+  const other = { id: "m2", title: "Travers" };
+  const main = pickUnitExercise(hall, "main", other);
+  assert.deepEqual(main.unit?.main, { exercise: other, minutes: 22 });
+  assert.deepEqual(main.exercise, other);
+  const warm = pickUnitExercise(hall, "warmup", other);
+  assert.deepEqual(warm.unit?.warmup?.exercise, other);
+  assert.deepEqual(warm.exercise, { id: "m1", title: "Schulterherein" }, "the main exercise is untouched");
+  const cleared = pickUnitExercise(hall, "main", null);
+  assert.equal(cleared.exercise, null);
+  assert.equal(dayEditBody(cleared).exercise_id, "");
+  assert.equal(dayEditBody(main).unit?.main?.exercise_id, "m2");
+  assert.equal(dayEditBody(main).exercise_id, "m2");
+  // A day without a unit gets one from the split.
+  const fresh = pickUnitExercise({ ...hall, unit: undefined, exercise: null }, "main", other);
+  assert.deepEqual(fresh.unit?.warmup, { exercise: null, minutes: 15 });
+  assert.deepEqual(fresh.unit?.main, { exercise: other, minutes: 22 });
+  // No activity, nothing to pick for.
+  assert.equal(pickUnitExercise({ ...hall, status: "rest", activity: null }, "main", other).unit, hall.unit);
+});
+
+test("a rest day has no focus, exercise or unit; only an existing key is removed", () => {
+  const rest = pickRest(hall, "takt");
+  assert.equal(rest.status, "rest");
+  assert.equal(rest.activity, null);
+  assert.equal(rest.minutes, 0);
+  assert.equal(rest.focusKey, null);
+  assert.equal(rest.unit, undefined);
+  assert.equal(rest.exercise, null);
+  assert.equal(pickRest(hall, undefined).focusKey, undefined);
+  assert.deepEqual(dayEditBody(rest), { status: "rest", note: "Plan: Ruhetag" });
 });

@@ -2,8 +2,25 @@
 // for the open days; the app applies the days with PUT /week/{day}. See docs/domains/training.md.
 
 import type { WeekDay } from "./api/training";
-import { activityLabel, formatMinutes, type Activity, type WeekDayLike } from "./training.ts";
-import { unitBody, type Block, type Unit, type UnitBody } from "./training-focus.ts";
+import {
+  DEFAULT_MINUTES,
+  MINUTE_CHOICES,
+  activityLabel,
+  exerciseLibraries,
+  formatMinutes,
+  type Activity,
+  type WeekDayLike,
+} from "./training.ts";
+import {
+  clearUnitExercises,
+  resplitUnit,
+  setUnitExercise,
+  unitBody,
+  type Unit,
+  type UnitBody,
+  type UnitExercise,
+  type UnitPartKey,
+} from "./training-focus.ts";
 
 /** Whether and how the language model took part (planOut.ai_status). */
 export type PlanAIStatus =
@@ -56,8 +73,6 @@ export type PlanResponse = {
   ai_status: PlanAIStatus;
   /** Only the owner can grant the ai_training consent. */
   owner_is_me: boolean;
-  /** The block of four weeks the planned week is in. */
-  block?: Block | null;
   days: PlanDay[];
 };
 
@@ -217,6 +232,67 @@ export function editedPlanDay(day: PlanDay, edit: DayEdit): PlanDay {
     unit: edit.unit,
     edited: true,
   };
+}
+
+// The changes the sheet makes to a `DayEdit`. `was` is the focus key the day had when the sheet opened:
+// only a key that existed has to be removed explicitly, otherwise nothing is sent.
+
+function sameList(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((x, i) => x === b[i]);
+}
+
+/** A focus from the catalog; the free text of the day goes unless the key stays the same. */
+export function pickFocusKey(edit: DayEdit, key: string): DayEdit {
+  return { ...edit, focusKey: key, focus: edit.focusKey === key ? edit.focus : "" };
+}
+
+/** "Kein": no catalog focus and no text. */
+export function pickNoFocus(edit: DayEdit, was: string | null | undefined): DayEdit {
+  return { ...edit, focusKey: was ? null : undefined, focus: "" };
+}
+
+/** "Eigener Text": the catalog focus goes, the free text stays. */
+export function pickCustomFocus(edit: DayEdit, was: string | null | undefined): DayEdit {
+  return { ...edit, focusKey: was ? null : undefined };
+}
+
+/** The main exercise of a unit, which is also the single exercise older clients read. */
+function mainOf(unit: Unit | undefined): DayEdit["exercise"] {
+  return unit?.main?.exercise ?? null;
+}
+
+/**
+ * A new activity: the minutes stay when the activity offers them, the exercises stay when it uses
+ * the same libraries (else they go), the unit gets the split of the new activity and minutes.
+ */
+export function pickActivity(edit: DayEdit, activity: Activity, discipline: string): DayEdit {
+  const minutes = MINUTE_CHOICES[activity].includes(edit.minutes) ? edit.minutes : DEFAULT_MINUTES[activity];
+  const same =
+    edit.activity !== null && sameList(exerciseLibraries(edit.activity, discipline), exerciseLibraries(activity, discipline));
+  const unit = edit.unit
+    ? same
+      ? resplitUnit(edit.unit, activity, minutes)
+      : clearUnitExercises(edit.unit, activity, minutes)
+    : undefined;
+  return { ...edit, status: "planned", activity, minutes, unit, exercise: unit ? mainOf(unit) : same ? edit.exercise : null };
+}
+
+/** New minutes: the parts of the unit share them anew, the exercises stay. */
+export function pickMinutes(edit: DayEdit, minutes: number): DayEdit {
+  const unit = edit.unit && edit.activity ? resplitUnit(edit.unit, edit.activity, minutes) : edit.unit;
+  return { ...edit, minutes, unit, exercise: unit ? mainOf(unit) : edit.exercise };
+}
+
+/** An exercise (or none) for one part of the unit; the main part is the day's single exercise too. */
+export function pickUnitExercise(edit: DayEdit, part: UnitPartKey, exercise: UnitExercise | null): DayEdit {
+  if (edit.activity === null) return edit;
+  const unit = setUnitExercise(edit.unit, part, exercise, edit.activity, edit.minutes);
+  return { ...edit, unit, exercise: unit ? mainOf(unit) : edit.exercise };
+}
+
+/** A rest day: nothing of the unit is left. */
+export function pickRest(edit: DayEdit, was: string | null | undefined): DayEdit {
+  return { ...edit, status: "rest", activity: null, minutes: 0, focus: "", focusKey: was ? null : undefined, exercise: null, unit: undefined };
 }
 
 /** Number of draft days that "Übernehmen" would store. */
