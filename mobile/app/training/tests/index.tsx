@@ -4,7 +4,7 @@ import { ActivityIndicator, Linking, View } from "react-native";
 
 import { Button, Icon, PageHeader, Screen, Section, Text } from "@/components/ui";
 import { ListRow, RowList } from "@/components/ui/list-row";
-import { dressageError, isUnavailable, useDressageTests } from "@/lib/api/dressage";
+import { dressageError, isForbidden, isUnavailable, useDressageTests } from "@/lib/api/dressage";
 import { OFFICIAL_LINKS, arenaLabel, defaultTitle, formatSeconds, spokenSeconds } from "@/lib/dressage";
 import { pushOnce } from "@/lib/navigation";
 import { useColors } from "@/lib/theme";
@@ -27,7 +27,7 @@ export default function DressageTests() {
         description="Erstelle eine Aufgabe zum Reiten zu Hause oder plane deine Kür, mit Linien im Viereck und Zeit."
       />
 
-      <Button label="Neue Aufgabe" icon={Plus} fullWidth onPress={openNew} disabled={!horse || (tests.isError && isUnavailable(tests.error))} />
+      <Button label="Neue Aufgabe" icon={Plus} fullWidth onPress={openNew} disabled={!horse || (tests.isError && (isUnavailable(tests.error) || isForbidden(tests.error)))} />
 
       {tests.isPending && horse ? <ActivityIndicator accessibilityLabel="Lädt" color={c.primary.DEFAULT} className="self-start" /> : null}
 
@@ -36,7 +36,7 @@ export default function DressageTests() {
           <Text variant="secondary" tone="danger" accessibilityRole="alert">
             {isUnavailable(tests.error) ? "Das gibt es auf deinem Server noch nicht." : dressageError(tests.error)}
           </Text>
-          {!isUnavailable(tests.error) ? <Button label="Erneut versuchen" variant="outline" onPress={() => void tests.refetch()} /> : null}
+          {!isUnavailable(tests.error) && !isForbidden(tests.error) ? <Button label="Erneut versuchen" variant="outline" onPress={() => void tests.refetch()} /> : null}
         </View>
       ) : null}
 

@@ -10,6 +10,7 @@ import {
   normalizePlan,
   normalizeSet,
   type ArenaSize,
+  forbiddenText,
   type Catalog,
   type Plan,
   type RequirementMovement,
@@ -117,8 +118,14 @@ export function isUnavailable(error: unknown): boolean {
   return error instanceof ApiError && error.status === 404;
 }
 
+/** The caller may not see or change the tests of this horse (403). */
+export function isForbidden(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 403;
+}
+
 /** Error text; a rule break (400) carries the German reasons of the server. */
-export function dressageError(err: unknown): string {
+export function dressageError(err: unknown, action: "use" | "delete" = "use"): string {
+  if (isForbidden(err)) return forbiddenText(action);
   if (err instanceof ApiError && err.status === 400 && err.code !== "unknown" && err.message !== err.code && !/^Request failed/.test(err.message)) {
     return err.message;
   }

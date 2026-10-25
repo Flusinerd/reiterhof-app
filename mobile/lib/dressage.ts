@@ -197,6 +197,16 @@ export function normalizePlan(body: unknown): Plan | null {
   };
 }
 
+/**
+ * What a 403 of the test routes means in German: the tests of a horse are for the owner, admins and riders who
+ * may log sessions; deleting is for the owner, admins and the author of the test.
+ */
+export function forbiddenText(action: "use" | "delete" = "use"): string {
+  return action === "delete"
+    ? "Löschen dürfen nur die Besitzerin oder der Besitzer, Admins und wer die Aufgabe erstellt hat."
+    : "Aufgaben und Küren dieses Pferdes sehen und erstellen nur die Besitzerin oder der Besitzer, Admins und Reiter, die Einheiten eintragen dürfen.";
+}
+
 /** "m:ss" (3:05); negative or invalid values count as 0. */
 export function formatSeconds(seconds: number): string {
   const s = Math.max(0, Math.round(Number.isFinite(seconds) ? seconds : 0));

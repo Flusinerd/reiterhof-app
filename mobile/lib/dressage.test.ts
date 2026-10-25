@@ -9,6 +9,7 @@ import {
   defaultClass,
   defaultTitle,
   fitArena,
+  forbiddenText,
   formatSeconds,
   letterOffsets,
   letterPosition,
@@ -266,4 +267,9 @@ test("checks are split into rules and advice, failing ones first", () => {
   const { rules, advice } = splitChecks(plan.checks);
   assert.deepEqual(rules.map((k) => k.key), ["time", "chain", "old"]);
   assert.deepEqual(advice.map((k) => k.key), ["finale", "balance"]);
+});
+
+test("forbiddenText names who may use and who may delete", () => {
+  assert.match(forbiddenText(), /Besitzer.*Admins.*Reiter/);
+  assert.match(forbiddenText("delete"), /Löschen.*erstellt/);
 });

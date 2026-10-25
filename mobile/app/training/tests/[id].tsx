@@ -242,7 +242,7 @@ export default function DressagePlan() {
             () => router.back(),
             (e) => {
               setDeleting(false);
-              Alert.alert("Das hat nicht geklappt", dressageError(e));
+              Alert.alert("Das hat nicht geklappt", dressageError(e, "delete"));
             },
           );
         },
