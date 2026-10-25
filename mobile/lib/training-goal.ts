@@ -95,7 +95,7 @@ export function progressText(progress: LevelProgress | null | undefined, horseNa
 }
 
 /** The lections to show under the progress row (at most three, as the API sends them). */
-export function nextLections(progress: { next?: NextLection[] } | null | undefined): NextLection[] {
+export function nextLections(progress: { next?: readonly NextLection[] } | null | undefined): NextLection[] {
   return (progress?.next ?? []).slice(0, 3);
 }
 
