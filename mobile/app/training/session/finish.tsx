@@ -231,7 +231,8 @@ function Finish({ params }: { params: FinishParams }) {
           size="lg"
           fullWidth
           disabled={minutes === null}
-          loading={create.isPending || !extrasReady}
+          // Without the recommendation's focus the slot of the week gives it, so wait for the week.
+          loading={create.isPending || !extrasReady || (!params.focusKey && week.isPending)}
           onPress={save}
         />
         <Button

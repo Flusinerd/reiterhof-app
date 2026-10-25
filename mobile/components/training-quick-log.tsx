@@ -2,8 +2,9 @@ import { useState } from "react";
 import { View } from "react-native";
 
 import { Button, Pill, Sheet, Text } from "@/components/ui";
-import { trainingError, useCreateSession } from "@/lib/api/training";
+import { trainingError, useCreateSession, useWeek } from "@/lib/api/training";
 import { ACTIVITIES, QUICK_DURATIONS, activityLabel, type Activity } from "@/lib/training";
+import { quickLogBody } from "@/lib/training-focus";
 
 /**
  * "Nur eintragen" (JAN-60): log a session in three taps. Tap 1: activity chip, tap 2: duration
@@ -29,6 +30,8 @@ export function QuickLogSheet({
   const [activity, setActivity] = useState<Activity | null>(null);
   const [minutes, setMinutes] = useState<number | null>(null);
   const create = useCreateSession(horseId);
+  // Today's slot gives the session its focus, as the finish screen does (the rotation reads it).
+  const week = useWeek(horseId);
   const choices = ACTIVITIES.filter((a) => !hidden.includes(a));
 
   const close = (next: boolean) => {
@@ -44,7 +47,7 @@ export function QuickLogSheet({
   const save = () => {
     if (!activity || !minutes) return;
     return create
-      .mutateAsync({ activity, minutes })
+      .mutateAsync(quickLogBody({ activity, minutes, days: week.data?.days }))
       .then(() => {
         close(false);
         onSaved?.({ activity, minutes });

@@ -3,7 +3,7 @@
 // three-part unit with its display, the block of the week and the show date a Turniervorbereitung
 // ends with. No React Native imports (unit-tested with node --test). German UI text.
 
-import { isValidDate } from "./training.ts";
+import { isValidDate, type Activity } from "./training.ts";
 
 // --- catalog ---------------------------------------------------------------------------
 
@@ -538,4 +538,14 @@ export function trainingEyebrow(
   block: Block | null | undefined,
 ): string {
   return ["Training", status, restartText(restartWeek) ?? blockText(block)].filter((p): p is string => !!p).join(" · ");
+}
+
+/** Body of "Nur eintragen": activity and minutes, with the focus of today's slot when its activity was ridden. */
+export function quickLogBody(opts: {
+  activity: Activity;
+  minutes: number;
+  days?: readonly SlotLike[];
+}): { activity: Activity; minutes: number; focus_key?: string } {
+  const focusKey = sessionFocusKey({ activity: opts.activity, days: opts.days });
+  return { activity: opts.activity, minutes: opts.minutes, ...(focusKey ? { focus_key: focusKey } : {}) };
 }

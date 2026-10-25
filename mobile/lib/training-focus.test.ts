@@ -34,6 +34,7 @@ import {
   resplitUnit,
   restartText,
   selectionCaption,
+  quickLogBody,
   sessionFocusKey,
   setFocusUntil,
   setUnitExercise,
@@ -515,4 +516,19 @@ test("eyebrow of the training tab", () => {
   assert.equal(trainingEyebrow("Fit", 2, { week: 2, deload: false }), "Training · Fit · Wiederantrainieren, Woche 2");
   assert.equal(trainingEyebrow("Fit", undefined, undefined), "Training · Fit");
   assert.equal(trainingEyebrow(null, undefined, undefined), "Training");
+});
+
+test("\"Nur eintragen\" sends the focus of today's slot when the same activity was ridden", () => {
+  const days = [
+    { date: "2026-10-24", is_today: false, activity: "hall", focus_key: "anlehnung" },
+    { date: "2026-10-25", is_today: true, activity: "hall", focus_key: "takt" },
+  ];
+  assert.deepEqual(quickLogBody({ activity: "hall", minutes: 30, days }), { activity: "hall", minutes: 30, focus_key: "takt" });
+  assert.deepEqual(quickLogBody({ activity: "hack", minutes: 45, days }), { activity: "hack", minutes: 45 }, "another activity");
+  assert.deepEqual(quickLogBody({ activity: "hall", minutes: 30 }), { activity: "hall", minutes: 30 }, "week not loaded");
+  assert.deepEqual(
+    quickLogBody({ activity: "hall", minutes: 30, days: [{ date: "2026-10-25", is_today: true, activity: "hall", focus_key: null }] }),
+    { activity: "hall", minutes: 30 },
+    "a slot without focus adds no key",
+  );
 });
