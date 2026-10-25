@@ -206,6 +206,37 @@ tone of its level. Form labels are `eyebrow`; the choices of a type are `Pill`s 
 ("Senden", "Neu", "Runde starten", "Bin da"). Selected text on a `bg-primary` surface is `text-primary-foreground`, never `text-white`
 (brass in the dark scheme needs dark text).
 
+## Feedback
+
+How a screen answers a tap. No toast component is needed for this; if one is added later it needs its own entry here.
+
+1. A "done" action turns into its success state in place: check icon + `tone="success"` text ("Heute erledigt",
+   "Erledigt von Mia") + ghost "Rückgängig" where the server can undo; the triggering button disappears
+   (model: `components/reha-today-head.tsx`).
+2. Rows do not move or change identity under the finger while the user is on the screen (freeze the order per
+   visit; show the acknowledged item until blur).
+3. Switches and pills that save at once are optimistic with rollback (model: `app/settings/index.tsx`).
+4. A button's spinner lasts until the screen shows the new data (await the invalidation or write the response into
+   the cache).
+5. A flow that leaves the screen lands where the result is visible (right params, `router.dismissTo`) or shows a
+   success state with one "Fertig" first (models: finish "Im Tagebuch", report "Gemeldet").
+6. Errors appear next to the action that failed; a failed query never renders as an empty or "alles erledigt" state.
+
+### Checklist for every new mutation
+
+1. Which key families does the server change (including derived ones: reminders, diary, training horses, Heute
+   inputs)? Add or extend an `Effect` in `lib/query-effects.ts` with a test.
+2. Is the invalidation awaited (or the response written with `setQueryData`) so the pending state lasts until the
+   screen is fresh?
+3. Can a repeat (double tap, retry, stale screen) write wrong data? Then make the endpoint idempotent (no-op on
+   repeat, precondition, or `client_id`) and replace the button with a success state.
+4. Does the trigger show pending for exactly that item, and is nothing else on screen able to repeat it?
+5. Does the change matter to other members? Publish `<domain>.changed` with ids only and add it to the event map.
+6. Where does the user end up, and does that screen show the result?
+7. Where is the error shown, and is it visible from where the user tapped?
+8. Toggle or pill? Optimistic with rollback.
+9. Docs (domain doc, design system for new patterns) and the Linear ticket updated (`CLAUDE.md`).
+
 ## Navigation
 
 Bottom tab bar (`app/(tabs)/_layout.tsx`), four tabs:
