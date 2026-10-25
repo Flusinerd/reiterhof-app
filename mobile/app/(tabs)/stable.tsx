@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { router, type Href } from "expo-router";
-import { ChevronRight, Plus } from "lucide-react-native";
+import { ChevronRight, Fence, Plus } from "lucide-react-native";
 import { Pressable, RefreshControl, View } from "react-native";
 
 import { PresenceButton } from "@/components/app-menu";
@@ -8,6 +8,7 @@ import { BlanketBoard, PresenceRow } from "@/components/stable-parts";
 import { StartRequests } from "@/components/start-requests";
 import { WeatherWarnings } from "@/components/weather-warnings";
 import { Button, Icon, PageHeader, Screen, SectionTitle, Text } from "@/components/ui";
+import { ListRow, RowList } from "@/components/ui/list-row";
 import { BLANKET_STATE_EVENT, blanketKeys, useToday } from "@/lib/api/blankets";
 import { PRESENCE_KEY } from "@/lib/api/presence";
 import { requestKeys } from "@/lib/api/requests";
@@ -103,6 +104,18 @@ export default function Stable() {
         <StartRequests />
         <Button label="Alle Anfragen" variant="ghost" size="sm" className="-ml-4" onPress={() => router.push("/requests" as Href)} />
       </View>
+
+      {me?.user.is_admin ? (
+        <RowList>
+          <ListRow
+            leading={<Icon as={Fence} size={20} className="text-muted" />}
+            title="Ausstattung fürs Training"
+            detail="Was ihr aufbauen könnt"
+            accessibilityLabel="Ausstattung fürs Training"
+            onPress={() => router.push("/stable/training-equipment" as Href)}
+          />
+        </RowList>
+      ) : null}
     </Screen>
   );
 }
