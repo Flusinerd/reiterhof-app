@@ -372,12 +372,71 @@ test("the split of a unit follows the table of the planning spec", () => {
   assert.equal(unitSplit("walker", 30), null);
   assert.equal(unitSplit("rest", 0), null);
   assert.equal(unitSplit("hall", 0), null);
-  // seniors and cold nights: five more minutes of Lösen (capped at 30), the time comes off Arbeiten
-  assert.deepEqual(unitSplit("hall", 45, 5), { warmup: 20, main: 17, cooldown: 8 });
-  assert.deepEqual(unitSplit("hall", 90, 10), { warmup: 30, main: 50, cooldown: 10 });
+  // seniors and cold nights: five more minutes of Lösen each (capped at 30), seniors five of Entspannen too
+  assert.deepEqual(unitSplit("hall", 45, { cold: true }), { warmup: 20, main: 17, cooldown: 8 });
+  assert.deepEqual(unitSplit("hall", 45, { senior: true }), { warmup: 20, main: 12, cooldown: 13 });
   for (const [activity, minutes] of [["hall", 45], ["arena", 60], ["lunge", 25], ["hack", 90], ["groundwork", 30]] as const) {
     const s = unitSplit(activity, minutes)!;
     assert.equal(s.warmup + s.main + s.cooldown, minutes, `${activity} ${minutes}`);
+  }
+});
+
+test("the split gives the same minutes as the backend's table (training.UnitSplit)", () => {
+  // [activity, minutes, extras, Lösen, Arbeiten, Entspannen] — the cases of the backend's TestUnitSplit
+  const senior = { senior: true };
+  const cold = { cold: true };
+  const both = { senior: true, cold: true };
+  const rows: [string, number, { senior?: boolean; cold?: boolean }, number, number, number][] = [
+    ["hall", 45, {}, 15, 22, 8],
+    ["hall", 60, {}, 20, 30, 10],
+    ["hall", 30, {}, 10, 15, 5],
+    ["hall", 25, {}, 10, 10, 5],
+    ["hall", 90, {}, 25, 55, 10],
+    ["arena", 50, {}, 17, 24, 9],
+    ["hall", 24, {}, 8, 12, 4],
+    ["hall", 20, {}, 7, 10, 3],
+    ["jumping", 40, {}, 15, 18, 7],
+    ["jumping", 30, {}, 15, 10, 5],
+    ["jumping", 45, {}, 15, 22, 8],
+    ["jumping", 60, {}, 20, 30, 10],
+    ["lunge", 25, {}, 10, 10, 5],
+    ["lunge", 30, {}, 10, 15, 5],
+    ["lunge", 15, {}, 10, 0, 5],
+    ["groundwork", 30, {}, 5, 20, 5],
+    ["hack", 60, {}, 10, 40, 10],
+    ["hack", 30, {}, 10, 10, 10],
+    ["hall", 45, senior, 20, 12, 13],
+    ["hall", 45, cold, 20, 17, 8],
+    ["hall", 60, both, 30, 15, 15],
+    ["hall", 90, both, 30, 45, 15],
+    ["hall", 30, senior, 15, 10, 5],
+    ["jumping", 40, cold, 20, 13, 7],
+    ["lunge", 25, senior, 15, 5, 5],
+    ["hack", 60, cold, 15, 35, 10],
+    ["hack", 60, both, 20, 25, 15],
+    ["groundwork", 30, cold, 10, 15, 5],
+  ];
+  for (const [activity, minutes, extras, warmup, main, cooldown] of rows) {
+    assert.deepEqual(unitSplit(activity, minutes, extras), { warmup, main, cooldown }, `${activity} ${minutes} ${JSON.stringify(extras)}`);
+  }
+  assert.equal(unitSplit("hall", -5, both), null);
+  assert.equal(unitSplit("swimming", 30), null);
+});
+
+test("the parts of a split always add up to the unit and keep the minimums", () => {
+  for (const activity of ["hall", "arena", "jumping", "lunge", "groundwork", "hack"]) {
+    for (let minutes = 1; minutes <= 240; minutes++) {
+      for (const extras of [{}, { senior: true }, { cold: true }, { senior: true, cold: true }]) {
+        const s = unitSplit(activity, minutes, extras)!;
+        const label = `${activity} ${minutes} ${JSON.stringify(extras)}`;
+        assert.equal(s.warmup + s.main + s.cooldown, minutes, label);
+        assert.ok(s.warmup >= 0 && s.main >= 0 && s.cooldown >= 0, label);
+        const base = unitSplit(activity, minutes)!;
+        assert.ok(s.warmup >= base.warmup && s.cooldown >= base.cooldown && s.main <= base.main, `extras never shorten a part: ${label}`);
+        if (s.warmup > 30) assert.equal(s.warmup, base.warmup, `the cap of Lösen: ${label}`);
+        if (["hall", "arena", "jumping"].includes(activity) && minutes >= 30) assert.ok(s.main >= 10, `Arbeiten keeps 10: ${label}`);
+      }
+    }
   }
 });
 

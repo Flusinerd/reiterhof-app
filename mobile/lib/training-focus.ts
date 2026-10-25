@@ -411,35 +411,55 @@ export function unitBody(unit: Unit): UnitBody {
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
 /**
- * The minutes of Lösen, Arbeiten and Entspannen for a unit of `minutes` (the table "Unit" of
- * docs/domains/training-planning.md, mirrored from the backend). `extraWarmup` is the time seniors
- * and cold nights add to Lösen (capped at 30, it comes off Arbeiten). Null for activities without
- * a unit plan (walker, rest).
+ * The minutes of Lösen, Arbeiten and Entspannen for a unit of `minutes`, mirrored from the backend
+ * (training.UnitSplit, the table "Unit" of docs/domains/training-planning.md): hall, arena and
+ * jumping Lösen 33 % (10 to 25, jumping at least 15) and Entspannen 17 % (5 to 10), the rest is
+ * Arbeiten (at least 10; a unit too short for the minimums keeps the proportions); lunge 10 / rest /
+ * 5, groundwork 5 / rest / 5, hack 10 / rest / 10. Seniors and cold nights each add five minutes to
+ * Lösen (at most 30 in all), seniors five to Entspannen too; the time comes off Arbeiten, which keeps
+ * its minimum. The parts always add up to `minutes`. Null for activities without a unit plan
+ * (walker, rest). The app does not know the age or the night's cold when it re-splits a day, so it
+ * passes no extras; the planner's proposals carry them.
  */
-export function unitSplit(activity: string, minutes: number, extraWarmup = 0): Record<UnitPartKey, number> | null {
+export function unitSplit(
+  activity: string,
+  minutes: number,
+  extras: { senior?: boolean; cold?: boolean } = {},
+): Record<UnitPartKey, number> | null {
   const total = Math.round(minutes);
   if (!(total > 0)) return null;
   let warmup: number;
   let cooldown: number;
-  let minMain = 0;
+  let minMain: number;
   if (activity === "hall" || activity === "arena" || activity === "jumping") {
-    warmup = clamp(Math.round(total * 0.33), activity === "jumping" ? 15 : 10, 25);
+    warmup = clamp(Math.round(total * 0.33), 10, 25);
+    if (activity === "jumping") warmup = Math.max(warmup, 15);
     cooldown = clamp(Math.round(total * 0.17), 5, 10);
     minMain = 10;
+    if (total < warmup + cooldown + minMain) {
+      // Too short for the minimums: the proportions of the base split.
+      const w = Math.round(total * 0.33);
+      const c = Math.round(total * 0.17);
+      return { warmup: w, main: total - w - c, cooldown: c };
+    }
   } else if (activity === "lunge") {
-    warmup = 10;
-    cooldown = 5;
+    [warmup, cooldown, minMain] = [10, 5, 5];
   } else if (activity === "groundwork") {
-    warmup = 5;
-    cooldown = 5;
+    [warmup, cooldown, minMain] = [5, 5, 5];
   } else if (activity === "hack") {
-    warmup = 10;
-    cooldown = 10;
+    [warmup, cooldown, minMain] = [10, 10, 5];
   } else {
     return null;
   }
-  warmup = Math.min(30, warmup + Math.max(0, extraWarmup));
-  return { warmup, main: Math.max(minMain, total - warmup - cooldown), cooldown };
+  // A unit shorter than its fixed parts: the cool-down is cut first, then the warm-up.
+  warmup = Math.min(warmup, total);
+  cooldown = Math.min(cooldown, total - warmup);
+  let room = total - warmup - cooldown - minMain; // the minutes the extras may take from Arbeiten
+  const extraWarm = Math.min((extras.senior ? 5 : 0) + (extras.cold ? 5 : 0), Math.max(30 - warmup, 0), Math.max(room, 0));
+  warmup += extraWarm;
+  room -= extraWarm;
+  if (extras.senior) cooldown += Math.min(5, Math.max(room, 0));
+  return { warmup, main: total - warmup - cooldown, cooldown };
 }
 
 /**
