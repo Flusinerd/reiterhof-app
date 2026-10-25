@@ -376,6 +376,7 @@ func (l *Library) build() {
 					}
 					o.ID = fmt.Sprintf("%s%s:%s:%s>%s%s", run.kind, run.suffix, letters, dirName(sd), endName, dirName(ed))
 					if run.kind == "schlangenlinie" {
+						o.Verb = fmt.Sprintf("Schlangenlinie durch die ganze Bahn (%s Bögen, erster Bogen %s)", run.suffix[:1], firstBowSide(path, startName))
 						o.Left, o.Right = 0, 0
 						o.Length = PathLength(path)
 						o.Left, o.Right = o.Length/2, o.Length/2
@@ -498,6 +499,21 @@ func (l *Library) build() {
 	// Entry, exit and the centre line of the salute.
 	l.addSalute()
 	l.index()
+}
+
+// firstBowSide says to which side of the rider the first bow of a serpentine goes: facing C at the
+// start from A, facing A at the start from C.
+func firstBowSide(path []Point, start string) string {
+	for _, p := range path {
+		if d := p[0] - 10; math.Abs(d) > 7.9 {
+			left := d < 0
+			if start == "C" {
+				left = !left
+			}
+			return map[bool]string{true: "links", false: "rechts"}[left]
+		}
+	}
+	return "links"
 }
 
 func reinWord(dir string) string {

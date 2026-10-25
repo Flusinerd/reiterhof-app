@@ -2,8 +2,42 @@ package dressage
 
 import (
 	"math"
+	"strings"
 	"testing"
 )
+
+func TestSerpentineSideIsSeenFromTheRider(t *testing.T) {
+	l := lib(t, Size20x40)
+	n := 0
+	for _, o := range l.All {
+		if o.Kind != "schlangenlinie" {
+			continue
+		}
+		n++
+		var firstX float64
+		for _, p := range o.Path {
+			if math.Abs(p[0]-10) > 7.9 {
+				firstX = p[0] - 10
+				break
+			}
+		}
+		// Facing C (start at A) a negative x is on the left; facing A (start at C) on the right.
+		left := firstX < 0
+		if o.Start.Node == "C" {
+			left = !left
+		}
+		want := "erster Bogen rechts"
+		if left {
+			want = "erster Bogen links"
+		}
+		if !strings.Contains(o.Verb, want) {
+			t.Errorf("%s: %q, want %q", o.ID, o.Verb, want)
+		}
+	}
+	if n == 0 {
+		t.Error("no serpentines")
+	}
+}
 
 func TestOptionsConnectTheirStates(t *testing.T) {
 	for _, size := range Sizes {
