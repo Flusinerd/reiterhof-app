@@ -8,7 +8,7 @@ import { HorseError, HorseLoading } from "@/components/horse-query-state";
 import { Horse } from "@/components/icons/horse";
 import { Button, PageHeader, Screen, Section, Text } from "@/components/ui";
 import { errorMessage } from "@/lib/api";
-import { useObservation, useObservationEvents, useSetObservationStatus } from "@/lib/api/observations";
+import { useObservation, useSetObservationStatus } from "@/lib/api/observations";
 import { horseRoutes, joinParts } from "@/lib/horse-format";
 import {
   bodyPartLabel,
@@ -26,7 +26,6 @@ export default function ObservationDetail() {
   const query = useObservation(id);
   const setStatus = useSetObservationStatus();
   const [error, setError] = useState<string | null>(null);
-  useObservationEvents();
 
   const o = query.data;
   if (!o) {

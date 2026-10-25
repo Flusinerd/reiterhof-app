@@ -6,10 +6,8 @@ import { ActivityIndicator, RefreshControl, View } from "react-native";
 import { ReminderHead } from "@/components/reminder-head";
 import { ReminderRow } from "@/components/reminder-row";
 import { Button, Card, Screen, SectionTitle, Text } from "@/components/ui";
-import { BLANKET_STATE_EVENT } from "@/lib/api/blankets";
 import { useEffectMutation } from "@/lib/api/mutation";
 import { reminderKeys, remindersApi, useReminders } from "@/lib/api/reminders";
-import { useInvalidateOnEvents } from "@/lib/realtime";
 import { groupByDay, reminderErrorMessage, type ReminderItem, type RemindersResponse } from "@/lib/reminders";
 import { useColors } from "@/lib/theme";
 
@@ -18,10 +16,6 @@ export default function Reminders() {
   const c = useColors();
   const queryClient = useQueryClient();
   const reminders = useReminders("week");
-  useInvalidateOnEvents({
-    [BLANKET_STATE_EVENT]: [reminderKeys.all],
-    "request.changed": [reminderKeys.all],
-  });
   const [error, setError] = useState<string | null>(null);
   const [dismissingId, setDismissingId] = useState<string | null>(null);
 

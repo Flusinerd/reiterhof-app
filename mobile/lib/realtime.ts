@@ -1,10 +1,10 @@
-import { useQueryClient, type QueryKey } from "@tanstack/react-query";
 import { fetch as streamingFetch } from "expo/fetch";
 import { useEffect, useRef } from "react";
 import { AppState } from "react-native";
 
 import { API_URL } from "./api";
 import { backoffDelay } from "./backoff";
+import { RESYNC_EVENT } from "./query-effects.ts";
 import { createSseParser } from "./sse";
 import { getToken } from "./token";
 
@@ -21,9 +21,12 @@ import { getToken } from "./token";
  * One connection is shared by all hooks (reference counted), it is closed while the app
  * is in the background and re-opened with backoff after errors. After every reconnect a
  * synthetic `resync` event is delivered because events may have been missed.
+ *
+ * Which queries an event makes stale is decided in one place, lib/query-effects.ts
+ * (`eventKeys`); the app subscribes once, in `RealtimeBridge` (components/realtime-bridge.tsx).
  */
 
-export const RESYNC = "resync";
+export const RESYNC = RESYNC_EVENT;
 
 export type StableEvent = { type: string; data: unknown };
 type Listener = (event: StableEvent) => void;
@@ -165,21 +168,4 @@ export function useStableEvents(types: readonly string[], handler: (event: Stabl
       if (event.type === RESYNC || wanted.has(event.type)) handlerRef.current(event);
     });
   }, [key]);
-}
-
-/**
- * Invalidates TanStack Query keys when an event arrives (and after a reconnect).
- *
- * @example
- * useInvalidateOnEvents({ "presence.changed": [["presence"]] });
- */
-export function useInvalidateOnEvents(map: Record<string, readonly QueryKey[]>): void {
-  const queryClient = useQueryClient();
-  const mapRef = useRef(map);
-  mapRef.current = map;
-  const types = Object.keys(map);
-  useStableEvents(types, (event) => {
-    const keys = event.type === RESYNC ? Object.values(mapRef.current).flat() : (mapRef.current[event.type] ?? []);
-    for (const queryKey of keys) void queryClient.invalidateQueries({ queryKey });
-  });
 }

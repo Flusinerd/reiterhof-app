@@ -11,6 +11,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { AppMenu } from "@/components/app-menu";
 import { ConsentOnboarding } from "@/components/consent-onboarding";
+import { RealtimeBridge } from "@/components/realtime-bridge";
 import { Button, Screen, ScreenMenuContext, Text } from "@/components/ui";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { fontAssets } from "@/lib/fonts";
@@ -119,6 +120,7 @@ function AuthGate() {
       {stack}
       {redirect}
       <ConsentOnboarding />
+      {status === "signedIn" && hasStable ? <RealtimeBridge /> : null}
     </ScreenMenuContext.Provider>
   );
 }

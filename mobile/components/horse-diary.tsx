@@ -7,12 +7,11 @@ import { AuthImage } from "@/components/auth-image";
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
 import { Button, Text } from "@/components/ui";
 import { useAuth } from "@/lib/auth";
-import { useDiary, horseKeys, type Horse } from "@/lib/api/horses";
+import { useDiary, type Horse } from "@/lib/api/horses";
 import { cn } from "@/lib/cn";
 import { DIARY_EMPTY, diaryView, flattenDiary, type DiaryDot, type DiaryView } from "@/lib/horse-page";
 import { newObservationRoute } from "@/lib/observations";
 import { localDate } from "@/lib/presence-format";
-import { useInvalidateOnEvents } from "@/lib/realtime";
 
 const DOT_CLASS: Record<DiaryDot, string> = {
   success: "bg-success",
@@ -87,7 +86,6 @@ function DiaryItem({ view, last }: { view: DiaryView; last: boolean }) {
 export function HorseDiary({ horse, timeZone }: { horse: Horse; timeZone: string }) {
   const { user } = useAuth();
   const diary = useDiary(horse.id);
-  useInvalidateOnEvents({ "observation.changed": [horseKeys.diary(horse.id)] });
   const today = localDate(new Date(), timeZone);
   const views = useMemo(
     () => flattenDiary(diary.data?.pages ?? []).map((e) => diaryView(e, { today, meId: user?.id })),

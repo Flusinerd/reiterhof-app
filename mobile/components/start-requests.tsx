@@ -10,7 +10,6 @@ import { useAuth } from "@/lib/auth";
 import type { ListParams } from "@/lib/requests";
 import { toIsoDate } from "@/lib/requests";
 import { requestErrorMessage } from "@/lib/requests-errors";
-import { useInvalidateOnEvents } from "@/lib/realtime";
 import { useColors } from "@/lib/theme";
 import { useAcceptRequest } from "@/lib/use-accept-request";
 
@@ -26,7 +25,6 @@ export function StartRequests() {
   const { user } = useAuth();
   const today = useMemo(() => toIsoDate(new Date()), []);
   const list = useQuery({ queryKey: requestKeys.list(PARAMS), queryFn: () => requestsApi.list(PARAMS) });
-  useInvalidateOnEvents({ "request.changed": [requestKeys.all] });
   const { accept, acceptingId, error } = useAcceptRequest();
 
   if (list.isPending) return <ActivityIndicator color={c.primary.DEFAULT} className="self-start" />;

@@ -15,7 +15,7 @@ import { Button, Input, PageHeader, Screen, Section, Sheet, Text } from "@/compo
 import { ListRow, RowList } from "@/components/ui/list-row";
 import { WeatherCard } from "@/components/weather-card";
 import { errorMessage } from "@/lib/api";
-import { BLANKET_PLAN_EVENT, BLANKET_STATE_EVENT, blanketKeys, blanketsApi, usePlan, usePlanMutation } from "@/lib/api/blankets";
+import { blanketKeys, blanketsApi, usePlan, usePlanMutation } from "@/lib/api/blankets";
 import { horsesApi, useHorseMutation } from "@/lib/api/horses";
 import { useAuth } from "@/lib/auth";
 import {
@@ -33,7 +33,6 @@ import {
   stateLabel,
   type Blanket,
 } from "@/lib/blankets";
-import { useInvalidateOnEvents } from "@/lib/realtime";
 import { useColors } from "@/lib/theme";
 
 /** Deckenplan of a horse (JAN-30): tonight's recommendation, rules, blankets, helper note, history. */
@@ -43,10 +42,6 @@ export default function BlanketPlan() {
   const queryClient = useQueryClient();
   const { me } = useAuth();
   const plan = usePlan(id);
-  useInvalidateOnEvents({
-    [BLANKET_STATE_EVENT]: [blanketKeys.plan(id), blanketKeys.history(id)],
-    [BLANKET_PLAN_EVENT]: [blanketKeys.plan(id)],
-  });
   const [rulesOpen, setRulesOpen] = useState(false);
   const [editing, setEditing] = useState<{ blanket: Blanket | null } | null>(null);
   const [choiceOpen, setChoiceOpen] = useState(false);

@@ -9,7 +9,7 @@ import { Button, PageHeader, Screen, SectionTitle, Text } from "@/components/ui"
 import { WeatherCard } from "@/components/weather-card";
 import { WeatherWarnings } from "@/components/weather-warnings";
 import { errorMessage } from "@/lib/api";
-import { BLANKET_PLAN_EVENT, BLANKET_STATE_EVENT, blanketKeys, useSetState, useToday } from "@/lib/api/blankets";
+import { blanketKeys, useSetState, useToday } from "@/lib/api/blankets";
 import { weatherKeys } from "@/lib/api/weather";
 import { useAuth } from "@/lib/auth";
 import {
@@ -20,7 +20,6 @@ import {
   type StateAction,
 } from "@/lib/blankets";
 import { horseRoutes } from "@/lib/horse-format";
-import { useInvalidateOnEvents } from "@/lib/realtime";
 import { useColors } from "@/lib/theme";
 
 /** "Mittwoch, 30. September" */
@@ -41,10 +40,6 @@ export default function Blankets() {
   const setState = useSetState();
   const [pending, setPending] = useState<{ horseId: string; action: StateAction } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  useInvalidateOnEvents({
-    [BLANKET_STATE_EVENT]: [blanketKeys.today],
-    [BLANKET_PLAN_EVENT]: [blanketKeys.all],
-  });
   const timeZone = me?.stable?.timezone ?? "Europe/Berlin";
   const openPlan = (horseId: string) => router.push(horseRoutes.blanketPlan(horseId) as Href);
 

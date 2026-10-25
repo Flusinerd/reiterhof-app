@@ -21,9 +21,6 @@ import { useEffectMutation } from "./mutation";
 
 export { blanketKeys };
 
-export const BLANKET_STATE_EVENT = "blanket_state.changed";
-export const BLANKET_PLAN_EVENT = "blanket_plan.changed";
-
 /** Body of POST and PATCH of a blanket. "" clears color, location and photo. */
 export type BlanketInput = Partial<{
   name: string;

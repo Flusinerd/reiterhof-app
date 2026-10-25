@@ -4,11 +4,8 @@ import { RefreshControl, View } from "react-native";
 import { NextTask, Timeline } from "@/components/today-parts";
 import { WeatherWarnings } from "@/components/weather-warnings";
 import { Button, PageHeader, Screen, SectionTitle, Text } from "@/components/ui";
-import { BLANKET_PLAN_EVENT, BLANKET_STATE_EVENT, blanketKeys } from "@/lib/api/blankets";
-import { reminderKeys } from "@/lib/api/reminders";
 import { useAuth } from "@/lib/auth";
 import { greeting } from "@/lib/blankets";
-import { useInvalidateOnEvents } from "@/lib/realtime";
 import { colors } from "@/lib/theme";
 import { todaySummary } from "@/lib/today";
 import { useTodayData } from "@/lib/use-today";
@@ -23,11 +20,6 @@ const dateLine = (timeZone: string) =>
 export default function Heute() {
   const { user } = useAuth();
   const data = useTodayData();
-  useInvalidateOnEvents({
-    [BLANKET_STATE_EVENT]: [blanketKeys.today, reminderKeys.all],
-    [BLANKET_PLAN_EVENT]: [blanketKeys.today],
-    "request.changed": [reminderKeys.all],
-  });
   const view = data.view;
   const colorOf = (id?: string) => data.horses.find((h) => h.id === id)?.color_key;
 

@@ -5,7 +5,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { authed } from "../api";
 import { observationKeys } from "../query-keys.ts";
-import { useInvalidateOnEvents } from "../realtime";
 import { horseKeys, type EmergencyCard } from "./horses";
 import { useEffectMutation } from "./mutation";
 
@@ -61,11 +60,6 @@ export const observationsApi = {
 };
 
 // --- query keys and hooks ------------------------------------------------------------------
-
-/** Refetches observations when someone reports or changes one. Call once per screen. */
-export function useObservationEvents() {
-  useInvalidateOnEvents({ "observation.changed": [observationKeys.all] });
-}
 
 export const useObservations = (horseId: string) =>
   useQuery({ queryKey: observationKeys.list(horseId), queryFn: () => observationsApi.list(horseId) });

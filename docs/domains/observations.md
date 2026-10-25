@@ -54,8 +54,8 @@ larger limits and streaming, and the Caddy body limit is 25 MB); extending the t
 place to add mp4/mov later. The app offers camera and photo library for images only.
 
 Realtime: every create and every status change publishes `observation.changed` with `{id, horse_id}` (ids only,
-see [Realtime](../architecture.md#realtime)); the app invalidates its `observations` queries
-(`useObservationEvents`).
+see [Realtime](../architecture.md#realtime)); the app marks its `observations` queries and the diary of the horse stale
+(`RealtimeBridge`, `eventKeys` in `mobile/lib/query-effects.ts`).
 
 ## Push (JAN-50, JAN-51)
 

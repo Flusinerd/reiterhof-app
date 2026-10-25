@@ -8,7 +8,7 @@ import { HorseError, HorseLoading } from "@/components/horse-query-state";
 import { ObservationCard } from "@/components/observation-card";
 import { Button, Text } from "@/components/ui";
 import { RowList } from "@/components/ui/list-row";
-import { useObservationEvents, useObservations, type Observation } from "@/lib/api/observations";
+import { useObservations, type Observation } from "@/lib/api/observations";
 import { newObservationRoute, openCount } from "@/lib/observations";
 
 /** Observations shown before "Ältere anzeigen". */
@@ -30,7 +30,6 @@ export function HorseObservations({
 }) {
   const query = useObservations(horseId);
   const [all, setAll] = useState(false);
-  useObservationEvents();
 
   const list = query.data;
   const open = list ? openCount(list) : 0;

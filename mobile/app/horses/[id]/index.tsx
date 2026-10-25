@@ -16,7 +16,7 @@ import { HorseTodayRows } from "@/components/horse-today-rows";
 import { HorseWeekStrip } from "@/components/horse-week-strip";
 import { Button, Screen, Section, Segmented, Text } from "@/components/ui";
 import { errorMessage } from "@/lib/api";
-import { BLANKET_PLAN_EVENT, BLANKET_STATE_EVENT, blanketKeys, useToday as useBlanketsToday } from "@/lib/api/blankets";
+import { blanketKeys, useToday as useBlanketsToday } from "@/lib/api/blankets";
 import { horseKeys, horsesApi, useHealth, useHorse, useHorseMutation } from "@/lib/api/horses";
 import { trainingKeys, useWeek } from "@/lib/api/training";
 import { useAuth } from "@/lib/auth";
@@ -24,7 +24,6 @@ import { horseRoutes } from "@/lib/horse-format";
 import { buildHorseRows, horseWeekStrip, type RowAction } from "@/lib/horse-page";
 import { rehaFromObservationRoute } from "@/lib/observations";
 import { localDate } from "@/lib/presence-format";
-import { useInvalidateOnEvents } from "@/lib/realtime";
 import { colors } from "@/lib/theme";
 
 const SEGMENTS = [
@@ -56,10 +55,6 @@ export function HorseRecord({ id, back }: { id: string; back: boolean }) {
   const week = useWeek(canSeeTraining ? id : undefined);
   const health = useHealth(id);
   const blankets = useBlanketsToday();
-  useInvalidateOnEvents({
-    [BLANKET_STATE_EVENT]: [blanketKeys.today],
-    [BLANKET_PLAN_EVENT]: [blanketKeys.today],
-  });
   const markDone = useHorseMutation((itemId: string) => horsesApi.markDone(itemId), () => [{ type: "health" }]);
   const photo = useHorsePhotoSheet({ id, name: h?.name ?? "", photo_url: h?.photo_url ?? null });
   const [segment, setSegment] = useState<Segment>("diary");

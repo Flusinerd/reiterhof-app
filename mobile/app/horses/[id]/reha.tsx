@@ -10,7 +10,6 @@ import { Button, Icon, Screen, Section, Text } from "@/components/ui";
 import { ListRow, RowList } from "@/components/ui/list-row";
 import {
   rehaError,
-  rehaKeys,
   useEndPlan,
   useMarkDone,
   useReha,
@@ -20,7 +19,6 @@ import {
 } from "@/lib/api/reha";
 import { useObservation } from "@/lib/api/observations";
 import { observationRoute, observationTitle, reportedText } from "@/lib/observations";
-import { useInvalidateOnEvents } from "@/lib/realtime";
 import { checkupText, dateRange, planProgress, planStatusText } from "@/lib/reha";
 import { formatDate } from "@/lib/training";
 
@@ -128,8 +126,6 @@ export default function Reha() {
   const unmark = useUnmarkDone(id ?? "", planId);
   const end = useEndPlan(id ?? "", planId);
   const [error, setError] = useState<string | null>(null);
-
-  useInvalidateOnEvents({ "reha.changed": [rehaKeys.all] });
 
   if (reha.isPending) {
     return (

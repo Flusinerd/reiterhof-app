@@ -8,14 +8,13 @@ import { BlanketBoard, PresenceRow } from "@/components/stable-parts";
 import { StartRequests } from "@/components/start-requests";
 import { WeatherWarnings } from "@/components/weather-warnings";
 import { Button, Icon, PageHeader, Screen, SectionTitle, Text } from "@/components/ui";
-import { BLANKET_STATE_EVENT, blanketKeys, useToday } from "@/lib/api/blankets";
+import { blanketKeys, useToday } from "@/lib/api/blankets";
 import { PRESENCE_KEY } from "@/lib/api/presence";
 import { requestKeys } from "@/lib/api/requests";
 import { weatherKeys } from "@/lib/api/weather";
 import { useAuth } from "@/lib/auth";
 import { progressLabel } from "@/lib/blankets";
 import { horseRoutes } from "@/lib/horse-format";
-import { useInvalidateOnEvents } from "@/lib/realtime";
 import { boardLine, blanketBoard, boardMineLine } from "@/lib/stable-tab";
 import { useColors } from "@/lib/theme";
 
@@ -28,7 +27,6 @@ export default function Stable() {
   const queryClient = useQueryClient();
   const { me } = useAuth();
   const today = useToday();
-  useInvalidateOnEvents({ [BLANKET_STATE_EVENT]: [blanketKeys.today] });
   const mineIds = new Set([...(me?.roles.owned_horse_ids ?? []), ...(me?.roles.rider_horse_ids ?? [])]);
   const data = today.data;
   const openHorses = data?.horses.filter((h) => !h.done).length ?? 0;

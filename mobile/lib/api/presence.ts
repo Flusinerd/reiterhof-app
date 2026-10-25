@@ -45,7 +45,6 @@ export type PresenceOverview = {
 };
 
 export { PRESENCE_KEY };
-export const PRESENCE_EVENT = "presence.changed";
 
 export const presenceApi = {
   overview: () => authed.get<PresenceOverview>("/api/v1/presence"),

@@ -524,8 +524,15 @@ refetches). No replay: clients refetch after (re)connecting.
 accepted (it would end up in access logs and proxies). The clients use `expo/fetch` streaming
 (native) and `fetch` (browser), which both send the header.
 
-**Mobile:** `useStableEvents(types, handler)` and `useInvalidateOnEvents({ "request.changed":
-[["requests"]] })` in `mobile/lib/realtime.ts`; one shared connection, closed in the background.
+**Mobile:** `useStableEvents(types, handler)` in `mobile/lib/realtime.ts` (one shared connection, reference
+counted, closed in the background, a `resync` after every reconnect). The app subscribes **once**:
+`RealtimeBridge` (`components/realtime-bridge.tsx`), mounted by the root layout while somebody is signed in
+to a stable, marks the queries an event changed as stale; which ones is the table `eventKeys` in
+`mobile/lib/query-effects.ts` (scoped by `data.horse_id`; a `resync` marks everything stale). Screens do not
+subscribe themselves, so a screen that was never opened is fresh when it shows up. A new event needs a line
+in that table, a test in `query-effects.test.ts` and an entry in the event table above. The same bridge
+refreshes the reminder center (and what the push is about) when a push arrives while the app is open
+(`useRefreshOnPush`, native only).
 
 ## Files
 
