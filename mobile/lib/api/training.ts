@@ -1,7 +1,11 @@
-// Training endpoints (docs/domains/training.md) with React Query keys and hooks.
+// Training endpoints (docs/domains/training.md, docs/domains/training-planning.md) with React Query
+// keys and hooks. Everything the planning rebuild adds (focuses, units, blocks, equipment, goals)
+// is optional on read, so an older backend still works.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { ApiError, authed, errorMessage } from "../api";
+import { retryServerErrors } from "../api-core.ts";
+import { trainingKeys } from "../query-keys.ts";
 import {
   trainingErrorText,
   type Activity,
@@ -14,10 +18,18 @@ import {
   type ReinSegment,
 } from "../training";
 import type { Feeling } from "../session-finish";
+import { exerciseQueryString } from "../tracking-exercises";
+import { equipmentBody, type LocationEquipment, type LocationKey, type StableEquipment } from "../training-equipment";
+import type { Block, FocusEntry, FocusWarning, HorsePhase, ProfileFocus, Unit } from "../training-focus";
+import type { GoalLevel, LevelProgress, TodayProgress } from "../training-goal";
 import { planApplyBody, type PlanDay, type PlanResponse, type ReproposeOptions, type TakeDayBody } from "../training-plan";
 import type { DayRuleApi, QuotasApi } from "../training-profile";
+import { useEffectMutation } from "./mutation";
 
 export type { ReproposeOptions, TakeDayBody };
+export type { Block, FocusEntry, FocusWarning, HorsePhase, ProfileFocus, Unit };
+export type { LevelProgress, StableEquipment, TodayProgress };
+export { trainingKeys };
 
 // --- types (mirror backend/internal/trainingapi) -----------------------------------------
 
@@ -33,6 +45,7 @@ export type TrainingHorse = {
 export type ExerciseSummary = {
   id: string;
   title: string;
+  /** The library (dressage, jumping, cavaletti, groundwork, lunge, hack, western); same value as `library`. */
   discipline: string;
   level: string;
   goal_tags: string[];
@@ -41,7 +54,29 @@ export type ExerciseSummary = {
   steps?: string[];
   next_exercise_id: string | null;
   next?: { id: string; title: string; discipline: string; level: string } | null;
+  // Metadata of the catalog (docs/domains/training-planning.md); absent on older backends.
+  library?: string;
+  /** The part of the unit it fits: warmup (Lösen), main (Arbeiten), cooldown (Entspannen) or any. */
+  phase?: "warmup" | "main" | "cooldown" | "any";
+  /** Typical duration in minutes. */
+  minutes?: number | null;
+  intensity?: "light" | "normal" | "demanding";
+  /** `young` and `senior`. */
+  suits?: string[];
+  /** One sentence: what the exercise is for ("Wozu"). */
+  summary?: string;
+  /** Keys of the equipment it needs (facility and personal). */
+  equipment?: string[];
+  /** Only in the list with `?horse=`: false when the stable's equipment is not enough. */
+  available?: boolean;
+  // Detail only.
+  requires?: { id: string; title: string }[];
+  sources?: string[];
+  alternatives?: { id: string; title: string; equipment?: string[] }[];
 };
+
+/** Why a unit has its focus (`why` names the cause: "Schwerpunkt Takt: zuletzt am Montag."). */
+export type RecommendationFocus = { key: string; label: string; why: string };
 
 export type Recommendation = {
   activity: Activity | "rest";
@@ -52,6 +87,11 @@ export type Recommendation = {
   reason: string;
   note?: string;
   exercise?: ExerciseSummary | null;
+  focus?: RecommendationFocus | null;
+  unit?: Unit | null;
+  /** The day's "Aufbau heute" override and the planner's note on the equipment. */
+  equipment_ok?: boolean | null;
+  equipment_note?: string | null;
 };
 
 export type TodayResponse = {
@@ -78,6 +118,12 @@ export type TodayResponse = {
   } | null;
   can_log: boolean;
   can_edit: boolean;
+  /** The horse's phase, the week of the return to work (0 when not returning) and the block of four weeks. */
+  phase?: HorsePhase;
+  restart_week?: number;
+  block?: Block | null;
+  /** The way to the level goal: a sentence and the lections coming next. */
+  progress?: TodayProgress | null;
 };
 
 export type WeekDay = {
@@ -103,9 +149,16 @@ export type WeekDay = {
     helper?: string;
   } | null;
   can_take: boolean;
-  /** Focus and library exercise planned for the day (week plan). */
+  /** Focus (free text) and library exercise planned for the day (week plan). */
   focus: string | null;
   exercise: { id: string; title: string } | null;
+  /** Focus of the unit from the catalog, the unit plan and the equipment of the day; absent on older backends. */
+  focus_key?: string | null;
+  focus_label?: string | null;
+  unit?: Unit | null;
+  /** "Aufbau heute": true (possible), false (not possible), null (the location's default). */
+  equipment_ok?: boolean | null;
+  equipment_note?: string | null;
   /** The unit the active reha plan allows that day. */
   reha: {
     plan_id: string;
@@ -127,6 +180,8 @@ export type WeekResponse = {
   assessment: string;
   sessions: number;
   can_edit: boolean;
+  /** The block of four weeks the week is in (weeks 1 to 3 build, week 4 is the deload week). */
+  block?: Block | null;
 };
 
 export type SessionInput = {
@@ -141,6 +196,8 @@ export type SessionInput = {
   feeling?: Feeling;
   focus_rating?: 1 | 2 | 3;
   exercise_id?: string;
+  /** What was trained (catalog key); only sent when the unit had a focus (newer backends). */
+  focus_key?: string;
   note?: string;
   visible_to_rider?: boolean;
   distance_m?: number;
@@ -200,14 +257,38 @@ export type TrainingProfile = {
   rhythm: Rhythm;
   status: "fit" | "reha" | "pause";
   rider_rules: RiderRule[];
+  /** Focuses of the horse in priority order (at most 3) and the Monday of the first week of the block. */
+  focuses?: ProfileFocus[];
+  cycle_start?: string | null;
+  /** The horse's phase, the scale focuses of it that are not chosen yet, hints (focus keys, `level_up`). */
+  phase?: HorsePhase;
+  focus_hints?: string[];
+  warnings?: FocusWarning[];
+  /** The way to the level goal; absent on older backends (and for a horse with no class above). */
+  progress?: LevelProgress | null;
+  /** The level goal as stored (null: the class above the current one) and its end date; sent with or without `progress`. */
+  goal_level?: GoalLevel | null;
+  goal_until?: string | null;
 };
 
 /** Body of PUT /training-profile. */
-export type ProfileInput = Omit<TrainingProfile, "horse_id" | "horse_name" | "exists" | "can_edit">;
+export type ProfileInput = Omit<
+  TrainingProfile,
+  "horse_id" | "horse_name" | "exists" | "can_edit" | "phase" | "focus_hints" | "warnings" | "progress" | "goal_level" | "goal_until"
+> & {
+  /** The level goal; null is "the class above the current one". Only sent by the goal sheet. */
+  goal_level?: GoalLevel | null;
+  goal_until?: string | null;
+};
+
+/** GET /horses/{id}/my-focus. `catalog_phase` is the highest catalog phase the horse's phase allows. */
+export type MyFocus = { keys: string[]; catalog_phase?: number };
 
 // --- calls -------------------------------------------------------------------------------
 
 const base = (horse: string) => `/api/v1/horses/${encodeURIComponent(horse)}`;
+
+export type ExerciseQuery = { horse?: string | null; focus?: string | null };
 
 export const trainingApi = {
   horses: () => authed.get<{ horses: TrainingHorse[] }>("/api/v1/training/horses").then((r) => r.horses),
@@ -229,18 +310,26 @@ export const trainingApi = {
   profile: (horse: string) => authed.get<TrainingProfile>(`${base(horse)}/training-profile`),
   saveProfile: (horse: string, body: ProfileInput) => authed.put<TrainingProfile>(`${base(horse)}/training-profile`, body),
   createSession: (horse: string, body: SessionInput) => authed.post<CreatedSession>(`${base(horse)}/sessions`, body),
+  exercises: (query: ExerciseQuery = {}) =>
+    authed.get<{ exercises: ExerciseSummary[] }>(`/api/v1/exercises${exerciseQueryString(query)}`).then((r) => r.exercises),
   exercise: (id: string) => authed.get<ExerciseSummary>(`/api/v1/exercises/${encodeURIComponent(id)}`),
+  /** The focus catalog (static data of the backend). */
+  focuses: () => authed.get<{ focuses: FocusEntry[] }>("/api/v1/training/focuses").then((r) => r.focuses),
+  /** The rider's own focuses on a horse (at most 2). */
+  myFocus: (horse: string) => authed.get<MyFocus>(`${base(horse)}/my-focus`),
+  setMyFocus: (horse: string, keys: string[]) => authed.put<unknown>(`${base(horse)}/my-focus`, { keys }),
+  clearMyFocus: (horse: string) => authed.delete<unknown>(`${base(horse)}/my-focus`),
+  /** What the stable has to set up for training (all members read, admins write). */
+  equipment: () => authed.get<StableEquipment>("/api/v1/stables/training-equipment"),
+  /** `facility` is the key list the server sent (`keys.facility`), so that keys the app does not know are kept. */
+  saveEquipment: (locations: Record<LocationKey, LocationEquipment>, facility?: readonly string[]) =>
+    authed.put<unknown>("/api/v1/stables/training-equipment", equipmentBody(locations, facility)),
 };
 
-// --- query keys ----------------------------------------------------------------------------
+// --- hooks (the query keys live in lib/query-keys.ts) ------------------------------------------
 
-export const trainingKeys = {
-  all: ["training"] as const,
-  horses: () => ["training", "horses"] as const,
-  today: (horse: string, minutes?: number) => ["training", "today", horse, minutes ?? 0] as const,
-  week: (horse: string, start?: string) => ["training", "week", horse, start ?? "current"] as const,
-  profile: (horse: string) => ["training", "profile", horse] as const,
-};
+// The optional endpoints (focuses, my focus, equipment) answer 403 or 404 on an older backend and for
+// people without access: `retryServerErrors` spares them the retries that would only delay the screen.
 
 export const useTrainingHorses = () => useQuery({ queryKey: trainingKeys.horses(), queryFn: trainingApi.horses });
 
@@ -265,29 +354,50 @@ export const useProfile = (horse: string | undefined) =>
     enabled: !!horse,
   });
 
-/** After a session or slot change: week, today and horse list are stale. */
-export function useInvalidateTraining() {
-  const client = useQueryClient();
-  return (horse: string) => {
-    void client.invalidateQueries({ queryKey: ["training", "week", horse] });
-    void client.invalidateQueries({ queryKey: ["training", "today", horse] });
-    void client.invalidateQueries({ queryKey: trainingKeys.horses() });
-  };
-}
+/** The focus catalog; static data, so it is kept for an hour. Fails on an older backend (no retries). */
+export const useFocuses = () =>
+  useQuery({
+    queryKey: trainingKeys.focuses(),
+    queryFn: trainingApi.focuses,
+    staleTime: 60 * 60 * 1000,
+    retry: retryServerErrors,
+  });
 
+/** The signed-in person's own focuses on the horse; fails for people who may not set them. */
+export const useMyFocus = (horse: string | undefined) =>
+  useQuery({
+    queryKey: trainingKeys.myFocus(horse ?? ""),
+    queryFn: () => trainingApi.myFocus(horse!),
+    enabled: !!horse,
+    retry: retryServerErrors,
+  });
+
+/** The stable's training equipment; `enabled` false skips the request (only admins need it on the training tab). */
+export const useTrainingEquipment = (enabled = true) =>
+  useQuery({
+    queryKey: trainingKeys.equipment(),
+    queryFn: trainingApi.equipment,
+    enabled,
+    retry: retryServerErrors,
+  });
+
+/**
+ * A logged session changes the week and today of the horse, the horse list, the diary and the reminder
+ * center (the day is done); the mutation ends when they are fresh, so "Ins Tagebuch" is there when the
+ * screen closes.
+ */
 export function useCreateSession(horse: string) {
-  const invalidate = useInvalidateTraining();
-  return useMutation({
+  return useEffectMutation({
     mutationFn: (body: SessionInput) => trainingApi.createSession(horse, body),
-    onSuccess: () => invalidate(horse),
+    effects: () => [{ type: "session", horseId: horse }],
   });
 }
 
+/** Claims, releases or plans one day of the week. */
 export function useTakeDay(horse: string) {
-  const invalidate = useInvalidateTraining();
-  return useMutation({
+  return useEffectMutation({
     mutationFn: ({ day, ...body }: { day: string } & TakeDayBody) => trainingApi.takeDay(horse, day, body),
-    onSuccess: () => invalidate(horse),
+    effects: () => [{ type: "weekSlots", horseId: horse }],
   });
 }
 
@@ -306,29 +416,57 @@ export function useReproposeDay(horse: string) {
   });
 }
 
-/** Stores the plan days one after another, then refreshes the week. */
+/**
+ * Stores the plan days one after another, then refreshes the week. Days stored before a failure stay
+ * stored, so the week is refreshed on failure too.
+ */
 export function useApplyPlan(horse: string) {
-  const invalidate = useInvalidateTraining();
-  return useMutation({
+  return useEffectMutation({
     mutationFn: async (days: PlanDay[]) => {
       for (const d of days) {
         const body = planApplyBody(d);
         if (body) await trainingApi.takeDay(horse, d.date, body);
       }
     },
-    onSettled: () => invalidate(horse),
+    effects: () => [{ type: "weekSlots", horseId: horse }],
+    errorEffects: () => [{ type: "weekSlots", horseId: horse }],
   });
 }
 
+/** Saves the profile (also its focuses and level goal); the answer replaces the cached profile, plans and today are stale. */
 export function useSaveProfile(horse: string) {
   const client = useQueryClient();
-  const invalidate = useInvalidateTraining();
-  return useMutation({
+  return useEffectMutation({
     mutationFn: (body: ProfileInput) => trainingApi.saveProfile(horse, body),
     onSuccess: (profile) => {
       client.setQueryData(trainingKeys.profile(horse), profile);
-      invalidate(horse);
     },
+    effects: () => [{ type: "trainingProfile", horseId: horse }],
+  });
+}
+
+/** Saves the person's own focuses on the horse ("Mein Schwerpunkt"). */
+export function useSetMyFocus(horse: string) {
+  return useEffectMutation({
+    mutationFn: (keys: string[]) => trainingApi.setMyFocus(horse, keys),
+    effects: () => [{ type: "myFocus", horseId: horse }],
+  });
+}
+
+/** "Kein eigener Schwerpunkt": removes the person's own focuses on the horse. */
+export function useClearMyFocus(horse: string) {
+  return useEffectMutation({
+    mutationFn: () => trainingApi.clearMyFocus(horse),
+    effects: () => [{ type: "myFocus", horseId: horse }],
+  });
+}
+
+/** Saves the stable's equipment (admins); exercises (availability), plans and today of every horse are stale. */
+export function useSaveTrainingEquipment() {
+  return useEffectMutation({
+    mutationFn: ({ locations, facility }: { locations: Record<LocationKey, LocationEquipment>; facility?: readonly string[] }) =>
+      trainingApi.saveEquipment(locations, facility),
+    effects: () => [{ type: "trainingEquipment" }],
   });
 }
 

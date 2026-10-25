@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams, type Href } from "expo-router";
+import { useLocalSearchParams, type Href } from "expo-router";
 import { ClipboardList, Megaphone, Pencil, Plus, Stethoscope } from "lucide-react-native";
 import { useState } from "react";
 import { Alert, View } from "react-native";
@@ -19,10 +19,12 @@ import {
   type RehaView,
 } from "@/lib/api/reha";
 import { useObservation } from "@/lib/api/observations";
+import { pushOnce } from "@/lib/navigation";
 import { observationRoute, observationTitle, reportedText } from "@/lib/observations";
-import { useInvalidateOnEvents } from "@/lib/realtime";
 import { checkupText, dateRange, planProgress, planStatusText } from "@/lib/reha";
 import { formatDate } from "@/lib/training";
+import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
+import { usePullToRefresh } from "@/lib/use-pull-to-refresh";
 
 function ProgressBar({ value }: { value: number }) {
   return (
@@ -70,7 +72,7 @@ function SourceObservation({ observationId }: { observationId: string }) {
       title={observationTitle(o)}
       detail={`${o.reporter.name}, ${reportedText(o.created_at, new Date())}`}
       accessibilityLabel={`${observationTitle(o)} öffnen`}
-      onPress={() => router.push(observationRoute(o.id) as Href)}
+      onPress={() => pushOnce(observationRoute(o.id) as Href)}
     />
   );
 }
@@ -123,13 +125,13 @@ function History({ plans }: { plans: RehaPlan[] }) {
 export default function Reha() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const reha = useReha(id);
+  const refresh = usePullToRefresh([reha]);
+  useRefreshOnFocus([rehaKeys.horse(id ?? "")]);
   const planId = reha.data?.plan?.id ?? reha.data?.today?.plan_id ?? "";
   const markDone = useMarkDone(id ?? "", planId);
   const unmark = useUnmarkDone(id ?? "", planId);
   const end = useEndPlan(id ?? "", planId);
   const [error, setError] = useState<string | null>(null);
-
-  useInvalidateOnEvents({ "reha.changed": [rehaKeys.all] });
 
   if (reha.isPending) {
     return (
@@ -148,7 +150,7 @@ export default function Reha() {
 
   const view: RehaView = reha.data;
   const plan = view.plan;
-  const go = (href: string) => router.push(href as Href);
+  const go = (href: string) => pushOnce(href as Href);
   const fail = (e: unknown) => setError(rehaError(e));
 
   const confirmEnd = () => {
@@ -159,7 +161,7 @@ export default function Reha() {
   };
 
   return (
-    <Screen back>
+    <Screen back refreshControl={refresh}>
       <RehaTodayHead
         view={view}
         busy={markDone.isPending || unmark.isPending}

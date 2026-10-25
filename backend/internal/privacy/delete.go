@@ -42,7 +42,7 @@ var ErrNotFound = errors.New("privacy: user not found")
 //     admin flag are cleared; the row keeps only the id and DeletedName.
 //   - Deleted: sessions, sign-in identities, pending login tokens for the email, parental
 //     consent tokens, push tokens, reminder settings, reminders, presence visits, rider roles,
-//     helper assignments, consents, GPS tracks and raw gait windows of training sessions, and
+//     the own training focuses, helper assignments, consents, GPS tracks and raw gait windows of training sessions, and
 //     uploaded photos of reported observations. The age confirmation and the parent's address go too.
 //   - Kept, now attributed to DeletedName: reported observations (text), training sessions
 //     (without track), requests (open ones are cancelled), week slots, documents.
@@ -119,6 +119,7 @@ func DeleteAccount(ctx context.Context, db interface {
 		`DELETE FROM request_assignees WHERE user_id = $1`,
 		`UPDATE requests SET status = 'cancelled' WHERE created_by = $1 AND status IN ('open', 'assigned')`,
 		`DELETE FROM horse_riders WHERE user_id = $1`,
+		`DELETE FROM rider_focuses WHERE user_id = $1`,
 		`DELETE FROM presence WHERE user_id = $1`,
 		`UPDATE sessions SET track = NULL WHERE user_id = $1`,
 		`DELETE FROM gait_windows g USING sessions s WHERE s.id = g.session_id AND s.user_id = $1`,

@@ -1,4 +1,4 @@
-import { router, type Href } from "expo-router";
+import type { Href } from "expo-router";
 import { Megaphone } from "lucide-react-native";
 import { useMemo } from "react";
 import { Pressable, View } from "react-native";
@@ -7,12 +7,12 @@ import { AuthImage } from "@/components/auth-image";
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
 import { Button, Text } from "@/components/ui";
 import { useAuth } from "@/lib/auth";
-import { useDiary, horseKeys, type Horse } from "@/lib/api/horses";
+import { useDiary, type Horse } from "@/lib/api/horses";
 import { cn } from "@/lib/cn";
 import { DIARY_EMPTY, diaryView, flattenDiary, type DiaryDot, type DiaryView } from "@/lib/horse-page";
+import { pushOnce } from "@/lib/navigation";
 import { newObservationRoute } from "@/lib/observations";
 import { localDate } from "@/lib/presence-format";
-import { useInvalidateOnEvents } from "@/lib/realtime";
 
 const DOT_CLASS: Record<DiaryDot, string> = {
   success: "bg-success",
@@ -67,7 +67,7 @@ function DiaryItem({ view, last }: { view: DiaryView; last: boolean }) {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={[view.when, view.title].join(", ")}
-          onPress={() => router.push(view.route as Href)}
+          onPress={() => pushOnce(view.route as Href)}
           className="active:opacity-70"
         >
           {body}
@@ -87,7 +87,6 @@ function DiaryItem({ view, last }: { view: DiaryView; last: boolean }) {
 export function HorseDiary({ horse, timeZone }: { horse: Horse; timeZone: string }) {
   const { user } = useAuth();
   const diary = useDiary(horse.id);
-  useInvalidateOnEvents({ "observation.changed": [horseKeys.diary(horse.id)] });
   const today = localDate(new Date(), timeZone);
   const views = useMemo(
     () => flattenDiary(diary.data?.pages ?? []).map((e) => diaryView(e, { today, meId: user?.id })),
@@ -102,7 +101,7 @@ export function HorseDiary({ horse, timeZone }: { horse: Horse; timeZone: string
         variant="ghost"
         size="sm"
         className="-ml-3"
-        onPress={() => router.push(newObservationRoute(horse.id) as Href)}
+        onPress={() => pushOnce(newObservationRoute(horse.id) as Href)}
       />
       {diary.isError ? (
         <HorseError error={diary.error} onRetry={() => diary.refetch()} />
@@ -126,7 +125,7 @@ export function HorseDiary({ horse, timeZone }: { horse: Horse; timeZone: string
           variant="outline"
           size="sm"
           loading={diary.isFetchingNextPage}
-          onPress={() => void diary.fetchNextPage()}
+          onPress={() => diary.fetchNextPage()}
         />
       ) : null}
     </View>

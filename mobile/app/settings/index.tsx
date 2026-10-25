@@ -1,5 +1,5 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { router, type Href } from "expo-router";
+import { useQueryClient } from "@tanstack/react-query";
+import type { Href } from "expo-router";
 import { Activity, Bell, BellOff, BookOpen, LogOut, MapPin, Pencil, ShieldCheck, type LucideIcon } from "lucide-react-native";
 import { useState } from "react";
 import { ActivityIndicator, View } from "react-native";
@@ -12,11 +12,14 @@ import { WebPushCard } from "@/components/web-push-card";
 import { Button, Icon, PageHeader, Screen, Section, Switch, Text } from "@/components/ui";
 import { ListRow, RowList } from "@/components/ui/list-row";
 import { errorMessage } from "@/lib/api";
+import { useEffectMutation } from "@/lib/api/mutation";
 import { reminderKeys, remindersApi, useNotificationSettings } from "@/lib/api/reminders";
 import { useAuth } from "@/lib/auth";
 import { useHasConsent } from "@/lib/consent";
+import { pushOnce } from "@/lib/navigation";
 import type { NotificationSettings } from "@/lib/reminders";
 import { useColors } from "@/lib/theme";
+import { usePullToRefresh } from "@/lib/use-pull-to-refresh";
 
 /**
  * Settings (JAN-70): notifications per kind with the stable's reminder time, inviting (admins only), then the
@@ -32,12 +35,13 @@ export function Settings({ back }: { back: boolean }) {
   const queryClient = useQueryClient();
   const { user, hasStable, signOut } = useAuth();
   const settings = useNotificationSettings();
+  const refresh = usePullToRefresh([settings]);
   const pushConsent = useHasConsent("push");
   const prompt = useConsentPrompt();
   const [error, setError] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
 
-  const toggleKind = useMutation({
+  const toggleKind = useEffectMutation({
     mutationFn: ({ kind, enabled }: { kind: string; enabled: boolean }) => remindersApi.setNotification(kind, enabled),
     onMutate: async ({ kind, enabled }) => {
       setError(null);
@@ -53,12 +57,13 @@ export function Settings({ back }: { back: boolean }) {
       if (ctx?.previous) queryClient.setQueryData(reminderKeys.notifications, ctx.previous);
       setError(errorMessage(e));
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: reminderKeys.notifications }),
+    // A failure also refreshes: the switch shows what the server has.
+    effects: ({ kind }) => [{ type: "notificationKind", kind }],
+    errorEffects: ({ kind }) => [{ type: "notificationKind", kind }],
   });
 
   async function allowPush() {
-    await prompt.ensure("push");
-    void queryClient.invalidateQueries({ queryKey: reminderKeys.notifications });
+    await prompt.ensure("push"); // the consent refreshes the switches (effect "consent")
   }
 
   async function leave() {
@@ -71,15 +76,15 @@ export function Settings({ back }: { back: boolean }) {
   }
 
   return (
-    <Screen back={back} menu={back}>
+    <Screen back={back} menu={back} refreshControl={refresh}>
       <PageHeader eyebrow={back ? undefined : "Ich"} title={back ? "Einstellungen" : (user?.name ?? "Ich")} description={user ? (back ? `${user.name}, ${user.email}` : user.email) : undefined} />
 
       {!back && hasStable ? (
         <RowList>
-          <SettingsLink icon={Bell} title="Erinnerungen" description="Heute und diese Woche" onPress={() => router.push("/reminders" as Href)} />
-          <SettingsLink icon={Activity} title="Training" description="Empfehlung, Woche, Einheit erfassen" onPress={() => router.push("/training" as Href)} />
-          <SettingsLink icon={BookOpen} title="Übungen" description="Die Übungsbibliothek" onPress={() => router.push("/training/exercises" as Href)} />
-          <SettingsLink icon={Horse} title="Alle Pferde" description="Pferde im Stall, Pferd anlegen" onPress={() => router.push("/horses" as Href)} />
+          <SettingsLink icon={Bell} title="Erinnerungen" description="Heute und diese Woche" onPress={() => pushOnce("/reminders" as Href)} />
+          <SettingsLink icon={Activity} title="Training" description="Empfehlung, Woche, Einheit erfassen" onPress={() => pushOnce("/training" as Href)} />
+          <SettingsLink icon={BookOpen} title="Übungen" description="Die Übungsbibliothek" onPress={() => pushOnce("/training/exercises" as Href)} />
+          <SettingsLink icon={Horse} title="Alle Pferde" description="Pferde im Stall, Pferd anlegen" onPress={() => pushOnce("/horses" as Href)} />
         </RowList>
       ) : null}
 
@@ -101,7 +106,7 @@ export function Settings({ back }: { back: boolean }) {
             <Text variant="secondary">
               Ohne deine Erlaubnis kommen keine Mitteilungen, egal was du unten einstellst. Erinnerungen siehst du trotzdem in der Übersicht.
             </Text>
-            <Button label="Erlauben" variant="outline" size="sm" onPress={() => void allowPush()} />
+            <Button label="Erlauben" variant="outline" size="sm" onPress={() => allowPush()} />
           </View>
         ) : null}
         <WebPushCard />
@@ -112,7 +117,7 @@ export function Settings({ back }: { back: boolean }) {
             <Text variant="body" tone="danger">
               {errorMessage(settings.error)}
             </Text>
-            <Button label="Erneut versuchen" variant="outline" onPress={() => void settings.refetch()} />
+            <Button label="Erneut versuchen" variant="outline" onPress={() => settings.refetch()} />
           </View>
         ) : (
           <RowList>
@@ -143,24 +148,24 @@ export function Settings({ back }: { back: boolean }) {
             icon={Pencil}
             title="Name"
             description={user?.name ?? "Ändern"}
-            onPress={() => router.push("/(auth)/name" as Href)}
+            onPress={() => pushOnce("/(auth)/name" as Href)}
           />
           {hasStable ? (
             <SettingsLink
               icon={MapPin}
               title="Anwesenheit"
               description="Automatisch erkennen, Sichtbarkeit"
-              onPress={() => router.push("/presence" as Href)}
+              onPress={() => pushOnce("/presence" as Href)}
             />
           ) : null}
           <SettingsLink
             icon={ShieldCheck}
             title="Datenschutz"
             description="Erlaubnisse, Datenexport, Konto löschen"
-            onPress={() => router.push("/settings/privacy" as Href)}
+            onPress={() => pushOnce("/settings/privacy" as Href)}
           />
         </RowList>
-        <Button label="Abmelden" icon={LogOut} variant="outline" fullWidth loading={signingOut} onPress={() => void leave()} />
+        <Button label="Abmelden" icon={LogOut} variant="outline" fullWidth loading={signingOut} onPress={() => leave()} />
       </Section>
       {prompt.sheet}
     </Screen>

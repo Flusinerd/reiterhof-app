@@ -2,8 +2,9 @@ import { useState } from "react";
 import { View } from "react-native";
 
 import { Button, Pill, Sheet, Text } from "@/components/ui";
-import { trainingError, useCreateSession } from "@/lib/api/training";
+import { trainingError, useCreateSession, useWeek } from "@/lib/api/training";
 import { ACTIVITIES, QUICK_DURATIONS, activityLabel, type Activity } from "@/lib/training";
+import { quickLogBody } from "@/lib/training-focus";
 
 /**
  * "Nur eintragen" (JAN-60): log a session in three taps. Tap 1: activity chip, tap 2: duration
@@ -23,11 +24,14 @@ export function QuickLogSheet({
   hidden: readonly Activity[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSaved?: () => void;
+  /** Called after the sheet closed, with what was logged (the screen behind says so). */
+  onSaved?: (saved: { activity: Activity; minutes: number }) => void;
 }) {
   const [activity, setActivity] = useState<Activity | null>(null);
   const [minutes, setMinutes] = useState<number | null>(null);
   const create = useCreateSession(horseId);
+  // Today's slot gives the session its focus, as the finish screen does (the rotation reads it).
+  const week = useWeek(horseId);
   const choices = ACTIVITIES.filter((a) => !hidden.includes(a));
 
   const close = (next: boolean) => {
@@ -39,17 +43,16 @@ export function QuickLogSheet({
     onOpenChange(next);
   };
 
+  // The promise locks the button from the tap on (a second tap would log the ride twice); the error shows below.
   const save = () => {
     if (!activity || !minutes) return;
-    create.mutate(
-      { activity, minutes },
-      {
-        onSuccess: () => {
-          close(false);
-          onSaved?.();
-        },
-      },
-    );
+    return create
+      .mutateAsync(quickLogBody({ activity, minutes, days: week.data?.days }))
+      .then(() => {
+        close(false);
+        onSaved?.({ activity, minutes });
+      })
+      .catch(() => undefined);
   };
 
   return (

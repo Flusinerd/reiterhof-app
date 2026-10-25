@@ -1,11 +1,15 @@
 // API calls and react-query hooks for horses, the emergency card, health items and documents
 // (backend: internal/horses, internal/health; docs/domains/horses.md).
 
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, type MutationKey } from "@tanstack/react-query";
 
-import { API_URL, authed } from "../api";
-import { parseErrorBody, ApiError } from "../api-core.ts";
-import { getToken } from "../token";
+import { authed } from "../api";
+import { ApiError } from "../api-core.ts";
+import type { Effect } from "../query-effects.ts";
+import { horseKeys } from "../query-keys.ts";
+import { useEffectMutation } from "./mutation";
+
+export { horseKeys };
 
 // --- types (mirror the backend JSON) -------------------------------------------------------
 
@@ -98,6 +102,9 @@ export type HealthItem = {
   remind_time: string;
   /** Negative when overdue. */
   days_until_due: number | null;
+  /** The stable-local day of the last "erledigt" (YYYY-MM-DD), null without. While it is today, a second one changes nothing and it can be undone. */
+  last_done_on: string | null;
+  last_done_by: { id: string; name: string } | null;
   /** Other horses with the same kind of appointment due about now (JAN-54); absent if none. */
   bundle?: { kind: string; count: number; horses: { id: string; name: string }[] };
 };
@@ -164,27 +171,13 @@ export type DiaryEntry = {
 
 export type DiaryPage = { items: DiaryEntry[]; next_before: string | null };
 
-// --- transport for PUT / DELETE (the shared client offers GET, POST and PATCH) -------------
-
-async function send<T>(method: "PUT" | "DELETE", path: string, body?: unknown): Promise<T> {
-  const token = getToken();
-  const headers: Record<string, string> = { Accept: "application/json" };
-  if (body !== undefined) headers["Content-Type"] = "application/json";
-  if (token) headers.Authorization = `Bearer ${token}`;
-  let res: Response;
+/** A delete of something that is gone already (the first call worked, a repeat answers 404) counts as done. */
+async function deleted(call: Promise<void>): Promise<void> {
   try {
-    res = await fetch(`${API_URL.replace(/\/+$/, "")}${path}`, {
-      method,
-      headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
-  } catch {
-    throw new ApiError(0, "network", "Network request failed");
+    await call;
+  } catch (err) {
+    if (!(err instanceof ApiError && err.status === 404)) throw err;
   }
-  if (res.status === 204) return undefined as T;
-  const text = await res.text();
-  if (!res.ok) throw parseErrorBody(res.status, text);
-  return (text ? JSON.parse(text) : undefined) as T;
 }
 
 // --- endpoints -----------------------------------------------------------------------------
@@ -196,9 +189,9 @@ export const horsesApi = {
   update: (id: string, input: HorseInput) => authed.patch<Horse>(`/api/v1/horses/${id}`, input),
   members: () => authed.get<Member[]>("/api/v1/members"),
   setRider: (horseId: string, userId: string, rules: string[]) =>
-    send<Rider>("PUT", `/api/v1/horses/${horseId}/riders/${userId}`, { rules }),
+    authed.put<Rider>(`/api/v1/horses/${horseId}/riders/${userId}`, { rules }),
   removeRider: (horseId: string, userId: string) =>
-    send<void>("DELETE", `/api/v1/horses/${horseId}/riders/${userId}`),
+    deleted(authed.delete<void>(`/api/v1/horses/${horseId}/riders/${userId}`)),
 
   emergency: (id: string) => authed.get<EmergencyCard>(`/api/v1/horses/${id}/emergency`),
   addContact: (id: string, c: Omit<Contact, "id">) =>
@@ -206,15 +199,22 @@ export const horsesApi = {
   updateContact: (id: string, contactId: string, c: Partial<Omit<Contact, "id">>) =>
     authed.patch<Contact>(`/api/v1/horses/${id}/emergency-contacts/${contactId}`, c),
   removeContact: (id: string, contactId: string) =>
-    send<void>("DELETE", `/api/v1/horses/${id}/emergency-contacts/${contactId}`),
+    deleted(authed.delete<void>(`/api/v1/horses/${id}/emergency-contacts/${contactId}`)),
 
   health: (id: string) => authed.get<HealthResponse>(`/api/v1/horses/${id}/health`),
   addHealthItem: (id: string, input: HealthInput) =>
     authed.post<HealthItem>(`/api/v1/horses/${id}/health-items`, input),
   updateHealthItem: (itemId: string, input: HealthInput) =>
     authed.patch<HealthItem>(`/api/v1/health-items/${itemId}`, input),
-  removeHealthItem: (itemId: string) => send<void>("DELETE", `/api/v1/health-items/${itemId}`),
-  markDone: (itemId: string) => authed.post<HealthItem>(`/api/v1/health-items/${itemId}/done`),
+  removeHealthItem: (itemId: string) => deleted(authed.delete<void>(`/api/v1/health-items/${itemId}`)),
+  /**
+   * "Erledigt". Once per day on the server: a repeat answers with the unchanged item. `seenDueDate` is the date the
+   * app showed ("" = none); 409 `due_date_changed` when somebody else moved it meanwhile. For a medication it ends the course.
+   */
+  markDone: (itemId: string, seenDueDate: string | null) =>
+    authed.post<HealthItem>(`/api/v1/health-items/${itemId}/done`, { due_date: seenDueDate ?? "" }),
+  /** Takes today's "erledigt" back (the date and the reminders return); 409 `undo_expired` for an earlier day. */
+  undoDone: (itemId: string) => authed.delete<HealthItem>(`/api/v1/health-items/${itemId}/done`),
 
   diary: (id: string, before?: string, limit = 20) =>
     authed.get<DiaryPage>(
@@ -227,21 +227,10 @@ export const horsesApi = {
   updateDocument: (id: string, docId: string, input: { kind?: string; title?: string }) =>
     authed.patch<HorseDocument>(`/api/v1/horses/${id}/documents/${docId}`, input),
   removeDocument: (id: string, docId: string) =>
-    send<void>("DELETE", `/api/v1/horses/${id}/documents/${docId}`),
+    deleted(authed.delete<void>(`/api/v1/horses/${id}/documents/${docId}`)),
 };
 
 // --- query keys and hooks ------------------------------------------------------------------
-
-export const horseKeys = {
-  all: ["horses"] as const,
-  list: () => ["horses", "list"] as const,
-  detail: (id: string) => ["horses", "detail", id] as const,
-  emergency: (id: string) => ["horses", "emergency", id] as const,
-  health: (id: string) => ["horses", "health", id] as const,
-  documents: (id: string) => ["horses", "documents", id] as const,
-  diary: (id: string) => ["horses", "diary", id] as const,
-  members: () => ["members"] as const,
-};
 
 export const useHorses = () => useQuery({ queryKey: horseKeys.list(), queryFn: horsesApi.list });
 export const useHorse = (id: string) =>
@@ -265,13 +254,26 @@ export const useMembers = () =>
   useQuery({ queryKey: horseKeys.members(), queryFn: horsesApi.members, staleTime: 60_000 });
 
 /**
- * Runs a mutation and refreshes everything about horses afterwards (lists, record, card,
- * health, documents). Horse data is small; one broad invalidation keeps the screens consistent.
+ * Runs a write about a horse and refreshes what it changes (lib/query-effects.ts) before the mutation
+ * ends. `effects` says what the call changed, e.g. `() => [{ type: "health" }]`; `mutationKey` lets other
+ * components ask whether this write is running (usePendingIds).
  */
-export function useHorseMutation<TVars, TResult>(fn: (vars: TVars) => Promise<TResult>) {
-  const queryClient = useQueryClient();
-  return useMutation({
+export function useHorseMutation<TVars, TResult>(
+  fn: (vars: TVars) => Promise<TResult>,
+  effects: (vars: TVars, result: TResult) => Effect[],
+  options: {
+    mutationKey?: MutationKey;
+    /** What a failed call may still have changed (a 409 because somebody else changed the item first). */
+    errorEffects?: (vars: TVars) => Effect[];
+    /** Runs when the call succeeded, before the refresh: write the answer somewhere the screen shows at once. */
+    onSuccess?: (result: TResult, vars: TVars) => void;
+  } = {},
+) {
+  return useEffectMutation({
     mutationFn: fn,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: horseKeys.all }),
+    mutationKey: options.mutationKey,
+    effects,
+    errorEffects: options.errorEffects,
+    onSuccess: options.onSuccess,
   });
 }

@@ -67,6 +67,15 @@ export function errorMessage(err: unknown): string {
   return "Etwas ist schiefgelaufen. Versuch es noch mal.";
 }
 
+/**
+ * React Query retry policy for optional endpoints (e.g. the focus catalog and the stable's equipment):
+ * a client error is final (404 on an older backend, 403 for people without access), anything else
+ * is retried twice.
+ */
+export function retryServerErrors(count: number, err: unknown): boolean {
+  return !(err instanceof ApiError && err.status >= 400 && err.status < 500) && count < 2;
+}
+
 export type ClientOptions = {
   baseUrl: string;
   /** Returns the bearer token, or null when signed out. */

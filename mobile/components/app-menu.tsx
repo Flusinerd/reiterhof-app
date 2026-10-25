@@ -1,10 +1,11 @@
-import { router, usePathname, type Href } from "expo-router";
+import { usePathname, type Href } from "expo-router";
 import { Bell, LogIn, LogOut, Settings } from "lucide-react-native";
 import { useEffect } from "react";
 import { Alert, View } from "react-native";
 
 import { usePresenceCheckIn } from "@/components/presence-check-in";
 import { Button } from "@/components/ui";
+import { pushOnce } from "@/lib/navigation";
 
 /** "Bin da" / "Ich gehe": checks in or out at the stable. A long press opens the presence screen. */
 export function PresenceButton() {
@@ -25,8 +26,8 @@ export function PresenceButton() {
         accessibilityHint="Lange drücken zeigt, wer im Stall ist."
         loading={presence.toggling}
         disabled={presence.overview.isPending}
-        onPress={() => void presence.arriveOrLeave(!presence.here)}
-        onLongPress={() => router.push("/presence")}
+        onPress={() => presence.arriveOrLeave(!presence.here)}
+        onLongPress={() => pushOnce("/presence")}
       />
       {presence.sheet}
     </>
@@ -53,7 +54,7 @@ export function AppMenu() {
           variant="ghost"
           icon={Bell}
           accessibilityLabel="Erinnerungen"
-          onPress={() => router.push("/reminders" as Href)}
+          onPress={() => pushOnce("/reminders" as Href)}
         />
       ) : null}
       {pathname !== "/settings" ? (
@@ -62,7 +63,7 @@ export function AppMenu() {
           variant="ghost"
           icon={Settings}
           accessibilityLabel="Einstellungen"
-          onPress={() => router.push("/settings" as Href)}
+          onPress={() => pushOnce("/settings" as Href)}
         />
       ) : null}
     </View>

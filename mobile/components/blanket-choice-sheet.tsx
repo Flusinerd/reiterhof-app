@@ -212,7 +212,7 @@ export function BlanketChoiceSheet({ open, onOpenChange, horseId, mode, onSaved 
             fullWidth
             loading={save.isPending || setState.isPending}
             disabled={picked === undefined || (mode === "cover" && picked === null)}
-            onPress={() => void submit()}
+            onPress={() => submit()}
           />
           {mode === "override" && p.override ? (
             <Button
@@ -220,7 +220,7 @@ export function BlanketChoiceSheet({ open, onOpenChange, horseId, mode, onSaved 
               variant="ghost"
               fullWidth
               loading={reset.isPending}
-              onPress={() => void backToRule()}
+              onPress={() => backToRule()}
             />
           ) : null}
         </>

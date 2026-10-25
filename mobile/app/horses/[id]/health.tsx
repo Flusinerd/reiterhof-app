@@ -1,14 +1,16 @@
-import { router, useLocalSearchParams, type Href } from "expo-router";
-import { Check, HandHelping, Layers, Plus } from "lucide-react-native";
+import { useLocalSearchParams, type Href } from "expo-router";
+import { Check, HandHelping, Layers, Plus, Undo2 } from "lucide-react-native";
 import { useState } from "react";
 import { Alert, Pressable, View } from "react-native";
 
 import { HorseHealthSheet } from "@/components/horse-health-sheet";
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
-import { Button, Icon, PageHeader, Screen, Text } from "@/components/ui";
+import { Button, Icon, PageHeader, Screen, Sheet, Text } from "@/components/ui";
 import { RowList } from "@/components/ui/list-row";
 import { errorMessage } from "@/lib/api";
-import { horsesApi, useHealth, useHorse, useHorseMutation, type HealthInput, type HealthItem } from "@/lib/api/horses";
+import { horseKeys, horsesApi, useHealth, useHorse, useHorseMutation, type HealthInput, type HealthItem } from "@/lib/api/horses";
+import { useAuth } from "@/lib/auth";
+import { canMarkDone, doneLabel, doneState, endCourseSheet, healthErrorMessage, isCourse } from "@/lib/health-done";
 import {
   appointmentCompanionRoute,
   dueDetailText,
@@ -19,9 +21,19 @@ import {
   joinParts,
   remindText,
 } from "@/lib/horse-format";
+import { pushOnce } from "@/lib/navigation";
 import { bundleText, horseNamesText } from "@/lib/observations";
+import type { Effect } from "@/lib/query-effects";
+import { mutationKeys } from "@/lib/query-keys";
+import { useFrozenOrder } from "@/lib/use-frozen-order";
+import { usePendingIds } from "@/lib/use-pending";
+import { usePullToRefresh } from "@/lib/use-pull-to-refresh";
+import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 
 const dueTone = { none: "muted", overdue: "danger", soon: "accent", ok: "brass" } as const;
+
+/** Every write to a health item changes the same things (lists, reminder center, Heute). */
+const healthChanged = (): Effect[] => [{ type: "health" }];
 
 function itemSubtitle(item: HealthItem): string {
   if (item.daily_time) return `täglich um ${item.daily_time} Uhr`;
@@ -32,15 +44,37 @@ function itemSubtitle(item: HealthItem): string {
 /** Due list of a horse (JAN-12): vaccination, farrier, deworming, dentist, physio, medication, vet. */
 export default function Health() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { user } = useAuth();
   const horse = useHorse(id);
   const health = useHealth(id);
-  const save = useHorseMutation((v: { itemId: string | null; input: HealthInput }) =>
-    v.itemId ? horsesApi.updateHealthItem(v.itemId, v.input) : horsesApi.addHealthItem(id, v.input),
+  const items = useFrozenOrder(health.data?.items ?? []);
+  useRefreshOnFocus([horseKeys.health(id), horseKeys.detail(id)]);
+  const refresh = usePullToRefresh([health, horse]);
+  const save = useHorseMutation(
+    (v: { itemId: string | null; input: HealthInput }) =>
+      v.itemId ? horsesApi.updateHealthItem(v.itemId, v.input) : horsesApi.addHealthItem(id, v.input),
+    healthChanged,
   );
-  const done = useHorseMutation((itemId: string) => horsesApi.markDone(itemId));
-  const remove = useHorseMutation((itemId: string) => horsesApi.removeHealthItem(itemId));
+  // "Erledigt" moves the date once per day on the server; it also refreshes after a conflict (somebody else was first).
+  const done = useHorseMutation((item: HealthItem) => horsesApi.markDone(item.id, item.due_date), healthChanged, {
+    mutationKey: mutationKeys.healthDone,
+    errorEffects: healthChanged,
+  });
+  const undo = useHorseMutation((item: HealthItem) => horsesApi.undoDone(item.id), healthChanged, {
+    mutationKey: mutationKeys.healthUndo,
+    errorEffects: healthChanged,
+  });
+  const remove = useHorseMutation((itemId: string) => horsesApi.removeHealthItem(itemId), healthChanged, {
+    mutationKey: mutationKeys.healthRemove,
+  });
+  // Rows whose "Erledigt" or "Rückgängig" is running, also when it was started on the horse page.
+  const doing = usePendingIds(mutationKeys.healthDone, (item: HealthItem) => item.id);
+  const undoing = usePendingIds(mutationKeys.healthUndo, (item: HealthItem) => item.id);
   const [sheet, setSheet] = useState<{ item: HealthItem | null } | null>(null);
+  const [ending, setEnding] = useState<HealthItem | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** The error of "Erledigt" or "Rückgängig", shown under the row that was tapped. */
+  const [rowError, setRowError] = useState<{ id: string; text: string } | null>(null);
 
   if (!health.data) {
     return (
@@ -51,16 +85,27 @@ export default function Health() {
   }
 
   const canManage = health.data.can_manage;
-  const items = health.data.items;
+  const today = health.data.today;
   const overdue = items.filter((i) => (i.days_until_due ?? 0) < 0).length;
   const soon = items.filter((i) => dueLevel(i.days_until_due) === "soon").length;
 
-  async function markDone(item: HealthItem) {
+  /** Runs the call and shows its error under the row. The returned promise keeps the button busy until the list is fresh. */
+  async function run(item: HealthItem, call: () => Promise<unknown>) {
+    setRowError(null);
     try {
-      await done.mutateAsync(item.id);
+      await call();
     } catch (err) {
-      Alert.alert("Das hat nicht geklappt", errorMessage(err));
+      setRowError({ id: item.id, text: healthErrorMessage(err) });
     }
+  }
+
+  /** "Erledigt"; ending a medication course asks first. */
+  function markDone(item: HealthItem) {
+    if (isCourse(item)) {
+      setEnding(item);
+      return;
+    }
+    return run(item, () => done.mutateAsync(item));
   }
 
   function confirmDelete(item: HealthItem) {
@@ -79,7 +124,7 @@ export default function Health() {
   }
 
   return (
-    <Screen back keyboardShouldPersistTaps="handled">
+    <Screen back keyboardShouldPersistTaps="handled" refreshControl={refresh}>
       <PageHeader
         eyebrow={horse.data?.name ?? "Pferdeakte"}
         title="Gesundheit"
@@ -114,6 +159,7 @@ export default function Health() {
         <RowList>
           {items.map((item) => {
             const level = dueLevel(item.days_until_due);
+            const state = doneState(item, today, user?.id);
             const top = (
               <>
                 <View className="flex-1 gap-0.5">
@@ -162,16 +208,43 @@ export default function Health() {
                     </View>
                   </View>
                 ) : null}
+                {rowError?.id === item.id ? (
+                  <Text variant="bodySm" tone="danger" accessibilityRole="alert">
+                    {rowError.text}
+                  </Text>
+                ) : null}
                 {canManage || item.kind === "farrier" ? (
                   <View className="-ml-4 flex-row flex-wrap">
-                    {canManage && (item.due_date || item.interval_count) ? (
+                    {state ? (
+                      <View className="ml-4 shrink flex-row flex-wrap items-center gap-3">
+                        <View className="shrink flex-row items-center gap-2">
+                          <Icon as={Check} size={18} className="text-success" />
+                          <View className="shrink">
+                            <Text variant="bodyStrong" tone="success">
+                              {state.title}
+                            </Text>
+                            <Text variant="caption">{state.detail}</Text>
+                          </View>
+                        </View>
+                        {canManage ? (
+                          <Button
+                            label="Rückgängig"
+                            icon={Undo2}
+                            size="sm"
+                            variant="ghost"
+                            loading={undoing.has(item.id)}
+                            onPress={() => run(item, () => undo.mutateAsync(item))}
+                          />
+                        ) : null}
+                      </View>
+                    ) : canManage && canMarkDone(item) ? (
                       <Button
-                        label="Erledigt"
+                        label={doneLabel(item)}
                         icon={Check}
                         size="sm"
                         variant="ghost"
-                        loading={done.isPending && done.variables === item.id}
-                        onPress={() => void markDone(item)}
+                        loading={doing.has(item.id)}
+                        onPress={() => markDone(item)}
                       />
                     ) : null}
                     {item.kind === "farrier" ? (
@@ -180,7 +253,7 @@ export default function Health() {
                         icon={HandHelping}
                         size="sm"
                         variant="ghost"
-                        onPress={() => router.push(appointmentCompanionRoute(id) as Href)}
+                        onPress={() => pushOnce(appointmentCompanionRoute(id) as Href)}
                       />
                     ) : null}
                   </View>
@@ -200,6 +273,7 @@ export default function Health() {
         onOpenChange={(open) => !open && setSheet(null)}
         item={sheet?.item ?? null}
         saving={save.isPending}
+        deleting={remove.isPending}
         error={error}
         onSave={async (input) => {
           setError(null);
@@ -212,6 +286,27 @@ export default function Health() {
         }}
         onDelete={sheet?.item ? () => confirmDelete(sheet.item as HealthItem) : undefined}
       />
+
+      <Sheet
+        open={ending !== null}
+        onOpenChange={(open) => !open && setEnding(null)}
+        title={ending ? endCourseSheet(ending).title : undefined}
+        description={ending ? endCourseSheet(ending).description : undefined}
+      >
+        <View className="gap-3">
+          <Button
+            label={ending ? endCourseSheet(ending).confirm : "Gabe beenden"}
+            variant="danger"
+            fullWidth
+            onPress={() => {
+              const item = ending;
+              setEnding(null);
+              if (item) return run(item, () => done.mutateAsync(item));
+            }}
+          />
+          <Button label="Zurück" variant="ghost" fullWidth onPress={() => setEnding(null)} />
+        </View>
+      </Sheet>
     </Screen>
   );
 }

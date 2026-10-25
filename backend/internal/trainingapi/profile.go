@@ -15,6 +15,7 @@ import (
 
 	"github.com/Flusinerd/reiterhof-app/backend/internal/httpx"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/training"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/training/recommend"
 )
 
 // Disciplines accepted in the profile (also used by the recommender).
@@ -73,6 +74,12 @@ type storedProfile struct {
 	rhythm     training.Rhythm
 	rbRules    map[string]rbRule
 	status     training.Status
+	// focuses of the horse in priority order, the start of the four-week blocks and the level
+	// goal (see training-planning.md).
+	focuses    []focusStored
+	cycleStart *time.Time
+	goalLevel  string
+	goalUntil  *time.Time
 }
 
 func emptyProfile() storedProfile {
@@ -85,15 +92,19 @@ func emptyProfile() storedProfile {
 func (h *handler) loadProfile(ctx context.Context, stableID, horseID string) (storedProfile, error) {
 	p := emptyProfile()
 	var (
-		disc, level                    *string
+		disc, level, goalLevel         *string
 		allowed, shows, rhythm, rbJSON []byte
-		seasonEnd                      *time.Time
+		focuses                        []byte
+		seasonEnd, cycleStart          *time.Time
+		goalUntil                      *time.Time
 		status                         string
 	)
 	err := h.deps.Pool.QueryRow(ctx, `
-		SELECT discipline, level, allowed_activities, shows, season_end, rhythm, rb_rules, status
+		SELECT discipline, level, allowed_activities, shows, season_end, rhythm, rb_rules, status,
+		       focuses, cycle_start, goal_level, goal_until
 		FROM training_profiles WHERE stable_id = $1 AND horse_id = $2`, stableID, horseID).
-		Scan(&disc, &level, &allowed, &shows, &seasonEnd, &rhythm, &rbJSON, &status)
+		Scan(&disc, &level, &allowed, &shows, &seasonEnd, &rhythm, &rbJSON, &status,
+			&focuses, &cycleStart, &goalLevel, &goalUntil)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return p, nil
 	}
@@ -109,6 +120,10 @@ func (h *handler) loadProfile(ctx context.Context, stableID, horseID string) (st
 	}
 	p.seasonEnd = seasonEnd
 	p.status = training.Status(status)
+	p.focuses, p.cycleStart, p.goalUntil = parseFocusJSON(focuses), cycleStart, goalUntil
+	if goalLevel != nil {
+		p.goalLevel = *goalLevel
+	}
 	_ = json.Unmarshal(allowed, &p.allowed)
 	_ = json.Unmarshal(shows, &p.shows)
 	_ = json.Unmarshal(rhythm, &p.rhythm) // starts from DefaultRhythm, missing keys keep the default
@@ -128,11 +143,19 @@ func (p storedProfile) domain(horseName string) training.Profile {
 	out := training.Profile{
 		HorseName: horseName, Discipline: p.discipline, Level: p.level,
 		Allowed: p.allowed, Rhythm: p.rhythm, Status: p.status, SeasonEnd: p.seasonEnd,
+		CycleStart: p.cycleStart, GoalLevel: p.goalLevel, GoalUntil: p.goalUntil,
 	}
 	for _, s := range p.shows {
 		if d, err := time.Parse(dateLayout, s.Date); err == nil {
 			out.Shows = append(out.Shows, training.Show{Date: d, Name: s.Name})
 		}
+	}
+	for _, f := range p.focuses {
+		c := training.FocusChoice{Key: f.Key}
+		if d, err := time.Parse(dateLayout, f.Until); err == nil {
+			c.Until = &d
+		}
+		out.Focuses = append(out.Focuses, c)
 	}
 	return out
 }
@@ -191,6 +214,21 @@ type profileOut struct {
 	// RiderRules has one entry per rider of the horse for owners and admins, and only the
 	// caller's own entry for riders.
 	RiderRules []riderRuleOut `json:"rider_rules"`
+	// Focuses are the owner's focuses in priority order (at most 3), CycleStart the Monday of the
+	// first week of the four-week training blocks (null without blocks).
+	Focuses    []focusChoiceOut `json:"focuses"`
+	CycleStart *string          `json:"cycle_start"`
+	// Phase is the horse's phase of training (gewoehnung, schubkraft, tragkraft), FocusHints the
+	// scale focuses of that phase that are not chosen yet, Warnings the focuses above the phase
+	// and the level_up hint.
+	Phase      training.HorsePhase `json:"phase"`
+	FocusHints []string            `json:"focus_hints"`
+	Warnings   []warningOut        `json:"warnings"`
+	// GoalLevel and GoalUntil are the stored level goal (null = the class above the level);
+	// Progress says how far the horse is on the way to the goal (null without a goal).
+	GoalLevel *string      `json:"goal_level"`
+	GoalUntil *string      `json:"goal_until"`
+	Progress  *progressOut `json:"progress"`
 }
 
 func (h *handler) getProfile(w http.ResponseWriter, r *http.Request) {
@@ -220,6 +258,9 @@ func (h *handler) profileOut(ctx context.Context, a access) (profileOut, error) 
 	if p.seasonEnd != nil {
 		s := p.seasonEnd.Format(dateLayout)
 		out.SeasonEnd = &s
+	}
+	if err := h.fillPlanning(ctx, a, p, &out); err != nil {
+		return profileOut{}, err
 	}
 	rows, err := h.deps.Pool.Query(ctx, `
 		SELECT hr.user_id::text, u.name FROM horse_riders hr JOIN users u ON u.id = hr.user_id
@@ -286,6 +327,48 @@ type profileIn struct {
 	Status            string                     `json:"status"`
 	// RiderRules nil keeps the stored rules; an empty list removes them all.
 	RiderRules []riderRuleIn `json:"rider_rules"`
+	// Focuses nil keeps the stored focuses; a list replaces them (at most 3, known keys,
+	// distinct); an empty list removes them.
+	Focuses *[]focusIn `json:"focuses"`
+	// CycleStart, GoalLevel and GoalUntil: not sent keeps the stored value, null or "" clears it.
+	CycleStart optional[string] `json:"cycle_start"`
+	GoalLevel  optional[string] `json:"goal_level"`
+	GoalUntil  optional[string] `json:"goal_until"`
+}
+
+// focusIn is a focus of the horse in a PUT: the catalog key and an optional last day.
+type focusIn struct {
+	Key   string  `json:"key"`
+	Until *string `json:"until"`
+}
+
+// optional is a JSON field that knows whether it was sent: absent keeps the stored value, null or
+// "" clears it, anything else sets it.
+type optional[T any] struct {
+	set bool
+	val *T
+}
+
+func (o *optional[T]) UnmarshalJSON(b []byte) error {
+	o.set = true
+	if string(b) == "null" {
+		o.val = nil
+		return nil
+	}
+	var v T
+	if err := json.Unmarshal(b, &v); err != nil {
+		return err
+	}
+	o.val = &v
+	return nil
+}
+
+// textOf returns the value of a string field and whether it is a real value (not null, not "").
+func textOf(o optional[string]) (string, bool) {
+	if o.val == nil || *o.val == "" {
+		return "", false
+	}
+	return *o.val, true
 }
 
 func (h *handler) putProfile(w http.ResponseWriter, r *http.Request) {
@@ -316,23 +399,53 @@ func (h *handler) putProfile(w http.ResponseWriter, r *http.Request) {
 	if v.rbRules != nil {
 		rb, _ = json.Marshal(v.rbRules)
 	}
-	allowed, _ := json.Marshal(v.allowed)
-	shows, _ := json.Marshal(v.shows)
-	rhythm, _ := json.Marshal(v.rhythm)
-	_, err = h.deps.Pool.Exec(ctx, `
-		INSERT INTO training_profiles
-			(stable_id, horse_id, discipline, level, allowed_activities, shows, season_end, rhythm, rb_rules, status)
-		VALUES ($1, $2, $3, NULLIF($4, ''), $5, $6, $7, $8, COALESCE($9::jsonb, '{}'), $10)
-		ON CONFLICT (horse_id) DO UPDATE SET
-			discipline = EXCLUDED.discipline, level = EXCLUDED.level,
-			allowed_activities = EXCLUDED.allowed_activities, shows = EXCLUDED.shows,
-			season_end = EXCLUDED.season_end, rhythm = EXCLUDED.rhythm,
-			rb_rules = COALESCE($9::jsonb, training_profiles.rb_rules), status = EXCLUDED.status`,
-		a.user.StableID, a.horseID, in.Discipline, v.level, allowed, shows, v.seasonEnd, rhythm, rb, string(v.status))
+	// Focuses, the block start and the goal keep their stored values unless the request sends
+	// them. The blocks start in the current week when the first focuses are set.
+	cur, err := h.loadProfile(ctx, a.user.StableID, a.horseID)
 	if err != nil {
 		h.fail(w, r, err)
 		return
 	}
+	focuses, cycle, goalLevel, goalUntil := cur.focuses, cur.cycleStart, cur.goalLevel, cur.goalUntil
+	if v.focuses != nil {
+		focuses = *v.focuses
+	}
+	if v.cycleSet {
+		cycle = v.cycleStart
+	}
+	if v.goalSet {
+		goalLevel = v.goalLevel
+	}
+	if v.untilSet {
+		goalUntil = v.goalUntil
+	}
+	if cycle == nil && len(cur.focuses) == 0 && len(focuses) > 0 {
+		m := mondayOf(training.Day(h.deps.Now().In(h.location(ctx, a.user.StableID))))
+		cycle = &m
+	}
+	allowed, _ := json.Marshal(v.allowed)
+	shows, _ := json.Marshal(v.shows)
+	rhythm, _ := json.Marshal(v.rhythm)
+	focusJSON, _ := json.Marshal(nonNil(focuses))
+	_, err = h.deps.Pool.Exec(ctx, `
+		INSERT INTO training_profiles
+			(stable_id, horse_id, discipline, level, allowed_activities, shows, season_end, rhythm, rb_rules, status,
+			 focuses, cycle_start, goal_level, goal_until)
+		VALUES ($1, $2, $3, NULLIF($4, ''), $5, $6, $7, $8, COALESCE($9::jsonb, '{}'), $10, $11, $12, NULLIF($13, ''), $14)
+		ON CONFLICT (horse_id) DO UPDATE SET
+			discipline = EXCLUDED.discipline, level = EXCLUDED.level,
+			allowed_activities = EXCLUDED.allowed_activities, shows = EXCLUDED.shows,
+			season_end = EXCLUDED.season_end, rhythm = EXCLUDED.rhythm,
+			rb_rules = COALESCE($9::jsonb, training_profiles.rb_rules), status = EXCLUDED.status,
+			focuses = EXCLUDED.focuses, cycle_start = EXCLUDED.cycle_start,
+			goal_level = EXCLUDED.goal_level, goal_until = EXCLUDED.goal_until`,
+		a.user.StableID, a.horseID, in.Discipline, v.level, allowed, shows, v.seasonEnd, rhythm, rb, string(v.status),
+		focusJSON, cycle, goalLevel, goalUntil)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	h.hintChanged(ctx, a)
 	out, err := h.profileOut(ctx, a)
 	if err != nil {
 		h.fail(w, r, err)
@@ -368,6 +481,58 @@ type validProfile struct {
 	rhythm    training.Rhythm
 	status    training.Status
 	rbRules   map[string]rbRule // nil: keep
+	// focuses nil keeps the stored ones; cycleStart, goalLevel and goalUntil change the stored
+	// value only when their set flag is true (a nil/empty value then clears it).
+	focuses    *[]focusStored
+	cycleSet   bool
+	cycleStart *time.Time
+	goalSet    bool
+	goalLevel  string
+	untilSet   bool
+	goalUntil  *time.Time
+}
+
+// parseDate reads an optional YYYY-MM-DD field.
+func parseDate(o optional[string], field string) (set bool, d *time.Time, err error) {
+	if !o.set {
+		return false, nil, nil
+	}
+	s, ok := textOf(o)
+	if !ok {
+		return true, nil, nil
+	}
+	t, err := time.Parse(dateLayout, s)
+	if err != nil {
+		return false, nil, fmt.Errorf("%s must be YYYY-MM-DD", field)
+	}
+	return true, &t, nil
+}
+
+// validateFocuses checks the focuses of the horse: at most 3, known keys, distinct, until a date.
+func validateFocuses(in []focusIn) ([]focusStored, error) {
+	if len(in) > training.MaxHorseFocuses {
+		return nil, fmt.Errorf("at most %d focuses", training.MaxHorseFocuses)
+	}
+	out := make([]focusStored, 0, len(in))
+	for i, f := range in {
+		if !training.ValidFocusKey(f.Key) {
+			return nil, fmt.Errorf("focuses[%d]: unknown focus %q", i, f.Key)
+		}
+		for _, o := range out {
+			if o.Key == f.Key {
+				return nil, fmt.Errorf("focuses[%d]: focus %q is listed twice", i, f.Key)
+			}
+		}
+		s := focusStored{Key: f.Key}
+		if f.Until != nil && *f.Until != "" {
+			if _, err := time.Parse(dateLayout, *f.Until); err != nil {
+				return nil, fmt.Errorf("focuses[%d].until must be YYYY-MM-DD", i)
+			}
+			s.Until = *f.Until
+		}
+		out = append(out, s)
+	}
+	return out, nil
 }
 
 func validateProfile(in profileIn, riders []string) (validProfile, error) {
@@ -503,6 +668,34 @@ func validateProfile(in profileIn, riders []string) (validProfile, error) {
 		return v, errors.New("status must be fit, reha or pause")
 	}
 
+	if in.Focuses != nil {
+		f, err := validateFocuses(*in.Focuses)
+		if err != nil {
+			return v, err
+		}
+		v.focuses = &f
+	}
+	var err error
+	if v.cycleSet, v.cycleStart, err = parseDate(in.CycleStart, "cycle_start"); err != nil {
+		return v, err
+	}
+	if v.cycleStart != nil { // the blocks start on Mondays
+		m := mondayOf(*v.cycleStart)
+		v.cycleStart = &m
+	}
+	if v.untilSet, v.goalUntil, err = parseDate(in.GoalUntil, "goal_until"); err != nil {
+		return v, err
+	}
+	if in.GoalLevel.set {
+		v.goalSet = true
+		if g, ok := textOf(in.GoalLevel); ok {
+			if g != training.LevelIntermediate && g != training.LevelAdvanced {
+				return v, errors.New("goal_level must be intermediate or advanced")
+			}
+			v.goalLevel = g
+		}
+	}
+
 	if in.RiderRules != nil {
 		v.rbRules = map[string]rbRule{}
 		for _, rr := range in.RiderRules {
@@ -536,7 +729,8 @@ func validateProfile(in profileIn, riders []string) (validProfile, error) {
 
 // validateStructure checks the owner's week structure (JAN-93): known day kinds, a day
 // activity only for "activity" and only one the profile allows, quotas between 0 and 7 for
-// allowed activities, and no more fixed demands than days in a week.
+// allowed activities (at most 2 demanding units and 2 jumping units a week), and no more fixed
+// demands than days in a week.
 func validateStructure(r training.Rhythm, allowed []training.AllowedActivity) error {
 	isAllowed := func(a training.Activity) bool {
 		for _, al := range allowed {
@@ -566,8 +760,11 @@ func validateStructure(r training.Rhythm, allowed []training.AllowedActivity) er
 	}
 	q := r.Quotas
 	units := q.Demanding + q.Recovery
-	if q.Demanding < 0 || q.Demanding > 7 || q.Recovery < 0 || q.Recovery > 7 {
+	if q.Recovery < 0 || q.Recovery > 7 || q.Demanding < 0 || q.Demanding > 7 {
 		return errors.New("quotas must be between 0 and 7")
+	}
+	if q.Demanding > recommend.DefaultDemandingMax {
+		return fmt.Errorf("quotas.demanding must be between 0 and %d: a horse has at most %d demanding units a week", recommend.DefaultDemandingMax, recommend.DefaultDemandingMax)
 	}
 	for a, n := range q.Activities {
 		if !isAllowed(a) {
@@ -575,6 +772,9 @@ func validateStructure(r training.Rhythm, allowed []training.AllowedActivity) er
 		}
 		if n < 0 || n > 7 {
 			return errors.New("quotas must be between 0 and 7")
+		}
+		if a == training.ActivityJumping && n > recommend.JumpingMax {
+			return fmt.Errorf("quota for %q must be between 0 and %d: jumping is limited to %d units a week", a, recommend.JumpingMax, recommend.JumpingMax)
 		}
 		units += n
 	}

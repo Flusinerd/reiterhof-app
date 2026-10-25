@@ -32,12 +32,33 @@ import (
 //  4. Quota maximums: no more demanding units and no more units of an activity than set.
 //  5. Load limit: when the two weeks before had at least MinHistorySessions sessions, the week
 //     may carry at most LoadGrowth times their average load (at least MinLoadCap).
+//  6. Jumping: at most two units a week (the owner's quota may lower it) and never on two days
+//     in a row; the day becomes a rest day when nothing else is left.
+//  7. Variety: the activity of the day before (or of a unit fixed for the day after) is out when
+//     two other activities remain.
+//  8. Block: in the Entlastungswoche no demanding unit and the load capped at DeloadFactor times
+//     the average of the three weeks before.
+//  9. Return to work (Input.RestartFrom): week 1 only light units, weeks 2 and 3 nothing
+//     demanding; a rest day when nothing light is left.
+//  10. Young horses (under 6): units of at most YoungMaxMinutes, at most YoungMaxUnits a week.
+//     Seniors (18 and older): at most one demanding unit a week (the demanding maximum of the
+//     other horses is two, see DefaultDemandingMax).
 const (
 	RecoveryBelow      = 20.0
 	DemandingFrom      = 45.0
 	LoadGrowth         = 1.2
 	MinLoadCap         = 90.0
 	MinHistorySessions = 3
+)
+
+// Limits of groups 4 and 6 to 10.
+const (
+	DefaultDemandingMax = 2  // demanding units a week, an owner's quota may lower it
+	SeniorDemandingMax  = 1  // demanding units a week for a horse of 18 and older
+	JumpingMax          = 2  // jumping units a week
+	YoungMaxMinutes     = 30 // minutes of a unit of a young horse
+	YoungMaxUnits       = 4  // units a week of a young horse
+	VarietyActivities   = 3  // different activities a week asked for when at least this many are allowed
 )
 
 // Unit levels (UnitLevel).
@@ -233,6 +254,58 @@ func newWeekState(in Input, today time.Time) weekState {
 	return w
 }
 
+// activitiesOn returns the activities of the units on a day: the sessions of Recent and the units
+// fixed on later days of a planned week.
+func activitiesOn(in Input, day time.Time) map[training.Activity]bool {
+	out := map[training.Activity]bool{}
+	for _, s := range in.Recent {
+		if training.DaysBetween(s.Day, day) == 0 {
+			out[s.Activity] = true
+		}
+	}
+	if in.Ahead != nil {
+		for _, s := range in.Ahead.Units {
+			if training.DaysBetween(s.Day, day) == 0 {
+				out[s.Activity] = true
+			}
+		}
+	}
+	return out
+}
+
+// allowedActivities counts the activities the profile allows (on or conditional).
+func allowedActivities(p training.Profile) int {
+	n := 0
+	for _, al := range p.Allowed {
+		if al.Activity.Valid() && (al.Mode == training.ModeOn || al.Mode == training.ModeConditional) {
+			n++
+		}
+	}
+	return n
+}
+
+// demandingMax is the number of demanding units a week the horse may have: the owner's quota
+// when it is lower than the default, at most DefaultDemandingMax, and for seniors one.
+func demandingMax(q training.Quotas, ageYears int) int {
+	m := DefaultDemandingMax
+	if q.Demanding > 0 {
+		m = min(q.Demanding, DefaultDemandingMax)
+	}
+	if training.Senior(ageYears) {
+		m = min(m, SeniorDemandingMax)
+	}
+	return m
+}
+
+// jumpingMax is the number of jumping units a week: the owner's quota when it is lower than
+// JumpingMax, else JumpingMax.
+func jumpingMax(q training.Quotas) int {
+	if n := q.Activities[training.ActivityJumping]; n > 0 {
+		return min(n, JumpingMax)
+	}
+	return JumpingMax
+}
+
 // structureFor returns the limits of in.Today for the candidate activities; base is the
 // minute window each activity already has from the safety rules and the rhythm.
 func structureFor(in Input, today time.Time, base map[training.Activity]window) dayLimits {
@@ -320,15 +393,36 @@ func structureFor(in Input, today time.Time, base map[training.Activity]window) 
 	// 3. Needs of the week.
 	if a := in.Ahead; a != nil && a.OpenDays > 0 {
 		restNeed := r.RestDaysMin - st.restDays
-		demandNeed := q.Demanding - st.demanding
+		demandNeed := min(q.Demanding, demandingMax(q, in.AgeYears)) - st.demanding
 		recNeed := q.Recovery - st.recovery
 		actNeed := map[training.Activity]int{}
 		units := max(demandNeed, 0) + max(recNeed, 0)
 		for act, n := range q.Activities {
+			if act == training.ActivityJumping {
+				n = min(n, JumpingMax)
+			}
 			if need := n - st.perActivity[act]; need > 0 {
 				actNeed[act] = need
 				units += need
 			}
+		}
+		// Variety is a need like the quotas: with three or more activities allowed the week
+		// has at least three different ones. Activities a quota still asks for count as used.
+		varietyNeed := 0
+		if allowedActivities(in.Profile) >= VarietyActivities {
+			used := 0
+			for _, n := range st.perActivity {
+				if n > 0 {
+					used++
+				}
+			}
+			for act := range actNeed {
+				if st.perActivity[act] == 0 {
+					used++
+				}
+			}
+			varietyNeed = max(VarietyActivities-used, 0)
+			units += varietyNeed
 		}
 		// Open days left for units: without the missing rest days and within the rhythm's
 		// maximum of sessions.
@@ -341,7 +435,7 @@ func structureFor(in Input, today time.Time, base map[training.Activity]window) 
 			lim.rest = "Diese Woche fehlt noch ein Ruhetag."
 			return lim
 		case units > 0 && units >= slots:
-			missing := needsText(demandNeed, recNeed, actNeed)
+			missing := needsText(demandNeed, recNeed, actNeed, varietyNeed)
 			if restNeed > 0 && rule.Kind == training.DayFree {
 				lim.restNeed = "Diese Woche fehlt noch ein Ruhetag."
 			}
@@ -359,17 +453,25 @@ func structureFor(in Input, today time.Time, base map[training.Activity]window) 
 						return nw, ""
 					}
 				}
+				if varietyNeed > 0 && st.perActivity[act] == 0 {
+					return w, ""
+				}
 				return w, "Diese Woche fehlen noch: " + missing + "."
 			})
 		}
 	}
 
-	// 4. Quota maximums.
-	if q.Demanding > 0 && st.demanding >= q.Demanding {
+	// 4. Quota maximums: demanding units (at most two, fewer with a quota, one for seniors) and
+	// the quota of an activity.
+	if max := demandingMax(q, in.AgeYears); st.demanding >= max {
+		why := fmt.Sprintf("Diese Woche gab es schon %d fordernde Einheiten.", st.demanding)
+		if training.Senior(in.AgeYears) && max == SeniorDemandingMax {
+			why = "Pferde ab 18 Jahren bekommen höchstens eine fordernde Einheit pro Woche."
+		}
 		apply(func(a training.Activity, w window) (window, string) {
 			nw := intersect(w, window{0, minutesBelow(a, DemandingFrom)})
 			if nw.empty() {
-				return nw, fmt.Sprintf("Diese Woche gab es schon %d fordernde Einheiten.", st.demanding)
+				return nw, why
 			}
 			return nw, ""
 		})
@@ -402,6 +504,141 @@ func structureFor(in Input, today time.Time, base map[training.Activity]window) 
 			lim.rest = why
 		}
 	}
+	if lim.rest != "" {
+		return lim
+	}
+
+	// 6. Jumping: at most JumpingMax units a week and never on two days in a row; hard rules, a
+	// day with nothing else left becomes a rest day.
+	if _, has := lim.win[training.ActivityJumping]; has {
+		why := ""
+		switch {
+		case activitiesOn(in, today.AddDate(0, 0, -1))[training.ActivityJumping] || activitiesOn(in, today.AddDate(0, 0, 1))[training.ActivityJumping]:
+			why = "Springen nicht an zwei Tagen hintereinander"
+		case st.perActivity[training.ActivityJumping] >= jumpingMax(q):
+			why = fmt.Sprintf("Springen höchstens %d× pro Woche", jumpingMax(q))
+		}
+		if why != "" && !apply(func(a training.Activity, w window) (window, string) {
+			if a == training.ActivityJumping {
+				return w, why + "."
+			}
+			return w, ""
+		}) {
+			lim.rest = why + " – heute Ruhetag."
+			return lim
+		}
+	}
+
+	// 7. Variety: the activity of the day before, or of a unit fixed for the day after, is out
+	// when two other activities remain.
+	before, after := activitiesOn(in, today.AddDate(0, 0, -1)), activitiesOn(in, today.AddDate(0, 0, 1))
+	if len(before) > 0 || len(after) > 0 {
+		others := 0
+		for a := range lim.win {
+			if !before[a] && !after[a] {
+				others++
+			}
+		}
+		if others >= 2 {
+			apply(func(a training.Activity, w window) (window, string) {
+				switch {
+				case before[a]:
+					return w, fmt.Sprintf("%s war gestern schon dran – heute etwas anderes.", a.GermanName())
+				case after[a]:
+					return w, fmt.Sprintf("%s ist morgen schon eingetragen – heute etwas anderes.", a.GermanName())
+				}
+				return w, ""
+			})
+		}
+	}
+
+	// 8. Block: the Entlastungswoche has no demanding unit and a lower load.
+	if in.Block.Deload {
+		apply(func(a training.Activity, w window) (window, string) {
+			nw := intersect(w, window{0, minutesBelow(a, DemandingFrom)})
+			if nw.empty() {
+				return nw, "Entlastungswoche: diese Woche nichts Forderndes."
+			}
+			return nw, ""
+		})
+		if limit, ok := DeloadLoadLimit(in.Recent, st.monday); ok {
+			remaining := limit - st.loadSoFar
+			why := fmt.Sprintf("Entlastungswoche: die Wochenlast bleibt unter %d %% des Schnitts der drei Vorwochen.", int(math.Round(DeloadFactor*100)))
+			if !apply(func(a training.Activity, w window) (window, string) {
+				f := load.Factor(a, 0)
+				hi := math.MaxInt32
+				if f > 0 {
+					hi = int(math.Floor(remaining/f + 1e-9))
+				}
+				nw := intersect(w, window{0, hi})
+				if nw.empty() || nw.hi <= 0 {
+					return window{1, 0}, why
+				}
+				return nw, ""
+			}) {
+				lim.rest = why
+				return lim
+			}
+		}
+	}
+
+	// 9. Return to work: light units in the first week, nothing demanding in the next two.
+	switch wk := RestartWeek(in.RestartFrom, today); wk {
+	case 1:
+		why := "Wiederantrainieren, Woche 1: nur leichte Einheiten."
+		if !apply(func(a training.Activity, w window) (window, string) {
+			nw := intersect(w, window{0, minutesBelow(a, load.LightBelow)})
+			if nw.empty() {
+				return nw, why
+			}
+			return nw, ""
+		}) {
+			lim.rest = "Wiederantrainieren, Woche 1: nur leichte Einheiten – dafür ist heute nichts freigegeben."
+			return lim
+		}
+	case 2, 3:
+		apply(func(a training.Activity, w window) (window, string) {
+			nw := intersect(w, window{0, minutesBelow(a, DemandingFrom)})
+			if nw.empty() {
+				return nw, fmt.Sprintf("Wiederantrainieren, Woche %d: nichts Forderndes.", wk)
+			}
+			return nw, ""
+		})
+	}
+
+	// 10. Young horses: short units and few of them.
+	if training.Young(in.AgeYears) {
+		if st.units >= YoungMaxUnits {
+			lim.rest = fmt.Sprintf("Junge Pferde bekommen höchstens %d Einheiten pro Woche – heute Ruhetag.", YoungMaxUnits)
+			return lim
+		}
+		capText := fmt.Sprintf("Junge Pferde trainieren höchstens %d Minuten", YoungMaxMinutes)
+		why := capText + "."
+		if !apply(func(a training.Activity, w window) (window, string) {
+			nw := intersect(w, window{0, YoungMaxMinutes})
+			if nw.empty() {
+				return nw, why
+			}
+			return nw, ""
+		}) {
+			// Nothing short is left of the day's windows (an owner's demanding day): the cap
+			// is a protection of the horse and wins over the rule for the day.
+			next := map[training.Activity]window{}
+			for a := range lim.win {
+				if w := intersect(base[a], window{0, YoungMaxMinutes}); !w.empty() {
+					next[a] = w
+				} else {
+					lim.out[a] = why
+				}
+			}
+			if len(next) == 0 {
+				lim.rest = capText + " – dafür ist heute nichts freigegeben."
+				return lim
+			}
+			lim.win = next
+		}
+	}
+
 	// Only narrowed windows are limits; the base window stays the caller's business (the
 	// recommender may still cut a unit below its minimum for the available time).
 	for a, w := range lim.win {
@@ -426,7 +663,7 @@ func dayKindText(kind string) string {
 	return kind
 }
 
-func needsText(demand, recovery int, acts map[training.Activity]int) string {
+func needsText(demand, recovery int, acts map[training.Activity]int, variety int) string {
 	var parts []string
 	if demand > 0 {
 		parts = append(parts, fmt.Sprintf("%d× fordernd", demand))
@@ -439,5 +676,12 @@ func needsText(demand, recovery int, acts map[training.Activity]int) string {
 		names = append(names, fmt.Sprintf("%d× %s", n, a.GermanName()))
 	}
 	sort.Strings(names)
-	return strings.Join(append(parts, names...), ", ")
+	parts = append(parts, names...)
+	switch {
+	case variety == 1:
+		parts = append(parts, "1 weitere Aktivität")
+	case variety > 1:
+		parts = append(parts, fmt.Sprintf("%d weitere Aktivitäten", variety))
+	}
+	return strings.Join(parts, ", ")
 }

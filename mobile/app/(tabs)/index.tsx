@@ -1,16 +1,17 @@
-import { router, type Href } from "expo-router";
+import type { Href } from "expo-router";
 import { RefreshControl, View } from "react-native";
 
+import { LoadFailed, NotCurrent } from "@/components/load-notice";
 import { NextTask, Timeline } from "@/components/today-parts";
 import { WeatherWarnings } from "@/components/weather-warnings";
 import { Button, PageHeader, Screen, SectionTitle, Text } from "@/components/ui";
-import { BLANKET_PLAN_EVENT, BLANKET_STATE_EVENT, blanketKeys } from "@/lib/api/blankets";
-import { reminderKeys } from "@/lib/api/reminders";
 import { useAuth } from "@/lib/auth";
 import { greeting } from "@/lib/blankets";
-import { useInvalidateOnEvents } from "@/lib/realtime";
+import { pushOnce } from "@/lib/navigation";
+import { blanketKeys, reminderKeys, trainingKeys } from "@/lib/query-keys";
 import { colors } from "@/lib/theme";
 import { todaySummary } from "@/lib/today";
+import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 import { useTodayData } from "@/lib/use-today";
 
 const dateLine = (timeZone: string) =>
@@ -23,12 +24,10 @@ const dateLine = (timeZone: string) =>
 export default function Heute() {
   const { user } = useAuth();
   const data = useTodayData();
-  useInvalidateOnEvents({
-    [BLANKET_STATE_EVENT]: [blanketKeys.today, reminderKeys.all],
-    [BLANKET_PLAN_EVENT]: [blanketKeys.today],
-    "request.changed": [reminderKeys.all],
-  });
+  // Back from another screen or tab: whatever went stale meanwhile (an appointment done, a rider's session).
+  useRefreshOnFocus([reminderKeys.all, blanketKeys.today, trainingKeys.horses(), trainingKeys.weekOfAll()]);
   const view = data.view;
+  const load = data.load;
   const colorOf = (id?: string) => data.horses.find((h) => h.id === id)?.color_key;
 
   return (
@@ -39,8 +38,13 @@ export default function Heute() {
       <PageHeader
         eyebrow={dateLine(data.timeZone)}
         title={greeting(new Date().getHours(), user?.name ?? "")}
-        description={view ? todaySummary(view) : "Wird geladen …"}
+        description={view ? todaySummary(view) : load.state === "loading" ? "Wird geladen …" : undefined}
       />
+
+      {load.state === "failed" ? (
+        <LoadFailed title="Heute konnte nicht geladen werden." error={load.error} onRetry={data.refresh} />
+      ) : null}
+      {load.state === "ready" && load.stale ? <NotCurrent onRetry={data.refresh} /> : null}
 
       {view?.next ? <NextTask entry={view.next} horseColor={colorOf(view.next.horseId)} /> : null}
 
@@ -60,7 +64,7 @@ export default function Heute() {
           <Text variant="body" tone="muted">
             Sobald du ein Pferd besitzt oder reitest, steht hier, was heute für es ansteht.
           </Text>
-          <Button label="Pferd anlegen" variant="outline" onPress={() => router.push("/horses/new" as Href)} />
+          <Button label="Pferd anlegen" variant="outline" onPress={() => pushOnce("/horses/new" as Href)} />
         </View>
       ) : null}
     </Screen>

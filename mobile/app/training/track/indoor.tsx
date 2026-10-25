@@ -16,7 +16,7 @@ import { useExercise } from "@/lib/tracking-queries";
 import { useStoredSession, useTrackingSession } from "@/lib/tracking-session";
 import { targetLabel, targetProgress } from "@/lib/tracking";
 
-type Params = { horse?: string; activity?: string; minutes?: string; exercise?: string; resume?: string };
+type Params = { horse?: string; activity?: string; minutes?: string; exercise?: string; focus?: string; resume?: string };
 
 const CORRECTION_GAITS: Gait[] = ["walk", "trot", "canter"];
 
@@ -47,6 +47,7 @@ export default function IndoorTrack() {
       horse={horse}
       activity={activity}
       exerciseId={snapshot?.exerciseId ?? params.exercise}
+      focusKey={snapshot?.focusKey ?? params.focus}
       targetMinutes={minutes}
       snapshot={snapshot}
     />
@@ -57,17 +58,19 @@ function IndoorRun({
   horse,
   activity,
   exerciseId,
+  focusKey,
   targetMinutes,
   snapshot,
 }: {
   horse: string;
   activity: string;
   exerciseId?: string;
+  focusKey?: string;
   targetMinutes?: number;
   snapshot: Snapshot | null;
 }) {
   const router = useRouter();
-  const t = useTrackingSession({ mode: "indoor", horse, activity, exerciseId, targetMinutes, initial: snapshot });
+  const t = useTrackingSession({ mode: "indoor", horse, activity, exerciseId, focusKey, targetMinutes, initial: snapshot });
   const exercise = useExercise(exerciseId);
   const [started, setStarted] = useState(snapshot !== null);
   const [busy, setBusy] = useState(false);

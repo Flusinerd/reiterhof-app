@@ -13,7 +13,7 @@ import {
   decodeStepsDone,
   dotViewModels,
   encodeStepsDone,
-  exerciseLibrary,
+  exerciseLibraries,
   formatClock,
   formatDayLong,
   gaitShareRows,
@@ -26,6 +26,7 @@ import {
   trainedCount,
   trainingErrorText,
   weekRangeLabel,
+  weekStart,
   weekStripItems,
   weekdayIndex,
   weekdayShort,
@@ -178,7 +179,10 @@ test("finish params are parsed defensively", () => {
     reinChanges: undefined,
     distanceM: undefined,
     stepsDone: undefined,
+    focusKey: undefined,
   });
+  assert.equal(parseFinishParams({ horse: "h", activity: "hall", focus: "takt" })?.focusKey, "takt");
+  assert.equal(parseFinishParams({ horse: "h", activity: "hall", focus: "" })?.focusKey, undefined);
   assert.equal(parseFinishParams({ horse: "h", activity: "hack", minutes: "0" })?.minutes, 1);
   assert.equal(parseFinishParams({ horse: "h", activity: "hack", minutes: "9999" })?.minutes, 600);
   assert.equal(parseFinishParams({ horse: ["h", "x"], activity: ["hack"], minutes: ["30"] })?.minutes, 30);
@@ -229,18 +233,24 @@ test("minuteChoices adds the current value, sorted and unique", () => {
   assert.deepEqual(MINUTE_CHOICES.hall, [30, 45, 60]);
 });
 
-test("exerciseLibrary mirrors the backend", () => {
-  assert.equal(exerciseLibrary("jumping", "dressage"), "jumping");
-  assert.equal(exerciseLibrary("groundwork", "dressage"), "groundwork");
-  assert.equal(exerciseLibrary("lunge", "jumping"), "lunge");
-  assert.equal(exerciseLibrary("hall", "dressage"), "dressage");
-  assert.equal(exerciseLibrary("hall", "jumping"), "jumping");
-  assert.equal(exerciseLibrary("arena", "jumping"), "jumping");
-  assert.equal(exerciseLibrary("arena", "western"), "dressage");
-  assert.equal(exerciseLibrary("hall", ""), "dressage");
-  assert.equal(exerciseLibrary("hack", "dressage"), "");
-  assert.equal(exerciseLibrary("walker", "jumping"), "");
-  assert.equal(exerciseLibrary("rest", "jumping"), "");
+test("exerciseLibraries mirrors the backend, the home library comes first", () => {
+  assert.deepEqual(exerciseLibraries("hall", "dressage"), ["dressage", "cavaletti"]);
+  assert.deepEqual(exerciseLibraries("arena", ""), ["dressage", "cavaletti"]);
+  assert.deepEqual(exerciseLibraries("hall", "jumping"), ["jumping", "cavaletti", "dressage"]);
+  assert.deepEqual(exerciseLibraries("arena", "western"), ["western", "cavaletti", "dressage"]);
+  assert.deepEqual(exerciseLibraries("jumping", "dressage"), ["jumping", "cavaletti"]);
+  assert.deepEqual(exerciseLibraries("lunge", "jumping"), ["lunge", "cavaletti"]);
+  assert.deepEqual(exerciseLibraries("groundwork", "dressage"), ["groundwork"]);
+  assert.deepEqual(exerciseLibraries("hack", "dressage"), ["hack"]);
+  assert.deepEqual(exerciseLibraries("walker", "jumping"), []);
+  assert.deepEqual(exerciseLibraries("rest", "jumping"), []);
+});
+
+test("weekStart is the Monday of the week", () => {
+  assert.equal(weekStart("2026-10-25"), "2026-10-19"); // Sunday
+  assert.equal(weekStart("2026-10-19"), "2026-10-19"); // Monday
+  assert.equal(weekStart("2026-10-21"), "2026-10-19");
+  assert.equal(weekStart("2026-11-01"), "2026-10-26"); // across a month
 });
 
 test("week strip items", () => {

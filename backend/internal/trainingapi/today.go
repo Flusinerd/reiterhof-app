@@ -27,8 +27,16 @@ type recommendationOut struct {
 	IntensityLabel string            `json:"intensity_label"`
 	Reason         string            `json:"reason"`
 	Note           string            `json:"note,omitempty"`
-	// Exercise is the library exercise to practise ("Ablauf"), if the activity has any.
+	// Exercise is the main exercise of the unit to practise ("Ablauf"), if the unit has one.
 	Exercise *exerciseOut `json:"exercise,omitempty"`
+	// Focus is the focus of the unit with the reason for it, Unit its three parts (Lösen,
+	// Arbeiten, Entspannen); both are null for the walker and on a show day.
+	Focus *unitFocusOut `json:"focus"`
+	Unit  *unitOut      `json:"unit"`
+	// EquipmentOK is the day's override of the set-up (null: the location's default),
+	// EquipmentNote says in German that the unit is planned without set-up.
+	EquipmentOK   *bool   `json:"equipment_ok"`
+	EquipmentNote *string `json:"equipment_note"`
 }
 
 type hiddenOut struct {
@@ -74,6 +82,13 @@ type todayOut struct {
 	Reha            *rehaOut            `json:"reha"`
 	CanLog          bool                `json:"can_log"`
 	CanEdit         bool                `json:"can_edit"`
+	// Phase is the horse's phase in the training scale, RestartWeek the week of its return to work
+	// (0 when it is not returning), Block the week's place in the four-week blocks (null without
+	// cycle_start) and Progress how far the horse is on the way to its goal level (null without).
+	Phase       training.HorsePhase `json:"phase"`
+	RestartWeek int                 `json:"restart_week"`
+	Block       *blockOut           `json:"block"`
+	Progress    *progressBrief      `json:"progress"`
 }
 
 // today: GET /api/v1/horses/{id}/today?minutes=45
@@ -101,15 +116,28 @@ func (h *handler) today(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, r, err)
 		return
 	}
-	// From the Monday two weeks before this week's up to today: the recommender scores the last
-	// 14 days, the load limit of the week structure needs the two weeks before (JAN-93).
-	rows, err := h.querySessions(ctx, stableID, a.horseID,
-		localMidnight(mondayOf(today).AddDate(0, 0, -14), loc), localMidnight(today.AddDate(0, 0, 1), loc), "", 0)
+	domain := prof.domain(a.horseName)
+	pc, err := h.loadPlanCtx(ctx, a, prof, domain, mondayOf(today), today, loc)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	// From the Monday three weeks before this week's up to today: the recommender scores the last
+	// 14 days, the load limit of the week structure needs the two weeks before (JAN-93) and the
+	// Entlastungswoche three.
+	from := mondayOf(today).AddDate(0, 0, -historyDays)
+	rows, err := h.querySessions(ctx, stableID, a.horseID, localMidnight(from, loc), localMidnight(today.AddDate(0, 0, 1), loc), "", 0)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	slots, err := h.slotsBetween(ctx, stableID, a.horseID, from, today)
 	if err != nil {
 		h.fail(w, r, err)
 		return
 	}
 	sessions := domainSessions(rows, loc)
+	attachSlots(sessions, slots)
 
 	wx, ground, err := h.conditions(ctx, stableID, today)
 	if err != nil {
@@ -123,9 +151,11 @@ func (h *handler) today(w http.ResponseWriter, r *http.Request) {
 	}
 
 	in := recommend.Input{
-		Today: today, Profile: prof.domain(a.horseName), Recent: sessions,
+		Today: today, Profile: domain, Recent: sessions,
 		Weather: wx, Ground: recommend.Ground(ground), AvailableMinutes: minutes,
 		Role: recommend.RoleOwner, RiderName: a.user.Name,
+		AgeYears: pc.age, Level: pc.level, Block: pc.block, RestartFrom: pc.restart, Exercises: pc.exercises,
+		RiderFocuses: pc.riders[a.user.ID], Equipment: pc.equipment, EquipmentOK: slots[today.Format(dateLayout)].EquipmentOK,
 	}
 	if !a.manage {
 		in.Role = recommend.RoleRider
@@ -140,35 +170,45 @@ func (h *handler) today(w http.ResponseWriter, r *http.Request) {
 		HorseID: a.horseID, HorseName: a.horseName, Date: today.Format(dateLayout),
 		HasProfile: prof.exists, Status: prof.status, CanLog: a.canLog(), CanEdit: a.manage,
 		Recommendations: []recommendationOut{}, Hidden: []hiddenOut{},
+		Phase: training.Phase(pc.level, pc.age, prof.status), RestartWeek: recommend.RestartWeek(pc.restart, today),
+		Block: blockOutOf(pc.block),
 	}
 	if plan != nil {
 		out.Reha = &plan.out
 	}
-	// On a show day the show is the work of the day: no library exercise on top.
+	if prog, _, err := h.progress(ctx, a, prof, today); err != nil {
+		h.fail(w, r, err)
+		return
+	} else if prog != nil {
+		out.Progress = prog.brief()
+	}
+	// On a show day the show is the work of the day: no unit or exercise on top.
 	showToday := isShowDay(in.Profile.Shows, today)
+	byID := pc.lib.byID()
 	for _, rec := range res.Recommendations {
 		ro := recommendationOut{
 			Activity: rec.Activity, Label: rec.Activity.GermanName(), Minutes: rec.Minutes,
 			Intensity: intensityKey(rec.Intensity), IntensityLabel: rec.Intensity.Label(),
 			Reason: rec.Reason, Note: rec.Note,
 		}
-		if showToday {
-			out.Recommendations = append(out.Recommendations, ro)
-			continue
-		}
-		if ro.Exercise, err = h.suggestExercise(ctx, stableID, a.horseID, exerciseDiscipline(rec.Activity, prof.discipline)); err != nil {
-			h.fail(w, r, err)
-			return
+		if !showToday {
+			if u := recommend.PlanUnit(in, rec.Activity, rec.Minutes, recommend.Hints{}); !u.Empty() {
+				ro.Focus, ro.Unit, ro.EquipmentNote = focusOfUnit(u), unitOutOfPlan(u), noteOut(u.EquipmentNote)
+				if training.IsLocation(rec.Activity) {
+					ro.EquipmentOK = in.EquipmentOK
+				}
+				if ex := u.Primary(); ex != nil {
+					if row := byID[ex.ID]; row != nil {
+						eo := row.exerciseOut
+						ro.Exercise = &eo
+					}
+				}
+			}
 		}
 		out.Recommendations = append(out.Recommendations, ro)
 	}
 	for _, hd := range res.Hidden {
 		out.Hidden = append(out.Hidden, hiddenOut{Activity: hd.Activity, Label: hd.Activity.GermanName(), Reason: hd.Reason})
-	}
-	slots, err := h.slotsBetween(ctx, stableID, a.horseID, today.AddDate(0, 0, -6), today)
-	if err != nil {
-		h.fail(w, r, err)
-		return
 	}
 	out.Week = weekDots(today, sessions, prof, slots)
 	out.Context = contextLine(contextInput{

@@ -16,10 +16,14 @@ type Editing = { userId: string; name: string; colorKey: string | null; rules: s
  */
 export function HorseRiders({ horse }: { horse: Horse }) {
   const members = useMembers();
-  const save = useHorseMutation((v: { userId: string; rules: string[] }) =>
-    horsesApi.setRider(horse.id, v.userId, v.rules),
+  const save = useHorseMutation(
+    (v: { userId: string; rules: string[] }) => horsesApi.setRider(horse.id, v.userId, v.rules),
+    () => [{ type: "riders", horseId: horse.id }],
   );
-  const remove = useHorseMutation((userId: string) => horsesApi.removeRider(horse.id, userId));
+  const remove = useHorseMutation(
+    (userId: string) => horsesApi.removeRider(horse.id, userId),
+    () => [{ type: "riders", horseId: horse.id }],
+  );
   const [picking, setPicking] = useState(false);
   const [editing, setEditing] = useState<Editing | null>(null);
   const [error, setError] = useState<string | null>(null);

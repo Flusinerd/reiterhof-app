@@ -56,6 +56,7 @@ type sessionRow struct {
 	Source     string
 	ExerciseID *string
 	DistanceM  *int
+	FocusKey   *string
 }
 
 func (s sessionRow) canter() float64 { return clamp01(s.Gait["canter"]) }
@@ -69,7 +70,7 @@ func (h *handler) querySessions(ctx context.Context, stableID, horseID string, f
 	q := `
 		SELECT s.id::text, s.user_id::text, u.name, s.activity, s.started_at, COALESCE(s.duration_min, 0),
 		       s.gait_shares, s.rein_changes, s.feel, s.feeling, s.focus_rating, s.note, s.visible_to_rider,
-		       COALESCE(s.load_score, 0)::float8, s.source, s.exercise_id::text, s.distance_m
+		       COALESCE(s.load_score, 0)::float8, s.source, s.exercise_id::text, s.distance_m, s.focus_key
 		FROM sessions s JOIN users u ON u.id = s.user_id
 		WHERE s.stable_id = $1 AND s.horse_id = $2 AND s.started_at >= $3 AND s.started_at < $4
 		  AND ($5 = '' OR s.visible_to_rider OR s.user_id::text = $5)
@@ -88,7 +89,7 @@ func (h *handler) querySessions(ctx context.Context, stableID, horseID string, f
 		var act string
 		var gait, rein []byte
 		if err := rows.Scan(&s.ID, &s.UserID, &s.UserName, &act, &s.StartedAt, &s.Minutes, &gait, &rein,
-			&s.Feel, &s.Feeling, &s.Focus, &s.Note, &s.Visible, &s.Load, &s.Source, &s.ExerciseID, &s.DistanceM); err != nil {
+			&s.Feel, &s.Feeling, &s.Focus, &s.Note, &s.Visible, &s.Load, &s.Source, &s.ExerciseID, &s.DistanceM, &s.FocusKey); err != nil {
 			return nil, err
 		}
 		s.Activity = training.Activity(act)
@@ -118,6 +119,9 @@ func domainSessions(rows []sessionRow, loc *time.Location) []training.Session {
 		}
 		if s.Focus != nil {
 			ts.FocusRating = *s.Focus
+		}
+		if s.FocusKey != nil {
+			ts.FocusKey = *s.FocusKey
 		}
 		out = append(out, ts)
 	}
@@ -154,6 +158,8 @@ type sessionOut struct {
 	Source         string             `json:"source"`
 	ExerciseID     *string            `json:"exercise_id"`
 	DistanceM      *int               `json:"distance_m"`
+	// FocusKey is the catalog focus the session trained (null when none was logged).
+	FocusKey *string `json:"focus_key"`
 }
 
 func intensityKey(i training.Intensity) string {
@@ -180,7 +186,7 @@ func (s sessionRow) out(horseID string, loc *time.Location) sessionOut {
 		Minutes: s.Minutes, CanterShare: s.canter(), GaitShares: gait, ReinChanges: nonNil(s.Rein),
 		Feel: s.Feel, Feeling: s.Feeling, FocusRating: s.Focus, Note: s.Note, VisibleToRider: s.Visible,
 		Load: round1(s.Load), Intensity: intensityKey(load.Classify(s.Load)), Source: s.Source,
-		ExerciseID: s.ExerciseID, DistanceM: s.DistanceM,
+		ExerciseID: s.ExerciseID, DistanceM: s.DistanceM, FocusKey: s.FocusKey,
 	}
 }
 
@@ -204,6 +210,9 @@ type sessionIn struct {
 	DistanceM      *int               `json:"distance_m"`
 	Track          []trackPoint       `json:"track"`
 	GaitWindows    []gaitWindow       `json:"gait_windows"`
+	// FocusKey is the catalog focus the unit trained (optional, a known key); it drives the focus
+	// rotation of the planner.
+	FocusKey string `json:"focus_key"`
 }
 
 type progressionOut struct {
@@ -285,12 +294,13 @@ func (h *handler) createSession(w http.ResponseWriter, r *http.Request) {
 	err = tx.QueryRow(ctx, `
 		INSERT INTO sessions (stable_id, horse_id, user_id, activity, started_at, duration_min, gait_shares,
 		                      rein_changes, feel, feeling, focus_rating, note, visible_to_rider, load_score,
-		                      source, exercise_id, distance_m, track)
+		                      source, exercise_id, distance_m, track, focus_key)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULLIF($9, ''), NULLIF($10, ''), $11, NULLIF($12, ''), $13, $14, $15,
-		        NULLIF($16, '')::uuid, $17, $18)
+		        NULLIF($16, '')::uuid, $17, $18, NULLIF($19, ''))
 		RETURNING id::text`,
 		a.user.StableID, a.horseID, a.user.ID, in.Activity, v.startedAt, in.Minutes, gait, rein, in.Feel,
-		in.Feeling, in.FocusRating, in.Note, v.visible, score, v.source, v.exerciseID, in.DistanceM, track).Scan(&id)
+		in.Feeling, in.FocusRating, in.Note, v.visible, score, v.source, v.exerciseID, in.DistanceM, track,
+		in.FocusKey).Scan(&id)
 	if err != nil {
 		h.fail(w, r, err)
 		return
@@ -313,6 +323,10 @@ func (h *handler) createSession(w http.ResponseWriter, r *http.Request) {
 			user_id = COALESCE(week_slots.user_id, EXCLUDED.user_id),
 			activity = COALESCE(week_slots.activity, EXCLUDED.activity)`,
 		a.user.StableID, a.horseID, day, a.user.ID, in.Activity); err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	if err := publishChanged(ctx, tx, a); err != nil {
 		h.fail(w, r, err)
 		return
 	}
@@ -434,6 +448,9 @@ func validateSession(in sessionIn, now time.Time) (validSession, error) {
 	}
 	if in.VisibleToRider != nil {
 		v.visible = *in.VisibleToRider
+	}
+	if in.FocusKey != "" && !training.ValidFocusKey(in.FocusKey) {
+		return v, errors.New("focus_key must be a key of the focus catalog")
 	}
 	v.exerciseID = in.ExerciseID
 	return v, nil

@@ -42,8 +42,10 @@ import {
   type Blanket,
   type BlanketState,
   type Recommendation,
+  type Today,
   type TodayHorse,
   type Weather,
+  withState,
 } from "./blankets.ts";
 
 const weather = (night_min_c: number, will_rain: boolean): Weather => ({
@@ -332,4 +334,28 @@ test("manual choice: duration, rule hint and deviation", () => {
     blanketChoices([blanket, heavy], null).map((b) => b.id),
     ["b1", "b2"],
   );
+});
+
+test("withState: the horse moves to done at once, the progress counts it once", () => {
+  const horse = (id: string, done: boolean) =>
+    ({ horse: { id, name: id, box: null, color_key: null }, state: null, done, is_mine: false }) as unknown as TodayHorse;
+  const today = { day: "2026-10-25", progress: { done: 1, total: 3 }, horses: [horse("a", false), horse("b", true), horse("c", false)] } as unknown as Today;
+  const by = { id: "u1", name: "Jan" };
+  const next = withState(today, "a", "covered", by, "2026-10-25T17:04:00.000Z", "blanket-1");
+  assert.equal(next.horses[0]?.done, true);
+  assert.deepEqual(
+    { action: next.horses[0]?.state?.action, by: next.horses[0]?.state?.changed_by, covered_with: next.horses[0]?.state?.covered_with, day: next.horses[0]?.state?.day },
+    { action: "covered", by, covered_with: "blanket-1", day: "2026-10-25" },
+  );
+  assert.deepEqual(next.progress, { done: 2, total: 3 });
+  // The others and the cached board are untouched.
+  assert.equal(next.horses[2]?.done, false);
+  assert.equal(today.horses[0]?.done, false);
+  // Correcting a done horse changes its state but not the count.
+  const corrected = withState(next, "b", "uncovered", by, "2026-10-25T17:05:00.000Z");
+  assert.deepEqual(corrected.progress, { done: 2, total: 3 });
+  assert.equal(corrected.horses[1]?.state?.action, "uncovered");
+  // "Geprüft" and "Abgedeckt" carry no blanket; an unknown horse changes nothing.
+  assert.equal(withState(today, "a", "checked", by, "x", "ignored").horses[0]?.state?.covered_with, null);
+  assert.equal(withState(today, "zzz", "covered", by, "x"), today);
 });

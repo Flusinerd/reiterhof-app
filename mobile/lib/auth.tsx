@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { api, ApiError, setUnauthorizedHandler, type Me, type Session, type User } from "./api";
+import { ME_KEY } from "./query-keys.ts";
 import { clearToken, loadToken, saveToken } from "./token";
 
 /**
@@ -32,7 +33,7 @@ export type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-export const ME_KEY = ["me"] as const;
+export { ME_KEY };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();

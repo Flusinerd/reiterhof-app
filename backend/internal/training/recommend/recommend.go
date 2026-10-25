@@ -60,7 +60,7 @@ const (
 	WeightUntrained     = 2.0  // activity not in the recent sessions at all
 	WeightPerIdleDay    = 0.4  // per day since the activity was last done (>= 2 days)
 	MaxIdleDays         = 6    // idle days beyond this add nothing
-	WeightRepeat        = -1.0 // activity was done yesterday
+	WeightRepeat        = -3.0 // activity was done yesterday (strong; with two other fits the structure rules drop it)
 	WeightRepeatToday   = -1.5 // activity was already done today
 	WeightRecoverLight  = 3.0  // intense recent day: light candidates
 	WeightRecoverMedium = -1.5 // intense recent day: medium candidates
@@ -80,6 +80,8 @@ const (
 	WeightStatusLight   = 3.0  // pause / reha without phase: light activities
 	WeightConditional   = -0.5 // conditional activities are slightly less attractive
 	WeightDiscipline    = 0.5  // activity typical for the discipline
+	WeightHackWeek      = 1.0  // hack allowed and none in the week yet
+	WeightYoung         = 0.5  // young horse: groundwork, lunge and hack
 	WeightWeekFull      = 10.0 // rest, when the week already has enough sessions
 )
 
@@ -142,6 +144,29 @@ type Input struct {
 	Reha             *RehaPhase           // active reha phase, if any
 	// Ahead is the rest of the week when a whole week is planned (weekplan), nil otherwise.
 	Ahead *Ahead
+
+	// The rest is what the training planning adds (docs/domains/training-planning.md): the horse's
+	// age and level class, the place of the week in the four-week blocks and the start of a
+	// return to work feed the structure rules (structure.go); the exercises, the focuses of the
+	// rider and the equipment of the stable feed PlanUnit (unit.go).
+
+	// AgeYears is the horse's age (0 = unknown): under 6 is young, 18 and older senior.
+	AgeYears int
+	// Level is training.LevelClass of the profile's level ("" = unknown).
+	Level string
+	// Block is the place of Today's week in the four-week blocks (the zero value: no blocks).
+	Block Block
+	// RestartFrom is the first day of the return to work after a break (nil: not returning).
+	RestartFrom *time.Time
+	// Exercises are the candidates of the exercise library in progression order, with what the
+	// horse did with them (Mastered, Rated).
+	Exercises []training.Exercise
+	// RiderFocuses are the focuses (catalog keys, at most two) of the person who rides today.
+	RiderFocuses []string
+	// Equipment is the facility equipment of the stable's locations; EquipmentOK is the day's
+	// override of the set-up (nil: the location's default).
+	Equipment   training.StableEquipment
+	EquipmentOK *bool
 }
 
 // Recommendation is one suggestion. Activity is training.ActivityRest for a
@@ -679,6 +704,7 @@ type context struct {
 	hardLast2  bool                      // intense day within yesterday, day before
 	heavy      bool                      // weather/ground is bad for outdoor work
 	groundText string
+	weekHack   bool // the week (Monday up to today, and the units fixed later) has a hack already
 }
 
 func newContext(in Input, today time.Time, horse string, showDays int, showName string, recentOnly, showNear bool) *context {
@@ -716,7 +742,27 @@ func newContext(in Input, today time.Time, horse string, showDays int, showName 
 		c.groundText = "gefroren"
 	}
 	c.heavy = (in.Weather != nil && in.Weather.Rain) || c.groundText != ""
+	c.weekHack = weekHasActivity(in, today, training.ActivityHack)
 	return c
+}
+
+// weekHasActivity reports whether the Monday-based week of today has a unit of the activity: a
+// session up to today, or a unit fixed on a later day of a planned week.
+func weekHasActivity(in Input, today time.Time, a training.Activity) bool {
+	monday := today.AddDate(0, 0, -training.WeekdayIndex(today))
+	for _, s := range in.Recent {
+		if s.Activity == a && training.DaysBetween(monday, s.Day) >= 0 && training.DaysBetween(s.Day, today) >= 0 {
+			return true
+		}
+	}
+	if in.Ahead != nil {
+		for _, s := range in.Ahead.Units {
+			if s.Activity == a {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (x *context) score(c *candidate) {
@@ -738,6 +784,15 @@ func (x *context) score(c *candidate) {
 		c.add(WeightRepeat, "")
 	} else {
 		c.add(WeightRepeatToday, "")
+	}
+
+	// A week without a hack: an open day prefers it.
+	if act == training.ActivityHack && !x.weekHack {
+		c.add(WeightHackWeek, fmt.Sprintf("Diese Woche war noch kein Ausritt – das bringt Abwechslung für %s.", h))
+	}
+	// Young horses: groundwork, lunge and calm hacks are preferred.
+	if training.Young(x.in.AgeYears) && (act == training.ActivityGroundwork || act == training.ActivityLunge || act == training.ActivityHack) {
+		c.add(WeightYoung, fmt.Sprintf("%s ist jung – %s passt gut.", h, name))
 	}
 
 	// Recent load.

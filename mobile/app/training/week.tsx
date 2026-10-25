@@ -13,10 +13,12 @@ import { RowList } from "@/components/ui/list-row";
 import {
   trainingError,
   useApplyPlan,
+  useFocuses,
   useProfile,
   usePlanWeek,
   useReproposeDay,
   useTakeDay,
+  useTrainingEquipment,
   useTrainingHorses,
   useWeek,
   type WeekDay,
@@ -26,6 +28,7 @@ import { useAuth } from "@/lib/auth";
 import { useColors } from "@/lib/theme";
 import { useExerciseList } from "@/lib/tracking-queries";
 import { ACTIVITIES, addDays, weekRangeLabel } from "@/lib/training";
+import { blockText } from "@/lib/training-focus";
 import {
   applicableDays,
   canAskForAI,
@@ -67,6 +70,7 @@ export default function TrainingWeek() {
   const plan = usePlanWeek(activeId ?? "");
   const apply = useApplyPlan(activeId ?? "");
   const consent = useConsentPrompt();
+  const catalog = useFocuses(); // labels of the focus chips; fails quietly on an older backend
   const data = week.data;
 
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -150,6 +154,7 @@ export default function TrainingWeek() {
   const draftAI = draft !== null && draft.days.some((d) => d.source === "ai");
   const draftHint = draft ? planStatusText(draft.meta.ai_status, draft.meta.owner_is_me) : null;
   const nothingToPlan = !drafting && lastPlan?.ai_status === "nothing_to_plan";
+  const block = blockText(data.block);
 
   return (
     <Screen
@@ -172,7 +177,7 @@ export default function TrainingWeek() {
       </View>
 
       <PageHeader
-        eyebrow={`${horseName} · ${weekRangeLabel(data.start, data.end)}`}
+        eyebrow={[horseName, weekRangeLabel(data.start, data.end), block].filter(Boolean).join(" · ")}
         title="Woche"
         description={data.assessment}
       >
@@ -230,9 +235,11 @@ export default function TrainingWeek() {
               key={d.date}
               day={d}
               draftDay={draftDay}
+              focuses={catalog.data}
+              horseId={activeId}
               editable={editable && !apply.isPending}
               busy={take.isPending && take.variables?.day === d.date}
-              onTake={() => take.mutate({ day: d.date, status: "planned" })}
+              onTake={() => take.mutateAsync({ day: d.date, status: "planned" }).catch(() => undefined)}
               onEdit={() => openEdit(d.date)}
             />
           );
@@ -252,7 +259,12 @@ export default function TrainingWeek() {
               size="lg"
               fullWidth
               loading={apply.isPending}
-              onPress={() => apply.mutate(draft.days, { onSuccess: () => setDraft(null) })}
+              onPress={() =>
+                apply
+                  .mutateAsync(draft.days)
+                  .then(() => setDraft(null))
+                  .catch(() => undefined)
+              }
             />
           ) : (
             <Text variant="secondary">Kein Tag mehr im Entwurf.</Text>
@@ -327,7 +339,10 @@ function DayEditor({
   const { user } = useAuth();
   const profile = useProfile(horseId);
   const horse = useHorse(horseId);
-  const exercises = useExerciseList();
+  // With the horse every exercise says whether the stable's equipment is enough for it.
+  const exercises = useExerciseList({ horse: horseId });
+  const catalog = useFocuses();
+  const equipment = useTrainingEquipment();
   const take = useTakeDay(horseId);
   const repropose = useReproposeDay(horseId);
   /** Planned mode: the re-proposed day, shown in the sheet but not saved before "Speichern". */
@@ -365,7 +380,11 @@ function DayEditor({
       onClose();
       return;
     }
-    take.mutate({ day: date, ...dayEditBody(edit) }, { onSuccess: onClose });
+    // Only what the owner changed against the saved day goes along (focus key, unit, set-up of the day).
+    return take
+      .mutateAsync({ day: date, ...dayEditBody(edit, dayEditFrom(day)) })
+      .then(onClose)
+      .catch(() => undefined); // the error shows from the mutation state
   };
   const remove = () => {
     if (draftDay) {
@@ -373,7 +392,10 @@ function DayEditor({
       onClose();
       return;
     }
-    take.mutate({ day: date, status: "open" }, { onSuccess: onClose });
+    return take
+      .mutateAsync({ day: date, status: "open" })
+      .then(onClose)
+      .catch(() => undefined);
   };
   const proposeAgain = (current: DayEdit) => {
     // Context is what the sheet shows now; the activity shown is the one not to propose again.
@@ -397,7 +419,12 @@ function DayEditor({
               };
             });
           } else {
-            setProposal({ ...dayEditFrom(fresh), userId: current.userId });
+            // The person and the day's set-up choice are not part of a proposal; they stay as the owner set them.
+            setProposal({
+              ...dayEditFrom(fresh),
+              userId: current.userId,
+              ...(current.equipmentOk !== undefined ? { equipmentOk: current.equipmentOk } : {}),
+            });
           }
         },
       },
@@ -418,6 +445,8 @@ function DayEditor({
       allowed={allowed}
       people={people}
       exercises={exercises.data ?? []}
+      focuses={catalog.data ?? []}
+      setupOffered={equipment.isSuccess}
       discipline={p?.discipline ?? ""}
       busy={take.isPending}
       reproposing={repropose.isPending}

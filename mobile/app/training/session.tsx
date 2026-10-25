@@ -11,7 +11,7 @@ import { useStoredSession } from "@/lib/tracking-session";
 import { clearSnapshot } from "@/lib/tracking-store";
 import { stopTracking } from "@/lib/tracking-location";
 
-type Params = { horse?: string; activity?: string; minutes?: string; exercise?: string };
+type Params = { horse?: string; activity?: string; minutes?: string; exercise?: string; focus?: string };
 
 /** Ausritte are tracked with GPS; hall, arena and lunge work without it (JAN-63, JAN-65). */
 const DEFAULT_MODE: Record<Activity, "gps" | "indoor"> = {
@@ -44,6 +44,7 @@ export default function TrainingSession() {
         activity: activity!,
         ...(params.minutes ? { minutes: params.minutes } : {}),
         ...(params.exercise ? { exercise: params.exercise } : {}),
+        ...(params.focus ? { focus: params.focus } : {}),
       },
     });
   };
@@ -140,7 +141,7 @@ export default function TrainingSession() {
         leading={<Icon as={BookOpen} size={20} className="text-muted" />}
         title="Übungen"
         accessibilityLabel="Übungen öffnen"
-        onPress={() => router.push("/training/exercises" as Href)}
+        onPress={() => router.push(`/training/exercises${params.horse ? `?horse=${params.horse}` : ""}` as Href)}
       />
     </Screen>
   );

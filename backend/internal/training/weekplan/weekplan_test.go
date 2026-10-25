@@ -113,7 +113,9 @@ func TestMergeAcceptsAndReplaces(t *testing.T) {
 	props := map[string]Proposal{
 		"2026-09-30": {Activity: training.ActivityLunge, Minutes: 30, Reason: "Nach dem Ausritt gestern etwas Leichtes."},
 		"2026-10-01": {Activity: training.ActivityJumping, Minutes: 40, Reason: "Springen"},
-		"2026-10-02": {Activity: training.ActivityHall, Minutes: 200},
+		// A hack, not the hall: Thursday's replacement is the hall and the same activity is not planned
+		// on two days in a row (variety).
+		"2026-10-02": {Activity: training.ActivityHack, Minutes: 200},
 		"2026-10-03": {Activity: training.ActivityRest},
 	}
 	es := Merge(in, props)
@@ -125,7 +127,7 @@ func TestMergeAcceptsAndReplaces(t *testing.T) {
 		wed.Recommendation.Reason != "Nach dem Ausritt gestern etwas Leichtes." {
 		t.Errorf("wed = %+v", wed)
 	}
-	if thu.Source != SourceRules || thu.Recommendation.Activity == training.ActivityJumping || !strings.Contains(thu.Replaced, "Springen ausgeblendet") {
+	if thu.Source != SourceRules || thu.Recommendation.Activity != training.ActivityHall || !strings.Contains(thu.Replaced, "Springen ausgeblendet") {
 		t.Errorf("thu = %+v", thu)
 	}
 	if fri.Source != SourceAI || fri.Recommendation.Minutes != 60 || fri.Recommendation.Reason != "Vorschlag der KI." {
@@ -232,7 +234,7 @@ func TestParse(t *testing.T) {
 func TestSystemPromptNamesGermanWordsAndRanges(t *testing.T) {
 	for _, want := range []string{
 		"lunge = Longe", "15-30 minutes", "walker = Führanlage", "hack = Ausritt", "30-120 minutes",
-		`no "du"`, `{"days":[`, "Skala der Ausbildung", "Losgelassenheit", `"exercise":"<key or null>"`,
+		`no "du"`, `{"days":[`, "Skala der Ausbildung", "Losgelassenheit", `"main":"<key or null>"`,
 	} {
 		if !strings.Contains(SystemPrompt, want) {
 			t.Errorf("system prompt lacks %q", want)
@@ -284,41 +286,58 @@ func TestPromptCarriesAgeLevelTomorrowAndExercises(t *testing.T) {
 
 func TestParseAndMergeFocusAndExercise(t *testing.T) {
 	in := week()
+	in.Profile.Focuses = []training.FocusChoice{{Key: "losgelassenheit"}}
 	in.Exercises = library()
 	got, err := Parse(in, `{"days":[
-		{"day":"mi","activity":"hall","minutes":45,"focus":"Dehnungshaltung\n im Trab","exercise":"e2","reason":"Lockern."},
-		{"day":"do","activity":"hack","minutes":60,"focus":"Kondition","exercise":"E2","reason":"Gelände."},
-		{"day":"fr","activity":"lunge","minutes":20,"focus":"Takt","exercise":"E99","reason":"Longe."},
-		{"day":"sa","activity":"rest","minutes":0,"focus":"Pause","exercise":null,"reason":"Ruhe."}]}`)
+		{"day":"mi","activity":"hall","minutes":45,"focus_key":"losgelassenheit","focus":"Dehnungshaltung\n im Trab","main":"e2","reason":"Lockern."},
+		{"day":"do","activity":"hack","minutes":60,"focus_key":"kondition","focus":"Kondition","main":"E2","reason":"Gelände."},
+		{"day":"fr","activity":"lunge","minutes":20,"focus_key":"bogus","focus":"Takt","exercise":"E99","reason":"Longe."},
+		{"day":"sa","activity":"rest","minutes":0,"focus":"Pause","main":null,"reason":"Ruhe."},
+		{"day":"so","activity":"hall","minutes":45,"exercise":"E1","reason":"Der Schlüssel der alten Antwort."}]}`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p := got["2026-09-30"]; p.Focus != "Dehnungshaltung im Trab" || p.Exercise == nil || p.Exercise.ID != "id-kauen" {
+	if p := got["2026-09-30"]; p.Focus != "Dehnungshaltung im Trab" || p.FocusKey != "losgelassenheit" || p.Main == nil || p.Main.ID != "id-kauen" {
 		t.Fatalf("wed = %+v", p)
 	}
-	if p := got["2026-10-02"]; p.Exercise != nil {
-		t.Errorf("unknown key must give no exercise: %+v", p)
+	if p := got["2026-10-02"]; p.Main != nil || p.FocusKey != "" {
+		t.Errorf("an unknown key gives no exercise and no focus: %+v", p)
+	}
+	if p := got["2026-10-04"]; p.Main == nil || p.Main.ID != "id-ueb" {
+		t.Errorf("the key \"exercise\" of the earlier answers is the main exercise: %+v", p)
 	}
 	es := Merge(in, got)
 	byDate := map[string]Entry{}
 	for _, e := range es {
 		byDate[e.Date.Format(dateLayout)] = e
 	}
-	if e := byDate["2026-09-30"]; e.Focus != "Dehnungshaltung im Trab" || e.Exercise == nil || e.Exercise.ID != "id-kauen" {
-		t.Errorf("wed = %+v", e)
+	wed := byDate["2026-09-30"]
+	if wed.Focus != "Dehnungshaltung im Trab" || wed.Exercise == nil || wed.Exercise.ID != "id-kauen" || wed.Unit.FocusKey != "losgelassenheit" ||
+		wed.Unit.Main.Exercise == nil || wed.Unit.Main.Exercise.ID != "id-kauen" || wed.Replaced != "" {
+		t.Errorf("wed = %+v", wed)
 	}
-	// A dressage exercise does not fit a hack: dropped, the focus stays.
-	if e := byDate["2026-10-01"]; e.Exercise != nil || e.Focus != "Kondition" {
-		t.Errorf("thu = %+v", e)
+	// A dressage exercise does not fit a hack: dropped with the reason, the free focus text stays.
+	thu := byDate["2026-10-01"]
+	if thu.Exercise != nil || thu.Focus != "Kondition" || thu.Unit.Main.Exercise != nil ||
+		thu.Replaced != "Übung „Zügel-aus-der-Hand-kauen-lassen“ ersetzt: gehört nicht zu dieser Aktivität." {
+		t.Errorf("thu = %+v", thu)
 	}
-	if e := byDate["2026-10-03"]; e.Focus != "" || e.Exercise != nil || e.Recommendation.Activity != training.ActivityRest {
-		t.Errorf("sat = %+v", e)
+	if sat := byDate["2026-10-03"]; sat.Focus != "" || sat.Exercise != nil || !sat.Unit.Empty() || sat.Recommendation.Activity != training.ActivityRest {
+		t.Errorf("sat = %+v", sat)
 	}
-	// Days from the rules get the first exercise of their library the horse has not mastered.
-	if e := byDate["2026-10-04"]; e.Source != SourceRules {
-		t.Fatalf("sun = %+v", e)
-	} else if lib := training.ExerciseLibrary(e.Recommendation.Activity, "dressage"); lib == "dressage" && (e.Exercise == nil || e.Exercise.ID != "id-kauen") {
-		t.Errorf("sun rules exercise = %+v", e.Exercise)
+	// An unknown focus key is ignored: the rotation chooses the focus (the horse's only focus
+	// fits the lunge), and the unit has its three parts with their minutes.
+	if fri := byDate["2026-10-02"]; fri.Source != SourceAI || fri.Unit.FocusKey != "losgelassenheit" || fri.Unit.Main.Minutes != 5 {
+		t.Errorf("fri = %+v", fri)
+	}
+	for _, e := range es {
+		u := e.Unit
+		if e.Recommendation.Activity == training.ActivityRest || u.Empty() {
+			continue
+		}
+		if sum := u.Warmup.Minutes + u.Main.Minutes + u.Cooldown.Minutes; sum != e.Recommendation.Minutes {
+			t.Errorf("%s: the parts take %d of %d minutes", e.Date.Format(dateLayout), sum, e.Recommendation.Minutes)
+		}
 	}
 }
 
@@ -420,10 +439,10 @@ func TestMergeUsesPlannedMinutes(t *testing.T) {
 	}
 
 	// The unit of the day counts with its minutes, 0 = the default duration.
-	if s := simulated(day(1), training.ActivityHall, 90); s.Minutes != 90 {
+	if s := simulated(day(1), training.ActivityHall, 90, "", nil); s.Minutes != 90 {
 		t.Errorf("simulated minutes = %d", s.Minutes)
 	}
-	if s := simulated(day(1), training.ActivityHall, 0); s.Minutes != recommend.DefaultMinutes(training.ActivityHall) {
+	if s := simulated(day(1), training.ActivityHall, 0, "", nil); s.Minutes != recommend.DefaultMinutes(training.ActivityHall) {
 		t.Errorf("default minutes = %d", s.Minutes)
 	}
 	a := ahead([]Day{{Date: day(0), Open: true}, {Date: day(1), Planned: training.ActivityHall, Minutes: 90}})

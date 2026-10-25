@@ -1,9 +1,10 @@
-import { router, type Href } from "expo-router";
+import type { Href } from "expo-router";
 import { Pressable, View } from "react-native";
 
 import { Button, Text } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import type { RowAction, TodayRow } from "@/lib/horse-page";
+import { pushOnce } from "@/lib/navigation";
 
 /**
  * "Heute für <Name>": up to three rows with hairlines (training today, tonight's blanket, the next
@@ -17,7 +18,8 @@ export function HorseTodayRows({
 }: {
   rows: readonly TodayRow[];
   busy?: TodayRow["key"] | null;
-  onAction: (action: RowAction) => void;
+  /** May return a promise: the row's button stays busy until it settles. */
+  onAction: (action: RowAction) => void | Promise<unknown>;
 }) {
   return (
     <View>
@@ -30,7 +32,7 @@ export function HorseTodayRows({
             accessibilityRole={row.route ? "button" : undefined}
             accessibilityLabel={[row.eyebrow, row.title, row.detail].filter(Boolean).join(", ")}
             disabled={!row.route}
-            onPress={() => router.push(row.route as Href)}
+            onPress={() => pushOnce(row.route as Href)}
             className="flex-1 gap-0.5 active:opacity-70"
           >
             <Text variant="eyebrow" tone={row.eyebrowTone}>
@@ -47,7 +49,7 @@ export function HorseTodayRows({
             <Button
               label={row.action.label}
               size="sm"
-              variant={row.action.kind === "start" ? "primary" : "outline"}
+              variant={row.action.kind === "start" ? "primary" : row.action.kind === "undo" ? "ghost" : "outline"}
               loading={busy === row.key}
               onPress={() => onAction(row.action as RowAction)}
             />

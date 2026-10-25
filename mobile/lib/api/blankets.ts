@@ -1,10 +1,9 @@
 // API calls and react-query hooks for blankets, rules, the plan and day states
 // (backend: internal/blankets; docs/domains/blankets.md).
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { API_URL, authed } from "../api";
-import { ApiError, parseErrorBody } from "../api-core.ts";
+import { authed } from "../api";
 import type {
   Blanket,
   BlanketState,
@@ -15,10 +14,12 @@ import type {
   StateAction,
   Today,
 } from "../blankets.ts";
-import { getToken } from "../token";
+import { withState } from "../blankets.ts";
+import { useAuth } from "../auth";
+import { blanketKeys, mutationKeys } from "../query-keys.ts";
+import { useEffectMutation } from "./mutation";
 
-export const BLANKET_STATE_EVENT = "blanket_state.changed";
-export const BLANKET_PLAN_EVENT = "blanket_plan.changed";
+export { blanketKeys };
 
 /** Body of POST and PATCH of a blanket. "" clears color, location and photo. */
 export type BlanketInput = Partial<{
@@ -45,34 +46,6 @@ export type StateResult = { state: BlanketState; closed_requests: string[] };
 
 export type History = { today: string; states: BlanketState[] };
 
-async function put<T>(path: string, body: unknown): Promise<T> {
-  const token = getToken();
-  const headers: Record<string, string> = { Accept: "application/json", "Content-Type": "application/json" };
-  if (token) headers.Authorization = `Bearer ${token}`;
-  let res: Response;
-  try {
-    res = await fetch(`${API_URL.replace(/\/+$/, "")}${path}`, { method: "PUT", headers, body: JSON.stringify(body) });
-  } catch {
-    throw new ApiError(0, "network", "Network request failed");
-  }
-  const text = await res.text();
-  if (!res.ok) throw parseErrorBody(res.status, text);
-  return JSON.parse(text) as T;
-}
-
-async function del(path: string): Promise<void> {
-  const token = getToken();
-  const headers: Record<string, string> = { Accept: "application/json" };
-  if (token) headers.Authorization = `Bearer ${token}`;
-  let res: Response;
-  try {
-    res = await fetch(`${API_URL.replace(/\/+$/, "")}${path}`, { method: "DELETE", headers });
-  } catch {
-    throw new ApiError(0, "network", "Network request failed");
-  }
-  if (!res.ok) throw parseErrorBody(res.status, await res.text());
-}
-
 const horsePath = (horseId: string) => `/api/v1/horses/${horseId}`;
 
 export const blanketsApi = {
@@ -90,33 +63,26 @@ export const blanketsApi = {
     authed.post<Blanket>(`${horsePath(horseId)}/blankets`, input),
   updateBlanket: (horseId: string, id: string, input: BlanketInput) =>
     authed.patch<Blanket>(`${horsePath(horseId)}/blankets/${id}`, input),
-  removeBlanket: (horseId: string, id: string) => del(`${horsePath(horseId)}/blankets/${id}`),
+  removeBlanket: (horseId: string, id: string) => authed.delete<void>(`${horsePath(horseId)}/blankets/${id}`),
   saveRules: (horseId: string, rules: RuleInput[]) =>
-    put<{ rules: Rule[] }>(`${horsePath(horseId)}/blanket-rules`, { rules }),
+    authed.put<{ rules: Rule[] }>(`${horsePath(horseId)}/blanket-rules`, { rules }),
   /**
    * Owner or admin: pick a blanket by hand (null = "Keine Decke") from tonight on, for `nights`
    * nights (1..30) or until reset (null). Replaces an earlier choice.
    */
   setOverride: (horseId: string, blanketId: string | null, nights: number | null, note: string) =>
-    put<{ override: Override; recommendation: Recommendation; rule_recommendation: Recommendation }>(
+    authed.put<{ override: Override; recommendation: Recommendation; rule_recommendation: Recommendation }>(
       `${horsePath(horseId)}/blanket-override`,
       { blanket_id: blanketId, nights, note },
     ),
   /** Owner or admin: back to the rules. */
-  clearOverride: (horseId: string) => del(`${horsePath(horseId)}/blanket-override`),
+  clearOverride: (horseId: string) => authed.delete<void>(`${horsePath(horseId)}/blanket-override`),
   /** Owner or admin. Start 15:00 to 23:00, end 04:00 to 15:00, both "HH:MM". */
   saveCoverWindow: (horseId: string, coverStart: string, coverEnd: string) =>
-    put<{ cover_start: string; cover_end: string }>(`${horsePath(horseId)}/cover-window`, {
+    authed.put<{ cover_start: string; cover_end: string }>(`${horsePath(horseId)}/cover-window`, {
       cover_start: coverStart,
       cover_end: coverEnd,
     }),
-};
-
-export const blanketKeys = {
-  all: ["blankets"] as const,
-  today: ["blankets", "today"] as const,
-  plan: (horseId: string) => ["blankets", "plan", horseId] as const,
-  history: (horseId: string) => ["blankets", "history", horseId] as const,
 };
 
 export const useToday = () => useQuery({ queryKey: blanketKeys.today, queryFn: blanketsApi.today });
@@ -125,24 +91,41 @@ export const usePlan = (horseId: string) =>
 export const useHistory = (horseId: string, days = 14) =>
   useQuery({ queryKey: [...blanketKeys.history(horseId), days], queryFn: () => blanketsApi.history(horseId, days) });
 
-/** Sets the day state of a horse and refreshes everything about blankets (and requests, which may close). */
-export function useSetState() {
+/**
+ * Sets the day state of a horse. Refreshes the blankets, the reminder center (the blanket check) and, when
+ * blanket requests were closed, the requests, and stays pending until that is done: the buttons of a row do
+ * not come back before the row shows its new state.
+ *
+ * With `optimistic` the board shows the new state at once (the row moves to "Erledigt") and gives the old
+ * one back when the call fails. The round does not use it: it advances by the refetched board.
+ */
+export function useSetState({ optimistic = false }: { optimistic?: boolean } = {}) {
   const queryClient = useQueryClient();
-  return useMutation({
+  const { user } = useAuth();
+  return useEffectMutation({
     mutationFn: (v: { horseId: string; action: StateAction; coveredWith?: string }) =>
       blanketsApi.setState(v.horseId, v.action, v.coveredWith),
-    onSuccess: (result) => {
-      void queryClient.invalidateQueries({ queryKey: blanketKeys.all });
-      if (result.closed_requests.length > 0) void queryClient.invalidateQueries({ queryKey: ["requests"] });
+    mutationKey: mutationKeys.blanketState,
+    onMutate: async (v) => {
+      if (!optimistic) return { previous: undefined };
+      await queryClient.cancelQueries({ queryKey: blanketKeys.today });
+      const previous = queryClient.getQueryData<Today>(blanketKeys.today);
+      if (previous) {
+        const by = user ? { id: user.id, name: user.name } : null;
+        queryClient.setQueryData(blanketKeys.today, withState(previous, v.horseId, v.action, by, new Date().toISOString(), v.coveredWith));
+      }
+      return { previous };
     },
+    onError: (_error, _vars, context) => {
+      if (context?.previous) queryClient.setQueryData(blanketKeys.today, context.previous);
+    },
+    effects: (_vars, result) => [{ type: "blanketState", closedRequests: result.closed_requests.length > 0 }],
+    // The board shows what the server has after a failure, too (somebody else may have been first).
+    errorEffects: () => [{ type: "blanketState", closedRequests: false }],
   });
 }
 
 /** Runs a plan mutation (blankets, rules) and refreshes the blanket queries afterwards. */
 export function usePlanMutation<TVars, TResult>(fn: (vars: TVars) => Promise<TResult>) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: fn,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: blanketKeys.all }),
-  });
+  return useEffectMutation({ mutationFn: fn, effects: () => [{ type: "blanketPlan" }] });
 }

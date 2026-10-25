@@ -3,6 +3,37 @@
 Alle nennenswerten Änderungen an Stallfunk. Versionen folgen [SemVer](https://semver.org/lang/de/),
 die Einträge dem Format von [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## [0.3.0] – 2026-10-25
+
+Die KI-Trainingsplanung ist neu aufgebaut: Sie folgt der Skala der Ausbildung, plant jede Einheit als
+Lösen, Arbeiten und Entspannen und richtet sich nach Schwerpunkten, Ausstattung des Stalls und dem
+Leistungsziel des Pferdes. Dazu sehen Bildschirme jetzt sofort, was man gerade bestätigt hat.
+
+### Neu
+
+- **Übungskatalog** mit 169 Übungen in sieben Bereichen (Dressur, Cavaletti, Springen, Bodenarbeit,
+  Longe, Gelände, Western), jede mit Zweck, Phase, Dauer, Ausstattung und Quellen.
+- **Schwerpunkte**: bis zu drei pro Pferd aus der Skala der Ausbildung und der Praxis, darunter
+  „Turniervorbereitung“; Reitbeteiligungen setzen bis zu zwei eigene. Die Planung wechselt die
+  Schwerpunkte ab und sagt, warum.
+- **Stundenbild**: jede Einheit mit Lösen, Arbeiten und Entspannen samt Minuten und Übung;
+  Aufbau- und Entlastungswochen, Wiederantrainieren nach Pausen, Grenzen für junge und alte Pferde.
+- **Ausstattung des Stalls** je Ort, auch „geteilt“; pro Tag „Aufbau heute“. Ohne Stangen oder Aufbau
+  plant die App eine gleichwertige Übung ohne und zeigt die Alternativen.
+- **Leistungsziel**: Fortschritt zur nächsten Klasse mit den nächsten Lektionen und Vorschlag zum
+  Höherstufen.
+- **Übungsbibliothek** mit Filtern nach Schwerpunkt und Phase, Voraussetzungen, Alternativen und
+  Quellen.
+
+### Behoben
+
+- „Erledigt“ bei Gesundheitsterminen verschob das Datum bei jedem weiteren Tipp; jetzt einmal pro Tag,
+  mit Erfolgsanzeige und „Rückgängig“. Bei Medikamenten mit Enddatum heißt der Knopf „Gabe beenden“.
+- Heute, Erinnerungen, Tagebuch und Pferdeliste zeigten nach Änderungen alte Daten; sie aktualisieren
+  sich jetzt nach jeder Aktion, beim Zurückkehren und beim Öffnen der App.
+- Knöpfe ließen sich während des Speicherns erneut antippen; Zeilen öffneten bei Doppeltipp doppelt.
+- Ohne Netz behauptete Heute „alles erledigt“; jetzt mit Fehlerhinweis und „Erneut versuchen“.
+
 ## [0.2.0] – 2026-10-25
 
 Die App ist neu gestaltet („Abendlicht“): Sie folgt der Hell-/Dunkel-Einstellung des Handys und ist
@@ -50,5 +81,6 @@ um den Tag der Besitzer:innen herum aufgebaut, nicht mehr um Fachbereiche.
 Erste Version: Pferde, Decken mit Wetterregeln, Anfragen, Training mit Tracking und KI-Wochenplan,
 Gesundheitstermine, Reha, Anwesenheit, Erinnerungen, Web-App.
 
+[0.3.0]: https://github.com/flusinerd/reiterhof-app/releases/tag/v0.3.0
 [0.2.0]: https://github.com/flusinerd/reiterhof-app/releases/tag/v0.2.0
 [0.1.0]: https://github.com/flusinerd/reiterhof-app/commits/80a50a2

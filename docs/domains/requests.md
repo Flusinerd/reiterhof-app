@@ -145,6 +145,11 @@ When someone records the blanket state of a horse ([blankets](blankets.md#reques
 date range covers the blanket night as `done` and adds `payload.feedback` (German text with the
 blanket and the person). Other types, horses and days are not touched.
 
+## Reminder rows of finished requests
+
+`Done` and `Cancel` (also each request of a cancelled series) dismiss the stored `helper` reminder rows of the request for all helpers, the
+reminder push is moot then; `Withdraw` and `PUT .../reminder` delete only the user's own row (a later accept may remind again).
+
 ## Realtime extension point
 
 `requests.DefaultPublish` (package variable) or `Service.Publish` receives an `Event{StableID,

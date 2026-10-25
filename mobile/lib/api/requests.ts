@@ -1,4 +1,5 @@
 import { API_URL, authed } from "../api";
+import { requestKeys } from "../query-keys.ts";
 import { toQuery, type HelpRequest, type ListParams } from "../requests";
 
 // Calls of the requests API (docs/domains/requests.md). Everything is scoped to the
@@ -28,15 +29,7 @@ export type RequestOptions = {
   members: { id: string; name: string; avatar_color: string | null }[];
 };
 
-export const requestKeys = {
-  all: ["requests"] as const,
-  list: (params: ListParams) => ["requests", "list", params] as const,
-  detail: (id: string) => ["requests", "detail", id] as const,
-  calendar: ["requests", "calendar"] as const,
-  options: ["requests", "options"] as const,
-  notify: ["requests", "notify"] as const,
-  thanks: ["requests", "thanks"] as const,
-};
+export { requestKeys };
 
 const base = "/api/v1/requests";
 

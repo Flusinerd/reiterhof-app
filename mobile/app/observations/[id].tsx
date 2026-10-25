@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams, type Href } from "expo-router";
+import { useLocalSearchParams, type Href } from "expo-router";
 import { Check, HeartPulse, RotateCcw, Siren } from "lucide-react-native";
 import { useState } from "react";
 import { Pressable, View } from "react-native";
@@ -8,8 +8,9 @@ import { HorseError, HorseLoading } from "@/components/horse-query-state";
 import { Horse } from "@/components/icons/horse";
 import { Button, PageHeader, Screen, Section, Text } from "@/components/ui";
 import { errorMessage } from "@/lib/api";
-import { useObservation, useObservationEvents, useSetObservationStatus } from "@/lib/api/observations";
+import { useObservation, useSetObservationStatus } from "@/lib/api/observations";
 import { horseRoutes, joinParts } from "@/lib/horse-format";
+import { pushOnce } from "@/lib/navigation";
 import {
   bodyPartLabel,
   categoryLabel,
@@ -19,14 +20,15 @@ import {
   statusActionLabel,
 } from "@/lib/observations";
 import { openStoredFile } from "@/lib/upload";
+import { usePullToRefresh } from "@/lib/use-pull-to-refresh";
 
 /** One observation with photos and the status change "Beobachten" / "Erledigt" (JAN-52). */
 export default function ObservationDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const query = useObservation(id);
+  const refresh = usePullToRefresh([query]);
   const setStatus = useSetObservationStatus();
   const [error, setError] = useState<string | null>(null);
-  useObservationEvents();
 
   const o = query.data;
   if (!o) {
@@ -54,7 +56,7 @@ export default function ObservationDetail() {
   const eyebrow = observationEyebrow(o);
 
   return (
-    <Screen back>
+    <Screen back refreshControl={refresh}>
       <PageHeader
         eyebrow={o.horse_name}
         title={categoryLabel(o.category)}
@@ -78,7 +80,7 @@ export default function ObservationDetail() {
                 key={m.path}
                 accessibilityRole="imagebutton"
                 accessibilityLabel={`Foto ${i + 1} öffnen`}
-                onPress={() => void openStoredFile(m.url).catch((e) => setError(errorMessage(e)))}
+                onPress={() => openStoredFile(m.url).catch((e) => setError(errorMessage(e)))}
               >
                 <AuthImage
                   url={m.url}
@@ -104,7 +106,7 @@ export default function ObservationDetail() {
             variant={o.status === "watch" ? "primary" : "outline"}
             fullWidth
             loading={setStatus.isPending}
-            onPress={() => void change()}
+            onPress={() => change()}
           />
         ) : (
           <Text variant="caption">Status ändern nur Besitzer, Admins und Melder.</Text>
@@ -115,7 +117,7 @@ export default function ObservationDetail() {
             icon={Siren}
             variant="outline"
             fullWidth
-            onPress={() => router.push(horseRoutes.emergency(o.horse_id) as Href)}
+            onPress={() => pushOnce(horseRoutes.emergency(o.horse_id) as Href)}
           />
         ) : null}
         {o.reha_plan_id ? (
@@ -124,7 +126,7 @@ export default function ObservationDetail() {
             icon={HeartPulse}
             variant="outline"
             fullWidth
-            onPress={() => router.push(horseRoutes.reha(o.horse_id) as Href)}
+            onPress={() => pushOnce(horseRoutes.reha(o.horse_id) as Href)}
           />
         ) : null}
         <Button
@@ -132,7 +134,7 @@ export default function ObservationDetail() {
           icon={Horse}
           variant="ghost"
           fullWidth
-          onPress={() => router.push(horseRoutes.detail(o.horse_id) as Href)}
+          onPress={() => pushOnce(horseRoutes.detail(o.horse_id) as Href)}
         />
       </View>
     </Screen>

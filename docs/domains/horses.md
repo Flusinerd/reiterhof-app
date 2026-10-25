@@ -80,6 +80,9 @@ Who sees what: observations every member of the stable (like `GET /horses/{id}/o
 (owner and admin all, riders the sessions marked visible plus their own, other members none). A horse of another stable is a `404`.
 Health items keep no history (marking one done moves its due date), so they are not part of the diary.
 
+Horse writes (create, PATCH including photo and owner, rider set or removed, emergency contact added, edited or removed) publish the
+realtime event `horse.changed {horse_id}` after the write (`horses.EventChanged`); an empty PATCH publishes nothing.
+
 ## Emergency card (JAN-49)
 
 `GET /api/v1/horses/{id}/emergency` (every member): `horse_id, horse_name, box, weight_kg, owner{id,name,phone}`
@@ -94,8 +97,39 @@ Extra contacts (owner or admin): `POST /api/v1/horses/{id}/emergency-contacts {l
 | --- | --- |
 | `GET /api/v1/horses/{id}/health` | `{today, items, summary, can_manage}`; items ordered by due date (undated last); `summary` has the keys `vaccination, farrier, deworming, dentist`, each the item of that kind due first or `null`; every item has `days_until_due` (negative = overdue), counted from `today` in the stable's time zone; items of the kinds `vet`, `vaccination`, `dentist` that are due soon also carry `bundle {kind, count, horses[{id,name}]}` (other horses with the same kind due within 14 days, see [observations.md](observations.md#bundling-appointments-jan-54)) |
 | `POST /api/v1/horses/{id}/health-items` | `kind` (vaccination, farrier, deworming, dentist, physio, medication, vet), `label`, `due_date` (YYYY-MM-DD), `interval_count` + `interval_unit` (`day`, `week`, `month`, `year`; at most about ten years, `0` clears), `note`, `daily_time` (HH:MM), `remind_days` (0..365 days before the due date, at most 5, default `[7, 1]`, `[]` = no reminder), `remind_time` (HH:MM, default `08:00`). The older `interval_days` is still accepted (= `interval_count` with unit `day`) and returned for day and week intervals (else `null`). |
-| `PATCH /api/v1/health-items/{id}`, `DELETE /api/v1/health-items/{id}` | owner or admin |
-| `POST /api/v1/health-items/{id}/done` | "erledigt": `due_date` moves forward by the interval; if that is still not after today (very overdue), by further intervals; without a due date the interval counts from today; without interval the due date is cleared. Months and years keep the day of the month and fall back to the last day of a shorter month (31.08. + 6 months = 28.02.), always counted from the old due date, so the day does not drift (`health.Interval.After`) |
+| `PATCH /api/v1/health-items/{id}`, `DELETE /api/v1/health-items/{id}` | owner or admin. Both dismiss the item's stored reminders (below); a PATCH that moves the due date also clears the "erledigt" marker |
+| `POST /api/v1/health-items/{id}/done` | owner or admin. "erledigt": `due_date` moves forward by the interval; if that is still not after today (very overdue), by further intervals; without a due date the interval counts from today; without interval the due date is cleared. Months and years keep the day of the month and fall back to the last day of a shorter month (31.08. + 6 months = 28.02.), always counted from the old due date, so the day does not drift (`health.Interval.After`). **Once per stable-local day**, see below. Optional body `{"due_date": "YYYY-MM-DD"}` (`""` = none): the due date the app showed |
+| `DELETE /api/v1/health-items/{id}/done` | owner or admin. Takes back today's "erledigt" (restores the due date and the reminders it dismissed) |
+
+Every item carries `last_done_on` (the stable-local day of the last "erledigt", `null` without) and `last_done_by`
+(`{id, name}` or `null`). Migration `0360` added them (plus `last_done_at`, `previous_due_date`, internal).
+
+**"Erledigt" is idempotent per day** (`done` locks the row, `FOR UPDATE`): the first call moves the due date and stores
+`previous_due_date`, `last_done_on` (today in the stable's time zone), `last_done_by`; every further call on the same
+stable-local day, from the same or another phone, answers `200` with the unchanged item and writes nothing, so a double tap
+or a retry cannot push the date another interval out (before, every call advanced it once more). A call on the next day
+advances again. With the optional `due_date` body the call is refused with `409 due_date_changed` when the item has another
+due date by now (somebody else changed it); a repeat of an "erledigt" already done today wins over that check, so the second
+tap of the same app is not an error.
+
+`DELETE .../done` restores `previous_due_date` and un-dismisses the reminder rows the "erledigt" dismissed (found by
+`last_done_at`; rows a user dismissed earlier stay dismissed). Nothing to undo (never done, or the date was edited by hand
+since) answers `200` with the unchanged item, so a repeated undo is fine; an "erledigt" of an earlier day stays:
+`409 undo_expired`. A PATCH that changes `due_date` clears `last_done_on`, `last_done_by` and the stored previous date.
+
+**Medication** (kind `medication` or an item with `daily_time`): the due date is the last day of the course, so "erledigt"
+means **"Gabe beenden"**: it ends the course today (an end date further away moves up to today, one in the past stays, no end
+date stays empty) instead of clearing the date, which used to let the daily reminders run on forever. Reminders stop: today's
+medication reminder is not sent once the course was ended today (job: `doneToday`), the computed medication item of today
+leaves the reminder center and Heute, and from tomorrow on the course is over. The undo brings all of it back.
+
+**Stored reminders**: `done`, a PATCH that changes the due date, interval, daily time or reminder days/time, and `DELETE`
+dismiss the item's stored `reminders` rows (`source_table = 'health_items'`, all users) in the same transaction; they
+describe a state that no longer holds, and a deleted item has no foreign key to them. The rows stay (dismissed), so the
+claim of the reminder job and its unique index keep working.
+
+**Realtime**: every change (create, PATCH, DELETE, done, undo; a repeated done changes nothing and sends nothing) publishes
+`health.changed {horse_id}` inside its transaction (`health.EventChanged`).
 
 **Reminder job** (`health.Reminders`, scheduler job `health-reminders` in `cmd/api`, every 15 minutes):
 
@@ -166,7 +200,10 @@ Shared storage for photos and documents; see also "Files" in `architecture.md`.
   - "Heute für <Name>": up to three rows with hairlines, each with one action: training today from the week plan ("Starten" when it is the
     user's, one primary button), tonight's blanket ("Ändern" for owner and admin, opens the blanket choice), the next health item
     ("Erledigt" for owner and admin when overdue or due within a week). Empty rows are left out; the training row is only for owner, admin
-    and riders (the week endpoint says `403` to others).
+    and riders (the week endpoint says `403` to others). After "Erledigt" the row keeps the item for the rest of the visit as a
+    success state (eyebrow "Gesundheit · erledigt" in success tone, "Nächster Termin 24.01.2027", ghost "Rückgängig"; `RowsInput.justDone`,
+    taken from the answer of the server, cleared when the user leaves the page), so a second tap cannot mark the *next* appointment done.
+    A medication course has no button here; it ends on the health screen.
   - "Diese Woche": seven marks (done, planned, show day in brass, rest, empty), tap opens `/training/week?horse=`.
   - `Segmented` with Tagebuch (the diary, "Mehr laden", notes as italic quotes, observation photos as thumbnails, "Auffälligkeit melden"),
     Gesundheit (compact health list, "Alle Termine", the observations with "Reha-Plan erstellen" for owner and admin, see
@@ -180,6 +217,14 @@ Shared storage for photos and documents; see also "Files" in `architecture.md`.
   per kind such as "6 Monate" / "1 Jahr" or "Eigenes" with number and unit, reminder days as chips "4 Wochen vorher" …
   "am Tag" plus the time; "Erledigt"), `documents`
   (photo/PDF upload), `edit`, and `/horses/new`.
+- **"Erledigt" on the health screen** (`lib/health-done.ts`): the tapped row turns into its result in place: a check mark, "Heute erledigt"
+  (success tone; "von Anna" when somebody else did it) and "Nächster Termin: 24.01.2027" (or "Abgeschlossen"), and a ghost button
+  "Rückgängig" (`DELETE .../done`) instead of "Erledigt". The rows keep their order while the user is on the screen (`useFrozenOrder`,
+  a done item does not jump away under the finger; a new visit sorts afresh). The call carries the due date the app showed; a conflict
+  (`due_date_changed`) refreshes the list and says so under the row, as does every other error. A medication course shows
+  **"Gabe beenden"** (only with an end date; without one it never ends), which asks in a sheet first ("{Name} endet heute. Du bekommst
+  dafür keine Erinnerungen mehr."), then ends the course today; its result reads "Gabe beendet" and "Endet heute. Keine Erinnerungen mehr."
+  The health screen can be pulled to refresh and refreshes when it comes back into focus.
 - Upload helper `lib/upload.ts`: `uploadFile({uri, name, mimeType, size, file})`, `fileSource(url)`,
   `openStoredFile(url)` (download link, then `Linking.openURL`), `uploadErrorMessage(err)`. Every picker call uses
   `PHOTO_PICKER_OPTIONS` (images, iOS "compatible" representation, so no HEIC) and turns the asset into the upload

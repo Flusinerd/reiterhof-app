@@ -1,14 +1,15 @@
 // Data of the "Heute" screen: the week plans of the user's horses, tonight's blankets and the
 // reminder center, merged by buildToday (lib/today.ts).
 
-import { useQueries } from "@tanstack/react-query";
+import { useQueries, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 import { useToday as useBlanketsToday } from "./api/blankets";
 import { useReminders } from "./api/reminders";
 import { trainingApi, trainingKeys, useTrainingHorses } from "./api/training";
+import { weatherKeys } from "./api/weather";
 import { useAuth } from "./auth";
-import { buildToday, type HorsePlan, type TodayView } from "./today.ts";
+import { buildToday, todayLoad, type HorsePlan, type TodayLoad, type TodayView } from "./today.ts";
 
 function localParts(timeZone: string, now: Date): { today: string; clock: string; tomorrow: string } {
   const today = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
@@ -19,17 +20,20 @@ function localParts(timeZone: string, now: Date): { today: string; clock: string
 }
 
 export type TodayData = {
+  /** Only built when every query has answered (see todayLoad): never from the empty lists of a failed request. */
   view: TodayView | null;
   timeZone: string;
-  loading: boolean;
+  load: TodayLoad;
   refreshing: boolean;
-  refresh: () => void;
+  /** Reloads everything; the promise settles when that is over (a retry button spins until then). */
+  refresh: () => Promise<unknown>;
   /** The user's horses (owner or rider), for the greeting line and the horse tab. */
   horses: { id: string; name: string; color_key: string }[];
 };
 
 export function useTodayData(): TodayData {
   const { me } = useAuth();
+  const queryClient = useQueryClient();
   const timeZone = me?.stable?.timezone ?? "Europe/Berlin";
   const { today, clock, tomorrow } = localParts(timeZone, new Date());
   // The week of tomorrow differs on Sundays; fetch it too so tomorrow's show is not missing.
@@ -48,11 +52,12 @@ export function useTodayData(): TodayData {
     ),
   });
 
-  const weeksReady = weeks.every((w) => !w.isPending);
+  const load = todayLoad([horses, blankets, reminders, ...weeks]);
+  const ready = load.state === "ready";
   const weekData = weeks.map((w) => w.data);
   const weeksVersion = weeks.map((w) => w.dataUpdatedAt).join(",");
   const view = useMemo(() => {
-    if (horses.isPending || blankets.isPending || reminders.isPending || !weeksReady) return null;
+    if (!ready) return null;
     const plans: HorsePlan[] = list.map((h) => ({
       horseId: h.id,
       horseName: h.name,
@@ -70,19 +75,21 @@ export function useTodayData(): TodayData {
       reminders: reminders.data?.groups.flatMap((g) => g.items) ?? [],
     });
     // weekData is a new array on every render; weeksVersion changes when its contents do.
-  }, [horses.isPending, blankets.data, reminders.data, weeksReady, weeksVersion, list, today, clock, timeZone]);
+  }, [ready, blankets.data, reminders.data, weeksVersion, list, today, clock, timeZone]);
 
   return {
     view,
     timeZone,
-    loading: view === null,
-    refreshing: horses.isRefetching || blankets.isRefetching || reminders.isRefetching,
-    refresh: () => {
-      void horses.refetch();
-      void blankets.refetch();
-      void reminders.refetch();
-      for (const w of weeks) void w.refetch();
-    },
+    load,
+    refreshing: horses.isRefetching || blankets.isRefetching || reminders.isRefetching || weeks.some((w) => w.isRefetching),
+    refresh: () =>
+      Promise.all([
+        horses.refetch(),
+        blankets.refetch(),
+        reminders.refetch(),
+        ...weeks.map((w) => w.refetch()),
+        queryClient.invalidateQueries({ queryKey: weatherKeys.warnings }), // shown on Heute, too
+      ]),
     horses: list.map((h) => ({ id: h.id, name: h.name, color_key: h.color_key })),
   };
 }

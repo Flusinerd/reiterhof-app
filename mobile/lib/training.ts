@@ -172,6 +172,11 @@ export function addDays(date: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** Monday of the week a YYYY-MM-DD date is in. */
+export function weekStart(date: string): string {
+  return addDays(date, -weekdayIndex(date));
+}
+
 /** "23.–29. März" or "30. März – 5. April" for a week. */
 export function weekRangeLabel(start: string, end: string): string {
   const a = parseDate(start);
@@ -335,6 +340,8 @@ export type FinishParams = {
   distanceM?: number;
   /** Steps of the exercise the rider ticked in the tracker; undefined = nothing was tracked. */
   stepsDone?: number[];
+  /** Focus (catalog key) of the unit the ride was started from, if any. */
+  focusKey?: string;
 };
 
 function parseJson<T>(raw: string | undefined): T | undefined {
@@ -367,6 +374,7 @@ export function parseFinishParams(p: Record<string, string | string[] | undefine
     reinChanges: parseJson<ReinSegment[]>(one("rein")),
     distanceM: Number.isFinite(distance) && distance > 0 ? Math.round(distance) : undefined,
     stepsDone: decodeStepsDone(one("steps_done")),
+    focusKey: one("focus") || undefined,
   };
 }
 
@@ -467,22 +475,29 @@ export function minuteChoices(activity: Activity, current?: number): number[] {
 }
 
 /**
- * Library of the exercise list that fits an activity; mirrors training.ExerciseLibrary in the
- * backend: hall and arena use the dressage library (jumping for jumping horses).
+ * Libraries of the exercise catalog that fit an activity, the home library first; mirrors
+ * training.ExerciseLibraries in the backend (docs/domains/training-planning.md, "API"): hall and
+ * arena use dressage and cavaletti (jumping horses: jumping, cavaletti, dressage; western horses:
+ * western, cavaletti, dressage), jumping and lunge add cavaletti, hack has its own library; walker
+ * and rest have none.
  */
-export function exerciseLibrary(activity: string, discipline: string): "" | "dressage" | "jumping" | "groundwork" | "lunge" {
+export function exerciseLibraries(activity: string, discipline: string): string[] {
   switch (activity) {
     case "jumping":
-      return "jumping";
-    case "groundwork":
-      return "groundwork";
+      return ["jumping", "cavaletti"];
     case "lunge":
-      return "lunge";
+      return ["lunge", "cavaletti"];
+    case "groundwork":
+      return ["groundwork"];
+    case "hack":
+      return ["hack"];
     case "hall":
     case "arena":
-      return discipline === "jumping" ? "jumping" : "dressage";
+      if (discipline === "jumping") return ["jumping", "cavaletti", "dressage"];
+      if (discipline === "western") return ["western", "cavaletti", "dressage"];
+      return ["dressage", "cavaletti"];
     default:
-      return "";
+      return [];
   }
 }
 

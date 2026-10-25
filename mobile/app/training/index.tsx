@@ -1,26 +1,34 @@
 import { useLocalSearchParams, useRouter, type Href } from "expo-router";
-import { BookOpen, HeartPulse, ListChecks, Pencil, Play, SlidersHorizontal } from "lucide-react-native";
+import { BookOpen, Check, Crosshair, Fence, HeartPulse, ListChecks, Pencil, Play, SlidersHorizontal, Target } from "lucide-react-native";
 import { useMemo, useState } from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
 
 import { HorseWeekStrip } from "@/components/horse-week-strip";
 import { ActivityIcon } from "@/components/training-activity-icon";
 import { ActivityPicker } from "@/components/training-activity-picker";
+import { FocusSheet } from "@/components/training-focus-sheet";
 import { HorseSwitcher } from "@/components/training-horse-switcher";
 import { NextStepCard } from "@/components/training-next-step";
+import { progressRows } from "@/components/training-progress";
 import { QuickLogSheet } from "@/components/training-quick-log";
 import { StepsSheet } from "@/components/training-steps-sheet";
 import { Button, Icon, PageHeader, Pill, Screen, Section, Text } from "@/components/ui";
 import { ListRow, RowList } from "@/components/ui/list-row";
 import {
   trainingError,
+  useFocuses,
+  useMyFocus,
+  useProfile,
   useToday,
+  useTrainingEquipment,
   useTrainingHorses,
   useWeek,
   type Recommendation,
 } from "@/lib/api/training";
+import { useAuth } from "@/lib/auth";
 import { horseRoutes } from "@/lib/horse-format";
 import { horseWeekStrip } from "@/lib/horse-page";
+import { savedTitle } from "@/lib/session-finish";
 import { useColors } from "@/lib/theme";
 import {
   DEFAULT_MINUTES,
@@ -33,6 +41,7 @@ import {
   trainedCount,
   type Activity,
 } from "@/lib/training";
+import { mainExercise, myFocusSummary, trainingEyebrow, unitRows } from "@/lib/training-focus";
 import { nextStep } from "@/lib/training-plan";
 
 /**
@@ -51,6 +60,10 @@ export default function Training() {
   const [stepsOpen, setStepsOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
+  const [focusOpen, setFocusOpen] = useState(false);
+  const { user } = useAuth();
+  // What "Nur eintragen" stored on this visit ("Halle, 45 Min."): the sheet closes, so the page says so.
+  const [logged, setLogged] = useState<string | null>(null);
 
   const list = horses.data ?? [];
   const activeId = list.some((h) => h.id === horseId) ? horseId : list[0]?.id;
@@ -58,6 +71,12 @@ export default function Training() {
   const data = today.data;
   const week = useWeek(activeId);
   const step = nextStep(data, week.data);
+  // Newer backends: the horse's focuses (for the quiet row), the person's own focus, the catalog for labels,
+  // and for admins whether the stable's equipment was entered. Each fails quietly on an older backend.
+  const profile = useProfile(activeId);
+  const myFocus = useMyFocus(activeId);
+  const catalog = useFocuses();
+  const equipment = useTrainingEquipment(!!user?.is_admin);
   const strip = useMemo(() => {
     const days = week.data?.days;
     if (!days) return [];
@@ -68,6 +87,7 @@ export default function Training() {
     setHorseId(id);
     setChoice(0);
     setPicked(null);
+    setLogged(null);
   };
 
   if (horses.isPending) {
@@ -122,22 +142,35 @@ export default function Training() {
   const isRest = hero?.activity === "rest";
   // Without a profile the setup is the one thing to do; "Starten" steps back to an outline.
   const setupFirst = step?.kind === "profile";
+  // Lösen, Arbeiten, Entspannen; none on older backends (then "Ablauf ansehen" opens the one exercise).
+  const unit = unitRows(hero?.unit);
 
   const start = () => {
     if (!hero || !isActivity(hero.activity)) return;
+    const exerciseId = hero.exercise?.id ?? mainExercise(hero)?.id;
     router.push({
       pathname: "/training/session",
       params: {
         horse: activeId,
         activity: hero.activity,
         minutes: String(hero.minutes),
-        ...(hero.exercise ? { exercise: hero.exercise.id } : {}),
+        ...(exerciseId ? { exercise: exerciseId } : {}),
+        // The finish screen records what was trained.
+        ...(hero.focus ? { focus: hero.focus.key } : {}),
       },
     });
   };
 
   const goto = (href: string) => router.push(href as Href);
   const weekHref = `/training/week?horse=${activeId}`;
+  const openExercise = (id: string) => goto(`/training/exercises/${id}?horse=${activeId}`);
+  // Quiet rows: the horse has no focus yet (owners), the stable's equipment is not entered (admins).
+  const noFocuses = !!data?.can_edit && data.has_profile && profile.data?.focuses !== undefined && profile.data.focuses.length === 0;
+  const noEquipment = !!user?.is_admin && equipment.data?.set === false;
+  const progress = data?.progress;
+  const progressItems = progress
+    ? progressRows({ text: progress.text?.trim() || null, next: progress.next, onOpenExercise: openExercise })
+    : [];
 
   return (
     <Screen
@@ -147,12 +180,19 @@ export default function Training() {
       }
     >
       <PageHeader
-        eyebrow={data ? `Training · ${statusLabel(data.status)}` : "Training"}
+        eyebrow={trainingEyebrow(data ? statusLabel(data.status) : null, data?.restart_week, data?.block)}
         title={horse.name}
         description={data?.context}
       >
         <HorseSwitcher horses={list} selected={activeId} onSelect={selectHorse} />
       </PageHeader>
+
+      {logged ? (
+        <View className="flex-row items-center gap-2">
+          <Icon as={Check} size={18} className="text-success" />
+          <Text variant="bodyStrong" tone="success">{`Eingetragen: ${logged}`}</Text>
+        </View>
+      ) : null}
 
       {!data && !today.isError ? <ActivityIndicator color={c.primary.DEFAULT} className="self-start" /> : null}
 
@@ -202,7 +242,38 @@ export default function Training() {
                 {hero.intensity_label ? `Belastung ${hero.intensity_label}` : intensityLabel("none")}
               </Text>
             ) : null}
+            {hero.equipment_note ? <Text variant="secondary">{hero.equipment_note}</Text> : null}
           </View>
+          {hero.focus ? (
+            <View className="gap-0.5">
+              <Text variant="eyebrow">Schwerpunkt</Text>
+              <Text variant="bodyStrong">{hero.focus.label}</Text>
+              {hero.focus.why ? (
+                <Text variant="bodySm" tone="muted">
+                  {hero.focus.why}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
+          {unit.length > 0 ? (
+            <RowList>
+              {unit.map((r) => (
+                <ListRow
+                  key={r.part}
+                  leading={
+                    <Text variant="heroNumberSm" tone="brass" className="w-10 text-[28px] leading-[32px]" accessibilityElementsHidden>
+                      {r.minutes}
+                    </Text>
+                  }
+                  eyebrow={r.label}
+                  title={r.exercise?.title ?? "Ohne feste Übung"}
+                  detail={r.insteadOf ?? undefined}
+                  accessibilityLabel={r.accessibilityLabel}
+                  onPress={r.exercise ? () => openExercise(r.exercise!.id) : undefined}
+                />
+              ))}
+            </RowList>
+          ) : null}
           {!isRest ? (
             <View className="gap-2">
               <Button
@@ -213,7 +284,7 @@ export default function Training() {
                 onPress={start}
                 disabled={!data?.can_log}
               />
-              {hero.exercise ? (
+              {hero.exercise && unit.length === 0 ? (
                 <Button label="Ablauf ansehen" variant="ghost" size="sm" fullWidth onPress={() => setStepsOpen(true)} />
               ) : null}
             </View>
@@ -291,12 +362,42 @@ export default function Training() {
         ) : null}
       </Section>
 
+      {progressItems.length > 0 ? <RowList>{progressItems}</RowList> : null}
+
       <RowList>
+        {noFocuses ? (
+          <ListRow
+            key="set-focuses"
+            leading={<Icon as={Target} size={20} className="text-muted" />}
+            title="Schwerpunkte setzen"
+            accessibilityLabel="Schwerpunkte setzen"
+            onPress={() => goto(horseRoutes.trainingProfileSection(activeId, "focuses"))}
+          />
+        ) : null}
+        {noEquipment ? (
+          <ListRow
+            key="set-equipment"
+            leading={<Icon as={Fence} size={20} className="text-muted" />}
+            title="Ausstattung im Stall eintragen"
+            accessibilityLabel="Ausstattung im Stall eintragen"
+            onPress={() => goto("/stable/training-equipment")}
+          />
+        ) : null}
+        {myFocus.isSuccess ? (
+          <ListRow
+            key="my-focus"
+            leading={<Icon as={Crosshair} size={20} className="text-muted" />}
+            title="Mein Schwerpunkt"
+            detail={myFocusSummary(myFocus.data.keys, catalog.data)}
+            accessibilityLabel={`Mein Schwerpunkt: ${myFocusSummary(myFocus.data.keys, catalog.data)}`}
+            onPress={() => setFocusOpen(true)}
+          />
+        ) : null}
         <ListRow
           leading={<Icon as={BookOpen} size={20} className="text-muted" />}
           title="Übungen"
           accessibilityLabel="Übungen"
-          onPress={() => goto("/training/exercises")}
+          onPress={() => goto(`/training/exercises?horse=${activeId}`)}
         />
         <ListRow
           leading={<Icon as={SlidersHorizontal} size={20} className="text-muted" />}
@@ -314,6 +415,9 @@ export default function Training() {
         ) : null}
       </RowList>
 
+      {myFocus.isSuccess ? (
+        <FocusSheet horseId={activeId} horseName={horse.name} open={focusOpen} onOpenChange={setFocusOpen} />
+      ) : null}
       <StepsSheet exercise={hero?.exercise} open={stepsOpen} onOpenChange={setStepsOpen} />
       <ActivityPicker
         hidden={hiddenActivities}
@@ -328,6 +432,7 @@ export default function Training() {
         hidden={hiddenActivities}
         open={logOpen}
         onOpenChange={setLogOpen}
+        onSaved={({ activity, minutes }) => setLogged(savedTitle(activity, minutes))}
       />
     </Screen>
   );

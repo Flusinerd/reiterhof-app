@@ -10,7 +10,7 @@ import { BlanketPhoto } from "@/components/blanket-photo";
 import { HorseError, HorseLoading } from "@/components/horse-query-state";
 import { Avatar, Button, Icon, PageHeader, Screen, Text, ThemeScope } from "@/components/ui";
 import { errorMessage } from "@/lib/api";
-import { BLANKET_PLAN_EVENT, BLANKET_STATE_EVENT, blanketKeys, useSetState, useToday } from "@/lib/api/blankets";
+import { blanketKeys, useSetState, useToday } from "@/lib/api/blankets";
 import { useAuth } from "@/lib/auth";
 import {
   boxLine,
@@ -29,7 +29,6 @@ import {
 } from "@/lib/blanket-round";
 import type { StateAction } from "@/lib/blankets";
 import { cn } from "@/lib/cn";
-import { useInvalidateOnEvents } from "@/lib/realtime";
 import { palettes } from "@/lib/tokens";
 
 /**
@@ -53,10 +52,6 @@ function Round() {
   const { horse: startHorse } = useLocalSearchParams<{ horse?: string }>();
   const today = useToday();
   const setState = useSetState();
-  useInvalidateOnEvents({
-    [BLANKET_STATE_EVENT]: [blanketKeys.today],
-    [BLANKET_PLAN_EVENT]: [blanketKeys.all],
-  });
   const timeZone = me?.stable?.timezone ?? "Europe/Berlin";
   const mineIds = new Set([...(me?.roles.owned_horse_ids ?? []), ...(me?.roles.rider_horse_ids ?? [])]);
 
@@ -212,7 +207,7 @@ function Round() {
           className="h-[72px]"
           loading={pending === actions.primary.action}
           disabled={busy && pending !== actions.primary.action}
-          onPress={() => void act(actions.primary.action)}
+          onPress={() => act(actions.primary.action)}
         />
         <View className="flex-row gap-3">
           <Button label="Andere Decke" variant="outline" className="flex-1" disabled={busy} onPress={() => setChoiceOpen(true)} />
@@ -238,7 +233,7 @@ function Round() {
                 className="flex-1"
                 loading={pending === a.action}
                 disabled={busy && pending !== a.action}
-                onPress={() => void act(a.action)}
+                onPress={() => act(a.action)}
               />
             ))}
           </View>

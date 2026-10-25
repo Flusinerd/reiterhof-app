@@ -1,10 +1,11 @@
-import { useRouter, type Href } from "expo-router";
+import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 import { useMemo, useState } from "react";
 import { ActivityIndicator, ScrollView, View } from "react-native";
 
 import { ExerciseListItem } from "@/components/exercise-list-item";
 import { Button, PageHeader, Pill, Screen, Section, Text } from "@/components/ui";
 import { RowList } from "@/components/ui/list-row";
+import { useFocuses } from "@/lib/api/training";
 import {
   NO_FILTER,
   applyFilter,
@@ -12,6 +13,8 @@ import {
   filterOptions,
   hasFilter,
   levelLabel,
+  phaseLabel,
+  phaseOptions,
   tagLabel,
   toggleFilter,
   type ExerciseFilter,
@@ -19,21 +22,36 @@ import {
 import { useExerciseList } from "@/lib/tracking-queries";
 import { errorMessage } from "@/lib/api";
 import { useColors } from "@/lib/theme";
+import { usePullToRefresh } from "@/lib/use-pull-to-refresh";
 
-/** Exercise library (JAN-58): browse and filter by discipline, level and goal. */
+/**
+ * Exercise library (JAN-58): browse and filter by focus, phase (Lösen, Arbeiten, Entspannen),
+ * library, level and goal. The focus is matched by the server (it knows the tags of a focus), the
+ * other filters work on the list. With a horse (`?horse=`) exercises the stable cannot set up are
+ * dimmed.
+ */
 export default function ExerciseLibrary() {
   const router = useRouter();
-  const list = useExerciseList();
+  const { horse } = useLocalSearchParams<{ horse?: string }>();
   const c = useColors();
   const [filter, setFilter] = useState<ExerciseFilter>(NO_FILTER);
+  const focuses = useFocuses();
+  // The filter pills come from the whole list; a chosen focus asks the server for its own list.
+  const list = useExerciseList({ horse });
+  const focused = useExerciseList({ horse, focus: filter.focus }, !!filter.focus);
+  const refresh = usePullToRefresh([list]);
 
   const all = list.data ?? [];
   const options = useMemo(() => filterOptions(all), [all]);
-  const shown = useMemo(() => applyFilter(all, filter), [all, filter]);
+  const phases = useMemo(() => phaseOptions(all), [all]);
+  const base = filter.focus ? (focused.data ?? []) : all;
+  const shown = useMemo(() => applyFilter(base, filter), [base, filter]);
+  const entries = focuses.data ?? [];
+  const waiting = !!filter.focus && focused.isPending;
 
   return (
-    <Screen back>
-      <PageHeader eyebrow="Training" title="Übungen" description="Für Halle und Platz." />
+    <Screen back refreshControl={refresh}>
+      <PageHeader eyebrow="Training" title="Übungen" description="Nach Schwerpunkt, Phase und Niveau." />
 
       {list.isPending ? (
         <ActivityIndicator accessibilityLabel="Lädt" color={c.primary.DEFAULT} />
@@ -46,8 +64,32 @@ export default function ExerciseLibrary() {
         </View>
       ) : (
         <>
+          {entries.length > 0 ? (
+            <FilterGroup title="Schwerpunkt">
+              {entries.map((e) => (
+                <Pill
+                  key={e.key}
+                  label={e.label}
+                  selected={filter.focus === e.key}
+                  onPress={() => setFilter(toggleFilter(filter, "focus", e.key))}
+                />
+              ))}
+            </FilterGroup>
+          ) : null}
+          {phases.length > 0 ? (
+            <FilterGroup title="Phase">
+              {phases.map((p) => (
+                <Pill
+                  key={p}
+                  label={phaseLabel(p)}
+                  selected={filter.phase === p}
+                  onPress={() => setFilter(toggleFilter(filter, "phase", p))}
+                />
+              ))}
+            </FilterGroup>
+          ) : null}
           {options.disciplines.length > 1 ? (
-            <FilterGroup title="Disziplin">
+            <FilterGroup title="Bereich">
               {options.disciplines.map((d) => (
                 <Pill
                   key={d}
@@ -84,17 +126,26 @@ export default function ExerciseLibrary() {
           ) : null}
 
           <Section
-            title={`${shown.length} ${shown.length === 1 ? "Übung" : "Übungen"}`}
+            title={waiting ? "Übungen" : `${shown.length} ${shown.length === 1 ? "Übung" : "Übungen"}`}
             action={hasFilter(filter) ? <Button label="Zurücksetzen" size="sm" variant="ghost" onPress={() => setFilter(NO_FILTER)} /> : undefined}
           >
-            {shown.length === 0 ? (
+            {waiting ? (
+              <ActivityIndicator accessibilityLabel="Lädt" color={c.primary.DEFAULT} className="self-start" />
+            ) : filter.focus && focused.isError ? (
+              <View className="gap-3">
+                <Text variant="body" tone="danger" accessibilityRole="alert">
+                  {errorMessage(focused.error)}
+                </Text>
+                <Button label="Erneut versuchen" variant="outline" onPress={() => void focused.refetch()} />
+              </View>
+            ) : shown.length === 0 ? (
               <Text variant="body" tone="muted">
                 {all.length === 0 ? "Noch keine Übungen." : "Keine Treffer."}
               </Text>
             ) : (
               <RowList>
                 {shown.map((e) => (
-                  <ExerciseListItem key={e.id} exercise={e} onPress={() => router.push(`/training/exercises/${e.id}` as Href)} />
+                  <ExerciseListItem key={e.id} exercise={e} onPress={() => router.push(`/training/exercises/${e.id}${horse ? `?horse=${horse}` : ""}` as Href)} />
                 ))}
               </RowList>
             )}
@@ -105,7 +156,7 @@ export default function ExerciseLibrary() {
   );
 }
 
-/** A filter row: small eyebrow (three of them sit close together) and one line of pills. */
+/** A filter row: small eyebrow (several of them sit close together) and one line of pills. */
 function FilterGroup({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <View className="-mb-2 gap-2">

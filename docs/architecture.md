@@ -378,7 +378,9 @@ real `*push.Notifier`). In tests pass `Notify: push.NewNotifier(pool, fake, nil)
 
 Pure packages (no HTTP, no DB, no clock; "today" is always an input):
 
-- `training`: shared types (`Activity`, `Profile`, `RiderRules`, `Session`, `Intensity`, ...).
+- `training`: shared types (`Activity`, `Profile`, `RiderRules`, `Session`, `Intensity`, ...), the focus catalog
+  and the horse's phase (`focus.go`: `Focuses`, `Phase`, `UnitSplit`), the exercise view with the libraries of an
+  activity, the stable's equipment, the level goal and its progress (`exercise.go`).
 - `training/load` (JAN-62): `Score(minutes, activity, canterShare)` = minutes x intensity
   factor (table in the package doc), `Classify` (light < 30, medium 30-60, intense > 60),
   `DayLoad`, `WeekLoad` (7 segments) and `Assess` (one German sentence vs. the rhythm).
@@ -394,11 +396,17 @@ Pure packages (no HTTP, no DB, no clock; "today" is always an input):
   rules plus the weekly maximum and returns the rule-based replacement when it fails.
   Both apply the week structure (JAN-93, `structure.go`): unit levels by load, the owner's
   weekday rules and quotas, default structure rules, the week's needs when a whole week is
-  planned (`Input.Ahead`) and the load limit (+20 % over the two weeks before).
-- `training/weekplan` (JAN-89, JAN-92): plans the open days of a week (activity, minutes, focus, exercise). `Rules` uses the recommender day by
-  day (each planned unit becomes a simulated session for the next days); `Prompt`/`Parse` build the
-  language model's input (no names, ids, free text or dates) and read its JSON answer; `Merge`
-  checks every proposal with `recommend.Check` and lets the rules fill the rest. `Day.Minutes` gives a
+  planned (`Input.Ahead`) and the load limit (+20 % over the two weeks before); groups 6 to 10 add jumping,
+  variety, the Entlastungswoche, return to work and young and senior horses. `PlanUnit` (`unit.go`) plans the focus
+  and the three parts (Lösen, Arbeiten, Entspannen) of a unit with an exercise each; `BlockFor` and
+  `RestartAnchor` (`block.go`) are the rules of the four-week blocks and the return to work. All of it is pure and
+  deterministic; the specification is [domains/training-planning.md](domains/training-planning.md).
+- `training/weekplan` (JAN-89, JAN-92): plans the open days of a week (activity, minutes, focus, the unit with an
+  exercise per part). `Rules` uses the recommender day by day (each planned unit becomes a simulated session with
+  its focus and exercises for the next days); `Prompt`/`Parse` build the language model's input (no names, ids, free
+  text, dates or own-stable exercises) and read its JSON answer; `Merge` checks every proposal with
+  `recommend.Check`, plans the unit with `recommend.PlanUnit` (the model's focus and exercises are taken when the
+  rules allow them) and lets the rules fill the rest. `Day.Minutes` gives a
   planned closed day its duration and `Day.Exclude` lists the activities the owner rejected for an open
   day (JAN-95, re-planning a single day).
 - German reason texts are UI text and live in these packages; everything else is English.
@@ -491,6 +499,23 @@ tx.Commit(ctx) // the event is sent on commit; a rollback sends nothing
 keep `data` to ids. Naming: `<domain>.changed` (`presence.changed`, `blanket_state.changed`,
 `request.changed`, ...). The type `resync` is reserved (see below).
 
+**Events** (all carry ids only; the apps map each to the queries it changes, see `mobile/lib/query-effects.ts`):
+
+| Event | Data | Published by |
+| --- | --- | --- |
+| `blanket_state.changed` | `horse_id`, `day` | blanket state set, auto-uncover |
+| `blanket_plan.changed` | `horse_id` | blanket rules, overrides, cover window, plan CRUD |
+| `request.changed` | `id`, `kind` | requests create/update/accept/withdraw/done/cancel, closing by a blanket state |
+| `presence.changed` | | check-in/out, stale job, privacy delete, admin CLI |
+| `observation.changed` | `id`, `horse_id` | observation reported or status changed |
+| `reha.changed` | `horse_id` | reha plan created, edited, ended, day marked |
+| `health.changed` | `horse_id` | health item created, edited, deleted, done or undone (`internal/health`) |
+| `training.changed` | `horse_id` | session logged, week day planned/taken/released, training profile saved (`internal/trainingapi`) |
+| `horse.changed` | `horse_id` | horse created or edited (name, photo, owner), rider set/removed, emergency contact changed (`internal/horses`) |
+| `resync` | | synthetic, sent by the hub to all clients after it re-established its database connection |
+
+A change that is only a repeat (a second "erledigt" the same day, an empty PATCH) publishes nothing.
+
 **Subscribe:** every process runs one `realtime.Hub` (started in `cmd/api`, exposed as
 `deps.Events`, a no-op in tests unless you pass a hub: `hub := realtime.NewHub(pool, nil);
 go hub.Run(ctx); <-hub.Ready()`). It holds one dedicated `LISTEN` connection and reconnects
@@ -507,8 +532,15 @@ refetches). No replay: clients refetch after (re)connecting.
 accepted (it would end up in access logs and proxies). The clients use `expo/fetch` streaming
 (native) and `fetch` (browser), which both send the header.
 
-**Mobile:** `useStableEvents(types, handler)` and `useInvalidateOnEvents({ "request.changed":
-[["requests"]] })` in `mobile/lib/realtime.ts`; one shared connection, closed in the background.
+**Mobile:** `useStableEvents(types, handler)` in `mobile/lib/realtime.ts` (one shared connection, reference
+counted, closed in the background, a `resync` after every reconnect). The app subscribes **once**:
+`RealtimeBridge` (`components/realtime-bridge.tsx`), mounted by the root layout while somebody is signed in
+to a stable, marks the queries an event changed as stale; which ones is the table `eventKeys` in
+`mobile/lib/query-effects.ts` (scoped by `data.horse_id`; a `resync` marks everything stale). Screens do not
+subscribe themselves, so a screen that was never opened is fresh when it shows up. A new event needs a line
+in that table, a test in `query-effects.test.ts` and an entry in the event table above. The same bridge
+refreshes the reminder center (and what the push is about) when a push arrives while the app is open
+(`useRefreshOnPush`, native only).
 
 ## Files
 

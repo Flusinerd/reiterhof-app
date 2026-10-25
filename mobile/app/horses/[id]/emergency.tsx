@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams, type Href } from "expo-router";
+import { useLocalSearchParams, type Href } from "expo-router";
 import { Pencil, Phone, Plus } from "lucide-react-native";
 import { useState } from "react";
 import { Alert, Linking, Pressable, View } from "react-native";
@@ -9,6 +9,9 @@ import { RowList } from "@/components/ui/list-row";
 import { errorMessage } from "@/lib/api";
 import { horsesApi, useEmergency, useHorseMutation, type Contact } from "@/lib/api/horses";
 import { horseRoutes, telUrl } from "@/lib/horse-format";
+import { pushOnce } from "@/lib/navigation";
+import { mutationKeys } from "@/lib/query-keys";
+import { usePullToRefresh } from "@/lib/use-pull-to-refresh";
 
 type CallRowProps = { label: string; name: string | null | undefined; phone: string | null | undefined; onEdit?: () => void };
 
@@ -35,7 +38,7 @@ function CallRow({ label, name, phone, onEdit }: CallRowProps) {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`${name ?? label} anrufen`}
-          onPress={() => void Linking.openURL(url)}
+          onPress={() => Linking.openURL(url)}
           className="flex-1 flex-row items-center gap-3 active:opacity-70"
         >
           {body}
@@ -65,12 +68,19 @@ type ContactDraft = { id?: string; label: string; name: string; phone: string };
 export default function Emergency() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const card = useEmergency(id);
-  const save = useHorseMutation((c: ContactDraft) =>
-    c.id
-      ? horsesApi.updateContact(id, c.id, { label: c.label, name: c.name, phone: c.phone })
-      : horsesApi.addContact(id, { label: c.label, name: c.name, phone: c.phone }),
+  const refresh = usePullToRefresh([card]);
+  const save = useHorseMutation(
+    (c: ContactDraft) =>
+      c.id
+        ? horsesApi.updateContact(id, c.id, { label: c.label, name: c.name, phone: c.phone })
+        : horsesApi.addContact(id, { label: c.label, name: c.name, phone: c.phone }),
+    () => [{ type: "emergency", horseId: id }],
   );
-  const remove = useHorseMutation((contactId: string) => horsesApi.removeContact(id, contactId));
+  const remove = useHorseMutation(
+    (contactId: string) => horsesApi.removeContact(id, contactId),
+    () => [{ type: "emergency", horseId: id }],
+    { mutationKey: mutationKeys.contactRemove },
+  );
   const [draft, setDraft] = useState<ContactDraft | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -119,7 +129,7 @@ export default function Emergency() {
   }
 
   return (
-    <Screen back keyboardShouldPersistTaps="handled">
+    <Screen back keyboardShouldPersistTaps="handled" refreshControl={refresh}>
       <PageHeader
         eyebrow="Notfallkarte"
         title={c.horse_name}
@@ -131,7 +141,7 @@ export default function Emergency() {
               icon={Pencil}
               variant="ghost"
               size="sm"
-              onPress={() => router.push(horseRoutes.edit(c.horse_id) as Href)}
+              onPress={() => pushOnce(horseRoutes.edit(c.horse_id) as Href)}
             />
           ) : undefined
         }
@@ -217,12 +227,14 @@ export default function Emergency() {
                 {error}
               </Text>
             ) : null}
-            <Button label="Speichern" fullWidth loading={save.isPending} onPress={saveDraft} />
+            <Button label="Speichern" fullWidth loading={save.isPending} disabled={remove.isPending} onPress={saveDraft} />
             {draft.id ? (
               <Button
                 label="Kontakt löschen"
                 variant="ghost"
                 fullWidth
+                loading={remove.isPending}
+                disabled={save.isPending}
                 onPress={() => confirmRemove(draft as Contact)}
               />
             ) : null}

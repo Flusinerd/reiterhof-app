@@ -44,7 +44,9 @@ type env struct {
 }
 
 // newEnv creates a seeded database with a fixed clock. Sessions and week slots of the seed
-// (relative to the real day of seeding) are removed so tests start from an empty history.
+// (relative to the real day of seeding) are removed so tests start from an empty history, and so is
+// the demo data of the training planning (focuses, block start, rider focuses, the stable's
+// equipment) so that they start from a profile that has none; the seed tests cover that data.
 func newEnv(t *testing.T) *env {
 	t.Helper()
 	return newEnvAt(t, wed)
@@ -53,7 +55,10 @@ func newEnv(t *testing.T) *env {
 func newEnvAt(t *testing.T, now time.Time) *env {
 	t.Helper()
 	pool := dbtest.NewSeeded(t)
-	for _, q := range []string{`DELETE FROM sessions`, `DELETE FROM week_slots`, `DELETE FROM weather_snapshots`} {
+	for _, q := range []string{
+		`DELETE FROM sessions`, `DELETE FROM week_slots`, `DELETE FROM weather_snapshots`,
+		`DELETE FROM rider_focuses`, `UPDATE training_profiles SET focuses = '[]', cycle_start = NULL`, `UPDATE stables SET training_equipment = '{}'`,
+	} {
 		if _, err := pool.Exec(context.Background(), q); err != nil {
 			t.Fatal(err)
 		}

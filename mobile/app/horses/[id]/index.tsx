@@ -1,8 +1,8 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { router, useLocalSearchParams, type Href } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, type Href } from "expo-router";
 import { ClipboardPlus } from "lucide-react-native";
-import { useMemo, useState } from "react";
-import { Alert, RefreshControl, View } from "react-native";
+import { useCallback, useMemo, useState } from "react";
+import { RefreshControl, View } from "react-native";
 
 import { BlanketChoiceSheet } from "@/components/blanket-choice-sheet";
 import { HorseDiary } from "@/components/horse-diary";
@@ -15,17 +15,20 @@ import { HorseError, HorseLoading } from "@/components/horse-query-state";
 import { HorseTodayRows } from "@/components/horse-today-rows";
 import { HorseWeekStrip } from "@/components/horse-week-strip";
 import { Button, Screen, Section, Segmented, Text } from "@/components/ui";
-import { errorMessage } from "@/lib/api";
-import { BLANKET_PLAN_EVENT, BLANKET_STATE_EVENT, blanketKeys, useToday as useBlanketsToday } from "@/lib/api/blankets";
-import { horseKeys, horsesApi, useHealth, useHorse, useHorseMutation } from "@/lib/api/horses";
+import { blanketKeys, useToday as useBlanketsToday } from "@/lib/api/blankets";
+import { horseKeys, horsesApi, useHealth, useHorse, useHorseMutation, type HealthItem } from "@/lib/api/horses";
 import { trainingKeys, useWeek } from "@/lib/api/training";
 import { useAuth } from "@/lib/auth";
+import { healthErrorMessage } from "@/lib/health-done";
 import { horseRoutes } from "@/lib/horse-format";
 import { buildHorseRows, horseWeekStrip, type RowAction } from "@/lib/horse-page";
+import { pushOnce } from "@/lib/navigation";
 import { rehaFromObservationRoute } from "@/lib/observations";
 import { localDate } from "@/lib/presence-format";
-import { useInvalidateOnEvents } from "@/lib/realtime";
+import type { Effect } from "@/lib/query-effects";
+import { mutationKeys, observationKeys } from "@/lib/query-keys";
 import { colors } from "@/lib/theme";
+import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 
 const SEGMENTS = [
   { value: "diary", label: "Tagebuch" },
@@ -56,11 +59,31 @@ export function HorseRecord({ id, back }: { id: string; back: boolean }) {
   const week = useWeek(canSeeTraining ? id : undefined);
   const health = useHealth(id);
   const blankets = useBlanketsToday();
-  useInvalidateOnEvents({
-    [BLANKET_STATE_EVENT]: [blanketKeys.today],
-    [BLANKET_PLAN_EVENT]: [blanketKeys.today],
+  // Back from the health list, the training or another tab: what changed meanwhile shows up at once.
+  useRefreshOnFocus([
+    horseKeys.detail(id),
+    horseKeys.health(id),
+    horseKeys.diary(id),
+    trainingKeys.weekOf(id),
+    blanketKeys.today,
+    observationKeys.list(id),
+  ]);
+  // The health item "Erledigt" was tapped for during this visit: its row keeps the result and the undo
+  // until the user leaves the page (see RowsInput.justDone).
+  const [justDone, setJustDone] = useState<HealthItem | null>(null);
+  useFocusEffect(useCallback(() => () => setJustDone(null), []));
+  const [healthError, setHealthError] = useState<string | null>(null);
+  const healthChanged = (): Effect[] => [{ type: "health" }];
+  const markDone = useHorseMutation((item: HealthItem) => horsesApi.markDone(item.id, item.due_date), healthChanged, {
+    mutationKey: mutationKeys.healthDone,
+    errorEffects: healthChanged,
+    onSuccess: (updated) => setJustDone(updated),
   });
-  const markDone = useHorseMutation((itemId: string) => horsesApi.markDone(itemId));
+  const undoDone = useHorseMutation((item: HealthItem) => horsesApi.undoDone(item.id), healthChanged, {
+    mutationKey: mutationKeys.healthUndo,
+    errorEffects: healthChanged,
+    onSuccess: () => setJustDone(null),
+  });
   const photo = useHorsePhotoSheet({ id, name: h?.name ?? "", photo_url: h?.photo_url ?? null });
   const [segment, setSegment] = useState<Segment>("diary");
   const [blanketOpen, setBlanketOpen] = useState(false);
@@ -89,9 +112,10 @@ export function HorseRecord({ id, back }: { id: string; back: boolean }) {
                 : null,
             health: health.data?.items ?? null,
             canManage: h.can_manage,
+            justDone,
           })
         : [],
-    [h, id, today, canSeeTraining, days, blanketToday, blankets.data, health.data],
+    [h, id, today, canSeeTraining, days, blanketToday, blankets.data, health.data, justDone],
   );
   const strip = useMemo(() => (days ? horseWeekStrip(days, today) : []), [days, today]);
 
@@ -105,11 +129,19 @@ export function HorseRecord({ id, back }: { id: string; back: boolean }) {
     setRefreshing(false);
   }
 
-  function onAction(action: RowAction) {
-    if (action.kind === "start") router.push(`/training?horse=${id}` as Href);
+  /** The promise of a row action keeps its button busy until the page shows the result. */
+  async function onAction(action: RowAction) {
+    if (action.kind === "start") pushOnce(`/training?horse=${id}` as Href);
     else if (action.kind === "blanket") setBlanketOpen(true);
-    else if (action.kind === "done" && action.itemId) {
-      markDone.mutate(action.itemId, { onError: (err) => Alert.alert("Das hat nicht geklappt", errorMessage(err)) });
+    else if ((action.kind === "done" || action.kind === "undo") && action.itemId) {
+      const item = health.data?.items.find((i) => i.id === action.itemId);
+      if (!item) return;
+      setHealthError(null);
+      try {
+        await (action.kind === "done" ? markDone : undoDone).mutateAsync(item);
+      } catch (err) {
+        setHealthError(healthErrorMessage(err));
+      }
     }
   }
 
@@ -121,7 +153,7 @@ export function HorseRecord({ id, back }: { id: string; back: boolean }) {
     );
   }
 
-  const go = (path: string) => router.push(path as Href);
+  const go = (path: string) => pushOnce(path as Href);
   const items = health.data?.items ?? [];
   const openRows = rows.length > 0;
 
@@ -136,7 +168,12 @@ export function HorseRecord({ id, back }: { id: string; back: boolean }) {
 
       {openRows ? (
         <Section title={`Heute für ${h.name}`}>
-          <HorseTodayRows rows={rows} busy={markDone.isPending ? "health" : null} onAction={onAction} />
+          <HorseTodayRows rows={rows} busy={markDone.isPending || undoDone.isPending ? "health" : null} onAction={onAction} />
+          {healthError ? (
+            <Text variant="bodySm" tone="danger" accessibilityRole="alert" className="pt-2">
+              {healthError}
+            </Text>
+          ) : null}
         </Section>
       ) : null}
 

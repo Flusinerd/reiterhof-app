@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Plus, Trash2 } from "lucide-react-native";
 import { useMemo, useState } from "react";
@@ -7,6 +7,7 @@ import { View } from "react-native";
 import { DayPicker, FieldRow, Stepper } from "@/components/request-form-parts";
 import { requestTypeIcon } from "@/components/request-type-icon";
 import { Button, Input, PageHeader, Pill, Screen, Section, Text, TimeField } from "@/components/ui";
+import { useEffectMutation } from "@/lib/api/mutation";
 import { requestKeys, requestsApi, type RequestInput } from "@/lib/api/requests";
 import {
   CREATABLE_TYPES,
@@ -27,7 +28,6 @@ const NEEDS_HORSE: RequestType[] = ["exercise", "feed_or_turnout", "appointment_
 
 export default function NewRequest() {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const params = useLocalSearchParams<{ type?: string; horse?: string }>();
   const today = useMemo(() => toIsoDate(new Date()), []);
 
@@ -62,13 +62,10 @@ export default function NewRequest() {
 
   const options = useQuery({ queryKey: requestKeys.options, queryFn: requestsApi.options });
 
-  const create = useMutation({
+  const create = useEffectMutation({
     mutationFn: (input: RequestInput) => requestsApi.create(input),
-    onSuccess: (created) => {
-      void queryClient.invalidateQueries({ queryKey: requestKeys.all });
-      router.replace({ pathname: "/requests/[id]", params: { id: created.id } });
-    },
     onError: (e) => setError(requestErrorMessage(e)),
+    effects: () => [{ type: "request" }],
   });
 
   const isRide = type === "ride_share";
@@ -126,7 +123,12 @@ export default function NewRequest() {
     if (type !== "show_helper" && tasks.length > 0) input.tasks = tasks;
     const rule = dateEnd ? "" : buildRule(recurrence, date);
     if (rule) input.recurring_rule = rule;
-    create.mutate(input);
+    // The promise locks the button from the tap on, so a fast second tap cannot create the request twice. It
+    // settles after the lists are refreshed: the detail page opens on a list that has the request.
+    return create
+      .mutateAsync(input)
+      .then((created) => router.replace({ pathname: "/requests/[id]", params: { id: created.id } }))
+      .catch(() => undefined); // the error is shown by onError
   }
 
   function addTask() {

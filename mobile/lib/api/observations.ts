@@ -1,11 +1,14 @@
 // API calls and react-query hooks for observations ("Auffälligkeiten"), see
 // docs/domains/observations.md (backend: internal/observations).
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { authed } from "../api";
-import { useInvalidateOnEvents } from "../realtime";
+import { observationKeys } from "../query-keys.ts";
 import { horseKeys, type EmergencyCard } from "./horses";
+import { useEffectMutation } from "./mutation";
+
+export { observationKeys };
 
 // --- types (mirror the backend JSON) -------------------------------------------------------
 
@@ -58,17 +61,6 @@ export const observationsApi = {
 
 // --- query keys and hooks ------------------------------------------------------------------
 
-export const observationKeys = {
-  all: ["observations"] as const,
-  list: (horseId: string) => ["observations", "list", horseId] as const,
-  detail: (id: string) => ["observations", "detail", id] as const,
-};
-
-/** Refetches observations when someone reports or changes one. Call once per screen. */
-export function useObservationEvents() {
-  useInvalidateOnEvents({ "observation.changed": [observationKeys.all] });
-}
-
 export const useObservations = (horseId: string) =>
   useQuery({ queryKey: observationKeys.list(horseId), queryFn: () => observationsApi.list(horseId) });
 
@@ -78,24 +70,24 @@ export const useObservation = (id: string, enabled = true) =>
 /** Sends a report. An urgent one puts the emergency card into the cache so it opens instantly. */
 export function useReportObservation() {
   const queryClient = useQueryClient();
-  return useMutation({
+  return useEffectMutation({
     mutationFn: observationsApi.create,
     onSuccess: (result) => {
       if (result.emergency) {
         queryClient.setQueryData(horseKeys.emergency(result.observation.horse_id), result.emergency);
       }
-      return queryClient.invalidateQueries({ queryKey: observationKeys.all });
     },
+    effects: (_vars, result) => [{ type: "observation", horseId: result.observation.horse_id }],
   });
 }
 
 export function useSetObservationStatus() {
   const queryClient = useQueryClient();
-  return useMutation({
+  return useEffectMutation({
     mutationFn: (v: { id: string; status: "watch" | "done" }) => observationsApi.setStatus(v.id, v.status),
     onSuccess: (o) => {
       queryClient.setQueryData(observationKeys.detail(o.id), o);
-      return queryClient.invalidateQueries({ queryKey: observationKeys.all });
     },
+    effects: (_vars, o) => [{ type: "observation", horseId: o.horse_id }],
   });
 }

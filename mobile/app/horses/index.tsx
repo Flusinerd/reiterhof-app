@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { router, type Href } from "expo-router";
+import type { Href } from "expo-router";
 import { Plus } from "lucide-react-native";
 import { useMemo, useState } from "react";
 import { RefreshControl } from "react-native";
@@ -10,6 +10,7 @@ import { Button, PageHeader, Screen, Section, Text } from "@/components/ui";
 import { RowList } from "@/components/ui/list-row";
 import { horseKeys, useHorses, type Horse } from "@/lib/api/horses";
 import { horseRoutes } from "@/lib/horse-format";
+import { pushOnce } from "@/lib/navigation";
 import { useColors } from "@/lib/theme";
 
 /** Splits the stable's horses into own horses, horses the user rides, and the rest. */
@@ -33,7 +34,7 @@ export function Horses({ back }: { back: boolean }) {
   const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
   const groups = useMemo(() => groupHorses(query.data ?? []), [query.data]);
-  const open = (id: string) => router.push(horseRoutes.detail(id) as Href);
+  const open = (id: string) => pushOnce(horseRoutes.detail(id) as Href);
 
   async function refresh() {
     setRefreshing(true);
@@ -63,7 +64,7 @@ export function Horses({ back }: { back: boolean }) {
             icon={Plus}
             size="sm"
             variant="outline"
-            onPress={() => router.push(horseRoutes.create as Href)}
+            onPress={() => pushOnce(horseRoutes.create as Href)}
           />
         }
         description={

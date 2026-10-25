@@ -101,7 +101,7 @@ func TestDefaultStructureRules(t *testing.T) {
 	if v := Check(in, training.ActivityHall, 60); !v.OK || v.Recommendation.Minutes != 56 {
 		t.Errorf("after a demanding day: %+v", v)
 	}
-	in.Recent = []training.Session{sess(-2, training.ActivityHall, 36), sess(-1, training.ActivityHall, 36)}
+	in.Recent = []training.Session{sess(-2, training.ActivityHall, 36), sess(-1, training.ActivityArena, 36)}
 	if v := Check(in, training.ActivityHall, 45); !v.OK || v.Recommendation.Minutes != 37 {
 		t.Errorf("after two working days: %+v", v)
 	}
@@ -132,7 +132,7 @@ func TestLoadLimit(t *testing.T) {
 	in.Recent = []training.Session{
 		sess(-9, training.ActivityHall, 50), sess(-10, training.ActivityHall, 50),
 		sess(-12, training.ActivityHall, 50), sess(-15, training.ActivityHall, 50),
-		sess(-2, training.ActivityHall, 50), sess(-1, training.ActivityLunge, 20) /* 70 */, sess(-1, training.ActivityWalker, 30),
+		sess(-2, training.ActivityHall, 50), sess(-1, training.ActivityLunge, 20) /* 70 */, sess(-1, training.ActivityGroundwork, 30),
 	}
 	v := Check(in, training.ActivityHall, 45)
 	if v.OK {

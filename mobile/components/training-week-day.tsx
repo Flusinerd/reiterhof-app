@@ -3,16 +3,21 @@ import { BookOpen } from "lucide-react-native";
 import { Pressable, View } from "react-native";
 
 import { ActivityIcon } from "@/components/training-activity-icon";
-import { Button, Text } from "@/components/ui";
+import { Badge, Button, Text } from "@/components/ui";
 import type { WeekDay } from "@/lib/api/training";
 import { weekRehaText } from "@/lib/reha";
 import { dayStatusLabel, formatDayLong, weekdayShort } from "@/lib/training";
-import type { PlanDay } from "@/lib/training-plan";
+import { dayFocusLabel, dayFocusLines, mainExercise, type FocusEntry } from "@/lib/training-focus";
+import { plannedMinutes, type PlanDay } from "@/lib/training-plan";
 import { showTestsText } from "@/lib/training-profile";
 
 export type WeekDayRowProps = {
   day: WeekDay;
   draftDay?: PlanDay;
+  /** The focus catalog, for the label of a focus key the API did not label (empty on older backends). */
+  focuses?: readonly FocusEntry[];
+  /** The horse, so that the exercise opens with its equipment. */
+  horseId?: string;
   editable: boolean;
   busy: boolean;
   onTake: () => void;
@@ -35,20 +40,28 @@ function DayNumber({ date, today }: { date: string; today: boolean }) {
 
 /**
  * One day of the week as a row (planning list): the big day number, who trains, the activity with
- * minutes, exercise and focus, then reha and show underneath. Tapping edits the day when allowed.
+ * minutes, the focus as a chip, the exercise and the note on the equipment, then reha and show
+ * underneath. Tapping edits the day when allowed.
  */
-export function WeekDayRow({ day, draftDay, editable, busy, onTake, onEdit }: WeekDayRowProps) {
+export function WeekDayRow({ day, draftDay, focuses, horseId, editable, busy, onTake, onEdit }: WeekDayRowProps) {
   const router = useRouter();
   const label = dayStatusLabel(day.status, day.user, day.is_me, day.rest_reason);
   const open = day.status === "open" || (day.status === "today" && !day.user);
   const faded = day.status === "empty" || day.status === "rest";
-  const summary = draftDay ? draftSummary(draftDay) : label;
+  const focus = dayFocusLines(day, focuses);
+  const exercise = mainExercise(day);
+  // A planned day has no logged minutes; the plan says how long it is.
+  const minutes = plannedMinutes(day);
+  const activityText = day.activity ? `${day.label ?? ""}${minutes > 0 ? `, ${minutes} Min.` : ""}` : "";
+  const summary = draftDay
+    ? draftSummary(draftDay, focuses)
+    : [label, activityText, focus.chip ? `Schwerpunkt ${focus.chip}` : ""].filter(Boolean).join(", ");
   const head = (
     <>
       <DayNumber date={day.date} today={day.is_today} />
       <View className="flex-1 gap-0.5">
         {draftDay ? (
-          <DraftBody day={draftDay} />
+          <DraftBody day={draftDay} focuses={focuses} />
         ) : (
           <>
             <Text
@@ -59,15 +72,19 @@ export function WeekDayRow({ day, draftDay, editable, busy, onTake, onEdit }: We
               {label}
             </Text>
             {day.activity ? (
-              <View className="flex-row items-center gap-1.5">
-                <ActivityIcon activity={day.activity} size={14} className="text-muted" />
-                <Text variant="bodySm" tone="muted">
-                  {day.label}
-                  {day.minutes > 0 ? ` · ${day.minutes} Min.` : ""}
-                </Text>
+              <View className="flex-row flex-wrap items-center gap-x-2 gap-y-1">
+                <View className="flex-row items-center gap-1.5">
+                  <ActivityIcon activity={day.activity} size={14} className="text-muted" />
+                  <Text variant="bodySm" tone="muted">
+                    {day.label}
+                    {minutes > 0 ? ` · ${minutes} Min.` : ""}
+                  </Text>
+                </View>
+                {focus.chip ? <Badge variant="primary" label={focus.chip} /> : null}
               </View>
             ) : null}
-            {day.focus ? <Text variant="secondary">Schwerpunkt: {day.focus}</Text> : null}
+            {focus.text ? <Text variant="secondary">{focus.text}</Text> : null}
+            {day.equipment_note ? <Text variant="secondary">{day.equipment_note}</Text> : null}
             {day.note && day.status !== "done" ? (
               <Text variant="secondary" numberOfLines={2}>
                 {day.note}
@@ -104,15 +121,15 @@ export function WeekDayRow({ day, draftDay, editable, busy, onTake, onEdit }: We
           <Button label="Ich" size="sm" variant="outline" loading={busy} onPress={onTake} />
         ) : null}
       </View>
-      {!draftDay && day.exercise ? (
+      {!draftDay && exercise ? (
         <View className="ml-[68px]">
           <Button
-            label={`Übung: ${day.exercise.title}`}
+            label={`Übung: ${exercise.title}`}
             variant="ghost"
             size="sm"
             icon={BookOpen}
             className="-ml-4"
-            onPress={() => router.push(`/training/exercises/${day.exercise!.id}` as Href)}
+            onPress={() => router.push(`/training/exercises/${exercise.id}${horseId ? `?horse=${horseId}` : ""}` as Href)}
           />
         </View>
       ) : null}
@@ -148,15 +165,18 @@ export function WeekDayRow({ day, draftDay, editable, busy, onTake, onEdit }: We
   );
 }
 
-function draftSummary(day: PlanDay): string {
+function draftSummary(day: PlanDay, focuses?: readonly FocusEntry[]): string {
   const what = day.activity === "rest" ? day.label : `${day.label}${day.minutes > 0 ? `, ${day.minutes} Min.` : ""}`;
-  return `Entwurf: ${what}`;
+  const chip = day.activity === "rest" ? null : dayFocusLabel(day, focuses);
+  return `Entwurf: ${what}${chip ? `, Schwerpunkt ${chip}` : ""}`;
 }
 
 /** The proposal of one day in the draft: eyebrow with the source, unit, who, focus, exercise and the reason. */
-function DraftBody({ day }: { day: PlanDay }) {
+function DraftBody({ day, focuses }: { day: PlanDay; focuses?: readonly FocusEntry[] }) {
   const rest = day.activity === "rest";
   const source = day.edited ? "Geändert" : day.source === "ai" ? "KI" : "Regel";
+  const focus = dayFocusLines(day, focuses);
+  const exercise = mainExercise(day);
   return (
     <>
       <Text variant="eyebrow" tone="accent">
@@ -171,8 +191,9 @@ function DraftBody({ day }: { day: PlanDay }) {
       </View>
       {day.level_label && !rest ? <Text variant="secondary">{day.level_label}</Text> : null}
       {day.user ? <Text variant="secondary">{rest ? `${day.user.name} bleibt eingetragen` : `für ${day.user.name}`}</Text> : null}
-      {day.focus ? <Text variant="secondary">Schwerpunkt: {day.focus}</Text> : null}
-      {day.exercise ? <Text variant="secondary">Übung: {day.exercise.title}</Text> : null}
+      {!rest && focus.chip ? <Badge variant="primary" label={focus.chip} /> : null}
+      {!rest && focus.text ? <Text variant="secondary">{focus.text}</Text> : null}
+      {exercise ? <Text variant="secondary">Übung: {exercise.title}</Text> : null}
       {!day.edited && day.reason ? <Text variant="secondary">{day.reason}</Text> : null}
       {!day.edited && day.note ? <Text variant="secondary">Bedingung: {day.note}</Text> : null}
     </>

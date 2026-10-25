@@ -54,13 +54,17 @@ today's date (the stable-local calendar day; from 04:00 on it is the blanket day
 
 **Stored items**: the user's own `reminders` rows that are not dismissed and whose time (`sent_at`, else `due_at`) lies in the window.
 They are placed at `sent_at` when it exists (what the user experienced), otherwise at `due_at`. `dismissible = true`.
+The health module keeps them true: marking an item done ("Gabe beenden" for a medication), moving its due date, changing its
+interval, daily time or reminder days and deleting it dismiss the item's stored rows for **all** users in the same transaction
+(`dismissed_at`; the rows stay, so the job's claim and unique index keep working), and the undo of a "done" restores exactly
+those rows. Otherwise "Fällig: Luna, Wurmkur: morgen" would stay in the list, and on Heute, after the item was dealt with.
 
 **Computed items** (not rows yet, `computed = true`, `dismissible = false`, id `c:<kind>:<source>:<date>`), for the user's own
 horses (owner or rider) or requests:
 
 | Kind | Source | Placed at |
 | --- | --- | --- |
-| `medication` | `health_items` with `daily_time` (course not over) | today at that time |
+| `medication` | `health_items` with `daily_time` (course not over, not ended today) | today at that time |
 | `health_due` | `health_items` without `daily_time` due in the window, **overdue ones too** (listed under "Heute") | due date, all day |
 | `reha_checkup` | active `reha_plans` with `checkup_date` in the window | checkup date, all day |
 | `helper` | open/assigned requests the user helps with (`request_assignees`), date in the window | date and `time_from` (all day without) |
@@ -69,6 +73,11 @@ horses (owner or rider) or requests:
 `training_plan` is optional: users who switched the kind off do not see it. Computed items are dropped when a stored row for the same
 thing is in the window (same kind and source, e.g. the medication push of 08:00 already made its row), so nothing shows up twice.
 Computed items cannot be dismissed; they are completed where they live (health "erledigt", request done, ...). At most 100 items.
+
+**Dismissed pushes keep their twin hidden**: a stored row the user dismissed is not listed, but it still counts as "the push of this item is
+in the window", so the computed item of the same thing stays hidden too (otherwise an identical, undismissable row would appear after the
+refetch). It is the user's own choice (other recipients keep theirs) and only for the window: the next day the push lies outside it and the
+open item is listed again. In the app the check on such rows reads "Ausblenden", not "Erledigt".
 
 `screen` follows the convention of the features (`data.screen` of their pushes): `/blankets`, `/horses/{id}/blanket-plan`,
 `/horses/{id}/health`, `/horses/{id}/reha`, `/requests/{id}`, `/training/week`, or `""` (none; for example when the source row is gone).
@@ -109,7 +118,8 @@ the settings screen links there.
   open), then "Heute" and one heading per following day, each with rows in the look of the timeline of "Heute"
   (`components/reminder-row.tsx`: time in brass, "fällig" in red for something overdue, "·" for all-day, title, text, kind;
   `rowTime` and `rowMeta` in `lib/reminders.ts`). Tapping a row opens its `screen` (only internal whitelisted routes), the quiet
-  check icon "Erledigt" dismisses a stored reminder. Refreshes on `blanket_state.changed` and `request.changed`.
+  check icon "Erledigt" dismisses a stored reminder; on a push about an appointment (`health_due`, `medication`, `reha_checkup`) it is
+  "Ausblenden" with an eye icon, since the appointment is completed in the health list or the reha plan (`dismissAction` in `lib/reminders.ts`). Refreshes on every event that changes it (`RealtimeBridge`: blanket state, requests, health, reha, training, horses; also when a push arrives while the app is open).
 - `/settings`: "Benachrichtigungen" (switch per kind, banner "Mitteilungen erlauben" without push consent, which opens the consent
   sheet, then the reminder time in quarter-hour steps with Speichern, admins only; members see the time), "Stallgasse" (invite
   card, admins only), "Konto" (links to the name screen, to `/presence` for geofence and visibility and to

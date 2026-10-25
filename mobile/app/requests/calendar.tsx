@@ -8,11 +8,13 @@ import { RequestRow } from "@/components/request-row";
 import { Button, Card, PageHeader, Screen, SectionTitle, Text } from "@/components/ui";
 import { requestKeys, requestsApi } from "@/lib/api/requests";
 import { useAuth } from "@/lib/auth";
+import { pushOnce } from "@/lib/navigation";
 import { toIsoDate } from "@/lib/requests";
 import { shareCalendarFeed } from "@/lib/requests-calendar";
 import { requestErrorMessage } from "@/lib/requests-errors";
 import { groupRequestsByDay } from "@/lib/stable-tab";
 import { useColors } from "@/lib/theme";
+import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 
 /** "Mein Kalender": the requests I help with, by day. */
 export default function HelperCalendar() {
@@ -22,6 +24,7 @@ export default function HelperCalendar() {
   const { user } = useAuth();
   const today = useMemo(() => toIsoDate(new Date()), []);
   const query = useQuery({ queryKey: requestKeys.calendar, queryFn: requestsApi.calendar });
+  useRefreshOnFocus([requestKeys.calendar]);
   const requests = query.data?.requests ?? [];
 
   return (
@@ -48,7 +51,7 @@ export default function HelperCalendar() {
       ) : query.isError ? (
         <Card className="gap-3">
           <Text variant="body">{requestErrorMessage(query.error)}</Text>
-          <Button label="Erneut versuchen" variant="outline" onPress={() => void query.refetch()} />
+          <Button label="Erneut versuchen" variant="outline" onPress={() => query.refetch()} />
         </Card>
       ) : requests.length === 0 ? (
         <View className="gap-3">
@@ -70,7 +73,7 @@ export default function HelperCalendar() {
                   userId={user?.id}
                   withDay={false}
                   last={i === group.items.length - 1}
-                  onOpen={() => router.push({ pathname: "/requests/[id]", params: { id: r.id } })}
+                  onOpen={() => pushOnce({ pathname: "/requests/[id]", params: { id: r.id } })}
                 />
               ))}
             </View>
@@ -78,7 +81,7 @@ export default function HelperCalendar() {
         ))
       )}
 
-      <Button label="Kalenderdatei teilen" icon={Share2} variant="outline" fullWidth onPress={() => void shareCalendarFeed()} />
+      <Button label="Kalenderdatei teilen" icon={Share2} variant="outline" fullWidth onPress={() => shareCalendarFeed()} />
     </Screen>
   );
 }

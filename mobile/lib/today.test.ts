@@ -3,7 +3,17 @@ import { test } from "node:test";
 
 import type { TodayHorse } from "./blankets.ts";
 import type { ReminderItem } from "./reminders.ts";
-import { buildToday, nextAction, nextEyebrow, reminderText, todaySummary, type PlanDay, type TodayInput } from "./today.ts";
+import {
+  buildToday,
+  nextAction,
+  nextEyebrow,
+  reminderText,
+  todayLoad,
+  todaySummary,
+  type PlanDay,
+  type TodayInput,
+  type TodaySource,
+} from "./today.ts";
 
 const tz = "Europe/Berlin";
 
@@ -168,4 +178,62 @@ test("reminder texts lead with the thing", () => {
   });
   const view = buildToday(input({ reminders: [reminder({ body: "Wurmkur: seit 9 Tagen überfällig (15.10.2026)." })] }));
   assert.equal(nextAction(view.next!), "Zum Termin");
+});
+
+test("a training entry carries the focus of the slot in its detail", () => {
+  const detailOf = (over: Partial<PlanDay>) =>
+    buildToday(input({ plans: [{ horseId: "h1", horseName: "Luna", days: [day(over)] }] })).next?.detail;
+  // The label the API sends comes right after the minutes.
+  assert.equal(detailOf({ focus_key: "takt", focus_label: "Takt" }), "45 Min. · Takt · Schenkelweichen · mit dir");
+  // Without a label the key's own is used; free text and an absent key add nothing.
+  assert.equal(detailOf({ focus_key: "geraderichten" }), "45 Min. · Geraderichtung · Schenkelweichen · mit dir");
+  assert.equal(detailOf({ focus_key: null, focus_label: null }), "45 Min. · Schenkelweichen · mit dir");
+  // The main exercise of the unit replaces the single exercise of older backends.
+  assert.equal(
+    detailOf({
+      focus_key: "takt",
+      focus_label: "Takt",
+      unit: { main: { exercise: { id: "e9", title: "Trabstangen" }, minutes: 25 } },
+    }),
+    "45 Min. · Takt · Trabstangen · mit dir",
+  );
+  // A planned day has no logged minutes (the API says 0): the unit or the note it was saved with tell.
+  assert.equal(detailOf({ minutes: 0, note: "Plan: 45 Min." }), "45 Min. · Schenkelweichen · mit dir");
+  assert.equal(
+    detailOf({ minutes: 0, unit: { warmup: { exercise: null, minutes: 10 }, main: { exercise: null, minutes: 25 }, cooldown: { exercise: null, minutes: 10 } } }),
+    "45 Min. · Schenkelweichen · mit dir",
+  );
+  // A rider's slot and a done slot keep their endings.
+  const rider = buildToday(
+    input({
+      plans: [{ horseId: "h1", horseName: "Luna", days: [day({ is_me: false, user: { id: "u2", name: "Mia" }, focus_label: "Gelassenheit", focus_key: "gelassenheit" })] }],
+    }),
+  );
+  assert.equal(rider.today[0]?.detail, "45 Min. · Gelassenheit · Schenkelweichen · Mia");
+  const done = buildToday(
+    input({ plans: [{ horseId: "h1", horseName: "Luna", days: [day({ status: "done", focus_label: "Takt", focus_key: "takt" })] }] }),
+  );
+  assert.equal(done.today[0]?.detail, "45 Min. · Takt · Schenkelweichen · erledigt");
+});
+
+const ok = (data: unknown = []): TodaySource => ({ isPending: false, isError: false, data, error: null });
+const pending: TodaySource = { isPending: true, isError: false, data: undefined, error: null };
+const failed = (error: unknown): TodaySource => ({ isPending: false, isError: true, data: undefined, error });
+
+test("a failed query is not an empty answer: Heute does not claim that all is done", () => {
+  const offline = new Error("offline");
+  assert.deepEqual(todayLoad([ok(), failed(offline), ok()]), { state: "failed", error: offline });
+  // Also while the others are still on their way: the failure is final until somebody retries.
+  assert.deepEqual(todayLoad([pending, failed(offline)]), { state: "failed", error: offline });
+});
+
+test("loading until every query has answered, then ready", () => {
+  assert.deepEqual(todayLoad([ok(), pending]), { state: "loading" });
+  assert.deepEqual(todayLoad([ok(), ok(), ok()]), { state: "ready", stale: false });
+  assert.deepEqual(todayLoad([]), { state: "ready", stale: false });
+});
+
+test("a failed refresh keeps the cached view and marks it as not current", () => {
+  const refreshFailed: TodaySource = { isPending: false, isError: true, data: [1], error: new Error("offline") };
+  assert.deepEqual(todayLoad([ok(), refreshFailed]), { state: "ready", stale: true });
 });

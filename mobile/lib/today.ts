@@ -5,6 +5,8 @@
 import type { Recommendation as BlanketRecommendation, TodayHorse } from "./blankets.ts";
 import { formatClock, localDate } from "./presence-format.ts";
 import type { ReminderItem } from "./reminders.ts";
+import { dayFocusLabel, mainExercise, type Unit } from "./training-focus.ts";
+import { plannedMinutes } from "./training-plan.ts";
 import { activityLabel, type DayStatus } from "./training.ts";
 
 /** The parts of a week plan day the timeline needs (see WeekDay in lib/api/training.ts). */
@@ -17,6 +19,12 @@ export type PlanDay = {
   label?: string;
   minutes: number;
   exercise: { id: string; title: string } | null;
+  /** Focus of the slot from the catalog and the unit plan; absent on older backends. */
+  focus_key?: string | null;
+  focus_label?: string | null;
+  unit?: Unit | null;
+  /** The note the day was saved with ("Plan: 45 Min."); the planned minutes come from it when nothing is logged yet. */
+  note?: string | null;
   show: { name: string; time?: string; tests: { name: string; time?: string }[] } | null;
 };
 
@@ -108,7 +116,12 @@ function trainingEntry(plan: HorsePlan, day: PlanDay, when: "today" | "tomorrow"
     day: when,
     time: null,
     title: done && !day.is_me && day.user ? `${plan.horseName} · ${day.user.name} war da` : `${plan.horseName} · ${activityText(day)}`,
-    detail: joinDetail([day.minutes ? `${day.minutes} Min.` : "", day.exercise?.title, done ? "erledigt" : who]),
+    detail: joinDetail([
+      plannedMinutes(day) ? `${plannedMinutes(day)} Min.` : "",
+      dayFocusLabel(day),
+      mainExercise(day)?.title,
+      done ? "erledigt" : who,
+    ]),
     tone: "default",
     done,
     mine: doer && !done,
@@ -276,4 +289,26 @@ export function todaySummary(view: TodayView): string {
   const open = [view.next, ...view.today].filter((e): e is TodayEntry => !!e && !e.done && e.mine).length;
   if (open === 0) return "Für heute ist alles erledigt.";
   return open === 1 ? "Eine Sache steht heute an." : `${open} Dinge stehen heute an.`;
+}
+
+/** What "Heute" needs to know about each query behind it (a React Query result fits). */
+export type TodaySource = { isPending: boolean; isError: boolean; data: unknown; error: unknown };
+
+export type TodayLoad =
+  | { state: "loading" }
+  /** A query failed and has no earlier answer to fall back on: its empty list would read as "all done". */
+  | { state: "failed"; error: unknown }
+  /** Everything is there. `stale` when a later refresh failed, so the view comes from the cache. */
+  | { state: "ready"; stale: boolean };
+
+/**
+ * Whether the view of "Heute" may be built. A failed query is no empty answer: without this check the
+ * screen says "Für heute ist alles erledigt." (or offers "Pferd anlegen") after a failed request and hides
+ * what is due.
+ */
+export function todayLoad(sources: readonly TodaySource[]): TodayLoad {
+  const failed = sources.find((s) => s.isError && s.data === undefined);
+  if (failed) return { state: "failed", error: failed.error };
+  if (sources.some((s) => s.isPending)) return { state: "loading" };
+  return { state: "ready", stale: sources.some((s) => s.isError) };
 }

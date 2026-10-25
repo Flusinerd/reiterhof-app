@@ -1,4 +1,4 @@
-import { router, type Href } from "expo-router";
+import type { Href } from "expo-router";
 import { Activity, FileText, HeartPulse, Pencil, Shirt } from "lucide-react-native";
 import { View } from "react-native";
 
@@ -9,6 +9,7 @@ import { Button, Icon, Section, Text } from "@/components/ui";
 import { ListRow, RowList } from "@/components/ui/list-row";
 import { useDocuments, useEmergency, type Horse } from "@/lib/api/horses";
 import { horseRoutes } from "@/lib/horse-format";
+import { pushOnce } from "@/lib/navigation";
 
 /**
  * "Akte" of the horse page: emergency card preview, riders with their rules, documents, the links
@@ -18,7 +19,7 @@ export function HorseFileTab({ horse: h }: { horse: Horse }) {
   const emergency = useEmergency(h.id);
   const canSeeDocuments = h.can_manage || h.i_ride;
   const documents = useDocuments(h.id, canSeeDocuments);
-  const go = (path: string) => router.push(path as Href);
+  const go = (path: string) => pushOnce(path as Href);
 
   return (
     <View className="gap-6">

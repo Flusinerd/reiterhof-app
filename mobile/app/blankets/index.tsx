@@ -1,6 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { router, type Href } from "expo-router";
-import { useState } from "react";
+import type { Href } from "expo-router";
 import { RefreshControl, View } from "react-native";
 
 import { BlanketDoneRow, BlanketHorseRow } from "@/components/blanket-horse-row";
@@ -9,7 +8,7 @@ import { Button, PageHeader, Screen, SectionTitle, Text } from "@/components/ui"
 import { WeatherCard } from "@/components/weather-card";
 import { WeatherWarnings } from "@/components/weather-warnings";
 import { errorMessage } from "@/lib/api";
-import { BLANKET_PLAN_EVENT, BLANKET_STATE_EVENT, blanketKeys, useSetState, useToday } from "@/lib/api/blankets";
+import { blanketKeys, useSetState, useToday } from "@/lib/api/blankets";
 import { weatherKeys } from "@/lib/api/weather";
 import { useAuth } from "@/lib/auth";
 import {
@@ -20,8 +19,12 @@ import {
   type StateAction,
 } from "@/lib/blankets";
 import { horseRoutes } from "@/lib/horse-format";
-import { useInvalidateOnEvents } from "@/lib/realtime";
+import { pushOnce } from "@/lib/navigation";
 import { useColors } from "@/lib/theme";
+import { mutationKeys } from "@/lib/query-keys";
+import { useKeyedErrors } from "@/lib/use-keyed-errors";
+import { usePendingVariables, useSubmitOnce } from "@/lib/use-pending";
+import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 
 /** "Mittwoch, 30. September" */
 function dateLine(date: Date): string {
@@ -38,23 +41,22 @@ export default function Blankets() {
   const queryClient = useQueryClient();
   const { me } = useAuth();
   const today = useToday();
-  const setState = useSetState();
-  const [pending, setPending] = useState<{ horseId: string; action: StateAction } | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  useInvalidateOnEvents({
-    [BLANKET_STATE_EVENT]: [blanketKeys.today],
-    [BLANKET_PLAN_EVENT]: [blanketKeys.all],
-  });
+  useRefreshOnFocus([blanketKeys.all]);
+  // The row moves to "Erledigt" at once and comes back with the error when the call fails.
+  const setState = useSetState({ optimistic: true });
+  // Every horse whose state is being sent shows its own spinner, however many are in flight.
+  const sending = usePendingVariables<{ horseId: string; action: StateAction }>(mutationKeys.blanketState);
+  const pendingOf = (horseId: string) => sending.find((v) => v.horseId === horseId)?.action ?? null;
+  const once = useSubmitOnce();
+  // The error of a horse's last action, shown under that horse's buttons (the list can be long).
+  const [errors, setError] = useKeyedErrors();
   const timeZone = me?.stable?.timezone ?? "Europe/Berlin";
-  const openPlan = (horseId: string) => router.push(horseRoutes.blanketPlan(horseId) as Href);
+  const openPlan = (horseId: string) => pushOnce(horseRoutes.blanketPlan(horseId) as Href);
 
+  /** The promise keeps the tapped button busy; a repeat for the same horse right after a success is ignored. */
   function act(horseId: string, action: StateAction) {
-    setError(null);
-    setPending({ horseId, action });
-    setState.mutate(
-      { horseId, action },
-      { onError: (e) => setError(errorMessage(e)), onSettled: () => setPending(null) },
-    );
+    setError(horseId, null);
+    return once.run(horseId, () => setState.mutateAsync({ horseId, action })).catch((e) => setError(horseId, errorMessage(e)));
   }
 
   const data = today.data;
@@ -97,16 +99,10 @@ export default function Blankets() {
       </PageHeader>
 
       {open.length > 0 ? (
-        <Button label="Runde starten" fullWidth onPress={() => router.push("/blankets/round" as Href)} />
+        <Button label="Runde starten" fullWidth onPress={() => pushOnce("/blankets/round" as Href)} />
       ) : null}
 
       <WeatherWarnings timeZone={timeZone} />
-
-      {error ? (
-        <Text variant="bodySm" tone="danger" accessibilityRole="alert">
-          {error}
-        </Text>
-      ) : null}
 
       {!data ? (
         today.isError ? (
@@ -126,7 +122,8 @@ export default function Blankets() {
                     item={item}
                     timeZone={timeZone}
                     last={i === open.length - 1}
-                    pending={pending?.horseId === item.horse.id ? pending.action : null}
+                    pending={pendingOf(item.horse.id)}
+                    error={errors[item.horse.id]}
                     onAction={(a) => act(item.horse.id, a)}
                     onOpenPlan={() => openPlan(item.horse.id)}
                   />
@@ -149,7 +146,8 @@ export default function Blankets() {
                     item={item}
                     timeZone={timeZone}
                     last={i === done.length - 1}
-                    pending={pending?.horseId === item.horse.id ? pending.action : null}
+                    pending={pendingOf(item.horse.id)}
+                    error={errors[item.horse.id]}
                     onAction={(a) => act(item.horse.id, a)}
                     onOpenPlan={() => openPlan(item.horse.id)}
                   />

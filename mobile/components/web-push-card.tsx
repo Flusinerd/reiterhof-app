@@ -53,7 +53,7 @@ export function WebPushCard() {
         <Text variant="secondary">Erinnerungen und Alarme brauchen die Erlaubnis dieses Browsers.</Text>
       )}
       {state.kind === "enable" ? (
-        <Button label="Aktivieren" variant="outline" size="sm" loading={busy} onPress={() => void enable()} />
+        <Button label="Aktivieren" variant="outline" size="sm" loading={busy} onPress={() => enable()} />
       ) : null}
     </View>
   );

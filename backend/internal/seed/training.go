@@ -12,9 +12,11 @@ import (
 	"github.com/Flusinerd/reiterhof-app/backend/internal/training/load"
 )
 
-// Training seed (M6): profiles for all demo horses, a reha plan for Fanta, about two weeks of
-// sessions relative to the day of seeding and a few planned week slots. The exercise library is
-// not demo data: migration 0250 inserts it for every installation (IDs 8YY).
+// Training seed (M6, M9): profiles for all demo horses (with focuses for Luna and Fanta and the
+// start of the four-week blocks), a reha plan for Fanta, about two weeks of sessions relative to the
+// day of seeding with the focus they trained, a few planned week slots (two with a unit plan), a
+// focus of Mia as a rider and the equipment of the demo stable. The exercise library is not demo
+// data: the migrations insert it for every installation (IDs 8YY).
 //
 // ID scheme continues the one in ids.go: 8YY exercises (migration 0250), 9YY sessions, a01.. week slots,
 // b01 reha plans; training profiles are 701-707.
@@ -114,6 +116,35 @@ func insertTraining(ctx context.Context, tx pgx.Tx, now time.Time) error {
 			p.id, StableB, p.horse, p.discipline, p.level, allowed, shows, today.AddDate(0, 0, 60), rhythm, rb, p.status)
 	}
 
+	// --- focuses, block start, rider focus and equipment (fill what is still empty) ---------
+	// The first week of the four-week blocks is the current one: the demo starts in "Aufbauwoche 1 von 4".
+	monday := today.AddDate(0, 0, -training.WeekdayIndex(today))
+	for _, f := range []struct {
+		horse string
+		keys  []string
+	}{
+		{HorseLuna, []string{"losgelassenheit", "geraderichten"}},
+		{HorseFanta, []string{"kondition"}},
+	} {
+		var list []map[string]string
+		for _, k := range f.keys {
+			list = append(list, map[string]string{"key": k})
+		}
+		focuses, _ := json.Marshal(list)
+		b.Queue(`UPDATE training_profiles SET focuses = $2, cycle_start = $3
+		         WHERE horse_id = $1 AND focuses = '[]'::jsonb AND cycle_start IS NULL`, f.horse, focuses, monday)
+	}
+	q(`INSERT INTO rider_focuses (stable_id, horse_id, user_id, keys) VALUES ($1, $2, $3, $4)`,
+		StableB, HorseLuna, UserMia, []string{"gelassenheit"})
+	equipment, _ := json.Marshal(map[training.Activity]training.Location{
+		training.ActivityHall:       {Equipment: []string{"poles", "cavaletti"}},
+		training.ActivityArena:      {Equipment: []string{"poles"}},
+		training.ActivityLunge:      {Equipment: []string{}},
+		training.ActivityJumping:    {Equipment: []string{"jumps", "poles"}},
+		training.ActivityGroundwork: {Equipment: []string{"poles", "obstacles"}},
+	})
+	b.Queue(`UPDATE stables SET training_equipment = $2 WHERE id = $1 AND training_equipment = '{}'::jsonb`, StableB, equipment)
+
 	// --- reha plan for Fanta ----------------------------------------------------------
 	phases, _ := json.Marshal([]map[string]any{
 		{"name": "Schrittführen", "days": 14, "activity": "walker", "min_minutes": 15, "max_minutes": 20, "conditions": "Nur auf ebenem Boden"},
@@ -132,28 +163,29 @@ func insertTraining(ctx context.Context, tx pgx.Tx, now time.Time) error {
 		feel                  string
 		focus                 int
 		visible               bool
+		focusKey              string // what the unit trained; none for the walker
 	}
 	sessions := []sessionSeed{
-		{HorseLuna, UserJan, "hall", -13, 17, 45, 0.2, "loose", 2, true},
-		{HorseLuna, UserJan, "hack", -12, 16, 60, 0.15, "fresh", 0, true},
-		{HorseLuna, UserMia, "lunge", -10, 17, 25, 0.1, "loose", 0, true},
-		{HorseLuna, UserJan, "hall", -8, 17, 40, 0.25, "loose", 3, true},
-		{HorseLuna, UserJan, "arena", -7, 16, 45, 0.3, "tense", 1, false},
-		{HorseLuna, UserMia, "walker", -5, 18, 30, 0, "fresh", 0, true},
-		{HorseLuna, UserJan, "hall", -4, 17, 50, 0.2, "loose", 2, true},
-		{HorseLuna, UserJan, "groundwork", -2, 17, 30, 0, "loose", 0, true},
-		{HorseLuna, UserMia, "hall", -1, 17, 40, 0.15, "tired", 0, true},
-		{HorseBalu, UserJonas, "jumping", -11, 16, 40, 0.3, "fresh", 2, true},
-		{HorseBalu, UserJonas, "hack", -9, 16, 60, 0.2, "loose", 0, true},
-		{HorseBalu, UserJonas, "arena", -6, 16, 45, 0.3, "loose", 0, true},
-		{HorseBalu, UserJonas, "jumping", -3, 16, 40, 0.3, "fresh", 3, true},
-		{HorseFanta, UserAnna, "walker", -9, 15, 20, 0, "loose", 0, true},
-		{HorseFanta, UserLea, "walker", -6, 15, 20, 0, "loose", 0, true},
-		{HorseFanta, UserAnna, "walker", -3, 15, 20, 0, "fresh", 0, true},
-		{HorseCookie, UserTom, "arena", -4, 18, 45, 0.3, "fresh", 0, true},
-		{HorseMerlin, UserSarah, "hack", -5, 16, 60, 0.25, "fresh", 0, true},
-		{HorsePepe, UserKai, "hack", -2, 17, 60, 0.2, "loose", 0, true},
-		{HorseNala, UserAnna, "groundwork", -3, 15, 30, 0, "loose", 0, true},
+		{HorseLuna, UserJan, "hall", -13, 17, 45, 0.2, "loose", 2, true, "losgelassenheit"},
+		{HorseLuna, UserJan, "hack", -12, 16, 60, 0.15, "fresh", 0, true, "kondition"},
+		{HorseLuna, UserMia, "lunge", -10, 17, 25, 0.1, "loose", 0, true, "losgelassenheit"},
+		{HorseLuna, UserJan, "hall", -8, 17, 40, 0.25, "loose", 3, true, "geraderichten"},
+		{HorseLuna, UserJan, "arena", -7, 16, 45, 0.3, "tense", 1, false, "losgelassenheit"},
+		{HorseLuna, UserMia, "walker", -5, 18, 30, 0, "fresh", 0, true, ""},
+		{HorseLuna, UserJan, "hall", -4, 17, 50, 0.2, "loose", 2, true, "geraderichten"},
+		{HorseLuna, UserJan, "groundwork", -2, 17, 30, 0, "loose", 0, true, "vertrauen"},
+		{HorseLuna, UserMia, "hall", -1, 17, 40, 0.15, "tired", 0, true, "losgelassenheit"},
+		{HorseBalu, UserJonas, "jumping", -11, 16, 40, 0.3, "fresh", 2, true, "springen"},
+		{HorseBalu, UserJonas, "hack", -9, 16, 60, 0.2, "loose", 0, true, "gelaende"},
+		{HorseBalu, UserJonas, "arena", -6, 16, 45, 0.3, "loose", 0, true, "losgelassenheit"},
+		{HorseBalu, UserJonas, "jumping", -3, 16, 40, 0.3, "fresh", 3, true, "springen"},
+		{HorseFanta, UserAnna, "walker", -9, 15, 20, 0, "loose", 0, true, ""},
+		{HorseFanta, UserLea, "walker", -6, 15, 20, 0, "loose", 0, true, ""},
+		{HorseFanta, UserAnna, "walker", -3, 15, 20, 0, "fresh", 0, true, ""},
+		{HorseCookie, UserTom, "arena", -4, 18, 45, 0.3, "fresh", 0, true, "gelassenheit"},
+		{HorseMerlin, UserSarah, "hack", -5, 16, 60, 0.25, "fresh", 0, true, "kondition"},
+		{HorsePepe, UserKai, "hack", -2, 17, 60, 0.2, "loose", 0, true, "gelaende"},
+		{HorseNala, UserAnna, "groundwork", -3, 15, 30, 0, "loose", 0, true, "vertrauen"},
 	}
 	for i, s := range sessions {
 		gait, _ := json.Marshal(map[string]float64{"canter": s.canter})
@@ -168,33 +200,65 @@ func insertTraining(ctx context.Context, tx pgx.Tx, now time.Time) error {
 			}
 		}
 		q(`INSERT INTO sessions (id, stable_id, horse_id, user_id, activity, started_at, duration_min, gait_shares, feel,
-		                         focus_rating, visible_to_rider, load_score, source, exercise_id)
-		   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULLIF($9, ''), $10, $11, $12, 'quick', $13)`,
+		                         focus_rating, visible_to_rider, load_score, source, exercise_id, focus_key)
+		   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULLIF($9, ''), $10, $11, $12, 'quick', $13, NULLIF($14, ''))`,
 			seedID("9", i+1), StableB, s.horse, s.user, s.activity, at(s.offset, s.hour), s.minutes, gait, s.feel,
-			focus, s.visible, score, exercise)
+			focus, s.visible, score, exercise, s.focusKey)
+		// The sessions of an earlier seed run get their focus too, as long as they have none.
+		b.Queue(`UPDATE sessions SET focus_key = NULLIF($2, '') WHERE id = $1 AND focus_key IS NULL`, seedID("9", i+1), s.focusKey)
 	}
 
 	// --- planned week slots for Luna --------------------------------------------------
+	// Two of them come with the focus and the unit plan the week plan would have made: Lösen, Arbeiten
+	// and Entspannen with an exercise of the library each (the main one also in exercise_id). The
+	// exercises are counters of the 8YY ids: 1 Zügel-aus-der-Hand-kauen-lassen, 2 Schlangenlinien,
+	// 9 Zirkel verkleinern und vergrößern, 10 Schulterherein.
+	type unitPlan struct {
+		warmup, main, cooldown int
+		minutes                [3]int
+	}
 	slots := []struct {
 		n, offset int
 		user      string
 		activity  string
 		status    string
+		focusKey  string
+		unit      *unitPlan
 	}{
-		{1, 1, UserMia, "hall", "planned"},
-		{2, 2, UserJan, "arena", "planned"},
-		{3, 5, "", "", "rest"},
+		{1, 1, UserMia, "hall", "planned", "losgelassenheit", &unitPlan{2, 9, 1, [3]int{15, 22, 8}}},
+		{2, 2, UserJan, "arena", "planned", "geraderichten", &unitPlan{2, 10, 1, [3]int{15, 22, 8}}},
+		{3, 5, "", "", "rest", "", nil},
 	}
 	for _, s := range slots {
-		var user, activity *string
+		var user, activity, focusKey, exercise *string
+		var plan []byte
 		if s.user != "" {
 			user = &s.user
 		}
 		if s.activity != "" {
 			activity = &s.activity
 		}
-		q(`INSERT INTO week_slots (id, stable_id, horse_id, day, user_id, activity, status) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-			seedID("a", s.n), StableB, HorseLuna, today.AddDate(0, 0, s.offset), user, activity, s.status)
+		if s.focusKey != "" {
+			focusKey = &s.focusKey
+		}
+		if u := s.unit; u != nil {
+			part := func(n, minutes int) map[string]any {
+				return map[string]any{"exercise_id": seedID("8", n), "minutes": minutes}
+			}
+			plan, _ = json.Marshal(map[string]any{
+				"warmup": part(u.warmup, u.minutes[0]), "main": part(u.main, u.minutes[1]), "cooldown": part(u.cooldown, u.minutes[2]),
+			})
+			id := seedID("8", u.main)
+			exercise = &id
+		}
+		q(`INSERT INTO week_slots (id, stable_id, horse_id, day, user_id, activity, status, focus_key, unit_plan, exercise_id)
+		   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+			seedID("a", s.n), StableB, HorseLuna, today.AddDate(0, 0, s.offset), user, activity, s.status, focusKey, plan, exercise)
+		if plan != nil {
+			// The slots of an earlier seed run get the plan too, as long as they have none.
+			b.Queue(`UPDATE week_slots SET focus_key = $2, unit_plan = $3, exercise_id = $4
+			         WHERE id = $1 AND focus_key IS NULL AND unit_plan IS NULL`, seedID("a", s.n), focusKey, plan, exercise)
+		}
 	}
 
 	res := tx.SendBatch(ctx, &b)

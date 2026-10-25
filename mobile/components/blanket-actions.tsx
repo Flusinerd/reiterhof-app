@@ -20,7 +20,8 @@ export function BlanketActions({
   /** The action that is being sent right now (shows a spinner). */
   pending: StateAction | null;
   disabled?: boolean;
-  onAction: (action: StateAction) => void;
+  /** May return a promise: the tapped button stays busy until it settles. */
+  onAction: (action: StateAction) => void | Promise<unknown>;
 }) {
   const actions = stateActions(recommendation);
   return (

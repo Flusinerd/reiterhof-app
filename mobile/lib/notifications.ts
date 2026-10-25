@@ -1,9 +1,11 @@
+import { useQueryClient } from "@tanstack/react-query";
 import * as Notifications from "expo-notifications";
 import { router, type Href } from "expo-router";
 import { useEffect, useRef } from "react";
 
 import { useAuth } from "./auth";
 import { notificationRoute } from "./notifications-core.ts";
+import { pushKeys } from "./query-effects.ts";
 
 // Foreground presentation: show the notification as a banner and in the list. The sound is on
 // because Android does not drop the banner down without it. Without this handler notifications
@@ -70,4 +72,20 @@ export function useNotificationNavigation(): void {
       pending.current = null;
     }
   }, [ready, signedOut]);
+}
+
+/**
+ * A push that arrives while the app is open (shown as a banner) means something changed: the reminder
+ * center lists the pushes that were sent, and a helper, observation or weather push changes the data
+ * behind it too. Marks those queries stale (`pushKeys`). Render it once, while signed in.
+ */
+export function useRefreshOnPush(): void {
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    const subscription = Notifications.addNotificationReceivedListener((notification) => {
+      const kind = (notification.request.content.data as { kind?: unknown } | null | undefined)?.kind;
+      for (const queryKey of pushKeys(kind)) void queryClient.invalidateQueries({ queryKey });
+    });
+    return () => subscription.remove();
+  }, [queryClient]);
 }

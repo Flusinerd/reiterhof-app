@@ -25,7 +25,10 @@ type Props = {
   timeZone: string;
   /** No hairline below the last row of a list. */
   last?: boolean;
-  onAction: (action: StateAction) => void;
+  /** The error of the last action on this horse, under its buttons (not at the top of a long list). */
+  error?: string;
+  /** May return a promise: the tapped button stays busy until it settles. */
+  onAction: (action: StateAction) => void | Promise<unknown>;
   onOpenPlan: () => void;
 };
 
@@ -34,7 +37,7 @@ type Props = {
  * box, tonight's blanket in italic, and the state buttons in one compact row below. Tapping the
  * head opens the blanket plan of the horse.
  */
-export function BlanketHorseRow({ item, pending, last = false, onAction, onOpenPlan }: Props) {
+export function BlanketHorseRow({ item, pending, last = false, error, onAction, onOpenPlan }: Props) {
   const { horse, recommendation: rec } = item;
   const [choiceOpen, setChoiceOpen] = useState(false);
   const hint = ruleHint(rec, item.rule_recommendation);
@@ -89,6 +92,11 @@ export function BlanketHorseRow({ item, pending, last = false, onAction, onOpenP
       ) : null}
 
       <BlanketActions recommendation={rec} pending={pending} disabled={pending !== null} onAction={onAction} />
+      {error ? (
+        <Text variant="bodySm" tone="danger" accessibilityRole="alert">
+          {error}
+        </Text>
+      ) : null}
       <Pressable
         accessibilityRole="button"
         onPress={() => setChoiceOpen(true)}
@@ -105,7 +113,7 @@ export function BlanketHorseRow({ item, pending, last = false, onAction, onOpenP
 }
 
 /** A finished horse as a faded row; tapping it shows the buttons again to correct the state. */
-export function BlanketDoneRow({ item, pending, timeZone, last = false, onAction, onOpenPlan }: Props) {
+export function BlanketDoneRow({ item, pending, timeZone, last = false, error, onAction, onOpenPlan }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [choiceOpen, setChoiceOpen] = useState(false);
   const { horse, state } = item;
@@ -134,14 +142,20 @@ export function BlanketDoneRow({ item, pending, timeZone, last = false, onAction
         </View>
         <Icon as={Check} size={20} className="text-success" />
       </Pressable>
+      {error ? (
+        <Text variant="bodySm" tone="danger" accessibilityRole="alert" className="pb-3">
+          {error}
+        </Text>
+      ) : null}
       {expanded ? (
         <View className="gap-3 pb-4">
           <BlanketActions
             recommendation={item.recommendation}
             pending={pending}
             disabled={pending !== null}
-            onAction={(a) => {
-              onAction(a);
+            // The row stays open (and shows the spinner) until the new state is in.
+            onAction={async (a) => {
+              await onAction(a);
               setExpanded(false);
             }}
           />

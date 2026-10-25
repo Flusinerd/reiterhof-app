@@ -1,48 +1,45 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { router, type Href } from "expo-router";
-import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import type { Href } from "expo-router";
 import { ActivityIndicator, RefreshControl, View } from "react-native";
 
 import { ReminderHead } from "@/components/reminder-head";
 import { ReminderRow } from "@/components/reminder-row";
 import { Button, Card, Screen, SectionTitle, Text } from "@/components/ui";
-import { BLANKET_STATE_EVENT } from "@/lib/api/blankets";
+import { useEffectMutation } from "@/lib/api/mutation";
 import { reminderKeys, remindersApi, useReminders } from "@/lib/api/reminders";
-import { useInvalidateOnEvents } from "@/lib/realtime";
+import { pushOnce } from "@/lib/navigation";
+import { mutationKeys } from "@/lib/query-keys";
+import { useKeyedErrors } from "@/lib/use-keyed-errors";
+import { usePendingIds } from "@/lib/use-pending";
 import { groupByDay, reminderErrorMessage, type ReminderItem, type RemindersResponse } from "@/lib/reminders";
 import { useColors } from "@/lib/theme";
+import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 
 /** Reminder center (JAN-69): tonight's blanket check, then the reminders of today and of each day of the week. */
 export default function Reminders() {
   const c = useColors();
   const queryClient = useQueryClient();
   const reminders = useReminders("week");
-  useInvalidateOnEvents({
-    [BLANKET_STATE_EVENT]: [reminderKeys.all],
-    "request.changed": [reminderKeys.all],
-  });
-  const [error, setError] = useState<string | null>(null);
-  const [dismissingId, setDismissingId] = useState<string | null>(null);
+  useRefreshOnFocus([reminderKeys.all]);
+  // Every row that is being dismissed shows its own spinner, and a failure shows under that row.
+  const dismissing = usePendingIds(mutationKeys.reminderDismiss, (item: ReminderItem) => item.id);
+  const [errors, setError] = useKeyedErrors();
 
-  const dismiss = useMutation({
+  const dismiss = useEffectMutation({
     mutationFn: (item: ReminderItem) => remindersApi.dismiss(item.id),
-    onMutate: (item) => {
-      setError(null);
-      setDismissingId(item.id);
-    },
+    mutationKey: mutationKeys.reminderDismiss,
+    onMutate: (item) => setError(item.id, null),
     onSuccess: (_data, item) => {
-      // Remove it at once; the refetch below confirms.
+      // Remove it at once; the refetch of the effect confirms.
       queryClient.setQueryData<RemindersResponse>(reminderKeys.list("week"), (old) =>
         old
           ? { ...old, groups: old.groups.map((g) => ({ ...g, items: g.items.filter((i) => i.id !== item.id) })) }
           : old,
       );
     },
-    onError: (e) => setError(reminderErrorMessage(e)),
-    onSettled: () => {
-      setDismissingId(null);
-      void queryClient.invalidateQueries({ queryKey: reminderKeys.all });
-    },
+    onError: (e, item) => setError(item.id, reminderErrorMessage(e)),
+    effects: () => [{ type: "reminderDismissed" }],
+    errorEffects: () => [{ type: "reminderDismissed" }],
   });
 
   const data = reminders.data;
@@ -59,9 +56,10 @@ export default function Reminders() {
             timeZone={timeZone}
             today={data?.today ?? ""}
             last={i === items.length - 1}
-            dismissing={dismissingId === item.id}
-            onOpen={(screen) => router.push(screen as Href)}
-            onDismiss={(it) => dismiss.mutate(it)}
+            dismissing={dismissing.has(item.id)}
+            error={errors[item.id]}
+            onOpen={(screen) => pushOnce(screen as Href)}
+            onDismiss={(it) => dismiss.mutateAsync(it).catch(() => undefined)}
           />
         ))}
       </View>
@@ -85,18 +83,12 @@ export default function Reminders() {
     >
       <ReminderHead check={data?.blanket_check} />
 
-      {error ? (
-        <Text variant="bodySm" tone="danger" accessibilityRole="alert">
-          {error}
-        </Text>
-      ) : null}
-
       {reminders.isPending ? (
         <ActivityIndicator color={c.primary.DEFAULT} />
       ) : reminders.isError ? (
         <Card className="gap-3">
           <Text variant="body">{reminderErrorMessage(reminders.error)}</Text>
-          <Button label="Erneut versuchen" variant="outline" onPress={() => void reminders.refetch()} />
+          <Button label="Erneut versuchen" variant="outline" onPress={() => reminders.refetch()} />
         </Card>
       ) : (
         <>

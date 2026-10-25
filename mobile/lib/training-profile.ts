@@ -8,6 +8,8 @@ import {
   type Activity,
   type ActivityMode,
 } from "./training.ts";
+import { focusDraftsFrom, focusInputs, type FocusDraft, type ProfileFocus } from "./training-focus.ts";
+import type { GoalLevel } from "./training-goal.ts";
 
 /** One class (Prüfung) of a show, e.g. "A-Dressur" at "10:30"; the time may be "". */
 export type ShowTestDraft = { name: string; time: string };
@@ -105,6 +107,16 @@ export type ProfileDraft = {
   quotaActivities: Record<Activity, string>;
   status: "fit" | "reha" | "pause";
   riders: RiderDraft[];
+  /**
+   * Focuses in priority order. Undefined when the backend sent none (an older one): then nothing
+   * is sent back, because it would reject the field. Every editor sends them back as read, the
+   * focus editor changes them.
+   */
+  focuses?: FocusDraft[];
+  /** Monday of the first week of the block, as read; the focus editor sets it with the first focuses. */
+  cycleStart?: string;
+  /** The level goal to send. Only the goal sheet and the level change set it; every other save leaves the goal alone. */
+  goal?: { level: GoalLevel | null; until: string };
 };
 
 /** Shape of the API profile that the draft needs (a subset of TrainingProfile). */
@@ -141,6 +153,11 @@ export type ProfileLike = {
     may_hack_alone: boolean;
     may_ride_shows: boolean;
   }[];
+  /** Planning rebuild (newer backends): focuses, the block's start and the level goal. */
+  focuses?: ProfileFocus[];
+  cycle_start?: string | null;
+  goal_level?: GoalLevel | null;
+  goal_until?: string | null;
 };
 
 export function draftFromProfile(p: ProfileLike): ProfileDraft {
@@ -192,6 +209,8 @@ export function draftFromProfile(p: ProfileLike): ProfileDraft {
       mayHackAlone: r.may_hack_alone,
       mayRideShows: r.may_ride_shows,
     })),
+    ...(p.focuses ? { focuses: focusDraftsFrom(p.focuses) } : {}),
+    ...(p.cycle_start ? { cycleStart: p.cycle_start } : {}),
   };
 }
 
@@ -401,6 +420,9 @@ export function draftToInput(d: ProfileDraft): DraftResult {
         may_hack_alone: r.mayHackAlone,
         may_ride_shows: r.mayRideShows,
       })),
+      ...(d.focuses ? { focuses: focusInputs(d.focuses) } : {}),
+      ...(d.cycleStart ? { cycle_start: d.cycleStart } : {}),
+      ...(d.goal ? { goal_level: d.goal.level, goal_until: d.goal.until || null } : {}),
     },
   };
 }

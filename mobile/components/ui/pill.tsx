@@ -6,11 +6,13 @@ import { cn } from "@/lib/cn";
 import { Icon } from "./icon";
 import { Text } from "./text";
 
-export type PillProps = Omit<PressableProps, "children"> & {
+export type PillProps = Omit<PressableProps, "children" | "disabled"> & {
   /** German label. */
   label: string;
   /** Selected state, e.g. the active filter. */
   selected?: boolean;
+  /** Blocks presses and dims the pill, e.g. while the choice it makes is being saved. */
+  disabled?: boolean;
   icon?: LucideIcon;
   className?: string;
 };
@@ -21,18 +23,20 @@ export type PillProps = Omit<PressableProps, "children"> & {
  *
  * @example <Pill label="Alle" selected={filter === "all"} onPress={() => setFilter("all")} />
  */
-export function Pill({ label, selected = false, icon, className, ...props }: PillProps) {
+export function Pill({ label, selected = false, disabled = false, icon, className, ...props }: PillProps) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={{ selected }}
+      accessibilityState={{ selected, disabled }}
+      disabled={disabled}
       hitSlop={{ top: 4, bottom: 4, left: 2, right: 2 }}
       className={cn(
         "h-9 flex-row items-center justify-center gap-1.5 self-start rounded-pill border px-4",
         selected
           ? "border-primary bg-primary-soft"
           : "border-border bg-card active:bg-background",
+        disabled && "opacity-50",
         className,
       )}
       {...props}
