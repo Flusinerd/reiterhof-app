@@ -150,6 +150,6 @@ func GenerateFreestyle(p FreestyleParams) (Plan, error) {
 	if l, h, ok := req.Window(); ok {
 		lo, hi = l, h
 	}
-	g := &generator{kind: KindFreestyle, class: p.Class, lib: lib, seed: p.Seed, lo: lo, hi: hi, mid: (lo + hi) / 2, req: &req}
+	g := &generator{class: p.Class, lib: lib, seed: p.Seed, lo: lo, hi: hi, mid: (lo + hi) / 2, req: &req}
 	return g.run()
 }

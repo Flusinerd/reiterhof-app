@@ -118,7 +118,15 @@ func TestDressageGeneratePreviewSaveEditDelete(t *testing.T) {
 	e.call(seed.UserJan, http.MethodPut, put, string(whole), http.StatusOK)
 
 	// A rule breaks: a line removed from the middle no longer chains. 400 with the German reasons.
-	edited := removeLine(t, one, 5)
+	// (a circle starts and ends at one letter, so the line removed has to lead somewhere else).
+	cut := 5
+	for i, l := range list(obj(one["plan"])["lines"]) {
+		if i >= 3 && obj(obj(l)["start"])["node"] != obj(obj(l)["end"])["node"] {
+			cut = i
+			break
+		}
+	}
+	edited := removeLine(t, one, cut)
 	out := e.call(seed.UserJan, http.MethodPut, put, edited, http.StatusBadRequest)
 	if obj(out["error"])["code"] != "rules_broken" {
 		t.Fatalf("error = %v", out["error"])

@@ -14,14 +14,16 @@ const (
 	LengthNormal = "normal"
 )
 
-// PracticeWindow is the app's own target duration of a practice test in seconds: short 3–4 minutes,
-// normal 5–6 minutes (E, A) or 6–7 minutes (L, L**). These are our targets, not FN figures.
+// PracticeWindow is the app's own target duration of a practice test in seconds: short 3:30–5:00,
+// normal 5:00–6:00 (E, A) or 5:30–7:00 (L, L**). These are our targets, not FN figures. The window of
+// the normal test in L and L** starts at 5:30, not 6:00: with at most 26 lines a test of the 20×40 arena
+// has about 14 s per line, and 26 lines of that length are the 6 minutes the old window asked for.
 func PracticeWindow(class, length string) (lo, hi float64) {
 	switch {
 	case length == LengthShort:
 		return 210, 300
 	case ClassRank(class) >= ClassRank("L"):
-		return 360, 420
+		return 330, 420
 	}
 	return 300, 360
 }
@@ -40,38 +42,14 @@ var ErrNoPlan = errors.New("dressage: no plan found")
 
 const attempts = 250
 
-// GeneratePractice builds a practice test: own structure (entry, salute, work on both reins in
-// trot, walk and canter, salute at the end), figures from the library chained so every line starts
-// where the last ended. The same inputs and seed always give the same plan.
-func GeneratePractice(p PracticeParams) (Plan, error) {
-	if !slices.Contains(PracticeClasses, p.Class) {
-		return Plan{}, fmt.Errorf("dressage: unknown class %q", p.Class)
-	}
-	lib, ok := LibraryFor(p.Arena)
-	if !ok {
-		return Plan{}, fmt.Errorf("dressage: unknown arena %q", p.Arena)
-	}
-	if p.Length != LengthShort {
-		p.Length = LengthNormal
-	}
-	lo, hi := PracticeWindow(p.Class, p.Length)
-	g := &generator{
-		kind: KindPractice, class: p.Class, lib: lib, seed: p.Seed, hints: p.Hints,
-		lo: lo, hi: hi, mid: (lo + hi) / 2, short: p.Length == LengthShort,
-	}
-	return g.run()
-}
-
+// generator builds freestyles; practice tests have their own (practice.go).
 type generator struct {
-	kind   string
 	class  string
 	lib    *Library
 	seed   int64
-	hints  Hints
 	lo, hi float64
 	mid    float64
 	req    *Requirement
-	short  bool
 	failed map[int]int // attempts that failed per phase (diagnosis)
 }
 
@@ -117,37 +95,22 @@ func (g *generator) run() (Plan, error) {
 func (g *generator) attempt(i int, scale float64) (*Plan, float64) {
 	rng := rand.New(rand.NewSource(g.seed*7919 + int64(i)*1000003 + 17))
 	e := newEngine(g.lib, g.class, rng)
-	if g.kind == KindPractice {
-		e.allowed = allowedMovements(g.class, g.hints, rng)
-		e.focus = focusMovements(g.hints)
-	} else {
-		e.allowed = allowedMovements(g.class, Hints{}, rng)
-		for _, m := range g.req.Movements {
-			e.required[m.Key] = true
-		}
-		e.noLateralWalk = g.req.walkMeters() > 0
+	e.allowed = allowedMovements(g.class, Hints{}, rng)
+	for _, m := range g.req.Movements {
+		e.required[m.Key] = true
 	}
+	e.noLateralWalk = g.req.walkMeters() > 0
 	open, _, dir := e.opening()
 	e.r1 = dir
 	e.r2 = DirL
 	if dir == DirL {
 		e.r2 = DirR
 	}
-	var phases []phase
-	switch {
-	case g.kind == KindPractice && !g.short && ClassRank(g.class) >= ClassRank("L") && rng.Intn(2) == 0:
+	phases := slices.Clone(phasesA)
+	if g.req.needsCanterChange() {
 		phases = slices.Clone(phasesB)
-	case g.kind == KindFreestyle && g.req.needsCanterChange():
-		phases = slices.Clone(phasesB)
-	default:
-		phases = slices.Clone(phasesA)
 	}
-	if g.kind == KindFreestyle {
-		for i := range phases {
-			phases[i].freeFirst = false
-		}
-		g.assignItems(e, phases)
-	}
+	g.assignItems(e, phases)
 	e.phases = phases
 
 	fixed := e.fixedSeconds(open, e.closing(DirR))
@@ -166,7 +129,7 @@ func (g *generator) attempt(i int, scale float64) (*Plan, float64) {
 	for _, l := range openLines {
 		e.elapsed += l.Seconds
 	}
-	shares := phaseShares(phases, g.kind == KindPractice, g.kind == KindFreestyle && g.req.walkMeters() > 0, g.req.walkSeconds(), budget)
+	shares := phaseShares(phases, g.req.walkMeters() > 0, g.req.walkSeconds(), budget)
 	for pi := range phases {
 		e.pi = pi
 		ph := phases[pi]
@@ -176,32 +139,78 @@ func (g *generator) attempt(i int, scale float64) (*Plan, float64) {
 		}
 	}
 	e.specs = append(e.specs, e.closing(e.state.Dir)...)
-	lines, err := BuildLines(g.lib, e.specs)
-	if err != nil {
+	plan := g.plan(e.specs)
+	if plan == nil {
 		return nil, 0
 	}
-	plan := &Plan{Kind: g.kind, Class: g.class, Arena: g.lib.Arena.Size, Seed: g.seed, Lines: lines}
-	plan.Totals(g.lib)
-	if g.kind == KindPractice {
-		plan.Checks = CheckPractice(g.lib, g.class, plan)
-		plan.Requirements = []RequirementStatus{}
-	} else {
-		plan.Checks, plan.Requirements = CheckFreestyle(g.lib, g.class, *g.req, plan)
+	// Merge track lines that follow each other; keep the merged plan unless it breaks a rule.
+	if merged := mergeTracks(g.lib, e.specs); len(merged) < len(e.specs) {
+		if mp := g.plan(merged); mp != nil && failedRules(mp.Checks) <= failedRules(plan.Checks) {
+			plan = mp
+		}
 	}
 	return plan, plan.Seconds
 }
 
+// plan builds and checks the plan of the specs; nil when a spec is not a figure of the library.
+func (g *generator) plan(specs []Spec) *Plan {
+	lines, err := BuildLines(g.lib, specs)
+	if err != nil {
+		return nil
+	}
+	plan := &Plan{Kind: KindFreestyle, Class: g.class, Arena: g.lib.Arena.Size, Seed: g.seed, Lines: lines}
+	plan.Totals(g.lib)
+	plan.Checks, plan.Requirements = CheckFreestyle(g.lib, g.class, *g.req, plan)
+	return plan
+}
+
+func failedRules(checks []Check) int {
+	n := 0
+	for _, c := range checks {
+		if c.Rule && !c.OK {
+			n++
+		}
+	}
+	return n
+}
+
+// mergeTracks joins track lines that follow each other in the same gait and tempo into one line
+// ("H–C–M Auf dem Hufschlag" instead of "H–C" and "C–M") when the library has a track line of that
+// length (up to four letters).
+func mergeTracks(lib *Library, specs []Spec) []Spec {
+	out := make([]Spec, 0, len(specs))
+	for _, sp := range specs {
+		if n := len(out); n > 0 {
+			if m, ok := mergeTrackPair(lib, out[n-1], sp); ok {
+				out[n-1] = m
+				continue
+			}
+		}
+		out = append(out, sp)
+	}
+	return out
+}
+
+func mergeTrackPair(lib *Library, a, b Spec) (Spec, bool) {
+	oa, ob := lib.ByID[a.Option], lib.ByID[b.Option]
+	if oa == nil || ob == nil || oa.Kind != "track" || ob.Kind != "track" || a.Gait != b.Gait || a.Tempo != b.Tempo {
+		return a, false
+	}
+	for _, o := range lib.From(oa.Start) {
+		if o.Kind == "track" && o.End == ob.End && math.Abs(o.Length-(oa.Length+ob.Length)) < 1e-6 && (o.Straight || a.Tempo == TempoWorking || a.Tempo == TempoMedium && a.Gait == GaitWalk) {
+			return Spec{Option: o.ID, Gait: a.Gait, Tempo: a.Tempo}, true
+		}
+	}
+	return a, false
+}
+
 // phaseShares gives each phase its share of the time budget; the two walk phases get at least the
 // time a required walk distance needs.
-func phaseShares(phases []phase, floors, walkRequired bool, walkSec, budget float64) []float64 {
+func phaseShares(phases []phase, walkRequired bool, walkSec, budget float64) []float64 {
 	out := make([]float64, len(phases))
 	walk := 0.0
 	for i, p := range phases {
 		out[i] = p.share * budget
-		// A phase needs a figure or two: at least 10 s in walk and 12 s in canter (both reins need some), 3 s in trot.
-		if floors {
-			out[i] = math.Max(out[i], map[string]float64{GaitWalk: 10, GaitCanter: 12, GaitTrot: 3}[p.gait])
-		}
 		if p.gait == GaitWalk {
 			walk += out[i]
 		}

@@ -26,7 +26,6 @@ type phase struct {
 	// startDir is the rein it starts on (set by the engine from the previous phase).
 	change       bool // exactly one change of rein inside
 	canterChange bool // the change is a simple change of lead (counter canter included)
-	freeFirst    bool // the first line is a free walk across the arena
 	final        bool // ends at A, where the salute at the end starts
 	share        float64
 }
@@ -35,7 +34,7 @@ var phasesA = []phase{
 	{gait: GaitTrot, endDir: "r1", share: .16},
 	{gait: GaitTrot, endDir: "r2", change: true, share: .16},
 	{gait: GaitWalk, endDir: "r2", share: .06},
-	{gait: GaitWalk, endDir: "r1", change: true, freeFirst: true, share: .09},
+	{gait: GaitWalk, endDir: "r1", change: true, share: .09},
 	{gait: GaitTrot, endDir: "r1", share: .05},
 	{gait: GaitCanter, endDir: "r1", share: .15},
 	{gait: GaitTrot, endDir: "r2", change: true, share: .07},
@@ -49,7 +48,7 @@ var phasesB = []phase{
 	{gait: GaitTrot, endDir: "r1", share: .16},
 	{gait: GaitTrot, endDir: "r2", change: true, share: .14},
 	{gait: GaitWalk, endDir: "r2", share: .06},
-	{gait: GaitWalk, endDir: "r1", change: true, freeFirst: true, share: .08},
+	{gait: GaitWalk, endDir: "r1", change: true, share: .08},
 	{gait: GaitTrot, endDir: "r1", share: .05},
 	{gait: GaitCanter, endDir: "r1", share: .12},
 	{gait: GaitTrot, endDir: "r2", change: true, share: .06},
@@ -140,7 +139,7 @@ func isSpecial(kind string) bool {
 }
 
 // candidates lists the figures that can follow the current state in the phase.
-func (e *engine) candidates(ph *phase, changes int, first bool, target, phaseStart float64) []cand {
+func (e *engine) candidates(ph *phase, changes int, target, phaseStart float64) []cand {
 	var out []cand
 	defTempo := TempoWorking
 	if ph.gait == GaitWalk {
@@ -165,13 +164,8 @@ func (e *engine) candidates(ph *phase, changes int, first bool, target, phaseSta
 		if e.noLateralWalk && ph.gait == GaitWalk && o.Lateral {
 			continue
 		}
-		if first && ph.freeFirst && !(o.Kind == "diagonal" || o.Kind == "halbe_bahn") {
-			continue
-		}
 		tempi := []string{defTempo}
-		if first && ph.freeFirst {
-			tempi = []string{TempoFree}
-		} else {
+		{
 			for _, it := range e.items {
 				if !it.done && it.phase == e.pi && it.gait == ph.gait && it.tempo != defTempo && it.tempo != "" && !slices.Contains(tempi, it.tempo) {
 					tempi = append(tempi, it.tempo)
@@ -356,18 +350,6 @@ func (e *engine) phaseDone(ph *phase, changes, after int, target, phaseStart flo
 	if ph.final {
 		return e.state.Node == "A"
 	}
-	// The next phase needs a way to start from here.
-	if e.pi+1 < len(e.phases) {
-		next := e.phases[e.pi+1]
-		if next.freeFirst {
-			for _, o := range e.lib.From(e.state) {
-				if (o.Kind == "diagonal" || o.Kind == "halbe_bahn") && o.allows(GaitWalk) {
-					return true
-				}
-			}
-			return false
-		}
-	}
 	return true
 }
 
@@ -387,7 +369,7 @@ func (e *engine) run(ph *phase, target float64, changes, after int, phaseStart f
 		return false
 	}
 	e.nodes++
-	cands := e.candidates(ph, changes, depth == 0, target, phaseStart)
+	cands := e.candidates(ph, changes, target, phaseStart)
 	sort.SliceStable(cands, func(i, j int) bool { return cands[i].score > cands[j].score })
 	if len(cands) > beam {
 		cands = cands[:beam]
