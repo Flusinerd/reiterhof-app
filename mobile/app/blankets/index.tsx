@@ -21,6 +21,7 @@ import {
 } from "@/lib/blankets";
 import { horseRoutes } from "@/lib/horse-format";
 import { useColors } from "@/lib/theme";
+import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 
 /** "Mittwoch, 30. September" */
 function dateLine(date: Date): string {
@@ -37,6 +38,7 @@ export default function Blankets() {
   const queryClient = useQueryClient();
   const { me } = useAuth();
   const today = useToday();
+  useRefreshOnFocus([blanketKeys.all]);
   const setState = useSetState();
   const [pending, setPending] = useState<{ horseId: string; action: StateAction } | null>(null);
   const [error, setError] = useState<string | null>(null);

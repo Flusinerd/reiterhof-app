@@ -19,11 +19,13 @@ import {
   statusActionLabel,
 } from "@/lib/observations";
 import { openStoredFile } from "@/lib/upload";
+import { usePullToRefresh } from "@/lib/use-pull-to-refresh";
 
 /** One observation with photos and the status change "Beobachten" / "Erledigt" (JAN-52). */
 export default function ObservationDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const query = useObservation(id);
+  const refresh = usePullToRefresh([query]);
   const setStatus = useSetObservationStatus();
   const [error, setError] = useState<string | null>(null);
 
@@ -53,7 +55,7 @@ export default function ObservationDetail() {
   const eyebrow = observationEyebrow(o);
 
   return (
-    <Screen back>
+    <Screen back refreshControl={refresh}>
       <PageHeader
         eyebrow={o.horse_name}
         title={categoryLabel(o.category)}

@@ -6,8 +6,10 @@ import { WeatherWarnings } from "@/components/weather-warnings";
 import { Button, PageHeader, Screen, SectionTitle, Text } from "@/components/ui";
 import { useAuth } from "@/lib/auth";
 import { greeting } from "@/lib/blankets";
+import { blanketKeys, reminderKeys, trainingKeys } from "@/lib/query-keys";
 import { colors } from "@/lib/theme";
 import { todaySummary } from "@/lib/today";
+import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 import { useTodayData } from "@/lib/use-today";
 
 const dateLine = (timeZone: string) =>
@@ -20,6 +22,8 @@ const dateLine = (timeZone: string) =>
 export default function Heute() {
   const { user } = useAuth();
   const data = useTodayData();
+  // Back from another screen or tab: whatever went stale meanwhile (an appointment done, a rider's session).
+  useRefreshOnFocus([reminderKeys.all, blanketKeys.today, trainingKeys.horses(), trainingKeys.weekOfAll()]);
   const view = data.view;
   const colorOf = (id?: string) => data.horses.find((h) => h.id === id)?.color_key;
 

@@ -13,6 +13,7 @@ import { requestErrorMessage } from "@/lib/requests-errors";
 import { groupRequestsByDay } from "@/lib/stable-tab";
 import { useColors } from "@/lib/theme";
 import { useAcceptRequest } from "@/lib/use-accept-request";
+import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 
 const EMPTY_TEXT: Record<RequestFilter, string> = {
   open: "Keine offenen Anfragen.",
@@ -32,6 +33,7 @@ export default function Requests() {
 
   const params = filterParams(filter, today);
   const list = useQuery({ queryKey: requestKeys.list(params), queryFn: () => requestsApi.list(params) });
+  useRefreshOnFocus([requestKeys.all]);
   const thanks = useQuery({ queryKey: requestKeys.thanks, queryFn: requestsApi.myThanks });
   const { accept, acceptingId, error } = useAcceptRequest();
 

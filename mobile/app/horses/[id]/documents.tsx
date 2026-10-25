@@ -21,12 +21,14 @@ import {
   uploadFile,
   type UploadInput,
 } from "@/lib/upload";
+import { usePullToRefresh } from "@/lib/use-pull-to-refresh";
 
 /** Documents of a horse (JAN-53): equine passport, vaccination record, insurance, other. */
 export default function Documents() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const horse = useHorse(id);
   const docs = useDocuments(id);
+  const refresh = usePullToRefresh([docs, horse]);
   const add = useHorseMutation(
     (v: { kind: string; title: string; file: UploadInput }) =>
       uploadFile(v.file).then((saved) =>
@@ -127,7 +129,7 @@ export default function Documents() {
   const list = docs.data;
 
   return (
-    <Screen back keyboardShouldPersistTaps="handled">
+    <Screen back keyboardShouldPersistTaps="handled" refreshControl={refresh}>
       <PageHeader
         eyebrow={horse.data?.name ?? "Pferdeakte"}
         title="Dokumente"

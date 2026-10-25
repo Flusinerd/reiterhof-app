@@ -1,12 +1,12 @@
 import "../global.css";
 
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { focusManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
 import { Redirect, Stack, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, AppState, Platform, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { AppMenu } from "@/components/app-menu";
@@ -27,7 +27,19 @@ setupWeb(); // web only: Alert.alert replacement; no-op on native
 // Keep the splash screen until the fonts are ready (no flash of system font).
 SplashScreen.preventAutoHideAsync();
 
-const queryClient = new QueryClient();
+// On the web TanStack Query refetches when the tab becomes visible. Native has no such event: "focus" is
+// the app coming back to the foreground (a resume on Monday morning must not show last week's plan).
+if (Platform.OS !== "web") {
+  focusManager.setEventListener((handleFocus) => {
+    const subscription = AppState.addEventListener("change", (state) => handleFocus(state === "active"));
+    return () => subscription.remove();
+  });
+}
+
+// Data counts as fresh for 10 s: quick tab switches and the refetch on focus do not hit the API again,
+// while everything a mutation or a realtime event invalidates is refetched at once (invalidation ignores
+// staleTime).
+const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 10_000 } } });
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts(fontAssets);

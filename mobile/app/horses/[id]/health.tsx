@@ -8,7 +8,7 @@ import { HorseError, HorseLoading } from "@/components/horse-query-state";
 import { Button, Icon, PageHeader, Screen, Text } from "@/components/ui";
 import { RowList } from "@/components/ui/list-row";
 import { errorMessage } from "@/lib/api";
-import { horsesApi, useHealth, useHorse, useHorseMutation, type HealthInput, type HealthItem } from "@/lib/api/horses";
+import { horseKeys, horsesApi, useHealth, useHorse, useHorseMutation, type HealthInput, type HealthItem } from "@/lib/api/horses";
 import {
   appointmentCompanionRoute,
   dueDetailText,
@@ -21,6 +21,8 @@ import {
 } from "@/lib/horse-format";
 import { bundleText, horseNamesText } from "@/lib/observations";
 import type { Effect } from "@/lib/query-effects";
+import { usePullToRefresh } from "@/lib/use-pull-to-refresh";
+import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 
 const dueTone = { none: "muted", overdue: "danger", soon: "accent", ok: "brass" } as const;
 
@@ -38,6 +40,8 @@ export default function Health() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const horse = useHorse(id);
   const health = useHealth(id);
+  useRefreshOnFocus([horseKeys.health(id), horseKeys.detail(id)]);
+  const refresh = usePullToRefresh([health, horse]);
   const save = useHorseMutation(
     (v: { itemId: string | null; input: HealthInput }) =>
       v.itemId ? horsesApi.updateHealthItem(v.itemId, v.input) : horsesApi.addHealthItem(id, v.input),
@@ -85,7 +89,7 @@ export default function Health() {
   }
 
   return (
-    <Screen back keyboardShouldPersistTaps="handled">
+    <Screen back keyboardShouldPersistTaps="handled" refreshControl={refresh}>
       <PageHeader
         eyebrow={horse.data?.name ?? "Pferdeakte"}
         title="Gesundheit"

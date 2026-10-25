@@ -17,6 +17,7 @@ import { progressLabel } from "@/lib/blankets";
 import { horseRoutes } from "@/lib/horse-format";
 import { boardLine, blanketBoard, boardMineLine } from "@/lib/stable-tab";
 import { useColors } from "@/lib/theme";
+import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 
 /**
  * "Stall": what concerns everybody. Warnings on top, who is here, tonight's blankets as a board,
@@ -27,6 +28,7 @@ export default function Stable() {
   const queryClient = useQueryClient();
   const { me } = useAuth();
   const today = useToday();
+  useRefreshOnFocus([blanketKeys.today, PRESENCE_KEY, requestKeys.all]);
   const mineIds = new Set([...(me?.roles.owned_horse_ids ?? []), ...(me?.roles.rider_horse_ids ?? [])]);
   const data = today.data;
   const openHorses = data?.horses.filter((h) => !h.done).length ?? 0;

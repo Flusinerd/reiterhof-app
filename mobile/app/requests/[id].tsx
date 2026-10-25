@@ -29,6 +29,7 @@ import {
 } from "@/lib/requests";
 import { addToDeviceCalendar } from "@/lib/requests-calendar";
 import { requestErrorMessage } from "@/lib/requests-errors";
+import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 
 /** A fact of the request: the label in the eyebrow style on the left, the value on the right, a hairline below. */
 function DetailRow({ label, value, last }: { label: string; value: string; last: boolean }) {
@@ -86,6 +87,7 @@ export default function RequestDetail() {
   const [checked, setChecked] = useState<Record<string, boolean>>({});
 
   const query = useQuery({ queryKey: requestKeys.detail(id), queryFn: () => requestsApi.get(id) });
+  useRefreshOnFocus([requestKeys.detail(id)]);
   const r = query.data;
 
   /** The answer of the server is the new detail; the lists and the reminder center follow (effect "request"). */

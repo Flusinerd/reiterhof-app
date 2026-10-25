@@ -24,7 +24,9 @@ import { horseRoutes } from "@/lib/horse-format";
 import { buildHorseRows, horseWeekStrip, type RowAction } from "@/lib/horse-page";
 import { rehaFromObservationRoute } from "@/lib/observations";
 import { localDate } from "@/lib/presence-format";
+import { observationKeys } from "@/lib/query-keys";
 import { colors } from "@/lib/theme";
+import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 
 const SEGMENTS = [
   { value: "diary", label: "Tagebuch" },
@@ -55,6 +57,15 @@ export function HorseRecord({ id, back }: { id: string; back: boolean }) {
   const week = useWeek(canSeeTraining ? id : undefined);
   const health = useHealth(id);
   const blankets = useBlanketsToday();
+  // Back from the health list, the training or another tab: what changed meanwhile shows up at once.
+  useRefreshOnFocus([
+    horseKeys.detail(id),
+    horseKeys.health(id),
+    horseKeys.diary(id),
+    trainingKeys.weekOf(id),
+    blanketKeys.today,
+    observationKeys.list(id),
+  ]);
   const markDone = useHorseMutation((itemId: string) => horsesApi.markDone(itemId), () => [{ type: "health" }]);
   const photo = useHorsePhotoSheet({ id, name: h?.name ?? "", photo_url: h?.photo_url ?? null });
   const [segment, setSegment] = useState<Segment>("diary");

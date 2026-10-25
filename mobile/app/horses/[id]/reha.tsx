@@ -10,6 +10,7 @@ import { Button, Icon, Screen, Section, Text } from "@/components/ui";
 import { ListRow, RowList } from "@/components/ui/list-row";
 import {
   rehaError,
+  rehaKeys,
   useEndPlan,
   useMarkDone,
   useReha,
@@ -21,6 +22,8 @@ import { useObservation } from "@/lib/api/observations";
 import { observationRoute, observationTitle, reportedText } from "@/lib/observations";
 import { checkupText, dateRange, planProgress, planStatusText } from "@/lib/reha";
 import { formatDate } from "@/lib/training";
+import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
+import { usePullToRefresh } from "@/lib/use-pull-to-refresh";
 
 function ProgressBar({ value }: { value: number }) {
   return (
@@ -121,6 +124,8 @@ function History({ plans }: { plans: RehaPlan[] }) {
 export default function Reha() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const reha = useReha(id);
+  const refresh = usePullToRefresh([reha]);
+  useRefreshOnFocus([rehaKeys.horse(id ?? "")]);
   const planId = reha.data?.plan?.id ?? reha.data?.today?.plan_id ?? "";
   const markDone = useMarkDone(id ?? "", planId);
   const unmark = useUnmarkDone(id ?? "", planId);
@@ -155,7 +160,7 @@ export default function Reha() {
   };
 
   return (
-    <Screen back>
+    <Screen back refreshControl={refresh}>
       <RehaTodayHead
         view={view}
         busy={markDone.isPending || unmark.isPending}

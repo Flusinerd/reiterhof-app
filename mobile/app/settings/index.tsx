@@ -18,6 +18,7 @@ import { useAuth } from "@/lib/auth";
 import { useHasConsent } from "@/lib/consent";
 import type { NotificationSettings } from "@/lib/reminders";
 import { useColors } from "@/lib/theme";
+import { usePullToRefresh } from "@/lib/use-pull-to-refresh";
 
 /**
  * Settings (JAN-70): notifications per kind with the stable's reminder time, inviting (admins only), then the
@@ -33,6 +34,7 @@ export function Settings({ back }: { back: boolean }) {
   const queryClient = useQueryClient();
   const { user, hasStable, signOut } = useAuth();
   const settings = useNotificationSettings();
+  const refresh = usePullToRefresh([settings]);
   const pushConsent = useHasConsent("push");
   const prompt = useConsentPrompt();
   const [error, setError] = useState<string | null>(null);
@@ -73,7 +75,7 @@ export function Settings({ back }: { back: boolean }) {
   }
 
   return (
-    <Screen back={back} menu={back}>
+    <Screen back={back} menu={back} refreshControl={refresh}>
       <PageHeader eyebrow={back ? undefined : "Ich"} title={back ? "Einstellungen" : (user?.name ?? "Ich")} description={user ? (back ? `${user.name}, ${user.email}` : user.email) : undefined} />
 
       {!back && hasStable ? (

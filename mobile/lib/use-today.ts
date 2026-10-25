@@ -1,12 +1,13 @@
 // Data of the "Heute" screen: the week plans of the user's horses, tonight's blankets and the
 // reminder center, merged by buildToday (lib/today.ts).
 
-import { useQueries } from "@tanstack/react-query";
+import { useQueries, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 import { useToday as useBlanketsToday } from "./api/blankets";
 import { useReminders } from "./api/reminders";
 import { trainingApi, trainingKeys, useTrainingHorses } from "./api/training";
+import { weatherKeys } from "./api/weather";
 import { useAuth } from "./auth";
 import { buildToday, type HorsePlan, type TodayView } from "./today.ts";
 
@@ -30,6 +31,7 @@ export type TodayData = {
 
 export function useTodayData(): TodayData {
   const { me } = useAuth();
+  const queryClient = useQueryClient();
   const timeZone = me?.stable?.timezone ?? "Europe/Berlin";
   const { today, clock, tomorrow } = localParts(timeZone, new Date());
   // The week of tomorrow differs on Sundays; fetch it too so tomorrow's show is not missing.
@@ -76,12 +78,13 @@ export function useTodayData(): TodayData {
     view,
     timeZone,
     loading: view === null,
-    refreshing: horses.isRefetching || blankets.isRefetching || reminders.isRefetching,
+    refreshing: horses.isRefetching || blankets.isRefetching || reminders.isRefetching || weeks.some((w) => w.isRefetching),
     refresh: () => {
       void horses.refetch();
       void blankets.refetch();
       void reminders.refetch();
       for (const w of weeks) void w.refetch();
+      void queryClient.invalidateQueries({ queryKey: weatherKeys.warnings }); // shown on Heute, too
     },
     horses: list.map((h) => ({ id: h.id, name: h.name, color_key: h.color_key })),
   };

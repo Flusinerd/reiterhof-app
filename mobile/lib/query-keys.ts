@@ -52,6 +52,8 @@ export const trainingKeys = {
   week: (horse: string, start?: string) => ["training", "week", horse, start ?? "current"] as const,
   /** Every week query of a horse (the current one and the ones by start date). */
   weekOf: (horse: string) => ["training", "week", horse] as const,
+  /** The week queries of all horses. */
+  weekOfAll: () => ["training", "week"] as const,
   profile: (horse: string) => ["training", "profile", horse] as const,
   exercises: () => ["training", "exercises"] as const,
   exercise: (id: string | undefined) => ["training", "exercise", id] as const,

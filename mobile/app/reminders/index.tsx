@@ -10,12 +10,14 @@ import { useEffectMutation } from "@/lib/api/mutation";
 import { reminderKeys, remindersApi, useReminders } from "@/lib/api/reminders";
 import { groupByDay, reminderErrorMessage, type ReminderItem, type RemindersResponse } from "@/lib/reminders";
 import { useColors } from "@/lib/theme";
+import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 
 /** Reminder center (JAN-69): tonight's blanket check, then the reminders of today and of each day of the week. */
 export default function Reminders() {
   const c = useColors();
   const queryClient = useQueryClient();
   const reminders = useReminders("week");
+  useRefreshOnFocus([reminderKeys.all]);
   const [error, setError] = useState<string | null>(null);
   const [dismissingId, setDismissingId] = useState<string | null>(null);
 

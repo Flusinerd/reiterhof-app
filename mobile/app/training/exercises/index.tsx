@@ -19,6 +19,7 @@ import {
 import { useExerciseList } from "@/lib/tracking-queries";
 import { errorMessage } from "@/lib/api";
 import { useColors } from "@/lib/theme";
+import { usePullToRefresh } from "@/lib/use-pull-to-refresh";
 
 /** Exercise library (JAN-58): browse and filter by discipline, level and goal. */
 export default function ExerciseLibrary() {
@@ -26,13 +27,14 @@ export default function ExerciseLibrary() {
   const list = useExerciseList();
   const c = useColors();
   const [filter, setFilter] = useState<ExerciseFilter>(NO_FILTER);
+  const refresh = usePullToRefresh([list]);
 
   const all = list.data ?? [];
   const options = useMemo(() => filterOptions(all), [all]);
   const shown = useMemo(() => applyFilter(all, filter), [all, filter]);
 
   return (
-    <Screen back>
+    <Screen back refreshControl={refresh}>
       <PageHeader eyebrow="Training" title="Übungen" description="Für Halle und Platz." />
 
       {list.isPending ? (

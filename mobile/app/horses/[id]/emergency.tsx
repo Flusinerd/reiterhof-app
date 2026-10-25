@@ -9,6 +9,7 @@ import { RowList } from "@/components/ui/list-row";
 import { errorMessage } from "@/lib/api";
 import { horsesApi, useEmergency, useHorseMutation, type Contact } from "@/lib/api/horses";
 import { horseRoutes, telUrl } from "@/lib/horse-format";
+import { usePullToRefresh } from "@/lib/use-pull-to-refresh";
 
 type CallRowProps = { label: string; name: string | null | undefined; phone: string | null | undefined; onEdit?: () => void };
 
@@ -65,6 +66,7 @@ type ContactDraft = { id?: string; label: string; name: string; phone: string };
 export default function Emergency() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const card = useEmergency(id);
+  const refresh = usePullToRefresh([card]);
   const save = useHorseMutation(
     (c: ContactDraft) =>
       c.id
@@ -124,7 +126,7 @@ export default function Emergency() {
   }
 
   return (
-    <Screen back keyboardShouldPersistTaps="handled">
+    <Screen back keyboardShouldPersistTaps="handled" refreshControl={refresh}>
       <PageHeader
         eyebrow="Notfallkarte"
         title={c.horse_name}

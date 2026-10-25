@@ -13,6 +13,7 @@ import { shareCalendarFeed } from "@/lib/requests-calendar";
 import { requestErrorMessage } from "@/lib/requests-errors";
 import { groupRequestsByDay } from "@/lib/stable-tab";
 import { useColors } from "@/lib/theme";
+import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 
 /** "Mein Kalender": the requests I help with, by day. */
 export default function HelperCalendar() {
@@ -22,6 +23,7 @@ export default function HelperCalendar() {
   const { user } = useAuth();
   const today = useMemo(() => toIsoDate(new Date()), []);
   const query = useQuery({ queryKey: requestKeys.calendar, queryFn: requestsApi.calendar });
+  useRefreshOnFocus([requestKeys.calendar]);
   const requests = query.data?.requests ?? [];
 
   return (
