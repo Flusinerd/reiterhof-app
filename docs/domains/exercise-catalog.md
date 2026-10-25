@@ -142,7 +142,7 @@ follow-ups stayed.
    and set progressions with `UPDATE exercises e SET next_exercise_id = ...` after all rows exist.
 5. Run `cd backend && go vet ./... && go test ./...`. `catalog_test.go` names the row and the rule when something is
    missing. Update the counts in `exercises_test.go` and `seed_test.go`.
-6. Update this file (inventory table, coverage lists) and the ticket of the milestone in Linear.
+6. Update this file (inventory table, coverage lists) and the CHANGELOG.
 
 Two things to know about the first planner. Until `suggestExercise` is replaced by the exercise pick of the spec, it
 orders a library by level, then by the number of predecessors in the `next` chain, then by title, and

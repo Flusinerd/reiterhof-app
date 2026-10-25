@@ -235,7 +235,7 @@ How a screen answers a tap. No toast component is needed for this; if one is add
 6. Where does the user end up, and does that screen show the result?
 7. Where is the error shown, and is it visible from where the user tapped?
 8. Toggle or pill? Optimistic with rollback.
-9. Docs (domain doc, design system for new patterns) and the Linear ticket updated (`CLAUDE.md`).
+9. Docs (domain doc, design system for new patterns) and the CHANGELOG updated.
 
 ## Navigation
 
