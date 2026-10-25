@@ -110,7 +110,10 @@ with a slow connection. The report screen asks for confirmation before an urgent
   `/reha/edit?observation=<id>&horse=<id>`). Rendered inside `ObservationCard` (a row, not a card: eyebrow with urgency and status from `observationEyebrow`), taps do not open the detail screen.
 - `/observations/new?horse=<id>`: horse chips, category chips, horse pictogram (`react-native-svg`, tappable
   regions plus chips as accessible alternative), description, photos (camera / library, upload happens on send and is
-  not repeated on retry), urgency "Info" / "Bitte ansehen" / "Dringend". After an urgent report the emergency card opens.
+  not repeated on retry), urgency "Info" / "Bitte ansehen" / "Dringend". After an urgent report the emergency card opens;
+  after any other the form gives way to "Gemeldet" (what and which horse, "Besitzer und Reitbeteiligungen sind
+  informiert.") with the one button "Fertig", so a report that left without a visible result is not sent a second time
+  (every `POST /observations` stores a row and pushes).
 - `/observations/[id]`: details, photos, status button (only if `can_change`), shortcuts to the emergency card, the reha plan (if `reha_plan_id`) and
   the horse record.
 

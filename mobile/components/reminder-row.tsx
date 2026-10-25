@@ -15,6 +15,8 @@ export type ReminderRowProps = {
   /** No hairline below the last row of a day. */
   last?: boolean;
   dismissing?: boolean;
+  /** The error of the last dismiss, under this row (not at the top of a long list). */
+  error?: string;
   /** Called with the route when the row is tapped (only for items with an internal screen). */
   onOpen: (screen: string) => void;
   /** May return a promise: the button stays busy until it settles. */
@@ -27,7 +29,7 @@ export type ReminderRowProps = {
  * button on the right (stored reminders only) removes it: "Erledigt", or "Ausblenden" for a push about an
  * appointment, which is completed in the health list or the reha plan and only hidden here.
  */
-export function ReminderRow({ item, timeZone, today, last = false, dismissing = false, onOpen, onDismiss }: ReminderRowProps) {
+export function ReminderRow({ item, timeZone, today, last = false, dismissing = false, error, onOpen, onDismiss }: ReminderRowProps) {
   const target = isInternalRoute(item.screen) ? item.screen : null;
   const time = rowTime(item, timeZone, today);
   const text = reminderText(item.kind, item.title, item.body);
@@ -51,28 +53,35 @@ export function ReminderRow({ item, timeZone, today, last = false, dismissing = 
   );
 
   return (
-    <View className={cn("min-h-touch flex-row items-center gap-2", !last && "border-b border-divider")}>
-      {target ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`${item.title}. ${item.body}`}
-          className="min-h-touch flex-1 flex-row gap-4 py-3 active:opacity-70"
-          onPress={() => onOpen(target)}
-        >
-          {content}
-        </Pressable>
-      ) : (
-        <View className="min-h-touch flex-1 flex-row gap-4 py-3">{content}</View>
-      )}
-      {item.dismissible ? (
-        <Button
-          size="icon"
-          variant="ghost"
-          icon={dismiss.hidesOnly ? EyeOff : Check}
-          loading={dismissing}
-          accessibilityLabel={`${dismiss.verb}: ${item.title}`}
-          onPress={() => onDismiss(item)}
-        />
+    <View className={cn(!last && "border-b border-divider")}>
+      <View className="min-h-touch flex-row items-center gap-2">
+        {target ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${item.title}. ${item.body}`}
+            className="min-h-touch flex-1 flex-row gap-4 py-3 active:opacity-70"
+            onPress={() => onOpen(target)}
+          >
+            {content}
+          </Pressable>
+        ) : (
+          <View className="min-h-touch flex-1 flex-row gap-4 py-3">{content}</View>
+        )}
+        {item.dismissible ? (
+          <Button
+            size="icon"
+            variant="ghost"
+            icon={dismiss.hidesOnly ? EyeOff : Check}
+            loading={dismissing}
+            accessibilityLabel={`${dismiss.verb}: ${item.title}`}
+            onPress={() => onDismiss(item)}
+          />
+        ) : null}
+      </View>
+      {error ? (
+        <Text variant="bodySm" tone="danger" accessibilityRole="alert" className="pb-3">
+          {error}
+        </Text>
       ) : null}
     </View>
   );

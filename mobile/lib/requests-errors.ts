@@ -26,3 +26,12 @@ export function requestErrorMessage(err: unknown): string {
   }
   return errorMessage(err);
 }
+
+/**
+ * Head of the detail screen when the request could not be loaded: only a 404 means that it is gone. Any other
+ * failure (no connection, a server error) says so and can be tried again.
+ */
+export function requestLoadFailure(err: unknown): { title: string; retry: boolean } {
+  if (err instanceof ApiError && err.status === 404) return { title: "Anfrage nicht gefunden", retry: false };
+  return { title: "Laden fehlgeschlagen", retry: true };
+}

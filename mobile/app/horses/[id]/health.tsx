@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams, type Href } from "expo-router";
+import { useLocalSearchParams, type Href } from "expo-router";
 import { Check, HandHelping, Layers, Plus, Undo2 } from "lucide-react-native";
 import { useState } from "react";
 import { Alert, Pressable, View } from "react-native";
@@ -21,6 +21,7 @@ import {
   joinParts,
   remindText,
 } from "@/lib/horse-format";
+import { pushOnce } from "@/lib/navigation";
 import { bundleText, horseNamesText } from "@/lib/observations";
 import type { Effect } from "@/lib/query-effects";
 import { mutationKeys } from "@/lib/query-keys";
@@ -252,7 +253,7 @@ export default function Health() {
                         icon={HandHelping}
                         size="sm"
                         variant="ghost"
-                        onPress={() => router.push(appointmentCompanionRoute(id) as Href)}
+                        onPress={() => pushOnce(appointmentCompanionRoute(id) as Href)}
                       />
                     ) : null}
                   </View>

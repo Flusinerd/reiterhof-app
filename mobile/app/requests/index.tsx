@@ -1,5 +1,4 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
 import { CalendarDays, Plus } from "lucide-react-native";
 import { useMemo, useState } from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
@@ -8,6 +7,7 @@ import { RequestRow } from "@/components/request-row";
 import { Button, Card, PageHeader, Pill, Screen, SectionTitle, Text } from "@/components/ui";
 import { requestKeys, requestsApi } from "@/lib/api/requests";
 import { useAuth } from "@/lib/auth";
+import { pushOnce } from "@/lib/navigation";
 import { REQUEST_FILTERS, filterParams, toIsoDate, type RequestFilter } from "@/lib/requests";
 import { requestErrorMessage } from "@/lib/requests-errors";
 import { groupRequestsByDay } from "@/lib/stable-tab";
@@ -25,7 +25,6 @@ const EMPTY_TEXT: Record<RequestFilter, string> = {
 /** All requests for help as messages grouped by day; the filters are pills, "Neu" is the one primary button. */
 export default function Requests() {
   const c = useColors();
-  const router = useRouter();
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [filter, setFilter] = useState<RequestFilter>("open");
@@ -60,13 +59,13 @@ export default function Requests() {
               size="icon"
               icon={CalendarDays}
               accessibilityLabel="Mein Kalender"
-              onPress={() => router.push("/requests/calendar")}
+              onPress={() => pushOnce("/requests/calendar")}
             />
             <Button
               label="Neu"
               icon={Plus}
               size="sm"
-              onPress={() => router.push("/requests/new")}
+              onPress={() => pushOnce("/requests/new")}
               accessibilityLabel="Neue Anfrage"
             />
           </View>
@@ -111,7 +110,7 @@ export default function Requests() {
                   withDay={false}
                   last={i === group.items.length - 1}
                   accepting={accepting.has(r.id)}
-                  onOpen={() => router.push({ pathname: "/requests/[id]", params: { id: r.id } })}
+                  onOpen={() => pushOnce({ pathname: "/requests/[id]", params: { id: r.id } })}
                   onAccept={() => accept(r.id)}
                 />
               ))}

@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { router } from "expo-router";
 import { useMemo } from "react";
 import { ActivityIndicator, View } from "react-native";
 
@@ -7,6 +6,7 @@ import { RequestRow } from "@/components/request-row";
 import { Button, Text } from "@/components/ui";
 import { requestKeys, requestsApi } from "@/lib/api/requests";
 import { useAuth } from "@/lib/auth";
+import { pushOnce } from "@/lib/navigation";
 import type { ListParams } from "@/lib/requests";
 import { toIsoDate } from "@/lib/requests";
 import { requestErrorMessage } from "@/lib/requests-errors";
@@ -53,7 +53,7 @@ export function StartRequests() {
           userId={user?.id}
           last={i === requests.length - 1}
           accepting={accepting.has(r.id)}
-          onOpen={() => router.push({ pathname: "/requests/[id]", params: { id: r.id } })}
+          onOpen={() => pushOnce({ pathname: "/requests/[id]", params: { id: r.id } })}
           onAccept={() => accept(r.id)}
         />
       ))}

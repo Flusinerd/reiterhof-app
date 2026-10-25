@@ -1,12 +1,10 @@
 // Reha plan endpoints (docs/domains/reha.md) with React Query keys and hooks.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { API_URL, ApiError, authed, errorMessage } from "../api";
-import { parseErrorBody } from "../api-core.ts";
+import { ApiError, authed, errorMessage } from "../api";
 import { rehaKeys } from "../query-keys.ts";
 import type { PlanInput, PlanState } from "../reha.ts";
 import { rehaErrorText } from "../reha.ts";
-import { getToken } from "../token";
 import { useEffectMutation } from "./mutation";
 
 export { rehaKeys };
@@ -85,23 +83,6 @@ export type RehaView = {
   history: RehaPlan[];
 };
 
-// --- transport for DELETE (the shared client offers GET, POST, PATCH and PUT) ------------------
-
-async function del<T>(path: string): Promise<T> {
-  const token = getToken();
-  const headers: Record<string, string> = { Accept: "application/json" };
-  if (token) headers.Authorization = `Bearer ${token}`;
-  let res: Response;
-  try {
-    res = await fetch(`${API_URL.replace(/\/+$/, "")}${path}`, { method: "DELETE", headers });
-  } catch {
-    throw new ApiError(0, "network", "Network request failed");
-  }
-  const text = await res.text();
-  if (!res.ok) throw parseErrorBody(res.status, text);
-  return (text ? JSON.parse(text) : undefined) as T;
-}
-
 // --- calls -------------------------------------------------------------------------------------
 
 const horsePath = (horse: string) => `/api/v1/horses/${encodeURIComponent(horse)}`;
@@ -115,7 +96,7 @@ export const rehaApi = {
   update: (plan: string, body: Partial<PlanInput>) => authed.patch<RehaView>(planPath(plan), body),
   end: (plan: string) => authed.post<RehaView>(`${planPath(plan)}/end`),
   markDone: (plan: string, day: string) => authed.post<RehaView>(`${planPath(plan)}/days/${day}/done`),
-  unmarkDone: (plan: string, day: string) => del<RehaView>(`${planPath(plan)}/days/${day}/done`),
+  unmarkDone: (plan: string, day: string) => authed.delete<RehaView>(`${planPath(plan)}/days/${day}/done`),
 };
 
 export const useReha = (horse: string | undefined) =>

@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams, type Href } from "expo-router";
+import { useLocalSearchParams, type Href } from "expo-router";
 import { Pencil, Phone, Plus } from "lucide-react-native";
 import { useState } from "react";
 import { Alert, Linking, Pressable, View } from "react-native";
@@ -9,6 +9,7 @@ import { RowList } from "@/components/ui/list-row";
 import { errorMessage } from "@/lib/api";
 import { horsesApi, useEmergency, useHorseMutation, type Contact } from "@/lib/api/horses";
 import { horseRoutes, telUrl } from "@/lib/horse-format";
+import { pushOnce } from "@/lib/navigation";
 import { mutationKeys } from "@/lib/query-keys";
 import { usePullToRefresh } from "@/lib/use-pull-to-refresh";
 
@@ -140,7 +141,7 @@ export default function Emergency() {
               icon={Pencil}
               variant="ghost"
               size="sm"
-              onPress={() => router.push(horseRoutes.edit(c.horse_id) as Href)}
+              onPress={() => pushOnce(horseRoutes.edit(c.horse_id) as Href)}
             />
           ) : undefined
         }

@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { router, useLocalSearchParams, type Href } from "expo-router";
+import { useLocalSearchParams, type Href } from "expo-router";
 import { Hand, History, Pencil, Plus, RotateCcw } from "lucide-react-native";
 import { useState } from "react";
 import { RefreshControl, View } from "react-native";
@@ -33,6 +33,7 @@ import {
   stateLabel,
   type Blanket,
 } from "@/lib/blankets";
+import { pushOnce } from "@/lib/navigation";
 import { useColors } from "@/lib/theme";
 
 /** Deckenplan of a horse (JAN-30): tonight's recommendation, rules, blankets, helper note, history. */
@@ -243,7 +244,7 @@ export default function BlanketPlan() {
             icon={History}
             variant="ghost"
             size="sm"
-            onPress={() => router.push(`/blankets/history/${id}` as Href)}
+            onPress={() => pushOnce(`/blankets/history/${id}` as Href)}
           />
         }
       >

@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { router, useFocusEffect, useLocalSearchParams, type Href } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, type Href } from "expo-router";
 import { ClipboardPlus } from "lucide-react-native";
 import { useCallback, useMemo, useState } from "react";
 import { RefreshControl, View } from "react-native";
@@ -22,6 +22,7 @@ import { useAuth } from "@/lib/auth";
 import { healthErrorMessage } from "@/lib/health-done";
 import { horseRoutes } from "@/lib/horse-format";
 import { buildHorseRows, horseWeekStrip, type RowAction } from "@/lib/horse-page";
+import { pushOnce } from "@/lib/navigation";
 import { rehaFromObservationRoute } from "@/lib/observations";
 import { localDate } from "@/lib/presence-format";
 import type { Effect } from "@/lib/query-effects";
@@ -130,7 +131,7 @@ export function HorseRecord({ id, back }: { id: string; back: boolean }) {
 
   /** The promise of a row action keeps its button busy until the page shows the result. */
   async function onAction(action: RowAction) {
-    if (action.kind === "start") router.push(`/training?horse=${id}` as Href);
+    if (action.kind === "start") pushOnce(`/training?horse=${id}` as Href);
     else if (action.kind === "blanket") setBlanketOpen(true);
     else if ((action.kind === "done" || action.kind === "undo") && action.itemId) {
       const item = health.data?.items.find((i) => i.id === action.itemId);
@@ -152,7 +153,7 @@ export function HorseRecord({ id, back }: { id: string; back: boolean }) {
     );
   }
 
-  const go = (path: string) => router.push(path as Href);
+  const go = (path: string) => pushOnce(path as Href);
   const items = health.data?.items ?? [];
   const openRows = rows.length > 0;
 

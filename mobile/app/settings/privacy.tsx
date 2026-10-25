@@ -1,4 +1,3 @@
-import { useRouter } from "expo-router";
 import { BookOpen, Download, FileText, Trash2 } from "lucide-react-native";
 import { useState } from "react";
 import { Alert, View } from "react-native";
@@ -21,9 +20,9 @@ import {
 } from "@/lib/consent-core";
 import { shareTextFile } from "@/lib/export-file";
 import { disableGeofence } from "@/lib/geofence";
+import { pushOnce } from "@/lib/navigation";
 
 export default function PrivacySettings() {
-  const router = useRouter();
   const { signOut } = useAuth();
   const consents = useConsents();
   const setConsent = useSetConsent();
@@ -138,13 +137,13 @@ export default function PrivacySettings() {
             leading={<Icon as={FileText} size={20} className="text-muted" />}
             title="Datenschutzerklärung"
             accessibilityLabel="Datenschutzerklärung"
-            onPress={() => router.push("/legal/privacy")}
+            onPress={() => pushOnce("/legal/privacy")}
           />
           <ListRow
             leading={<Icon as={BookOpen} size={20} className="text-muted" />}
             title="Open-Source-Lizenzen"
             accessibilityLabel="Open-Source-Lizenzen"
-            onPress={() => router.push("/legal/licenses")}
+            onPress={() => pushOnce("/legal/licenses")}
           />
         </RowList>
       </Section>

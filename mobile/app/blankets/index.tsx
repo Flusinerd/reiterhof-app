@@ -1,6 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { router, type Href } from "expo-router";
-import { useState } from "react";
+import type { Href } from "expo-router";
 import { RefreshControl, View } from "react-native";
 
 import { BlanketDoneRow, BlanketHorseRow } from "@/components/blanket-horse-row";
@@ -20,8 +19,10 @@ import {
   type StateAction,
 } from "@/lib/blankets";
 import { horseRoutes } from "@/lib/horse-format";
+import { pushOnce } from "@/lib/navigation";
 import { useColors } from "@/lib/theme";
 import { mutationKeys } from "@/lib/query-keys";
+import { useKeyedErrors } from "@/lib/use-keyed-errors";
 import { usePendingVariables, useSubmitOnce } from "@/lib/use-pending";
 import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 
@@ -47,14 +48,15 @@ export default function Blankets() {
   const sending = usePendingVariables<{ horseId: string; action: StateAction }>(mutationKeys.blanketState);
   const pendingOf = (horseId: string) => sending.find((v) => v.horseId === horseId)?.action ?? null;
   const once = useSubmitOnce();
-  const [error, setError] = useState<string | null>(null);
+  // The error of a horse's last action, shown under that horse's buttons (the list can be long).
+  const [errors, setError] = useKeyedErrors();
   const timeZone = me?.stable?.timezone ?? "Europe/Berlin";
-  const openPlan = (horseId: string) => router.push(horseRoutes.blanketPlan(horseId) as Href);
+  const openPlan = (horseId: string) => pushOnce(horseRoutes.blanketPlan(horseId) as Href);
 
   /** The promise keeps the tapped button busy; a repeat for the same horse right after a success is ignored. */
   function act(horseId: string, action: StateAction) {
-    setError(null);
-    return once.run(horseId, () => setState.mutateAsync({ horseId, action })).catch((e) => setError(errorMessage(e)));
+    setError(horseId, null);
+    return once.run(horseId, () => setState.mutateAsync({ horseId, action })).catch((e) => setError(horseId, errorMessage(e)));
   }
 
   const data = today.data;
@@ -97,16 +99,10 @@ export default function Blankets() {
       </PageHeader>
 
       {open.length > 0 ? (
-        <Button label="Runde starten" fullWidth onPress={() => router.push("/blankets/round" as Href)} />
+        <Button label="Runde starten" fullWidth onPress={() => pushOnce("/blankets/round" as Href)} />
       ) : null}
 
       <WeatherWarnings timeZone={timeZone} />
-
-      {error ? (
-        <Text variant="bodySm" tone="danger" accessibilityRole="alert">
-          {error}
-        </Text>
-      ) : null}
 
       {!data ? (
         today.isError ? (
@@ -127,6 +123,7 @@ export default function Blankets() {
                     timeZone={timeZone}
                     last={i === open.length - 1}
                     pending={pendingOf(item.horse.id)}
+                    error={errors[item.horse.id]}
                     onAction={(a) => act(item.horse.id, a)}
                     onOpenPlan={() => openPlan(item.horse.id)}
                   />
@@ -150,6 +147,7 @@ export default function Blankets() {
                     timeZone={timeZone}
                     last={i === done.length - 1}
                     pending={pendingOf(item.horse.id)}
+                    error={errors[item.horse.id]}
                     onAction={(a) => act(item.horse.id, a)}
                     onOpenPlan={() => openPlan(item.horse.id)}
                   />

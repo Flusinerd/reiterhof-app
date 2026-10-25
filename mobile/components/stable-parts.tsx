@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { router } from "expo-router";
 import { ChevronRight } from "lucide-react-native";
 import { Pressable, View } from "react-native";
 
@@ -7,6 +6,7 @@ import { Avatar, Icon, Text } from "@/components/ui";
 import { presenceApi, PRESENCE_KEY } from "@/lib/api/presence";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/cn";
+import { pushOnce } from "@/lib/navigation";
 import { blanketBoard, herePeople, presenceFaces, presenceParts, type BoardHorse, type BoardStatus } from "@/lib/stable-tab";
 import type { TodayHorse } from "@/lib/blankets";
 
@@ -39,7 +39,7 @@ export function PresenceRow() {
         accessibilityRole="button"
         accessibilityLabel={`Anwesenheit: ${spoken}`}
         accessibilityHint="Zeigt, wer im Stall ist"
-        onPress={() => router.push("/presence")}
+        onPress={() => pushOnce("/presence")}
         className="min-h-[56px] flex-row items-center gap-3 active:opacity-70"
       >
         {faces.length > 0 ? (

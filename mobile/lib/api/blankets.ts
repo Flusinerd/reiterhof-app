@@ -3,8 +3,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { API_URL, authed } from "../api";
-import { ApiError, parseErrorBody } from "../api-core.ts";
+import { authed } from "../api";
 import type {
   Blanket,
   BlanketState,
@@ -18,7 +17,6 @@ import type {
 import { withState } from "../blankets.ts";
 import { useAuth } from "../auth";
 import { blanketKeys, mutationKeys } from "../query-keys.ts";
-import { getToken } from "../token";
 import { useEffectMutation } from "./mutation";
 
 export { blanketKeys };
@@ -48,34 +46,6 @@ export type StateResult = { state: BlanketState; closed_requests: string[] };
 
 export type History = { today: string; states: BlanketState[] };
 
-async function put<T>(path: string, body: unknown): Promise<T> {
-  const token = getToken();
-  const headers: Record<string, string> = { Accept: "application/json", "Content-Type": "application/json" };
-  if (token) headers.Authorization = `Bearer ${token}`;
-  let res: Response;
-  try {
-    res = await fetch(`${API_URL.replace(/\/+$/, "")}${path}`, { method: "PUT", headers, body: JSON.stringify(body) });
-  } catch {
-    throw new ApiError(0, "network", "Network request failed");
-  }
-  const text = await res.text();
-  if (!res.ok) throw parseErrorBody(res.status, text);
-  return JSON.parse(text) as T;
-}
-
-async function del(path: string): Promise<void> {
-  const token = getToken();
-  const headers: Record<string, string> = { Accept: "application/json" };
-  if (token) headers.Authorization = `Bearer ${token}`;
-  let res: Response;
-  try {
-    res = await fetch(`${API_URL.replace(/\/+$/, "")}${path}`, { method: "DELETE", headers });
-  } catch {
-    throw new ApiError(0, "network", "Network request failed");
-  }
-  if (!res.ok) throw parseErrorBody(res.status, await res.text());
-}
-
 const horsePath = (horseId: string) => `/api/v1/horses/${horseId}`;
 
 export const blanketsApi = {
@@ -93,23 +63,23 @@ export const blanketsApi = {
     authed.post<Blanket>(`${horsePath(horseId)}/blankets`, input),
   updateBlanket: (horseId: string, id: string, input: BlanketInput) =>
     authed.patch<Blanket>(`${horsePath(horseId)}/blankets/${id}`, input),
-  removeBlanket: (horseId: string, id: string) => del(`${horsePath(horseId)}/blankets/${id}`),
+  removeBlanket: (horseId: string, id: string) => authed.delete<void>(`${horsePath(horseId)}/blankets/${id}`),
   saveRules: (horseId: string, rules: RuleInput[]) =>
-    put<{ rules: Rule[] }>(`${horsePath(horseId)}/blanket-rules`, { rules }),
+    authed.put<{ rules: Rule[] }>(`${horsePath(horseId)}/blanket-rules`, { rules }),
   /**
    * Owner or admin: pick a blanket by hand (null = "Keine Decke") from tonight on, for `nights`
    * nights (1..30) or until reset (null). Replaces an earlier choice.
    */
   setOverride: (horseId: string, blanketId: string | null, nights: number | null, note: string) =>
-    put<{ override: Override; recommendation: Recommendation; rule_recommendation: Recommendation }>(
+    authed.put<{ override: Override; recommendation: Recommendation; rule_recommendation: Recommendation }>(
       `${horsePath(horseId)}/blanket-override`,
       { blanket_id: blanketId, nights, note },
     ),
   /** Owner or admin: back to the rules. */
-  clearOverride: (horseId: string) => del(`${horsePath(horseId)}/blanket-override`),
+  clearOverride: (horseId: string) => authed.delete<void>(`${horsePath(horseId)}/blanket-override`),
   /** Owner or admin. Start 15:00 to 23:00, end 04:00 to 15:00, both "HH:MM". */
   saveCoverWindow: (horseId: string, coverStart: string, coverEnd: string) =>
-    put<{ cover_start: string; cover_end: string }>(`${horsePath(horseId)}/cover-window`, {
+    authed.put<{ cover_start: string; cover_end: string }>(`${horsePath(horseId)}/cover-window`, {
       cover_start: coverStart,
       cover_end: coverEnd,
     }),

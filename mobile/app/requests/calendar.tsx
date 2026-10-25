@@ -8,6 +8,7 @@ import { RequestRow } from "@/components/request-row";
 import { Button, Card, PageHeader, Screen, SectionTitle, Text } from "@/components/ui";
 import { requestKeys, requestsApi } from "@/lib/api/requests";
 import { useAuth } from "@/lib/auth";
+import { pushOnce } from "@/lib/navigation";
 import { toIsoDate } from "@/lib/requests";
 import { shareCalendarFeed } from "@/lib/requests-calendar";
 import { requestErrorMessage } from "@/lib/requests-errors";
@@ -72,7 +73,7 @@ export default function HelperCalendar() {
                   userId={user?.id}
                   withDay={false}
                   last={i === group.items.length - 1}
-                  onOpen={() => router.push({ pathname: "/requests/[id]", params: { id: r.id } })}
+                  onOpen={() => pushOnce({ pathname: "/requests/[id]", params: { id: r.id } })}
                 />
               ))}
             </View>

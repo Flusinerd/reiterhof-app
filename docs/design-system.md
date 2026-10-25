@@ -228,6 +228,12 @@ tomorrow), tonight's blanket of each own horse at the stable's reminder time, an
 plan and blanket entries cover them). The next task is the user's own training of today, else the earliest
 open timed task from now on, else something overdue.
 
+A failed source is not an empty one (`todayLoad` in `lib/today.ts`): when a query failed and has nothing cached,
+"Heute" shows "Heute konnte nicht geladen werden." with the reason and "Erneut versuchen" instead of "Für heute ist
+alles erledigt." or the no-horse hint; when only a refresh failed, the cached view stays and a quiet "Nicht aktuell."
+with the same retry sits above it. The Stall tab does the same for the blanket board (`LoadFailed` and `NotCurrent` in
+`components/load-notice.tsx`).
+
 ## Always-dark flows
 
 The token class names read the CSS variables of `global.css`, which follow the phone. `ThemeScope`

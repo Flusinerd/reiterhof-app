@@ -1,4 +1,4 @@
-import { router, type Href } from "expo-router";
+import type { Href } from "expo-router";
 import { Megaphone } from "lucide-react-native";
 import type { ReactNode } from "react";
 import { useState } from "react";
@@ -9,6 +9,7 @@ import { ObservationCard } from "@/components/observation-card";
 import { Button, Text } from "@/components/ui";
 import { RowList } from "@/components/ui/list-row";
 import { useObservations, type Observation } from "@/lib/api/observations";
+import { pushOnce } from "@/lib/navigation";
 import { newObservationRoute, openCount } from "@/lib/observations";
 
 /** Observations shown before "Ältere anzeigen". */
@@ -42,7 +43,7 @@ export function HorseObservations({
         icon={Megaphone}
         variant="outline"
         size="sm"
-        onPress={() => router.push(newObservationRoute(horseId) as Href)}
+        onPress={() => pushOnce(newObservationRoute(horseId) as Href)}
       />
       {query.isError ? (
         <HorseError error={query.error} onRetry={() => query.refetch()} />

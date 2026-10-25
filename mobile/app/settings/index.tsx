@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { router, type Href } from "expo-router";
+import type { Href } from "expo-router";
 import { Activity, Bell, BellOff, BookOpen, LogOut, MapPin, Pencil, ShieldCheck, type LucideIcon } from "lucide-react-native";
 import { useState } from "react";
 import { ActivityIndicator, View } from "react-native";
@@ -16,6 +16,7 @@ import { useEffectMutation } from "@/lib/api/mutation";
 import { reminderKeys, remindersApi, useNotificationSettings } from "@/lib/api/reminders";
 import { useAuth } from "@/lib/auth";
 import { useHasConsent } from "@/lib/consent";
+import { pushOnce } from "@/lib/navigation";
 import type { NotificationSettings } from "@/lib/reminders";
 import { useColors } from "@/lib/theme";
 import { usePullToRefresh } from "@/lib/use-pull-to-refresh";
@@ -80,10 +81,10 @@ export function Settings({ back }: { back: boolean }) {
 
       {!back && hasStable ? (
         <RowList>
-          <SettingsLink icon={Bell} title="Erinnerungen" description="Heute und diese Woche" onPress={() => router.push("/reminders" as Href)} />
-          <SettingsLink icon={Activity} title="Training" description="Empfehlung, Woche, Einheit erfassen" onPress={() => router.push("/training" as Href)} />
-          <SettingsLink icon={BookOpen} title="Übungen" description="Die Übungsbibliothek" onPress={() => router.push("/training/exercises" as Href)} />
-          <SettingsLink icon={Horse} title="Alle Pferde" description="Pferde im Stall, Pferd anlegen" onPress={() => router.push("/horses" as Href)} />
+          <SettingsLink icon={Bell} title="Erinnerungen" description="Heute und diese Woche" onPress={() => pushOnce("/reminders" as Href)} />
+          <SettingsLink icon={Activity} title="Training" description="Empfehlung, Woche, Einheit erfassen" onPress={() => pushOnce("/training" as Href)} />
+          <SettingsLink icon={BookOpen} title="Übungen" description="Die Übungsbibliothek" onPress={() => pushOnce("/training/exercises" as Href)} />
+          <SettingsLink icon={Horse} title="Alle Pferde" description="Pferde im Stall, Pferd anlegen" onPress={() => pushOnce("/horses" as Href)} />
         </RowList>
       ) : null}
 
@@ -147,21 +148,21 @@ export function Settings({ back }: { back: boolean }) {
             icon={Pencil}
             title="Name"
             description={user?.name ?? "Ändern"}
-            onPress={() => router.push("/(auth)/name" as Href)}
+            onPress={() => pushOnce("/(auth)/name" as Href)}
           />
           {hasStable ? (
             <SettingsLink
               icon={MapPin}
               title="Anwesenheit"
               description="Automatisch erkennen, Sichtbarkeit"
-              onPress={() => router.push("/presence" as Href)}
+              onPress={() => pushOnce("/presence" as Href)}
             />
           ) : null}
           <SettingsLink
             icon={ShieldCheck}
             title="Datenschutz"
             description="Erlaubnisse, Datenexport, Konto löschen"
-            onPress={() => router.push("/settings/privacy" as Href)}
+            onPress={() => pushOnce("/settings/privacy" as Href)}
           />
         </RowList>
         <Button label="Abmelden" icon={LogOut} variant="outline" fullWidth loading={signingOut} onPress={() => leave()} />

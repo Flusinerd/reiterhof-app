@@ -1,4 +1,4 @@
-import { router, type Href } from "expo-router";
+import type { Href } from "expo-router";
 import { Megaphone } from "lucide-react-native";
 import { useMemo } from "react";
 import { Pressable, View } from "react-native";
@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/auth";
 import { useDiary, type Horse } from "@/lib/api/horses";
 import { cn } from "@/lib/cn";
 import { DIARY_EMPTY, diaryView, flattenDiary, type DiaryDot, type DiaryView } from "@/lib/horse-page";
+import { pushOnce } from "@/lib/navigation";
 import { newObservationRoute } from "@/lib/observations";
 import { localDate } from "@/lib/presence-format";
 
@@ -66,7 +67,7 @@ function DiaryItem({ view, last }: { view: DiaryView; last: boolean }) {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={[view.when, view.title].join(", ")}
-          onPress={() => router.push(view.route as Href)}
+          onPress={() => pushOnce(view.route as Href)}
           className="active:opacity-70"
         >
           {body}
@@ -100,7 +101,7 @@ export function HorseDiary({ horse, timeZone }: { horse: Horse; timeZone: string
         variant="ghost"
         size="sm"
         className="-ml-3"
-        onPress={() => router.push(newObservationRoute(horse.id) as Href)}
+        onPress={() => pushOnce(newObservationRoute(horse.id) as Href)}
       />
       {diary.isError ? (
         <HorseError error={diary.error} onRetry={() => diary.refetch()} />

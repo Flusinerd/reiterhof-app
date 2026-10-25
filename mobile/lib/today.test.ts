@@ -3,7 +3,17 @@ import { test } from "node:test";
 
 import type { TodayHorse } from "./blankets.ts";
 import type { ReminderItem } from "./reminders.ts";
-import { buildToday, nextAction, nextEyebrow, reminderText, todaySummary, type PlanDay, type TodayInput } from "./today.ts";
+import {
+  buildToday,
+  nextAction,
+  nextEyebrow,
+  reminderText,
+  todayLoad,
+  todaySummary,
+  type PlanDay,
+  type TodayInput,
+  type TodaySource,
+} from "./today.ts";
 
 const tz = "Europe/Berlin";
 
@@ -168,4 +178,26 @@ test("reminder texts lead with the thing", () => {
   });
   const view = buildToday(input({ reminders: [reminder({ body: "Wurmkur: seit 9 Tagen überfällig (15.10.2026)." })] }));
   assert.equal(nextAction(view.next!), "Zum Termin");
+});
+
+const ok = (data: unknown = []): TodaySource => ({ isPending: false, isError: false, data, error: null });
+const pending: TodaySource = { isPending: true, isError: false, data: undefined, error: null };
+const failed = (error: unknown): TodaySource => ({ isPending: false, isError: true, data: undefined, error });
+
+test("a failed query is not an empty answer: Heute does not claim that all is done", () => {
+  const offline = new Error("offline");
+  assert.deepEqual(todayLoad([ok(), failed(offline), ok()]), { state: "failed", error: offline });
+  // Also while the others are still on their way: the failure is final until somebody retries.
+  assert.deepEqual(todayLoad([pending, failed(offline)]), { state: "failed", error: offline });
+});
+
+test("loading until every query has answered, then ready", () => {
+  assert.deepEqual(todayLoad([ok(), pending]), { state: "loading" });
+  assert.deepEqual(todayLoad([ok(), ok(), ok()]), { state: "ready", stale: false });
+  assert.deepEqual(todayLoad([]), { state: "ready", stale: false });
+});
+
+test("a failed refresh keeps the cached view and marks it as not current", () => {
+  const refreshFailed: TodaySource = { isPending: false, isError: true, data: [1], error: new Error("offline") };
+  assert.deepEqual(todayLoad([ok(), refreshFailed]), { state: "ready", stale: true });
 });

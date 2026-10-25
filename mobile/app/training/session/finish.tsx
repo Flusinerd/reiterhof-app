@@ -86,7 +86,9 @@ function Finish({ params }: { params: FinishParams }) {
   const gaits = gaitShareRows(params.gaitShares);
   const rein = reinSummary(params.reinChanges);
   const exerciseTicked = practised ?? exercisePractised(params.stepsDone);
-  const leave = () => router.replace("/training");
+  // Back to the training screen of this horse that is still below in the stack (a `replace` stacked a second
+  // one that showed the first horse). The week there is refreshed already: `create` waits for its effects.
+  const leave = () => router.dismissTo({ pathname: "/training", params: { horse: params.horse } });
 
   if (saved) {
     return (

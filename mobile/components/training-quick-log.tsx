@@ -23,7 +23,8 @@ export function QuickLogSheet({
   hidden: readonly Activity[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSaved?: () => void;
+  /** Called after the sheet closed, with what was logged (the screen behind says so). */
+  onSaved?: (saved: { activity: Activity; minutes: number }) => void;
 }) {
   const [activity, setActivity] = useState<Activity | null>(null);
   const [minutes, setMinutes] = useState<number | null>(null);
@@ -46,7 +47,7 @@ export function QuickLogSheet({
       .mutateAsync({ activity, minutes })
       .then(() => {
         close(false);
-        onSaved?.();
+        onSaved?.({ activity, minutes });
       })
       .catch(() => undefined);
   };

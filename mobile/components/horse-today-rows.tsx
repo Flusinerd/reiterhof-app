@@ -1,9 +1,10 @@
-import { router, type Href } from "expo-router";
+import type { Href } from "expo-router";
 import { Pressable, View } from "react-native";
 
 import { Button, Text } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import type { RowAction, TodayRow } from "@/lib/horse-page";
+import { pushOnce } from "@/lib/navigation";
 
 /**
  * "Heute für <Name>": up to three rows with hairlines (training today, tonight's blanket, the next
@@ -31,7 +32,7 @@ export function HorseTodayRows({
             accessibilityRole={row.route ? "button" : undefined}
             accessibilityLabel={[row.eyebrow, row.title, row.detail].filter(Boolean).join(", ")}
             disabled={!row.route}
-            onPress={() => router.push(row.route as Href)}
+            onPress={() => pushOnce(row.route as Href)}
             className="flex-1 gap-0.5 active:opacity-70"
           >
             <Text variant="eyebrow" tone={row.eyebrowTone}>

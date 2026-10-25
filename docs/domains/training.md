@@ -204,7 +204,10 @@ tracked; "Gefühl" chips (Schwer, Gut, Sehr locker, tap again to clear); "Übung
 plan as one tick row; the note ("Notiz für Mia …" when someone else owns or rides the horse, else "Notiz …"),
 for an owner with a rider the switch "Mia sieht die Einheit" (`visible_to_rider`); the one button "Ins
 Tagebuch", and a quiet "Etwas aufgefallen?". Without a next progression the screen closes after saving,
-with one it shows "Als Nächstes" first.
+with one it shows "Als Nächstes" first. Both ways leave with `router.dismissTo` to the training screen of the same
+horse that is still below in the stack (`/training?horse=<id>`); its week is fresh already, because
+`useCreateSession` waits for its effects before the screen is left. "Nur eintragen" (`QuickLogSheet`) closes its sheet
+the same way and the training screen says "Eingetragen: Halle, 45 Min." until the horse is switched.
 
 - The exercise row starts out ticked when the indoor tracker ticked at least one step (the tracker passes
   `steps_done`, e.g. `0,2`, or `-` for none, in the finish params) and when no tracker data exists. The

@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams, type Href } from "expo-router";
+import { useLocalSearchParams, type Href } from "expo-router";
 import { ClipboardList, Megaphone, Pencil, Plus, Stethoscope } from "lucide-react-native";
 import { useState } from "react";
 import { Alert, View } from "react-native";
@@ -19,6 +19,7 @@ import {
   type RehaView,
 } from "@/lib/api/reha";
 import { useObservation } from "@/lib/api/observations";
+import { pushOnce } from "@/lib/navigation";
 import { observationRoute, observationTitle, reportedText } from "@/lib/observations";
 import { checkupText, dateRange, planProgress, planStatusText } from "@/lib/reha";
 import { formatDate } from "@/lib/training";
@@ -71,7 +72,7 @@ function SourceObservation({ observationId }: { observationId: string }) {
       title={observationTitle(o)}
       detail={`${o.reporter.name}, ${reportedText(o.created_at, new Date())}`}
       accessibilityLabel={`${observationTitle(o)} öffnen`}
-      onPress={() => router.push(observationRoute(o.id) as Href)}
+      onPress={() => pushOnce(observationRoute(o.id) as Href)}
     />
   );
 }
@@ -149,7 +150,7 @@ export default function Reha() {
 
   const view: RehaView = reha.data;
   const plan = view.plan;
-  const go = (href: string) => router.push(href as Href);
+  const go = (href: string) => pushOnce(href as Href);
   const fail = (e: unknown) => setError(rehaError(e));
 
   const confirmEnd = () => {

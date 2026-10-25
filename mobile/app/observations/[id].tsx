@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams, type Href } from "expo-router";
+import { useLocalSearchParams, type Href } from "expo-router";
 import { Check, HeartPulse, RotateCcw, Siren } from "lucide-react-native";
 import { useState } from "react";
 import { Pressable, View } from "react-native";
@@ -10,6 +10,7 @@ import { Button, PageHeader, Screen, Section, Text } from "@/components/ui";
 import { errorMessage } from "@/lib/api";
 import { useObservation, useSetObservationStatus } from "@/lib/api/observations";
 import { horseRoutes, joinParts } from "@/lib/horse-format";
+import { pushOnce } from "@/lib/navigation";
 import {
   bodyPartLabel,
   categoryLabel,
@@ -116,7 +117,7 @@ export default function ObservationDetail() {
             icon={Siren}
             variant="outline"
             fullWidth
-            onPress={() => router.push(horseRoutes.emergency(o.horse_id) as Href)}
+            onPress={() => pushOnce(horseRoutes.emergency(o.horse_id) as Href)}
           />
         ) : null}
         {o.reha_plan_id ? (
@@ -125,7 +126,7 @@ export default function ObservationDetail() {
             icon={HeartPulse}
             variant="outline"
             fullWidth
-            onPress={() => router.push(horseRoutes.reha(o.horse_id) as Href)}
+            onPress={() => pushOnce(horseRoutes.reha(o.horse_id) as Href)}
           />
         ) : null}
         <Button
@@ -133,7 +134,7 @@ export default function ObservationDetail() {
           icon={Horse}
           variant="ghost"
           fullWidth
-          onPress={() => router.push(horseRoutes.detail(o.horse_id) as Href)}
+          onPress={() => pushOnce(horseRoutes.detail(o.horse_id) as Href)}
         />
       </View>
     </Screen>

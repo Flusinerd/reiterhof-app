@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter, type Href } from "expo-router";
-import { BookOpen, HeartPulse, ListChecks, Pencil, Play, SlidersHorizontal } from "lucide-react-native";
+import { BookOpen, Check, HeartPulse, ListChecks, Pencil, Play, SlidersHorizontal } from "lucide-react-native";
 import { useMemo, useState } from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
 
@@ -21,6 +21,7 @@ import {
 } from "@/lib/api/training";
 import { horseRoutes } from "@/lib/horse-format";
 import { horseWeekStrip } from "@/lib/horse-page";
+import { savedTitle } from "@/lib/session-finish";
 import { useColors } from "@/lib/theme";
 import {
   DEFAULT_MINUTES,
@@ -51,6 +52,8 @@ export default function Training() {
   const [stepsOpen, setStepsOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
+  // What "Nur eintragen" stored on this visit ("Halle, 45 Min."): the sheet closes, so the page says so.
+  const [logged, setLogged] = useState<string | null>(null);
 
   const list = horses.data ?? [];
   const activeId = list.some((h) => h.id === horseId) ? horseId : list[0]?.id;
@@ -68,6 +71,7 @@ export default function Training() {
     setHorseId(id);
     setChoice(0);
     setPicked(null);
+    setLogged(null);
   };
 
   if (horses.isPending) {
@@ -153,6 +157,13 @@ export default function Training() {
       >
         <HorseSwitcher horses={list} selected={activeId} onSelect={selectHorse} />
       </PageHeader>
+
+      {logged ? (
+        <View className="flex-row items-center gap-2">
+          <Icon as={Check} size={18} className="text-success" />
+          <Text variant="bodyStrong" tone="success">{`Eingetragen: ${logged}`}</Text>
+        </View>
+      ) : null}
 
       {!data && !today.isError ? <ActivityIndicator color={c.primary.DEFAULT} className="self-start" /> : null}
 
@@ -328,6 +339,7 @@ export default function Training() {
         hidden={hiddenActivities}
         open={logOpen}
         onOpenChange={setLogOpen}
+        onSaved={({ activity, minutes }) => setLogged(savedTitle(activity, minutes))}
       />
     </Screen>
   );

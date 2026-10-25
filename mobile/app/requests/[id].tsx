@@ -30,7 +30,7 @@ import {
   type ReminderOption,
 } from "@/lib/requests";
 import { addToDeviceCalendar } from "@/lib/requests-calendar";
-import { requestErrorMessage } from "@/lib/requests-errors";
+import { requestErrorMessage, requestLoadFailure } from "@/lib/requests-errors";
 import { mutationKeys } from "@/lib/query-keys";
 import { usePendingIds } from "@/lib/use-pending";
 import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
@@ -80,12 +80,15 @@ function ActionRow({
   );
 }
 
+/** A change of the request, and where on the page its error belongs: next to the button the user tapped. */
+type ActionVars = { call: () => Promise<HelpRequest>; place: "top" | "bottom" };
+
 export default function RequestDetail() {
   const c = useColors();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ text: string; place: ActionVars["place"] } | null>(null);
   // Errors of the small changes appear in their own section, where the user tapped.
   const [remindError, setRemindError] = useState<string | null>(null);
   const [thankError, setThankError] = useState<string | null>(null);
@@ -103,13 +106,13 @@ export default function RequestDetail() {
   }
 
   const action = useEffectMutation({
-    mutationFn: (fn: () => Promise<HelpRequest>) => fn(),
+    mutationFn: ({ call }: ActionVars) => call(),
     onMutate: () => {
       setError(null);
       setNotice(null);
     },
     onSuccess: storeDetail,
-    onError: (e) => setError(requestErrorMessage(e)),
+    onError: (e, { place }) => setError({ text: requestErrorMessage(e), place }),
     effects: () => [{ type: "request" }],
     errorEffects: () => [{ type: "request" }], // a conflict (full, cancelled) means the view was stale
   });
@@ -162,10 +165,11 @@ export default function RequestDetail() {
     );
   }
   if (!r) {
+    const failure = requestLoadFailure(query.error);
     return (
       <Screen back>
-        <PageHeader title="Anfrage nicht gefunden" description={requestErrorMessage(query.error)} />
-        <Button label="Erneut versuchen" variant="outline" onPress={() => query.refetch()} />
+        <PageHeader title={failure.title} description={requestErrorMessage(query.error)} />
+        {failure.retry ? <Button label="Erneut versuchen" variant="outline" onPress={() => query.refetch()} /> : null}
       </Screen>
     );
   }
@@ -188,7 +192,10 @@ export default function RequestDetail() {
 
   // The one primary action of the page: accept, else mark as done.
   // The promise keeps the button busy until the page shows the result; the error is shown by `onError`.
-  const act = (call: () => Promise<HelpRequest>) => action.mutateAsync(call).catch(() => undefined);
+  const act = (call: () => Promise<HelpRequest>, place: ActionVars["place"] = "top") =>
+    action.mutateAsync({ call, place }).catch(() => undefined);
+  const cancel = (scope: "one" | "series") =>
+    act(() => requestsApi.cancel(r.id, scope), "bottom").then(() => setCancelOpen(false));
   const primary = r.can_accept
     ? { label: acceptLabel(r.type), icon: HandHeart, run: () => act(() => requestsApi.accept(r.id)) }
     : involved && active
@@ -197,7 +204,7 @@ export default function RequestDetail() {
 
   const quiet: { icon: LucideIcon; label: string; tone?: "danger"; run: () => unknown }[] = [
     ...(r.is_helper && active
-      ? [{ icon: UserMinus, label: "Abmelden", run: () => act(() => requestsApi.withdraw(r.id)) }]
+      ? [{ icon: UserMinus, label: "Abmelden", run: () => act(() => requestsApi.withdraw(r.id), "bottom") }]
       : []),
     ...(r.status !== "cancelled" && involved ? [{ icon: Calendar, label: "In Kalender", run: () => void exportToCalendar() }] : []),
     ...(canManage && active ? [{ icon: X, label: "Anfrage absagen", tone: "danger" as const, run: () => setCancelOpen(true) }] : []),
@@ -228,9 +235,9 @@ export default function RequestDetail() {
         </View>
       </PageHeader>
 
-      {error ? (
+      {error?.place === "top" ? (
         <Text variant="bodySm" tone="danger" accessibilityRole="alert">
-          {error}
+          {error.text}
         </Text>
       ) : null}
       {notice ? <Text variant="bodySm">{notice}</Text> : null}
@@ -330,6 +337,11 @@ export default function RequestDetail() {
 
       {quiet.length > 0 ? (
         <View>
+          {error?.place === "bottom" ? (
+            <Text variant="bodySm" tone="danger" accessibilityRole="alert" className="pb-2">
+              {error.text}
+            </Text>
+          ) : null}
           {quiet.map((q, i) => (
             <ActionRow
               key={q.label}
@@ -358,25 +370,16 @@ export default function RequestDetail() {
         description={r.helpers_count > 0 ? "Die Helfer bekommen eine Nachricht." : undefined}
       >
         <View className="gap-3">
+          {/* The sheet stays until the answer is in: its button spins, the other one waits. */}
           <Button
             label={r.series_id ? "Nur diese absagen" : "Anfrage absagen"}
             variant="danger"
             fullWidth
-            onPress={() => {
-              setCancelOpen(false);
-              action.mutate(() => requestsApi.cancel(r.id, "one"));
-            }}
+            disabled={busy}
+            onPress={() => cancel("one")}
           />
           {r.series_id ? (
-            <Button
-              label="Ganze Serie absagen"
-              variant="outline"
-              fullWidth
-              onPress={() => {
-                setCancelOpen(false);
-                action.mutate(() => requestsApi.cancel(r.id, "series"));
-              }}
-            />
+            <Button label="Ganze Serie absagen" variant="outline" fullWidth disabled={busy} onPress={() => cancel("series")} />
           ) : null}
           <Button label="Zurück" variant="ghost" fullWidth onPress={() => setCancelOpen(false)} />
         </View>
