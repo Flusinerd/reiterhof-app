@@ -1,6 +1,7 @@
 import type { Href } from "expo-router";
 import { RefreshControl, View } from "react-native";
 
+import { FlashNotice } from "@/components/flash-notice";
 import { LoadFailed, NotCurrent } from "@/components/load-notice";
 import { NextTask, Timeline } from "@/components/today-parts";
 import { WeatherWarnings } from "@/components/weather-warnings";
@@ -40,6 +41,8 @@ export default function Heute() {
         title={greeting(new Date().getHours(), user?.name ?? "")}
         description={view ? todaySummary(view) : load.state === "loading" ? "Wird geladen …" : undefined}
       />
+
+      <FlashNotice />
 
       {load.state === "failed" ? (
         <LoadFailed title="Heute konnte nicht geladen werden." error={load.error} onRetry={data.refresh} />

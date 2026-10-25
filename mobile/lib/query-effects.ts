@@ -8,6 +8,7 @@
 // reminders), and a mutation only knows its own screen. Adding a mutation means adding or extending an
 // effect here, with a test.
 
+import { deletedHorses } from "./horse-delete.ts";
 import {
   blanketKeys,
   CONSENTS_KEY,
@@ -33,6 +34,11 @@ export type Effect =
   | { type: "horseCreated" }
   /** A horse was edited: name, color, photo, owner, helper note. */
   | { type: "horseUpdated"; horseId: string }
+  /**
+   * A horse was deleted for good. Its own queries are removed instead of refetched (they would answer 404,
+   * see `effectRemovedKeys`), everything that listed or counted it is refetched.
+   */
+  | { type: "horseDeleted"; horseId: string }
   /** A rider was set or removed. */
   | { type: "riders"; horseId: string }
   | { type: "emergency"; horseId: string }
@@ -78,6 +84,8 @@ export function effectKeys(e: Effect): Key[] {
       return [horseKeys.healthOfAll(), reminderKeys.all];
     case "horseCreated":
       return [horseKeys.all, trainingKeys.horses(), blanketKeys.today, ME_KEY, requestKeys.options];
+    case "horseDeleted":
+      return [horseKeys.all, trainingKeys.horses(), blanketKeys.all, reminderKeys.all, requestKeys.all, ME_KEY, PRESENCE_KEY];
     case "horseUpdated":
       return [
         horseKeys.all,
@@ -151,6 +159,45 @@ export function effectKeys(e: Effect): Key[] {
       return unreachable;
     }
   }
+}
+
+/**
+ * The queries that only exist for one horse and are removed from the cache when it is deleted: its record,
+ * emergency card, health list, documents, diary, training data, blanket plan and history, observations,
+ * reha plans and tests. Empty for every other effect.
+ */
+export function effectRemovedKeys(e: Effect): Key[] {
+  if (e.type !== "horseDeleted") return [];
+  const h = e.horseId;
+  return [
+    horseKeys.detail(h),
+    horseKeys.emergency(h),
+    horseKeys.health(h),
+    horseKeys.documents(h),
+    horseKeys.diary(h),
+    trainingKeys.profile(h),
+    trainingKeys.sessions(h),
+    trainingKeys.myFocus(h),
+    trainingKeys.weekOf(h),
+    trainingKeys.todayOf(h),
+    [...trainingKeys.exercises(), h],
+    blanketKeys.plan(h),
+    blanketKeys.history(h),
+    observationKeys.list(h),
+    rehaKeys.horse(h),
+    dressageKeys.list(h),
+  ];
+}
+
+/** The lists (arrays of `{id}`) that drop the horse at once, so no screen keeps rendering it while the refetch runs. */
+export function effectPrunedKeys(e: Effect): Key[] {
+  return e.type === "horseDeleted" ? [horseKeys.list(), trainingKeys.horses()] : [];
+}
+
+/** `list` without the horse; anything that is not a list stays as it is. */
+export function withoutHorse<T>(list: T, horseId: string): T {
+  if (!Array.isArray(list)) return list;
+  return list.filter((item) => (item as { id?: unknown } | null)?.id !== horseId) as T;
 }
 
 /** True when `prefix` is `key` or a prefix of it (how TanStack Query matches keys). */
@@ -230,6 +277,9 @@ export function eventKeys(type: string, data: unknown): Key[] | "all" {
         ? keysOf([{ type: "session", horseId: horse }])
         : uniqueKeys([trainingKeys.all, horseKeys.diaryOfAll(), reminderKeys.all]);
     case "horse.changed":
+      // Our own delete: its mutation refreshes everything itself (effect horseDeleted); a prefix like ["horses"]
+      // here would refetch the horse's own queries, which answer 404 now.
+      if (horse && deletedHorses.has(horse)) return [];
       return horse
         ? keysOf([{ type: "horseUpdated", horseId: horse }, { type: "riders", horseId: horse }])
         : uniqueKeys([horseKeys.all, trainingKeys.all, blanketKeys.all, ME_KEY, reminderKeys.all]);

@@ -5,10 +5,33 @@
 
 import { useMutation, useQueryClient, type DefaultError, type QueryClient, type UseMutationOptions } from "@tanstack/react-query";
 
-import { keysOf, type Effect } from "../query-effects.ts";
+import { effectPrunedKeys, effectRemovedKeys, keysOf, withoutHorse, type Effect } from "../query-effects.ts";
+
+/**
+ * What a deleted horse leaves behind: it drops out of the cached lists first (the screens that show them
+ * re-render without it, e.g. the horse tab named after it), then, a tick later, its own queries are removed.
+ * Removing them while a screen still observes them would let that screen refetch into a 404.
+ */
+async function forgetHorses(client: QueryClient, effects: readonly Effect[]): Promise<void> {
+  const deleted = effects.filter((e) => e.type === "horseDeleted");
+  if (deleted.length === 0) return;
+  for (const e of deleted) {
+    for (const queryKey of effectPrunedKeys(e)) {
+      client.setQueryData(queryKey, (old: unknown) => withoutHorse(old, (e as { horseId: string }).horseId));
+    }
+  }
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  for (const e of deleted) {
+    for (const queryKey of effectRemovedKeys(e)) {
+      await client.cancelQueries({ queryKey });
+      client.removeQueries({ queryKey });
+    }
+  }
+}
 
 /** Marks the keys of the effects stale; resolves when the active queries among them have refetched. */
 export async function invalidateEffects(client: QueryClient, effects: readonly Effect[]): Promise<void> {
+  await forgetHorses(client, effects);
   await Promise.all(keysOf(effects).map((queryKey) => client.invalidateQueries({ queryKey })));
 }
 
