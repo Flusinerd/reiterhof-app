@@ -161,6 +161,85 @@ The week planner (0.3.0) gets one addition: when a show day has a class with a s
 practice test of that horse, the `turnier` focus picks "Aufgabe reiten" with that test linked
 (`unit.main.test_id`).
 
+## Backend as built (decisions marked **Decision**)
+
+Package `backend/internal/dressage` (pure), routes in `backend/internal/trainingapi/dressage.go`, migration
+`0370_dressage_tests.up.sql`.
+
+- Routes added to the table above: `GET/POST /api/v1/dressage/requirements` and
+  `GET/PUT/DELETE /api/v1/dressage/requirements/{id}` (stable members read; owners, admins and riders with
+  `log_sessions` or the legacy `ride` write). `GET /dressage/catalog` returns `arenas` (letters with positions),
+  `classes` (`key`, `label`, `practice`), `movements`, `speeds` with `speed_source`, `links` and `requirement_sets`.
+  The POST body: `{kind, class, arena, length?, focus_key?, seed?, save?, title?, requirements_id? |
+  requirements?: {label, movements: [{key, count, rein, min_meters?}], min_seconds, max_seconds}}`; `save`
+  defaults to false (preview, 200), true stores (201). A freestyle without a set has no required movements and
+  a target of 4 minutes. A rule that breaks on PUT answers `400 {"error": {"code": "rules_broken", ...},
+  "reasons": [German texts]}`; a client may send back the whole plan, only `option`, `gait` and `tempo` of each
+  line count, the rest is rebuilt from the figure library.
+- **Decision**: `freestyle_requirements` has `updated_at` (PUT). A saved test keeps a copy of its set in
+  `dressage_tests.requirements`, so deleting or editing the set changes no stored test.
+- **Decision**: access to the tests of a horse (read, generate, edit) needs owner, admin, or a rider with
+  `log_sessions` (or the legacy `ride`); delete needs owner, admin or the author.
+- Plan JSON as built: `{kind, class, arena, seed, lines, seconds, reins: {left, right}, gaits: {walk, trot,
+  canter}, music: [{gait, seconds, from, to, cadence}], checks: [{key, ok, rule, text}], requirements: [{key,
+  label, rein, count, shown, met}]}`. `reins` and `gaits` are seconds. A line is `{n, option, letters, text,
+  gait, tempo, rein, seconds, meters, figure, movements, straight, lateral, counter?, degrees?, start, end, path}`.
+  `checks` with `rule: true` are rules (a failing one is an error, PUT answers 400), the others are advice
+  (choreography, duration of a practice test).
+- Arena: coordinates and letters as in "Arena"; **Decision**: one corner radius of 3 m for all classes (no FN
+  source per class). The track is the rounded rectangle, a letter on it is 6 m from the corner.
+- Figures (`dressage.Library`, per arena size): track pieces between letters (up to 4 letters), lateral work on
+  a long side (shoulder-in, travers, renvers, at least 12 m), long diagonals K–X–M and F–X–H and across the
+  arena E–X–B (20×60 also V–P and S–R), centre line A–C and C–A, serpentines through the whole arena (3 and 4
+  bows), single and double serpentines on the long side, circles of 20 m at A, C, E and B, voltes of 10 and 8 m
+  at every letter of the track, through the circle (20×40 only), Viereck verkleinern, leg yield from the
+  quarter line, half pass from the centre line to the track (at least 5 m sideways), Kurzkehrt (180°), and in
+  canter a diagonal with a simple change of lead and a diagonal with counter canter and a simple change.
+  Not modelled: short diagonals, double voltes, half pirouette, rein back as a separate figure (it is part of
+  the centre line variant with a halt at X). Lengthenings are shown on straight lines only.
+  **Decision**: "durch die halbe Bahn wechseln" is the straight line across the arena at E–B.
+- Speeds: Back & Clayton, Equine Locomotion (2nd ed. 2013), as quoted by Equisense: walk 84–108, trot 192–296,
+  canter 196–358 m/min for dressage horses; cadence 52–56, 77–83, 99–105 strides/min. **Decision**: the source
+  gives the range per gait only, a tempo is placed in it by our own fraction (collected 0, working 0.25, free
+  walk 0.4, medium 0.6, extended 1). Halt with salute 6 s (includes the transitions), transition 1 s, rein
+  back 1 s per step, simple change of lead 6 s. Music: only the cadence of each gait, no beats per minute (the
+  source has none).
+- Lowest class per movement (`lowest_class`, `class_note`, `source`): sourced from FN magazine articles,
+  Wikipedia and the general rules of the Kür leaflet, never from a test text or score sheet: schenkelweichen E
+  (FN Pferd und Mensch 08/2022), mitteltrab A (07/2022), Rückwärtsrichten A (11/12 2021), Volte 10 m in trot A
+  (Wikipedia „Volte“), Volte 8 m in trot and canter L (FN 07/2023, Wikipedia), Außengalopp L (FN 08/2023,
+  Wikipedia), einfacher Galoppwechsel L and Kurzkehrt L (Merkblatt Kür 2024), serpentines in trot and Viereck
+  verkleinern A, serpentines in canter L (Anlage 2024), shoulder-in, travers, renvers and half pass in trot L**
+  (Merkblatt and Anlage 2024), flying change M* (Wikipedia „Galoppwechsel“). **Decision**: the gaits in the
+  working tempo, halt and salute, the circle and the changes of rein (diagonal, across the arena, through the
+  circle, centre line) have no class of their own in any source; they are set to E with the PM-Forum article on
+  Hufschlagfiguren (02/2023) as the source and marked `basis`. Every other movement without a source (collected,
+  medium and extended tempi except Mitteltrab, canter voltes of 10 m, serpentines in walk, half walk pirouette)
+  has no class and is offered from L** with "Klasse nicht belegt". **Decision**: a movement that the user
+  requires in a freestyle is allowed whatever its class (the class rule is for the extras).
+- Practice generator: nine phases (trot, trot with a change of rein, walk, walk with the change and a free walk
+  across the arena, trot, canter, trot with the change, canter, trot back to A) with the app's own shares of the
+  time; from class L in half of the seeds the second canter phase is followed by a canter phase with simple
+  changes of lead. Randomised depth-first search with backtracking inside each phase, scored for variety (no
+  figure family twice in a row), focus, movements not yet used and the time left; up to 250 attempts per plan
+  until all rules pass and the duration is inside the window (±2 s). **Decision**: with sessions only the
+  movements with a mastered exercise, plus at most two whose exercise is among the next lessons of the level
+  progression, plus the movements without a linked exercise (gaits, halt, the common figures). Kurzkehrt and
+  Kurzkehrt-based changes are not placed by the practice generator (the structure has one change of rein in
+  walk); they are in the library, the catalog and the freestyle.
+- Rules of `CheckFreestyle` (own words, from the Kür leaflet): `chain`, `opening` (entry and salute on the centre
+  line), `closing`, `class`, `gaits` (all three shown), `walk` (required walk on straight and curved lines only,
+  as long as the user's minimum), `lengthening` (trot lengthenings on straight lines), `canter_voltes` (true
+  canter), `kurzkehrt` (at most 180°), `time` (inside the window ±10 s), `requirements` (counts and reins).
+  Advice: `arena_use`, `balance`, `highlights_c`, `lines`, `same_line`, `alternation`, `finale`, `gait_changes`,
+  `gait_balance` (the thresholds are the app's own). `CheckPractice`: `chain`, `opening`, `closing`, `class`,
+  `gaits_both_reins`, `balance` (each rein at least 40 %), advice `duration`.
+- **Decision**: the duration of a freestyle with many required movements can exceed a tight window; the plan
+  is returned with the failing `time` check and the user edits it or loosens the window.
+- Open: the `turnier` link (`unit.main.test_id`) is not built. Shows have no class or test list yet
+  (`shows[].tests` of "Copyright" does not exist), the unit plan stores no test id and the planner is the language
+  model prompt; it needs those three together.
+
 ## App
 
 - **Horse → Training → "Aufgaben und Küren"** (`app/training/tests/index.tsx`): saved tests as rows
