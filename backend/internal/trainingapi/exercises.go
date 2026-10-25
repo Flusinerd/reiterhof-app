@@ -141,7 +141,10 @@ func (h *handler) nextProgression(ctx context.Context, stableID, exerciseID stri
 // exerciseDiscipline is the library discipline that belongs to an activity on this horse,
 // or "" when the activity has no exercises (hack, walker, rest).
 func exerciseDiscipline(a training.Activity, horseDiscipline string) string {
-	return training.ExerciseLibrary(a, horseDiscipline)
+	if libs := training.ExerciseLibraries(a, horseDiscipline); len(libs) > 0 {
+		return libs[0]
+	}
+	return ""
 }
 
 // sortByProgression orders exercises by discipline, level (easiest first) and then along

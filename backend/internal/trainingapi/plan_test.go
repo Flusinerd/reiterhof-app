@@ -212,12 +212,13 @@ func TestPlanWeekFocusExerciseAndPromptData(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Level "L" of the fixture profile goes out as a library level, the age in years;
-	// only global exercises of the libraries that fit the allowed activities (hall: dressage).
+	// only global exercises of the libraries that fit the allowed activities (hall: dressage
+	// and cavaletti, hack: none).
 	if msg.Age != 12 || msg.Level != "intermediate" || len(msg.Exercises) == 0 {
 		t.Fatalf("prompt = %s", chat.user)
 	}
 	for _, ex := range msg.Exercises {
-		if ex.Library != "dressage" {
+		if ex.Library != "dressage" && ex.Library != "cavaletti" {
 			t.Errorf("exercise of library %q sent", ex.Library)
 		}
 	}

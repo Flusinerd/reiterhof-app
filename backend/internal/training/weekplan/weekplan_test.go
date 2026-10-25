@@ -317,7 +317,7 @@ func TestParseAndMergeFocusAndExercise(t *testing.T) {
 	// Days from the rules get the first exercise of their library the horse has not mastered.
 	if e := byDate["2026-10-04"]; e.Source != SourceRules {
 		t.Fatalf("sun = %+v", e)
-	} else if lib := training.ExerciseLibrary(e.Recommendation.Activity, "dressage"); lib == "dressage" && (e.Exercise == nil || e.Exercise.ID != "id-kauen") {
+	} else if libs := training.ExerciseLibraries(e.Recommendation.Activity, "dressage"); len(libs) > 0 && libs[0] == "dressage" && (e.Exercise == nil || e.Exercise.ID != "id-kauen") {
 		t.Errorf("sun rules exercise = %+v", e.Exercise)
 	}
 }

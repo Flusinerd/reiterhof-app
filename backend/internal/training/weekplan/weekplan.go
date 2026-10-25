@@ -55,16 +55,9 @@ type Day struct {
 	Reha *recommend.RehaPhase
 }
 
-// Exercise is a candidate from the global exercise library.
-type Exercise struct {
-	ID       string
-	Library  string // dressage, jumping, groundwork, lunge (training.ExerciseLibrary)
-	Level    string // training.LevelBeginner, ...
-	Title    string
-	Tags     []string // aims of the training scale, e.g. takt, losgelassenheit
-	Mastered bool     // a session with focus rating 3 ("Sitzt")
-	NextID   string   // follow-up exercise, "" for none
-}
+// Exercise is a candidate from the exercise library (the pure view of a row, see
+// training.Exercise).
+type Exercise = training.Exercise
 
 // Input is everything the planner needs.
 type Input struct {
@@ -153,7 +146,7 @@ func Merge(in Input, proposals map[string]Proposal) []Entry {
 				}
 				if p.Activity != training.ActivityRest {
 					e.Focus = p.Focus
-					if ex := p.Exercise; ex != nil && ex.Library == training.ExerciseLibrary(p.Activity, in.Profile.Discipline) {
+					if ex := p.Exercise; ex != nil && slices.Contains(training.ExerciseLibraries(p.Activity, in.Profile.Discipline), ex.Library) {
 						e.Exercise = ex
 					}
 				}
@@ -177,7 +170,7 @@ func Merge(in Input, proposals map[string]Proposal) []Entry {
 			}
 		}
 		if e.Source == SourceRules {
-			e.Exercise = in.firstOpenExercise(training.ExerciseLibrary(e.Recommendation.Activity, in.Profile.Discipline))
+			e.Exercise = in.firstOpenExercise(homeLibrary(e.Recommendation.Activity, in.Profile.Discipline))
 		}
 		e.Recommendation.Score = 0
 		if a := e.Recommendation.Activity; a != training.ActivityRest {
@@ -223,6 +216,14 @@ func ahead(days []Day) *recommend.Ahead {
 		}
 	}
 	return a
+}
+
+// homeLibrary is the first library of an activity, "" for activities without exercises.
+func homeLibrary(a training.Activity, discipline string) string {
+	if libs := training.ExerciseLibraries(a, discipline); len(libs) > 0 {
+		return libs[0]
+	}
+	return ""
 }
 
 // firstOpenExercise is the first exercise of a library the horse has not mastered yet (the

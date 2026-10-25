@@ -424,9 +424,11 @@ func (h *handler) planExercises(ctx context.Context, horseID string, prof traini
 		if al.Mode != training.ModeOn && al.Mode != training.ModeConditional {
 			continue
 		}
-		if lib := training.ExerciseLibrary(al.Activity, prof.Discipline); lib != "" && !seen[lib] {
-			seen[lib] = true
-			libs = append(libs, lib)
+		for _, lib := range training.ExerciseLibraries(al.Activity, prof.Discipline) {
+			if !seen[lib] {
+				seen[lib] = true
+				libs = append(libs, lib)
+			}
 		}
 	}
 	if len(libs) == 0 {

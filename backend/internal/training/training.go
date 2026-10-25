@@ -199,6 +199,16 @@ type Profile struct {
 	SeasonEnd  *time.Time        `json:"season_end,omitempty"`
 	Rhythm     Rhythm            `json:"rhythm"`
 	Status     Status            `json:"status"`
+	// Focuses are the owner's focuses of the horse in priority order (at most MaxHorseFocuses),
+	// see focus.go.
+	Focuses []FocusChoice `json:"focuses,omitempty"`
+	// CycleStart is the Monday of the first week of the four-week training blocks, nil without
+	// blocks.
+	CycleStart *time.Time `json:"cycle_start,omitempty"`
+	// GoalLevel is the level class the horse is trained towards ("" = the class above its level)
+	// and GoalUntil an optional date for it, see GoalLevel and Progress.
+	GoalLevel string     `json:"goal_level,omitempty"`
+	GoalUntil *time.Time `json:"goal_until,omitempty"`
 }
 
 // RiderRules are the owner's rules for one rider (rb_rules).
@@ -229,26 +239,26 @@ type Session struct {
 	// 2 Besser, 3 Sitzt); both empty when not logged.
 	ExerciseID  string `json:"exercise_id,omitempty"`
 	FocusRating int    `json:"focus_rating,omitempty"`
+	// FocusKey is the catalog focus the unit trained (empty when none was logged); it drives the
+	// focus rotation.
+	FocusKey string `json:"focus_key,omitempty"`
+	// Exercises lists every exercise of the unit (Lösen, Arbeiten, Entspannen) when the unit was
+	// planned with a unit plan; ExerciseID stays the main one.
+	Exercises []string `json:"exercises,omitempty"`
 }
 
-// ExerciseLibrary returns the discipline of the exercise library that fits an activity:
-// hall and arena use the dressage library (the jumping library for jumping horses), jumping,
-// groundwork and lunge their own; hack, walker and rest have none ("").
-func ExerciseLibrary(a Activity, horseDiscipline string) string {
-	switch a {
-	case ActivityJumping:
-		return "jumping"
-	case ActivityGroundwork:
-		return "groundwork"
-	case ActivityLunge:
-		return "lunge"
-	case ActivityHall, ActivityArena:
-		if horseDiscipline == "jumping" {
-			return "jumping"
-		}
-		return "dressage"
+// UsedExercises lists the exercises the session practised: the logged one and the unit plan's.
+func (s Session) UsedExercises() []string {
+	out := make([]string, 0, 1+len(s.Exercises))
+	if s.ExerciseID != "" {
+		out = append(out, s.ExerciseID)
 	}
-	return ""
+	for _, id := range s.Exercises {
+		if id != "" && id != s.ExerciseID {
+			out = append(out, id)
+		}
+	}
+	return out
 }
 
 // Training levels of the exercise library.
