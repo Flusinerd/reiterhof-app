@@ -8,7 +8,7 @@ import type { WeekDay } from "@/lib/api/training";
 import { weekRehaText } from "@/lib/reha";
 import { dayStatusLabel, formatDayLong, weekdayShort } from "@/lib/training";
 import { dayFocusLabel, dayFocusLines, mainExercise, type FocusEntry } from "@/lib/training-focus";
-import type { PlanDay } from "@/lib/training-plan";
+import { plannedMinutes, type PlanDay } from "@/lib/training-plan";
 import { showTestsText } from "@/lib/training-profile";
 
 export type WeekDayRowProps = {
@@ -16,6 +16,8 @@ export type WeekDayRowProps = {
   draftDay?: PlanDay;
   /** The focus catalog, for the label of a focus key the API did not label (empty on older backends). */
   focuses?: readonly FocusEntry[];
+  /** The horse, so that the exercise opens with its equipment. */
+  horseId?: string;
   editable: boolean;
   busy: boolean;
   onTake: () => void;
@@ -41,14 +43,16 @@ function DayNumber({ date, today }: { date: string; today: boolean }) {
  * minutes, the focus as a chip, the exercise and the note on the equipment, then reha and show
  * underneath. Tapping edits the day when allowed.
  */
-export function WeekDayRow({ day, draftDay, focuses, editable, busy, onTake, onEdit }: WeekDayRowProps) {
+export function WeekDayRow({ day, draftDay, focuses, horseId, editable, busy, onTake, onEdit }: WeekDayRowProps) {
   const router = useRouter();
   const label = dayStatusLabel(day.status, day.user, day.is_me, day.rest_reason);
   const open = day.status === "open" || (day.status === "today" && !day.user);
   const faded = day.status === "empty" || day.status === "rest";
   const focus = dayFocusLines(day, focuses);
   const exercise = mainExercise(day);
-  const activityText = day.activity ? `${day.label ?? ""}${day.minutes > 0 ? `, ${day.minutes} Min.` : ""}` : "";
+  // A planned day has no logged minutes; the plan says how long it is.
+  const minutes = plannedMinutes(day);
+  const activityText = day.activity ? `${day.label ?? ""}${minutes > 0 ? `, ${minutes} Min.` : ""}` : "";
   const summary = draftDay
     ? draftSummary(draftDay, focuses)
     : [label, activityText, focus.chip ? `Schwerpunkt ${focus.chip}` : ""].filter(Boolean).join(", ");
@@ -73,7 +77,7 @@ export function WeekDayRow({ day, draftDay, focuses, editable, busy, onTake, onE
                   <ActivityIcon activity={day.activity} size={14} className="text-muted" />
                   <Text variant="bodySm" tone="muted">
                     {day.label}
-                    {day.minutes > 0 ? ` · ${day.minutes} Min.` : ""}
+                    {minutes > 0 ? ` · ${minutes} Min.` : ""}
                   </Text>
                 </View>
                 {focus.chip ? <Badge variant="primary" label={focus.chip} /> : null}
@@ -125,7 +129,7 @@ export function WeekDayRow({ day, draftDay, focuses, editable, busy, onTake, onE
             size="sm"
             icon={BookOpen}
             className="-ml-4"
-            onPress={() => router.push(`/training/exercises/${exercise.id}` as Href)}
+            onPress={() => router.push(`/training/exercises/${exercise.id}${horseId ? `?horse=${horseId}` : ""}` as Href)}
           />
         </View>
       ) : null}

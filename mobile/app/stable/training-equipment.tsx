@@ -131,7 +131,7 @@ export default function TrainingEquipment() {
             fullWidth
             disabled={!changed && data.set}
             loading={save.isPending}
-            onPress={() => save.mutate(draft, { onSuccess: () => router.back() })}
+            onPress={() => save.mutateAsync({ locations: draft, facility }).then(() => router.back()).catch(() => undefined)}
           />
         </View>
       ) : (

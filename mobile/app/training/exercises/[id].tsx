@@ -6,7 +6,7 @@ import { NumberedSteps } from "@/components/exercise-steps";
 import { Badge, Button, Icon, PageHeader, Screen, Section, Text } from "@/components/ui";
 import { ListRow, RowList } from "@/components/ui/list-row";
 import { errorMessage } from "@/lib/api";
-import { useTrainingEquipment } from "@/lib/api/training";
+import { useProfile, useTrainingEquipment } from "@/lib/api/training";
 import {
   exerciseIntensityLabel,
   exercisePhaseText,
@@ -31,10 +31,15 @@ const CHIP_VARIANT = { ok: "neutral", shared: "info", missing: "accent" } as con
  */
 export default function ExerciseDetail() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, horse } = useLocalSearchParams<{ id: string; horse?: string }>();
   const c = useColors();
   const exercise = useExercise(id);
   const equipment = useTrainingEquipment();
+  // With a horse the chips only look at the places it is trained at.
+  const profile = useProfile(horse).data;
+  const horseUse = profile?.exists
+    ? { discipline: profile.discipline, activities: profile.allowed_activities.filter((a) => a.mode !== "off").map((a) => a.activity) }
+    : undefined;
   const e = exercise.data;
 
   if (exercise.isPending) {
@@ -56,14 +61,15 @@ export default function ExerciseDetail() {
   }
 
   const steps = e.steps ?? [];
-  const go = (exerciseId: string) => router.push(`/training/exercises/${exerciseId}` as Href);
+  const go = (exerciseId: string) =>
+    router.push(`/training/exercises/${exerciseId}${horse ? `?horse=${horse}` : ""}` as Href);
   // Phase, minutes and intensity as label and value; what the backend does not send is left out.
   const facts = [
     ["Phase", exercisePhaseText(e.phase)],
     ["Dauer", minutesText(e.minutes)],
     ["Belastung", exerciseIntensityLabel(e.intensity)],
   ].filter(([, value]) => value !== "");
-  const chips = equipmentChips(e.equipment, equipment.data, libraryOf(e));
+  const chips = equipmentChips(e.equipment, equipment.data, libraryOf(e), horseUse);
   const missing = missingText(chips);
   const requires = e.requires ?? [];
   const alternatives = e.alternatives ?? [];

@@ -80,10 +80,6 @@ export const LOCATIONS: readonly { key: LocationKey; label: string }[] = [
   { key: "groundwork", label: "Bodenarbeitsplatz" },
 ];
 
-export function locationLabel(key: string): string {
-  return LOCATIONS.find((l) => l.key === key)?.label ?? key;
-}
-
 /** What the stable has at a location; `shared` means set-up needs an agreement with others. */
 export type LocationEquipment = { equipment: string[]; shared: boolean };
 
@@ -131,11 +127,6 @@ export function toggleEquipment(location: LocationEquipment, key: string, facili
 export function locationSummary(location: LocationEquipment): string {
   const what = equipmentList(location.equipment) || "Nichts zum Aufbauen";
   return location.shared ? `${what} · geteilt` : what;
-}
-
-/** One line for all locations: "Halle: Stangen · Platz: Stangen · …". */
-export function equipmentOverview(locations: Record<LocationKey, LocationEquipment>): string {
-  return LOCATIONS.map((l) => `${l.label}: ${equipmentList(locations[l.key].equipment) || "nichts"}`).join(" · ");
 }
 
 /** Body of PUT /stables/training-equipment: every location with its equipment and `shared`. */
@@ -195,23 +186,18 @@ export function isAvailable(item: { available?: boolean | null }): boolean {
   return item.available !== false;
 }
 
-/**
- * The facility equipment a unit at the location can use (training.Available in the backend): none
- * when the day says no set-up, none at a shared location unless the day says set-up is possible.
- */
-export function availableSet(
-  location: LocationEquipment | undefined,
-  equipmentOk: boolean | null | undefined,
-  facility: readonly string[] = FACILITY_KEYS,
-): string[] {
-  if (!location || equipmentOk === false) return [];
-  if (location.shared && equipmentOk !== true) return [];
-  return facilityOf(location.equipment, facility);
-}
+/** What a horse is trained with: its discipline and the activities its profile allows (both optional). */
+export type HorseUse = { discipline?: string; activities?: readonly string[] };
 
-/** The locations whose activities use the library (hall and arena for dressage, ...); hack has none. */
-export function locationsOfLibrary(library: string): LocationKey[] {
-  return LOCATIONS.filter((l) => DISCIPLINES.some((d) => exerciseLibraries(l.key, d.value).includes(library))).map((l) => l.key);
+/**
+ * The locations whose activities use the library (hall and arena for dressage, ...); hack has none.
+ * For a horse only the locations of its allowed activities count, with its own discipline.
+ */
+export function locationsOfLibrary(library: string, horse?: HorseUse): LocationKey[] {
+  const disciplines = horse?.discipline ? [horse.discipline] : DISCIPLINES.map((d) => d.value);
+  return LOCATIONS.filter(
+    (l) => (!horse?.activities || horse.activities.includes(l.key)) && disciplines.some((d) => exerciseLibraries(l.key, d).includes(library)),
+  ).map((l) => l.key);
 }
 
 export type ChipStatus = "ok" | "shared" | "missing";
@@ -228,16 +214,17 @@ export type EquipmentChip = {
  * The equipment chips of an exercise. Personal equipment is always there. Facility equipment is
  * `ok` when a location that uses the library has it without sharing, `shared` when only a shared
  * location has it (set-up needs an agreement), else `missing`. Without data about the stable all
- * chips are `ok`.
+ * chips are `ok`. With a horse only the locations it is trained at count.
  */
 export function equipmentChips(
   equipment: readonly string[] | null | undefined,
   stable: StableEquipment | null | undefined,
   library: string,
+  horse?: HorseUse,
 ): EquipmentChip[] {
   const facility = facilityKeysOf(stable);
   const locations = stable ? locationsWithDefaults(stable.locations, facility) : null;
-  const where = locationsOfLibrary(library);
+  const where = locationsOfLibrary(library, horse);
   return (equipment ?? []).map((key) => {
     let status: ChipStatus = "ok";
     if (locations && facility.includes(key) && where.length > 0) {

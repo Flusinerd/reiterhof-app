@@ -89,7 +89,7 @@ export default function ExerciseLibrary() {
             </FilterGroup>
           ) : null}
           {options.disciplines.length > 1 ? (
-            <FilterGroup title="Disziplin">
+            <FilterGroup title="Bereich">
               {options.disciplines.map((d) => (
                 <Pill
                   key={d}
@@ -145,7 +145,7 @@ export default function ExerciseLibrary() {
             ) : (
               <RowList>
                 {shown.map((e) => (
-                  <ExerciseListItem key={e.id} exercise={e} onPress={() => router.push(`/training/exercises/${e.id}` as Href)} />
+                  <ExerciseListItem key={e.id} exercise={e} onPress={() => router.push(`/training/exercises/${e.id}${horse ? `?horse=${horse}` : ""}` as Href)} />
                 ))}
               </RowList>
             )}

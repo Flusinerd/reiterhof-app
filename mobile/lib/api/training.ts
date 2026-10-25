@@ -266,12 +266,15 @@ export type TrainingProfile = {
   warnings?: FocusWarning[];
   /** The way to the level goal; absent on older backends (and for a horse with no class above). */
   progress?: LevelProgress | null;
+  /** The level goal as stored (null: the class above the current one) and its end date; sent with or without `progress`. */
+  goal_level?: GoalLevel | null;
+  goal_until?: string | null;
 };
 
 /** Body of PUT /training-profile. */
 export type ProfileInput = Omit<
   TrainingProfile,
-  "horse_id" | "horse_name" | "exists" | "can_edit" | "phase" | "focus_hints" | "warnings" | "progress"
+  "horse_id" | "horse_name" | "exists" | "can_edit" | "phase" | "focus_hints" | "warnings" | "progress" | "goal_level" | "goal_until"
 > & {
   /** The level goal; null is "the class above the current one". Only sent by the goal sheet. */
   goal_level?: GoalLevel | null;
@@ -318,8 +321,9 @@ export const trainingApi = {
   clearMyFocus: (horse: string) => authed.delete<unknown>(`${base(horse)}/my-focus`),
   /** What the stable has to set up for training (all members read, admins write). */
   equipment: () => authed.get<StableEquipment>("/api/v1/stables/training-equipment"),
-  saveEquipment: (locations: Record<LocationKey, LocationEquipment>) =>
-    authed.put<unknown>("/api/v1/stables/training-equipment", equipmentBody(locations)),
+  /** `facility` is the key list the server sent (`keys.facility`), so that keys the app does not know are kept. */
+  saveEquipment: (locations: Record<LocationKey, LocationEquipment>, facility?: readonly string[]) =>
+    authed.put<unknown>("/api/v1/stables/training-equipment", equipmentBody(locations, facility)),
 };
 
 // --- hooks (the query keys live in lib/query-keys.ts) ------------------------------------------
@@ -460,7 +464,8 @@ export function useClearMyFocus(horse: string) {
 /** Saves the stable's equipment (admins); exercises (availability), plans and today of every horse are stale. */
 export function useSaveTrainingEquipment() {
   return useEffectMutation({
-    mutationFn: (locations: Record<LocationKey, LocationEquipment>) => trainingApi.saveEquipment(locations),
+    mutationFn: ({ locations, facility }: { locations: Record<LocationKey, LocationEquipment>; facility?: readonly string[] }) =>
+      trainingApi.saveEquipment(locations, facility),
     effects: () => [{ type: "trainingEquipment" }],
   });
 }

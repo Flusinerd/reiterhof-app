@@ -177,15 +177,10 @@ export default function TrainingWeek() {
       </View>
 
       <PageHeader
-        eyebrow={`${horseName} · ${weekRangeLabel(data.start, data.end)}`}
+        eyebrow={[horseName, weekRangeLabel(data.start, data.end), block].filter(Boolean).join(" · ")}
         title="Woche"
         description={data.assessment}
       >
-        {block ? (
-          <Text variant="eyebrow" tone={data.block?.deload ? "info" : "brass"}>
-            {block}
-          </Text>
-        ) : null}
         {drafting ? <Badge variant="accent" label="Entwurf" /> : null}
         <LoadBar segments={data.segments} />
       </PageHeader>
@@ -241,9 +236,10 @@ export default function TrainingWeek() {
               day={d}
               draftDay={draftDay}
               focuses={catalog.data}
+              horseId={activeId}
               editable={editable && !apply.isPending}
               busy={take.isPending && take.variables?.day === d.date}
-              onTake={() => take.mutate({ day: d.date, status: "planned" })}
+              onTake={() => take.mutateAsync({ day: d.date, status: "planned" }).catch(() => undefined)}
               onEdit={() => openEdit(d.date)}
             />
           );
@@ -263,7 +259,12 @@ export default function TrainingWeek() {
               size="lg"
               fullWidth
               loading={apply.isPending}
-              onPress={() => apply.mutate(draft.days, { onSuccess: () => setDraft(null) })}
+              onPress={() =>
+                apply
+                  .mutateAsync(draft.days)
+                  .then(() => setDraft(null))
+                  .catch(() => undefined)
+              }
             />
           ) : (
             <Text variant="secondary">Kein Tag mehr im Entwurf.</Text>
@@ -380,7 +381,10 @@ function DayEditor({
       return;
     }
     // Only what the owner changed against the saved day goes along (focus key, unit, set-up of the day).
-    take.mutate({ day: date, ...dayEditBody(edit, dayEditFrom(day)) }, { onSuccess: onClose });
+    return take
+      .mutateAsync({ day: date, ...dayEditBody(edit, dayEditFrom(day)) })
+      .then(onClose)
+      .catch(() => undefined); // the error shows from the mutation state
   };
   const remove = () => {
     if (draftDay) {
@@ -388,7 +392,10 @@ function DayEditor({
       onClose();
       return;
     }
-    take.mutate({ day: date, status: "open" }, { onSuccess: onClose });
+    return take
+      .mutateAsync({ day: date, status: "open" })
+      .then(onClose)
+      .catch(() => undefined);
   };
   const proposeAgain = (current: DayEdit) => {
     // Context is what the sheet shows now; the activity shown is the one not to propose again.

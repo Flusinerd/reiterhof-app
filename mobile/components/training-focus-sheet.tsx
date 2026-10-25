@@ -78,7 +78,7 @@ export function FocusSheet({
   const close = () => onOpenChange(false);
   const error = set.isError ? trainingError(set.error) : clear.isError ? trainingError(clear.error) : null;
   const clearAll = () => {
-    if (saved.length > 0) clear.mutate(undefined, { onSuccess: close });
+    if (saved.length > 0) return clear.mutateAsync().then(close).catch(() => undefined);
     else {
       setTouched(true);
       setKeys([]);
@@ -122,7 +122,7 @@ export function FocusSheet({
         fullWidth
         disabled={keys.length === 0 || !changed || clear.isPending}
         loading={set.isPending}
-        onPress={() => set.mutate(keys, { onSuccess: close })}
+        onPress={() => set.mutateAsync(keys).then(close).catch(() => undefined)}
       />
       {saved.length > 0 || keys.length > 0 ? (
         <Button

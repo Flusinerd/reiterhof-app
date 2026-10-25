@@ -140,7 +140,10 @@ export default function FocusesEditor() {
       return;
     }
     setError(null);
-    save.mutate(result.input as ProfileInput, { onSuccess: () => router.back() });
+    return save
+      .mutateAsync(result.input as ProfileInput)
+      .then(() => router.back())
+      .catch(() => undefined); // the error shows from the mutation state
   };
 
   const shownError = error ?? (save.isError ? trainingError(save.error) : null);

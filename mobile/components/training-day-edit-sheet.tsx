@@ -56,11 +56,12 @@ export type DayEditSheetProps = {
   error: string | null;
   /** Saved days that nobody planned or claimed have nothing to release. */
   canRemove?: boolean;
-  onSave: (edit: DayEdit) => void;
+  /** Return the promise of a stored save: the button stays locked until it is done. */
+  onSave: (edit: DayEdit) => unknown;
   /** Gets the state shown in the sheet, so that the parent can exclude what is shown. */
   onRepropose: (current: DayEdit) => void;
   /** Draft: remove the day from the draft. Planned: release the day (status open). */
-  onRemove: () => void;
+  onRemove: () => unknown;
 };
 
 /**

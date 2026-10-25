@@ -8,17 +8,14 @@ import {
   MISSING_LABEL,
   PERSONAL_KEYS,
   SETUP_CHOICES,
-  availableSet,
   equipmentBody,
   equipmentChips,
   equipmentLabel,
   equipmentList,
   equipmentOkOf,
-  equipmentOverview,
   facilityKeysOf,
   facilityOf,
   isAvailable,
-  locationLabel,
   locationSummary,
   locationsOfLibrary,
   locationsWithDefaults,
@@ -54,12 +51,7 @@ test("every key of the fixed lists has a German label", () => {
 
 test("the five locations are the activities with a place; labels are German", () => {
   assert.deepEqual(LOCATIONS.map((l) => l.key), ["hall", "arena", "lunge", "jumping", "groundwork"]);
-  assert.equal(locationLabel("hall"), "Halle");
-  assert.equal(locationLabel("arena"), "Platz");
-  assert.equal(locationLabel("lunge"), "Longierhalle");
-  assert.equal(locationLabel("jumping"), "Springplatz");
-  assert.equal(locationLabel("groundwork"), "Bodenarbeitsplatz");
-  assert.equal(locationLabel("hack"), "hack");
+  assert.deepEqual(LOCATIONS.map((l) => l.label), ["Halle", "Platz", "Longierhalle", "Springplatz", "Bodenarbeitsplatz"]);
 });
 
 test("locations without data take the backend's defaults, in the order of the fixed list", () => {
@@ -87,10 +79,6 @@ test("the admin toggles the equipment of a location and sees a summary", () => {
   assert.equal(locationSummary({ equipment: [], shared: false }), "Nichts zum Aufbauen");
   assert.equal(locationSummary({ equipment: ["poles"], shared: true }), "Stangen · geteilt");
   assert.equal(locationSummary({ equipment: [], shared: true }), "Nichts zum Aufbauen · geteilt");
-  assert.equal(
-    equipmentOverview(locationsWithDefaults(undefined)),
-    "Halle: Stangen · Platz: Stangen · Longierhalle: nichts · Springplatz: Stangen, Sprünge · Bodenarbeitsplatz: Stangen",
-  );
 });
 
 test("the body of the PUT names every location; changes are detected", () => {
@@ -128,20 +116,6 @@ test("exercises are available unless the API says they are not", () => {
   assert.equal(isAvailable({ available: false }), false);
   assert.equal(isAvailable({}), true, "older backend: no field, nothing is dimmed");
   assert.equal(isAvailable({ available: null }), true);
-});
-
-test("the available set follows the day's choice and the sharing of the location", () => {
-  const hall = { equipment: ["poles", "cavaletti"], shared: false };
-  const shared = { equipment: ["poles", "cavaletti"], shared: true };
-  assert.deepEqual(availableSet(hall, null), ["poles", "cavaletti"]);
-  assert.deepEqual(availableSet(hall, true), ["poles", "cavaletti"]);
-  assert.deepEqual(availableSet(hall, false), [], "no set-up today");
-  assert.deepEqual(availableSet(shared, null), [], "a shared place needs an agreement");
-  assert.deepEqual(availableSet(shared, undefined), []);
-  assert.deepEqual(availableSet(shared, true), ["poles", "cavaletti"], "...which the day can state");
-  assert.deepEqual(availableSet(shared, false), []);
-  assert.deepEqual(availableSet(undefined, true), []);
-  assert.deepEqual(availableSet({ equipment: ["lunge", "poles"], shared: false }, null), ["poles"], "only facility equipment is planned against the stable");
 });
 
 test("which locations use a library", () => {
@@ -190,4 +164,28 @@ test("equipment chips mark what the stable lacks and what needs an agreement", (
   assert.deepEqual(equipmentChips([], stable, "dressage"), []);
   // Locations the server left out take the defaults: the arena has poles.
   assert.equal(equipmentChips(["poles"], { set: false, locations: {} }, "dressage")[0]!.status, "ok");
+});
+
+test("the PUT keeps the keys of the server's facility list, not only the app's fixed list", () => {
+  const server = [...FACILITY_KEYS, "water_tray"];
+  const all = locationsWithDefaults(undefined, server);
+  const withNew = { ...all, hall: { equipment: ["poles", "water_tray"], shared: false } };
+  assert.deepEqual(equipmentBody(withNew, server).locations.hall.equipment, ["poles", "water_tray"]);
+  assert.deepEqual(equipmentBody(withNew).locations.hall.equipment, ["poles"], "the fixed list alone would drop it");
+});
+
+test("the chips of a horse only look at the places it is trained at", () => {
+  const stable: StableEquipment = {
+    set: true,
+    locations: {
+      hall: { equipment: ["cavaletti"], shared: false },
+      arena: { equipment: ["cavaletti"], shared: false },
+      lunge: { equipment: [], shared: false },
+    },
+  };
+  assert.equal(equipmentChips(["cavaletti"], stable, "cavaletti")[0]!.status, "ok", "any location has them");
+  const lungeOnly = { discipline: "dressage", activities: ["lunge"] };
+  assert.equal(equipmentChips(["cavaletti"], stable, "cavaletti", lungeOnly)[0]!.status, "missing", "the lunge ring has none");
+  assert.deepEqual(locationsOfLibrary("cavaletti", lungeOnly), ["lunge"]);
+  assert.deepEqual(locationsOfLibrary("jumping", { discipline: "dressage" }), ["jumping"], "dressage horses use the jumping place only for jumping");
 });

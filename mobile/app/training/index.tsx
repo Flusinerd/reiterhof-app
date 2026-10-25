@@ -163,7 +163,7 @@ export default function Training() {
 
   const goto = (href: string) => router.push(href as Href);
   const weekHref = `/training/week?horse=${activeId}`;
-  const openExercise = (id: string) => goto(`/training/exercises/${id}`);
+  const openExercise = (id: string) => goto(`/training/exercises/${id}?horse=${activeId}`);
   // Quiet rows: the horse has no focus yet (owners), the stable's equipment is not entered (admins).
   const noFocuses = !!data?.can_edit && data.has_profile && profile.data?.focuses !== undefined && profile.data.focuses.length === 0;
   const noEquipment = !!user?.is_admin && equipment.data?.set === false;
