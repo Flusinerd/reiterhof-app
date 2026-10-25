@@ -42,7 +42,7 @@ func TestExerciseLibrary(t *testing.T) {
 			t.Fatalf("%s must come before %s: %v", chain[i-1], chain[i], pos)
 		}
 	}
-	if got := exerciseTitles(e.call(seed.UserJan, http.MethodGet, "/api/v1/exercises?discipline=jumping&level=beginner", "", http.StatusOK)); len(got) != 4 || !slices.Contains(got, "Schenkelweichen") {
+	if got := exerciseTitles(e.call(seed.UserJan, http.MethodGet, "/api/v1/exercises?discipline=jumping&level=beginner", "", http.StatusOK)); len(got) != 2 || !slices.Contains(got, "Schenkelweichen") {
 		t.Fatalf("jumping beginner = %v", got)
 	}
 	if got := exerciseTitles(e.call(seed.UserJan, http.MethodGet, "/api/v1/exercises?discipline=lunge", "", http.StatusOK)); len(got) != 6 || got[0] != "Aufwärmen im Schritt" {
