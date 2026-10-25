@@ -1,15 +1,20 @@
 import { useLocalSearchParams, useRouter, type Href } from "expo-router";
-import { Activity, CalendarRange, Medal, Timer, Trophy, Users } from "lucide-react-native";
+import { Activity, CalendarRange, Medal, Target, Timer, Trophy, Users } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 
+import { GoalSheet } from "@/components/training-goal-sheet";
+import { LevelUpSheet } from "@/components/training-level-up-sheet";
+import { progressRows } from "@/components/training-progress";
 import { RiderRuleCard } from "@/components/training-rider-rules";
 import { Button, Icon, Input, PageHeader, Pill, Screen, Section, Sheet, Text } from "@/components/ui";
 import { ListRow, RowList } from "@/components/ui/list-row";
-import { trainingError, useProfile, useSaveProfile, type ProfileInput } from "@/lib/api/training";
+import { trainingError, useFocuses, useProfile, useSaveProfile, type ProfileInput } from "@/lib/api/training";
 import { dateToIso } from "@/lib/date-field";
 import { horseRoutes } from "@/lib/horse-format";
 import { ACTIVITIES, DISCIPLINES, PROFILE_STATUSES, activityLabel, disciplineLabel, statusLabel } from "@/lib/training";
+import { focusWarnings, focusesSummary } from "@/lib/training-focus";
+import { levelUp, levelUpLabel, progressText, type GoalLevel } from "@/lib/training-goal";
 import {
   activitySummary,
   draftFromProfile,
@@ -21,7 +26,7 @@ import {
   type ProfileDraft,
 } from "@/lib/training-profile";
 
-type EditorSection = "activities" | "rhythm" | "structure" | "shows" | "riders";
+type EditorSection = "activities" | "rhythm" | "structure" | "shows" | "riders" | "focuses";
 
 const STATUS_TONE = { fit: "success", reha: "accent", pause: "muted" } as const;
 
@@ -57,6 +62,10 @@ export default function TrainingProfile() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [discipline, setDiscipline] = useState("");
   const [level, setLevel] = useState("");
+  // The level goal and the one-tap level change have their own sheets.
+  const [goalOpen, setGoalOpen] = useState(false);
+  const [levelUpOpen, setLevelUpOpen] = useState(false);
+  const catalog = useFocuses();
 
   const data = profile.data;
   const draft = useMemo(() => (data?.exists ? draftFromProfile(data) : null), [data]);
@@ -108,6 +117,21 @@ export default function TrainingProfile() {
     setError(null);
     save.reset();
     setSheetOpen(true);
+  };
+
+  const progress = data.progress ?? null;
+  const levelUpInfo = levelUp(data.warnings, progress);
+  const openExercise = (exerciseId: string) => router.push(`/training/exercises/${exerciseId}` as Href);
+  const openSheetFor = (open: (v: boolean) => void) => () => {
+    setError(null);
+    save.reset();
+    open(true);
+  };
+  /** Sets the level goal; only this save carries it, so that no other editor touches it. */
+  const saveGoal = (goal: { level: GoalLevel | null; until: string }) => saveChange({ goal }, () => setGoalOpen(false));
+  /** "Auf L einstufen": the new level, the goal back to the class above it. */
+  const confirmLevelUp = () => {
+    if (levelUpInfo?.letter) saveChange({ level: levelUpInfo.letter, goal: { level: null, until: "" } }, () => setLevelUpOpen(false));
   };
 
   const shownError = error ?? (save.isError ? trainingError(save.error) : null);
@@ -167,6 +191,49 @@ export default function TrainingProfile() {
               accessibilityLabel="Disziplin und Niveau"
               onPress={openSheet}
             />
+            {progress
+              ? progressRows({
+                  text: progressText(progress, name),
+                  next: progress.next,
+                  onOpenGoal: openSheetFor(setGoalOpen),
+                  onOpenExercise: openExercise,
+                })
+              : null}
+            {levelUpInfo ? (
+              <ListRow
+                key="level-up"
+                className="border-l-2 border-accent pl-3"
+                eyebrow="Hinweis"
+                eyebrowTone="accent"
+                title={levelUpInfo.text}
+              >
+                {levelUpInfo.letter ? (
+                  <Button
+                    label={levelUpLabel(levelUpInfo.letter)}
+                    variant="outline"
+                    size="sm"
+                    className="mt-2"
+                    onPress={openSheetFor(setLevelUpOpen)}
+                  />
+                ) : null}
+              </ListRow>
+            ) : null}
+            {draft.focuses !== undefined ? (
+              <ListRow
+                key="focuses"
+                leading={<Icon as={Target} size={20} className="text-muted" />}
+                title="Schwerpunkte"
+                detail={focusesSummary(data.focuses, catalog.data)}
+                accessibilityLabel={`Schwerpunkte: ${focusesSummary(data.focuses, catalog.data)}`}
+                onPress={() => go("focuses")}
+              >
+                {focusWarnings(data.warnings).map((w) => (
+                  <Text key={w.key} variant="secondary" tone="accent">
+                    {w.text}
+                  </Text>
+                ))}
+              </ListRow>
+            ) : null}
             <ListRow
               leading={<Icon as={Activity} size={20} className="text-muted" />}
               title="Aktivitäten"
@@ -240,12 +307,39 @@ export default function TrainingProfile() {
               onPress={() => saveChange({ discipline, level }, () => setSheetOpen(false))}
             />
           </Sheet>
+
+          <GoalSheet
+            open={goalOpen}
+            onOpenChange={setGoalOpen}
+            horseName={name}
+            progress={progress}
+            saving={save.isPending}
+            error={shownError}
+            onSave={saveGoal}
+          />
+          {levelUpInfo?.letter ? (
+            <LevelUpSheet
+              open={levelUpOpen}
+              onOpenChange={setLevelUpOpen}
+              horseName={name}
+              letter={levelUpInfo.letter}
+              saving={save.isPending}
+              error={shownError}
+              onConfirm={confirmLevelUp}
+            />
+          ) : null}
         </>
       ) : (
         <>
           <Text variant="body">
             {[disciplineLine(draft), allowedLine(draft)].filter(Boolean).join(" · ")}
           </Text>
+          {data.focuses && data.focuses.length > 0 ? (
+            <Text variant="body">{`Schwerpunkte: ${focusesSummary(data.focuses, catalog.data)}`}</Text>
+          ) : null}
+          {progress ? (
+            <RowList>{progressRows({ text: progressText(progress, name), next: progress.next, onOpenExercise: openExercise })}</RowList>
+          ) : null}
           {draft.riders.length > 0 ? (
             <Section title="Meine Regeln">
               {draft.riders.map((r) => (

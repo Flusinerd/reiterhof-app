@@ -129,6 +129,8 @@ export type FinishBody = {
   rein_changes?: ReinSegment[];
   distance_m?: number;
   exercise_id?: string;
+  /** What was trained (catalog key), when the unit had a focus. */
+  focus_key?: string;
   feeling?: Feeling;
   focus_rating?: 1 | 2 | 3;
   note?: string;
@@ -144,6 +146,8 @@ export type FinishForm = {
   distanceM?: number;
   /** The exercise of the plan and whether it was practised (ticked). */
   exercise?: { id: string; practised: boolean };
+  /** Focus of the unit (catalog key, see `sessionFocusKey`): what was trained, drives the rotation of focuses. */
+  focusKey?: string;
   feeling: Feeling | null;
   note: string;
   /** Only set when the person can decide it (owner with a rider). */
@@ -152,7 +156,8 @@ export type FinishForm = {
 
 /**
  * Body of `POST /horses/{id}/sessions`. The exercise is only recorded when it is ticked; the
- * feeling doubles as the rating of that exercise (`focusFromFeeling`).
+ * feeling doubles as the rating of that exercise (`focusFromFeeling`). The focus key goes along
+ * whenever the unit had one (older backends never send one, so they never get the field).
  */
 export function buildSessionBody(form: FinishForm): FinishBody {
   const practised = !!form.exercise?.practised;
@@ -166,6 +171,7 @@ export function buildSessionBody(form: FinishForm): FinishBody {
     ...(form.reinChanges ? { rein_changes: form.reinChanges } : {}),
     ...(form.distanceM ? { distance_m: form.distanceM } : {}),
     ...(practised && form.exercise ? { exercise_id: form.exercise.id } : {}),
+    ...(form.focusKey ? { focus_key: form.focusKey } : {}),
     ...(form.feeling ? { feeling: form.feeling } : {}),
     ...(focus ? { focus_rating: focus } : {}),
     ...(note ? { note } : {}),

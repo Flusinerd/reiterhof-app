@@ -2,7 +2,26 @@
 // for the open days; the app applies the days with PUT /week/{day}. See docs/domains/training.md.
 
 import type { WeekDay } from "./api/training";
-import { activityLabel, formatMinutes, type Activity, type WeekDayLike } from "./training.ts";
+import {
+  DEFAULT_MINUTES,
+  MINUTE_CHOICES,
+  activityLabel,
+  exerciseLibraries,
+  formatMinutes,
+  type Activity,
+  type WeekDayLike,
+} from "./training.ts";
+import {
+  clearUnitExercises,
+  resplitUnit,
+  setUnitExercise,
+  unitBody,
+  unitMinutes,
+  type Unit,
+  type UnitBody,
+  type UnitExercise,
+  type UnitPartKey,
+} from "./training-focus.ts";
 
 /** Whether and how the language model took part (planOut.ai_status). */
 export type PlanAIStatus =
@@ -32,8 +51,13 @@ export type PlanDay = {
   user: { id: string; name: string; color_key?: string } | null;
   /** Content of the unit in a few words (only from the model). */
   focus?: string;
+  /** Focus of the unit from the catalog (key and German label); only newer backends send them. */
+  focus_key?: string | null;
+  focus_label?: string | null;
   /** Library exercise for the unit; null for hack, walker and rest. */
   exercise: { id: string; title: string } | null;
+  /** Lösen, Arbeiten and Entspannen with one exercise each; only newer backends send it. */
+  unit?: Unit | null;
   /** Level of the unit by its load (JAN-93); absent for rest days. */
   level?: "recovery" | "light" | "normal" | "demanding";
   /** German label of the level, e.g. "aktive Erholung". */
@@ -62,6 +86,9 @@ export type PlanApplyBody = {
   note: string;
   focus?: string;
   exercise_id?: string;
+  /** Catalog focus ("" removes it) and unit plan; only sent when the plan has them (newer backends). */
+  focus_key?: string;
+  unit?: UnitBody;
 };
 
 /** The server allows at most 500 characters per note. */
@@ -85,7 +112,13 @@ export function planApplyBody(day: PlanDay): PlanApplyBody | null {
   const body: PlanApplyBody = { status: "planned", activity: day.activity, user_id: day.user?.id ?? "", note: planDayNote(day) };
   // An edited day states focus and exercise even when empty, so that the owner's clearing is stored.
   if (day.focus || day.edited) body.focus = day.focus ?? "";
-  if (day.exercise || day.edited) body.exercise_id = day.exercise?.id ?? "";
+  // With a unit plan the backend takes the day's exercise from its main part and refuses another one,
+  // so the exercise only goes along on its own (an older backend, or a day without a unit).
+  if (!day.unit && (day.exercise || day.edited)) body.exercise_id = day.exercise?.id ?? "";
+  // An older backend rejects unknown fields: the focus key and the unit only go along when the plan has them.
+  if (day.focus_key) body.focus_key = day.focus_key;
+  else if (day.edited && day.focus_key === null) body.focus_key = "";
+  if (day.unit) body.unit = unitBody(day.unit);
   return body;
 }
 
@@ -161,13 +194,33 @@ export type DayEdit = {
   focus: string;
   exercise: { id: string; title: string } | null;
   userId: string | null;
+  /**
+   * Catalog focus: a key, null when the owner took it off, undefined when there is none or the
+   * backend has no focus keys. Only a key or null is sent.
+   */
+  focusKey?: string | null;
+  /** Lösen, Arbeiten, Entspannen; undefined when there is none yet or the backend has no units (nothing is sent). */
+  unit?: Unit;
+  /** "Aufbau heute": true, false, null (the location's default), or undefined when not offered (nothing is sent). */
+  equipmentOk?: boolean | null;
 };
 
 /** The draft day after the owner's change; the model's reason and level no longer apply. */
 export function editedPlanDay(day: PlanDay, edit: DayEdit): PlanDay {
   const { level: _level, level_label: _levelLabel, ...kept } = day;
   if (edit.status === "rest" || edit.activity === null) {
-    return { ...kept, activity: "rest", label: activityLabel("rest"), minutes: 0, focus: "", exercise: null, edited: true };
+    return {
+      ...kept,
+      activity: "rest",
+      label: activityLabel("rest"),
+      minutes: 0,
+      focus: "",
+      focus_key: null,
+      focus_label: null,
+      exercise: null,
+      unit: null,
+      edited: true,
+    };
   }
   return {
     ...kept,
@@ -175,9 +228,74 @@ export function editedPlanDay(day: PlanDay, edit: DayEdit): PlanDay {
     label: activityLabel(edit.activity),
     minutes: edit.minutes,
     focus: edit.focus,
+    // The label belongs to the key the model proposed; a new key brings its own label from the catalog.
+    focus_key: edit.focusKey,
+    focus_label: edit.focusKey === day.focus_key ? day.focus_label : undefined,
     exercise: edit.exercise,
+    unit: edit.unit,
     edited: true,
   };
+}
+
+// The changes the sheet makes to a `DayEdit`. `was` is the focus key the day had when the sheet opened:
+// only a key that existed has to be removed explicitly, otherwise nothing is sent.
+
+function sameList(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((x, i) => x === b[i]);
+}
+
+/** A focus from the catalog; the free text of the day goes unless the key stays the same. */
+export function pickFocusKey(edit: DayEdit, key: string): DayEdit {
+  return { ...edit, focusKey: key, focus: edit.focusKey === key ? edit.focus : "" };
+}
+
+/** "Kein": no catalog focus and no text. */
+export function pickNoFocus(edit: DayEdit, was: string | null | undefined): DayEdit {
+  return { ...edit, focusKey: was ? null : undefined, focus: "" };
+}
+
+/** "Eigener Text": the catalog focus goes, the free text stays. */
+export function pickCustomFocus(edit: DayEdit, was: string | null | undefined): DayEdit {
+  return { ...edit, focusKey: was ? null : undefined };
+}
+
+/** The main exercise of a unit, which is also the single exercise older clients read. */
+function mainOf(unit: Unit | undefined): DayEdit["exercise"] {
+  return unit?.main?.exercise ?? null;
+}
+
+/**
+ * A new activity: the minutes stay when the activity offers them, the exercises stay when it uses
+ * the same libraries (else they go), the unit gets the split of the new activity and minutes.
+ */
+export function pickActivity(edit: DayEdit, activity: Activity, discipline: string): DayEdit {
+  const minutes = MINUTE_CHOICES[activity].includes(edit.minutes) ? edit.minutes : DEFAULT_MINUTES[activity];
+  const same =
+    edit.activity !== null && sameList(exerciseLibraries(edit.activity, discipline), exerciseLibraries(activity, discipline));
+  const unit = edit.unit
+    ? same
+      ? resplitUnit(edit.unit, activity, minutes)
+      : clearUnitExercises(edit.unit, activity, minutes)
+    : undefined;
+  return { ...edit, status: "planned", activity, minutes, unit, exercise: unit ? mainOf(unit) : same ? edit.exercise : null };
+}
+
+/** New minutes: the parts of the unit share them anew, the exercises stay. */
+export function pickMinutes(edit: DayEdit, minutes: number): DayEdit {
+  const unit = edit.unit && edit.activity ? resplitUnit(edit.unit, edit.activity, minutes) : edit.unit;
+  return { ...edit, minutes, unit, exercise: unit ? mainOf(unit) : edit.exercise };
+}
+
+/** An exercise (or none) for one part of the unit; the main part is the day's single exercise too. */
+export function pickUnitExercise(edit: DayEdit, part: UnitPartKey, exercise: UnitExercise | null): DayEdit {
+  if (edit.activity === null) return edit;
+  const unit = setUnitExercise(edit.unit, part, exercise, edit.activity, edit.minutes);
+  return { ...edit, unit, exercise: unit ? mainOf(unit) : edit.exercise };
+}
+
+/** A rest day: nothing of the unit is left. */
+export function pickRest(edit: DayEdit, was: string | null | undefined): DayEdit {
+  return { ...edit, status: "rest", activity: null, minutes: 0, focus: "", focusKey: was ? null : undefined, exercise: null, unit: undefined };
 }
 
 /** Number of draft days that "Übernehmen" would store. */
@@ -198,34 +316,69 @@ export type TakeDayBody = {
   note?: string;
   focus?: string;
   exercise_id?: string;
+  /** Catalog focus ("" removes it), unit plan and "Aufbau heute"; only sent by newer backends' data. */
+  focus_key?: string;
+  unit?: UnitBody;
+  equipment_ok?: boolean | null;
 };
 
 /**
  * PUT body for a day edited in the week view. A planned day always carries user_id ("" = nobody),
  * otherwise the server would claim it for the caller.
+ *
+ * Focus key, unit and equipment_ok are left out when the editor has no value for them (an older
+ * backend rejects unknown fields). With `stored`, the day as it was saved, they are also left out
+ * when the owner did not change them: a change of the person then never depends on them.
  */
-export function dayEditBody(edit: DayEdit): TakeDayBody {
+export function dayEditBody(edit: DayEdit, stored?: DayEdit): TakeDayBody {
   if (edit.status === "rest" || edit.activity === null) return { status: "rest", note: "Plan: Ruhetag" };
+  const keyChanged = edit.focusKey !== undefined && (!stored || (edit.focusKey ?? null) !== (stored.focusKey ?? null));
+  const unitChanged = !!edit.unit && (!stored || JSON.stringify(edit.unit) !== JSON.stringify(stored.unit ?? null));
+  const setupChanged = edit.equipmentOk !== undefined && (!stored || edit.equipmentOk !== (stored.equipmentOk ?? null));
+  const unitPlan = unitChanged && edit.unit ? unitBody(edit.unit) : undefined;
   return {
     status: "planned",
     activity: edit.activity,
     user_id: edit.userId ?? "",
     note: `Plan: ${formatMinutes(edit.minutes)}`,
     focus: edit.focus,
-    exercise_id: edit.exercise?.id ?? "",
+    // A unit plan carries the main exercise itself; the backend refuses an exercise_id that differs from it.
+    ...(unitPlan ? {} : { exercise_id: edit.exercise?.id ?? "" }),
+    ...(keyChanged ? { focus_key: edit.focusKey ?? "" } : {}),
+    ...(unitPlan ? { unit: unitPlan } : {}),
+    ...(setupChanged ? { equipment_ok: edit.equipmentOk } : {}),
   };
+}
+
+/**
+ * Minutes of a saved week day. A day somebody only planned has no minutes logged (the API says 0), so
+ * the parts of its unit tell, else the note it was saved with ("Plan: 45 Min.", "KI-Vorschlag: 45 Min. · …").
+ */
+export function plannedMinutes(day: { minutes: number; unit?: Unit | null; note?: string | null }): number {
+  if (day.minutes > 0) return day.minutes;
+  const fromUnit = unitMinutes(day.unit);
+  if (fromUnit > 0) return fromUnit;
+  const fromNote = /(\d{1,3}) Min\./.exec(day.note ?? "");
+  return fromNote ? Number(fromNote[1]) : 0;
 }
 
 /** The editor's starting value for a saved week day or a draft day. */
 export function dayEditFrom(day: WeekDay | PlanDay): DayEdit {
+  // Fields of newer backends only when there is something: null and absent both mean "none yet".
+  const catalog = {
+    ...(day.focus_key ? { focusKey: day.focus_key } : {}),
+    ...(day.unit ? { unit: day.unit } : {}),
+  };
   if ("status" in day) {
     return {
       status: day.status === "rest" ? "rest" : "planned",
       activity: day.activity,
-      minutes: day.minutes,
+      minutes: plannedMinutes(day),
       focus: day.focus ?? "",
       exercise: day.exercise,
       userId: day.user?.id ?? null,
+      ...catalog,
+      ...(day.equipment_ok !== undefined ? { equipmentOk: day.equipment_ok } : {}),
     };
   }
   const activity = day.activity === "rest" ? null : day.activity;
@@ -236,6 +389,7 @@ export function dayEditFrom(day: WeekDay | PlanDay): DayEdit {
     focus: day.focus ?? "",
     exercise: day.exercise,
     userId: day.user?.id ?? null,
+    ...catalog,
   };
 }
 

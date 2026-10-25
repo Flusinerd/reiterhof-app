@@ -13,6 +13,8 @@ export type Snapshot = {
   activity: string;
   mode: TrackMode;
   exerciseId?: string;
+  /** Focus (catalog key) of the unit the session was started from; goes to the finish screen. */
+  focusKey?: string;
   targetMinutes?: number;
   state: TrackState;
   /** Gait windows finished so far (the live GaitStream is not persisted). */

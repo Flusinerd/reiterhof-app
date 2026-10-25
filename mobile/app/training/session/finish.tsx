@@ -6,8 +6,16 @@ import { Pressable, View } from "react-native";
 import { DurationField, NoteField, TickRow } from "@/components/finish-parts";
 import { Button, Card, PageHeader, Pill, Screen, Section, Switch, Text } from "@/components/ui";
 import { useHorse } from "@/lib/api/horses";
-import { trainingError, useCreateSession, useTrainingHorses, type CreatedSession, type SessionInput } from "@/lib/api/training";
+import {
+  trainingError,
+  useCreateSession,
+  useTrainingHorses,
+  useWeek,
+  type CreatedSession,
+  type SessionInput,
+} from "@/lib/api/training";
 import { useAuth } from "@/lib/auth";
+import { localDate } from "@/lib/presence-format";
 import {
   FEELING_OPTIONS,
   buildSessionBody,
@@ -24,6 +32,7 @@ import {
 } from "@/lib/session-finish";
 import { useExercise } from "@/lib/tracking-queries";
 import { clearFinishExtras, loadFinishExtras, type FinishExtras } from "@/lib/tracking-store";
+import { sessionFocusKey } from "@/lib/training-focus";
 import { ACTIVITIES, activityLabel, gaitShareRows, parseFinishParams, reinSummary, type Activity, type FinishParams } from "@/lib/training";
 
 /**
@@ -46,11 +55,13 @@ export default function FinishSession() {
 
 function Finish({ params }: { params: FinishParams }) {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, me } = useAuth();
   const horses = useTrainingHorses();
   const horseDetail = useHorse(params.horse);
   const create = useCreateSession(params.horse);
   const exercise = useExercise(params.exerciseId);
+  // The slot of the day tells the focus when the ride was not started from a recommendation.
+  const week = useWeek(params.horse);
 
   const [activity, setActivity] = useState<Activity>(params.activity);
   const [changingPlace, setChangingPlace] = useState(false);
@@ -111,6 +122,13 @@ function Finish({ params }: { params: FinishParams }) {
 
   const save = () => {
     if (minutes === null) return;
+    const focusKey = sessionFocusKey({
+      // The recommendation's focus belongs to the activity it was for.
+      requested: activity === params.activity ? params.focusKey : undefined,
+      activity,
+      date: params.startedAt ? localDate(params.startedAt, me?.stable?.timezone ?? "Europe/Berlin") : undefined,
+      days: week.data?.days,
+    });
     const body: SessionInput = {
       ...buildSessionBody({
         activity,
@@ -120,6 +138,7 @@ function Finish({ params }: { params: FinishParams }) {
         reinChanges: params.reinChanges,
         distanceM: params.distanceM,
         exercise: params.exerciseId ? { id: params.exerciseId, practised: exerciseTicked } : undefined,
+        focusKey,
         feeling,
         note,
         visibleToRider: horse?.role === "owner" && other ? visible : undefined,

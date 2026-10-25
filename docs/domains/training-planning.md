@@ -147,6 +147,10 @@ equipment, suits, sources. Progressions with `UPDATE … next_exercise_id` as in
   tests ridden through from the FN Aufgabenheft, halting and saluting, warming up as on the show ground)
   and at least 3 in `jumping` (course sections, a full course at E/A height, a related distance ridden as
   in a course), all `main`, none `demanding` except the full course.
+- Equipment keys come from the fixed list in "Equipment and alternatives"; for every library and every
+  focus that fits it, at least 2 of the beginner `main` exercises need no facility equipment; every
+  exercise with facility equipment has at least one alternative without (same library, phase equal or
+  `any`, at least 2 shared tags, level at or below).
 
 ### Migration `0350_training_focus.up.sql` (backend agent)
 
@@ -157,6 +161,9 @@ equipment, suits, sources. Progressions with `UPDATE … next_exercise_id` as in
 - `week_slots.focus_key text`, `week_slots.unit_plan jsonb` (`{warmup: {exercise_id, minutes}, main: {…},
   cooldown: {…}}`; `exercise_id` stays the main exercise for older clients).
 - `sessions.focus_key text` (what was trained; drives the rotation).
+- `stables.training_equipment jsonb NOT NULL DEFAULT '{}'` and `week_slots.equipment_ok boolean` (see
+  "Equipment and alternatives"); `training_profiles.goal_level text CHECK (goal_level IN
+  ('intermediate', 'advanced'))` and `training_profiles.goal_until date` (see "Level progression").
 
 ## API
 
@@ -174,7 +181,13 @@ All under `/api/v1`, access as in training.md.
 | `GET /horses/{id}/today` | recommendations add `focus {key, label, why}` and `unit`; response adds `phase`, `restart_week` (0 when not returning to work), `block` |
 | `POST /horses/{id}/sessions` | accepts `focus_key` (optional, known key); stored, returned |
 | `GET /exercises` | filters `library` (alias of `discipline`), `level`, `tag`, `phase`, `focus` (= the focus's tags); items carry `library`, `phase`, `minutes`, `intensity`, `suits`, `summary`, `equipment` |
-| `GET /exercises/{id}` | adds `requires [{id, title}]`, `sources [string]` |
+| `GET /exercises/{id}` | adds `requires [{id, title}]`, `sources [string]`, `alternatives [{id, title, equipment}]` |
+| `GET /exercises?horse={id}` | items add `available bool` for that horse's stable (location defaults, no day override) |
+| `GET /stables/training-equipment` | all members: `{set: bool, locations: {hall: {equipment: [key], shared: bool}, arena, lunge, jumping, groundwork}, keys: {facility: [key], personal: [key]}}`; missing locations filled with the defaults |
+| `PUT /stables/training-equipment` | admin; `{locations: {…}}`; unknown location or key 400 |
+| `PUT /horses/{id}/week/{day}` (2) | also accepts `equipment_ok` (true, false or null); week days and today recommendations carry `equipment_ok` and `equipment_note` |
+| `GET/PUT /horses/{id}/training-profile` (2) | adds `progress {level, goal_level, goal_until, mastered, total, next [{id, title}], ready, text}`; PUT accepts `goal_level` and `goal_until`; a `level_up` warning when ready |
+| `GET /horses/{id}/today` (2) | adds `progress {text, next}` |
 
 `training.ExerciseLibraries(activity, horseDiscipline) []string` replaces `ExerciseLibrary`: hall and
 arena → dressage + cavaletti (jumping horses: jumping + cavaletti + dressage; western horses: western +
@@ -243,6 +256,69 @@ claimed by a rider with focuses, exercises with `phase`, `minutes`, `intensity`,
 A proposed main exercise is dropped when its tags do not meet the focus or its prerequisites are not
 mastered (rules pick instead, `replaced` names why).
 
+## Equipment and alternatives
+
+Not every stable has poles in the lunge hall, and a shared riding hall often allows no set-up at all.
+The planner plans only what the stable has, and every exercise with set-up has an alternative without.
+
+**Equipment keys** (`exercises.equipment`, fixed list `training.EquipmentKeys`): facility equipment
+`poles`, `cavaletti`, `jumps`, `obstacles` (fixed calmness or trail stations: bridge, narrow passage,
+flutter curtain, pole labyrinth); personal equipment `lunge`, `side_reins`, `double_lunge`, `kappzaum`,
+`tarp`, `umbrella`, `cones`, `flag`, `whip`, `neck_ring`, `trailer`. Personal equipment is always
+available; only facility equipment is planned against the stable.
+
+**Stable equipment** (`stables.training_equipment`): `{"hall": {"equipment": ["poles"], "shared": false},
+"arena": {…}, "lunge": {…}, "jumping": {…}, "groundwork": {…}}` per location (= the activity; hack and
+walker have none). A missing location takes the default: hall `poles`; arena `poles`; jumping `jumps,
+poles`; lunge none; groundwork `poles`; `shared` false. `shared` means the location is used together with
+others and set-up needs an agreement. `week_slots.equipment_ok` is the per-day override: true = set-up
+possible today (also in a shared location), false = no set-up today, NULL = the location's default.
+
+**Available set** for a unit = the location's facility equipment, or none when `equipment_ok` is false or
+the location is shared and `equipment_ok` is not true (`training.Available(...)`, pure). An exercise is a
+candidate only when its facility equipment is a subset of the available set. When the exercise that would
+have scored best is not available, the planned part carries `instead_of {id, title}` and `why` /
+`equipment_note` say so in German ("Ohne Stangen in der Longierhalle: Tempiwechsel an der Longe statt
+Trabstangen."; "Halle geteilt: ohne Aufbau geplant."). The language model gets `available_equipment` per
+activity and the exercises' `equipment`; `Merge` replaces a proposed exercise whose equipment is not
+available (rules pick, `replaced` names why).
+
+**Alternatives** (`GET /exercises/{id}`): exercises of the same library, phase equal or `any`, at least 2
+shared tags, no facility equipment, level at or below the exercise's level; at most 5, ordered by shared
+tags, level, title.
+
+## Level progression
+
+The horse is trained towards the next level class, not only kept busy at the current one.
+
+- `goal_level` NULL = the class above `level` (none when advanced); `goal_until` optional.
+- `training.HomeLibraries(discipline) []string`: dressage and unknown → `dressage`; jumping → `jumping`,
+  `dressage`; western → `western`.
+- `training.Progress(goal, home, exercises, sessions)` (pure): `total` = exercises of the goal level in the
+  home libraries with phase `main` or `any`; `mastered` = those with at least one session rated
+  `focus_rating` 3; `next` = up to 3 unmastered ones whose `requires` are all mastered, in progression
+  order; `ready` = mastered ≥ 80 % of total and total ≥ 3. `text` in German with the existing level
+  labels: "Auf dem Weg zu L: 7 von 12 Lektionen gefestigt." / "Ziel L bis 15.03.: noch 5 Lektionen." /
+  "Luna ist bereit für L: 10 von 12 Lektionen gefestigt."
+- When `ready`, the profile `warnings` get `{key: "level_up", text: "Luna hat 10 von 12 L-Lektionen
+  gefestigt – Einstufung auf L anpassen?"}`.
+- Planner: an exercise one level above the horse's level is a candidate when all its `requires` are
+  mastered (replaces "only when every easier exercise of that library is mastered"); +1.5 in Arbeiten when
+  it is of the goal level and not mastered ("Richtung L: Schulterherein ist die nächste Lektion."), never
+  in deload weeks, return-to-work weeks, for young horses or a status other than `fit`, and at most 2
+  units per week with a goal-level main exercise.
+
+## Tasks and freestyles (milestone 0.4.0, not part of this change)
+
+FN test texts (Aufgabenheft) are copyrighted by FNverlag and are not shipped; the app links to the
+official Aufgabenheft (print and the FN Regelwerke app) and lets a user keep their own test as a private
+note on a show class. The generator builds *own* tasks from the catalog: `POST /horses/{id}/tasks`
+`{class, arena: "20x40" | "20x60", focus_key?}` → a sequence of movements with arena letters, both reins
+balanced, halt and salute at the start and end, only mastered or `next` exercises, timed to the Arbeiten
+part; exercises get a `figure` (letters and path) in a later catalog migration. Freestyle (Kür)
+requirements per class (required and forbidden lections, time) are entered by the user until a licence
+exists.
+
 ## App
 
 - **Profile** (owner): new section "Schwerpunkte" (`app/horses/[id]/training-profile/focuses.tsx`,
@@ -264,6 +340,19 @@ mastered (rules pick instead, `replaced` names why).
 - **Library**: filter pills "Schwerpunkt" (catalog) and "Phase" (Lösen, Arbeiten, Entspannen); rows show
   library, level, minutes; the detail shows summary ("Wozu"), phase, minutes, intensity, equipment,
   prerequisites (links), sources (links open externally), and the progression.
+- **Stable equipment** (admin): `app/stable/training-equipment.tsx` from the Stall tab (row "Ausstattung
+  fürs Training"): per location a row with the chips Stangen, Cavaletti, Sprünge, Gelassenheitsparcours
+  and a switch "Geteilt – Aufbau nur nach Absprache"; the training tab shows admins a quiet row
+  "Ausstattung im Stall eintragen" while `set` is false.
+- **Week edit sheet** (2): tri-state "Aufbau heute": Standard / möglich / nicht möglich → `equipment_ok`;
+  the day row shows `equipment_note`.
+- **Library and detail** (2): items with `available` false are dimmed with "Ausstattung fehlt"; the detail
+  shows equipment chips (missing ones marked) and a section "Alternativen ohne Aufbau" from
+  `alternatives`; today's unit rows show `instead_of` as "statt Trabstangen".
+- **Level goal**: profile section "Ziel" (picker of the classes above the current one, optional "bis"
+  `DateField`), the progress row "Auf dem Weg zu L: 7 von 12 Lektionen" with the next lections in the
+  training tab and the profile; the `level_up` warning gets the one-tap action "Auf L einstufen"
+  (PUT `level`, `goal_level` cleared).
 - **Heute timeline**: training entries carry the focus label in the detail when the slot has one.
 - Pure helpers with node:test tests: `lib/training-focus.ts` (labels, phase texts, selection limits,
   warnings, unit split display, block text), extended `lib/training-plan.ts` and `lib/tracking-exercises.ts`
@@ -277,7 +366,11 @@ mastered (rules pick instead, `replaced` names why).
   and plan responses, sessions with `focus_key`; prompt test that no name, id or free text leaks; catalog
   test that every exercise uses known tags, phases, libraries and that `requires` points to the same
   library; coverage test for the required coverage above.
+- Backend (2): table tests for `Available`, the alternatives query, `Progress` and the goal-level rule;
+  API tests for training-equipment (admin only, defaults, validation), `equipment_ok`, `goal_level`.
 - Mobile: node tests for every pure helper.
 - Docs: training.md gets the new routes and screens and links here; this file stays the planning spec.
 - Seed: Luna gets focuses `losgelassenheit`, `geraderichten`; Mia (rider) `gelassenheit`; Fanta
   `kondition`; a `cycle_start`; sessions of the demo get `focus_key`s.
+  The demo stable's equipment: hall `poles, cavaletti`, arena `poles`, lunge none, jumping `jumps, poles`,
+  groundwork `poles, obstacles`, nothing shared; Luna keeps the default goal (L).

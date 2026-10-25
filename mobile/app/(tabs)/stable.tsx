@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { router, type Href } from "expo-router";
-import { ChevronRight, Plus } from "lucide-react-native";
+import { ChevronRight, Fence, Plus } from "lucide-react-native";
 import { Pressable, RefreshControl, View } from "react-native";
 
 import { PresenceButton } from "@/components/app-menu";
@@ -8,9 +8,11 @@ import { BlanketBoard, PresenceRow } from "@/components/stable-parts";
 import { StartRequests } from "@/components/start-requests";
 import { WeatherWarnings } from "@/components/weather-warnings";
 import { Button, Icon, PageHeader, Screen, SectionTitle, Text } from "@/components/ui";
+import { ListRow, RowList } from "@/components/ui/list-row";
 import { BLANKET_STATE_EVENT, blanketKeys, useToday } from "@/lib/api/blankets";
 import { PRESENCE_KEY } from "@/lib/api/presence";
 import { requestKeys } from "@/lib/api/requests";
+import { useTrainingEquipment } from "@/lib/api/training";
 import { weatherKeys } from "@/lib/api/weather";
 import { useAuth } from "@/lib/auth";
 import { progressLabel } from "@/lib/blankets";
@@ -27,6 +29,9 @@ export default function Stable() {
   const c = useColors();
   const queryClient = useQueryClient();
   const { me } = useAuth();
+  // The row for the training equipment is for admins, and only where the backend has it (an older one answers 404).
+  const isAdmin = !!me?.user.is_admin;
+  const equipment = useTrainingEquipment(isAdmin);
   const today = useToday();
   useInvalidateOnEvents({ [BLANKET_STATE_EVENT]: [blanketKeys.today] });
   const mineIds = new Set([...(me?.roles.owned_horse_ids ?? []), ...(me?.roles.rider_horse_ids ?? [])]);
@@ -103,6 +108,18 @@ export default function Stable() {
         <StartRequests />
         <Button label="Alle Anfragen" variant="ghost" size="sm" className="-ml-4" onPress={() => router.push("/requests" as Href)} />
       </View>
+
+      {isAdmin && equipment.data ? (
+        <RowList>
+          <ListRow
+            leading={<Icon as={Fence} size={20} className="text-muted" />}
+            title="Ausstattung fürs Training"
+            detail={equipment.data.set ? "Was ihr aufbauen könnt" : "Noch nicht eingetragen"}
+            accessibilityLabel="Ausstattung fürs Training"
+            onPress={() => router.push("/stable/training-equipment" as Href)}
+          />
+        </RowList>
+      ) : null}
     </Screen>
   );
 }

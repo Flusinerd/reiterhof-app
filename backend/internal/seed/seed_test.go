@@ -14,8 +14,8 @@ func TestRunIsIdempotent(t *testing.T) {
 
 	// The exercise library comes from the migrations, not from the demo data.
 	var library int
-	if err := pool.QueryRow(ctx, "SELECT count(*) FROM exercises WHERE stable_id IS NULL").Scan(&library); err != nil || library != 42 {
-		t.Fatalf("exercise library after migrations = %d (%v), want 42", library, err)
+	if err := pool.QueryRow(ctx, "SELECT count(*) FROM exercises WHERE stable_id IS NULL").Scan(&library); err != nil || library != 169 {
+		t.Fatalf("exercise library after migrations = %d (%v), want 169", library, err)
 	}
 
 	for range 2 {
@@ -27,7 +27,7 @@ func TestRunIsIdempotent(t *testing.T) {
 	counts := map[string]int{
 		"stables": 1, "users": 8, "horses": 7, "horse_riders": 2,
 		"blankets": 9, "blanket_rules": 17, "training_profiles": 7,
-		"exercises": 42, "sessions": 20, "week_slots": 3, "reha_plans": 1, "observations": 4,
+		"exercises": 169, "sessions": 20, "week_slots": 3, "reha_plans": 1, "observations": 4,
 	}
 	for table, want := range counts {
 		var got int

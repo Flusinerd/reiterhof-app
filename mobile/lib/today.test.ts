@@ -169,3 +169,33 @@ test("reminder texts lead with the thing", () => {
   const view = buildToday(input({ reminders: [reminder({ body: "Wurmkur: seit 9 Tagen überfällig (15.10.2026)." })] }));
   assert.equal(nextAction(view.next!), "Zum Termin");
 });
+
+test("a training entry carries the focus of the slot in its detail", () => {
+  const detailOf = (over: Partial<PlanDay>) =>
+    buildToday(input({ plans: [{ horseId: "h1", horseName: "Luna", days: [day(over)] }] })).next?.detail;
+  // The label the API sends comes right after the minutes.
+  assert.equal(detailOf({ focus_key: "takt", focus_label: "Takt" }), "45 Min. · Takt · Schenkelweichen · mit dir");
+  // Without a label the key's own is used; free text and an absent key add nothing.
+  assert.equal(detailOf({ focus_key: "geraderichten" }), "45 Min. · Geraderichtung · Schenkelweichen · mit dir");
+  assert.equal(detailOf({ focus_key: null, focus_label: null }), "45 Min. · Schenkelweichen · mit dir");
+  // The main exercise of the unit replaces the single exercise of older backends.
+  assert.equal(
+    detailOf({
+      focus_key: "takt",
+      focus_label: "Takt",
+      unit: { main: { exercise: { id: "e9", title: "Trabstangen" }, minutes: 25 } },
+    }),
+    "45 Min. · Takt · Trabstangen · mit dir",
+  );
+  // A rider's slot and a done slot keep their endings.
+  const rider = buildToday(
+    input({
+      plans: [{ horseId: "h1", horseName: "Luna", days: [day({ is_me: false, user: { id: "u2", name: "Mia" }, focus_label: "Gelassenheit", focus_key: "gelassenheit" })] }],
+    }),
+  );
+  assert.equal(rider.today[0]?.detail, "45 Min. · Gelassenheit · Schenkelweichen · Mia");
+  const done = buildToday(
+    input({ plans: [{ horseId: "h1", horseName: "Luna", days: [day({ status: "done", focus_label: "Takt", focus_key: "takt" })] }] }),
+  );
+  assert.equal(done.today[0]?.detail, "45 Min. · Takt · Schenkelweichen · erledigt");
+});
