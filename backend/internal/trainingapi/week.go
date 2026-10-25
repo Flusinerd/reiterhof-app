@@ -2,6 +2,7 @@ package trainingapi
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"strings"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/Flusinerd/reiterhof-app/backend/internal/reha"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/training"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/training/load"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/training/recommend"
 )
 
 // slotRow is a week_slots row joined with the planned user.
@@ -24,6 +26,11 @@ type slotRow struct {
 	Focus    *string
 	ExerID   *string
 	ExerName *string
+	// FocusKey is the catalog focus of the day, UnitPlan the stored unit plan (JSON) and
+	// EquipmentOK the day's override of the set-up (nil = the location's default).
+	FocusKey    *string
+	UnitPlan    []byte
+	EquipmentOK *bool
 }
 
 // slotsBetween returns the slots of the days from..to (inclusive, UTC-normalised dates)
@@ -31,7 +38,7 @@ type slotRow struct {
 func (h *handler) slotsBetween(ctx context.Context, stableID, horseID string, from, to time.Time) (map[string]slotRow, error) {
 	rows, err := h.deps.Pool.Query(ctx, `
 		SELECT ws.day, ws.user_id::text, u.name, u.avatar_color, ws.activity, ws.status, ws.note,
-		       ws.focus, ws.exercise_id::text, e.title
+		       ws.focus, ws.exercise_id::text, e.title, ws.focus_key, ws.unit_plan, ws.equipment_ok
 		FROM week_slots ws LEFT JOIN users u ON u.id = ws.user_id
 		LEFT JOIN exercises e ON e.id = ws.exercise_id
 		WHERE ws.stable_id = $1 AND ws.horse_id = $2 AND ws.day >= $3 AND ws.day <= $4`,
@@ -45,7 +52,7 @@ func (h *handler) slotsBetween(ctx context.Context, stableID, horseID string, fr
 		var s slotRow
 		var day time.Time
 		if err := rows.Scan(&day, &s.UserID, &s.UserName, &s.Color, &s.Activity, &s.Status, &s.Note,
-			&s.Focus, &s.ExerID, &s.ExerName); err != nil {
+			&s.Focus, &s.ExerID, &s.ExerName, &s.FocusKey, &s.UnitPlan, &s.EquipmentOK); err != nil {
 			return nil, err
 		}
 		s.Day = day.Format(dateLayout)
@@ -93,6 +100,34 @@ type weekDayOut struct {
 	// Focus and Exercise were planned for the day (week plan, JAN-92).
 	Focus    *string      `json:"focus"`
 	Exercise *planExerOut `json:"exercise"`
+	// FocusKey and FocusLabel are the catalog focus of the day, Unit its unit plan (Lösen,
+	// Arbeiten, Entspannen); Exercise stays the main exercise of the unit.
+	FocusKey   *string  `json:"focus_key"`
+	FocusLabel *string  `json:"focus_label"`
+	Unit       *unitOut `json:"unit"`
+	// EquipmentOK is the day's override of the set-up (true possible, false not possible, null the
+	// location's default), EquipmentNote says in German when the day is planned without set-up.
+	EquipmentOK   *bool   `json:"equipment_ok"`
+	EquipmentNote *string `json:"equipment_note"`
+}
+
+// clearPlan drops what was planned for the day's unit: focus, unit plan and equipment.
+func (d *weekDayOut) clearPlan() {
+	d.FocusKey, d.FocusLabel, d.Unit, d.EquipmentOK, d.EquipmentNote = nil, nil, nil, nil, nil
+}
+
+// blockOut is the position of the week in the four-week training blocks.
+type blockOut struct {
+	Week   int  `json:"week"` // 1 to 4
+	Deload bool `json:"deload"`
+}
+
+// blockOutOf returns the block of the week, nil without blocks.
+func blockOutOf(b recommend.Block) *blockOut {
+	if !b.Active() {
+		return nil
+	}
+	return &blockOut{Week: b.Week, Deload: b.Deload}
 }
 
 // weekRehaOut is a reha entry of the week: planned minutes and whether "Heute erledigt" was tapped.
@@ -122,6 +157,8 @@ type weekOut struct {
 	Assessment string       `json:"assessment"`
 	Sessions   int          `json:"sessions"`
 	CanEdit    bool         `json:"can_edit"`
+	// Block is the week's place in the four-week blocks (null without cycle_start).
+	Block *blockOut `json:"block"`
 }
 
 // getWeek: GET /api/v1/horses/{id}/week?start=YYYY-MM-DD (any day; the week is Mon-Sun).
@@ -189,6 +226,25 @@ func (h *handler) buildWeek(ctx context.Context, a access, start time.Time, loc 
 	}
 	domainShows := prof.domain("").Shows
 
+	// What the unit plans of the slots need: the exercises' titles, the stable's equipment and the
+	// block of the week.
+	var unitIDs []string
+	for _, sl := range slots {
+		unitIDs = append(unitIDs, storedExerciseIDs(sl.UnitPlan)...)
+	}
+	infos, err := h.exerciseInfos(ctx, stableID, unitIDs)
+	if err != nil {
+		return weekOut{}, err
+	}
+	equipment, _, err := h.loadEquipment(ctx, stableID)
+	if err != nil {
+		return weekOut{}, err
+	}
+	block, err := h.blockOf(ctx, stableID, a.horseID, prof, start, today, loc)
+	if err != nil {
+		return weekOut{}, err
+	}
+
 	// Users' names and colors for logged sessions.
 	byDay := map[string][]sessionRow{}
 	for _, s := range all {
@@ -198,7 +254,7 @@ func (h *handler) buildWeek(ctx context.Context, a access, start time.Time, loc 
 
 	out := weekOut{
 		HorseID: a.horseID, Start: start.Format(dateLayout), End: end.Format(dateLayout),
-		Days: make([]weekDayOut, 0, 7), Segments: make([]segmentOut, 0, 7), CanEdit: a.manage,
+		Days: make([]weekDayOut, 0, 7), Segments: make([]segmentOut, 0, 7), CanEdit: a.manage, Block: blockOutOf(block),
 	}
 	for i := 0; i < 7; i++ {
 		day := start.AddDate(0, 0, i)
@@ -220,6 +276,12 @@ func (h *handler) buildWeek(ctx context.Context, a access, start time.Time, loc 
 		slot, hasSlot := slots[key]
 		if hasSlot {
 			d.Note, d.Focus = slot.Note, slot.Focus
+			d.EquipmentOK, d.Unit = slot.EquipmentOK, unitOutOf(slot.UnitPlan, infos)
+			if slot.FocusKey != nil {
+				if label := training.FocusLabel(*slot.FocusKey); label != "" {
+					d.FocusKey, d.FocusLabel = slot.FocusKey, &label
+				}
+			}
 			if slot.ExerID != nil && slot.ExerName != nil {
 				d.Exercise = &planExerOut{ID: *slot.ExerID, Title: *slot.ExerName}
 			}
@@ -252,6 +314,7 @@ func (h *handler) buildWeek(ctx context.Context, a access, start time.Time, loc 
 		if done && !detailed {
 			// Every session of the day is hidden from this rider: the slot must not leak who or what.
 			d.User, d.Activity, d.Label, d.Note, d.Focus, d.Exercise = nil, nil, "", nil, nil, nil
+			d.clearPlan()
 		}
 		switch {
 		case done || slot.Status == "done":
@@ -259,14 +322,17 @@ func (h *handler) buildWeek(ctx context.Context, a access, start time.Time, loc 
 		case restAfterShow(prof.rhythm, domainShows, day):
 			d.Status, d.RestReason = dayRest, "after_show"
 			d.User, d.Activity, d.Label, d.Focus, d.Exercise = nil, nil, "", nil, nil
+			d.clearPlan()
 		case hasSlot && slot.Status == "rest":
 			d.Status, d.RestReason = dayRest, "planned"
 			d.User, d.Activity, d.Label, d.Focus, d.Exercise = nil, nil, "", nil, nil
+			d.clearPlan()
 		}
 		if d.Show != nil && d.Status == "" {
 			// The show is the work of the day: a unit, focus or exercise planned before the show
 			// was entered does not apply. Who goes to the show (the claim) and the note stay.
 			d.Activity, d.Label, d.Focus, d.Exercise = nil, "", nil, nil
+			d.clearPlan()
 		}
 		switch {
 		case d.Status != "":
@@ -278,6 +344,11 @@ func (h *handler) buildWeek(ctx context.Context, a access, start time.Time, loc 
 			d.Status = dayOpen
 		default:
 			d.Status = dayEmpty
+		}
+		if d.Status != dayDone && d.Activity != nil {
+			if note := equipmentNote(*d.Activity, equipment, slot.EquipmentOK); note != "" {
+				d.EquipmentNote = &note
+			}
 		}
 		d.IsMe = d.User != nil && d.User.ID == a.user.ID
 		d.CanTake = a.canTakeSlots() && !day.Before(today) && d.Status != dayDone && d.Status != dayRest &&
@@ -303,6 +374,13 @@ type slotIn struct {
 	// is kept; "": it is cleared; a value: it is set (JAN-95).
 	Focus      *string `json:"focus"`
 	ExerciseID *string `json:"exercise_id"`
+	// FocusKey is the catalog focus ("" clears, unknown is a 400), Unit the unit plan (an empty
+	// object clears it) and EquipmentOK the day's set-up (true, false, or null for the location's
+	// default); omitted keeps the stored value. ExerciseID stays the main exercise: with a unit
+	// it must match the unit's main part, or be omitted.
+	FocusKey    *string        `json:"focus_key"`
+	Unit        *unitIn        `json:"unit"`
+	EquipmentOK optional[bool] `json:"equipment_ok"`
 }
 
 // putWeekDay: PUT /api/v1/horses/{id}/week/{day}. Owners and admins edit every day; riders
@@ -351,8 +429,33 @@ func (h *handler) putWeekDay(w http.ResponseWriter, r *http.Request) {
 		invalid(w, "focus is too long (max 80 characters)")
 		return
 	}
+	var focusKeyIn string
+	if in.FocusKey != nil {
+		focusKeyIn = strings.TrimSpace(*in.FocusKey)
+		if focusKeyIn != "" && !training.ValidFocusKey(focusKeyIn) {
+			invalid(w, "unknown focus_key")
+			return
+		}
+	}
 	ctx := r.Context()
 	stableID := a.user.StableID
+	var unitStore *unitStored // nil: clears the plan when the request sends a unit
+	if in.Unit != nil {
+		u, msg, err := h.validateUnit(ctx, stableID, in.Unit)
+		if err != nil {
+			h.fail(w, r, err)
+			return
+		}
+		if msg != "" {
+			invalid(w, msg)
+			return
+		}
+		unitStore = u
+		if in.ExerciseID != nil && exerciseIn != u.mainExerciseID() {
+			invalid(w, "exercise_id must be the exercise of the main part of the unit")
+			return
+		}
+	}
 	if exerciseIn != "" {
 		var ok bool
 		if err := h.deps.Pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM exercises WHERE id = $1 AND (stable_id IS NULL OR stable_id = $2))`,
@@ -366,7 +469,7 @@ func (h *handler) putWeekDay(w http.ResponseWriter, r *http.Request) {
 	}
 	loc := h.location(ctx, stableID)
 	today := training.Day(h.deps.Now().In(loc))
-	if in.Status == "planned" && (in.Activity != "" || focusIn != "" || exerciseIn != "") {
+	if in.Status == "planned" && (in.Activity != "" || focusIn != "" || exerciseIn != "" || focusKeyIn != "" || in.Unit.hasContent()) {
 		prof, err := h.loadProfile(ctx, stableID, a.horseID)
 		if err != nil {
 			h.fail(w, r, err)
@@ -428,7 +531,7 @@ func (h *handler) putWeekDay(w http.ResponseWriter, r *http.Request) {
 		_, err = h.deps.Pool.Exec(ctx, `DELETE FROM week_slots WHERE horse_id = $1 AND stable_id = $2 AND day = $3`,
 			a.horseID, stableID, day)
 	default:
-		var uid, act, exer, focus any
+		var uid, act, exer, focus, focusKey, unitJSON, equip any
 		if in.Status == "planned" && focusIn != "" {
 			focus = focusIn
 		}
@@ -441,23 +544,58 @@ func (h *handler) putWeekDay(w http.ResponseWriter, r *http.Request) {
 		if in.Status == "planned" && exerciseIn != "" {
 			exer = exerciseIn
 		}
+		if in.Status == "planned" && focusKeyIn != "" {
+			focusKey = focusKeyIn
+		}
+		if in.EquipmentOK.val != nil {
+			equip = *in.EquipmentOK.val
+		}
+		// exercise_id is the main exercise of the unit: a unit sets it, and an exercise sent
+		// alone changes the main part of the stored unit plan.
+		exerciseSet, unitSet := in.ExerciseID != nil, in.Unit != nil
+		switch {
+		case in.Unit != nil:
+			exerciseSet, exer = true, nil
+			if id := unitStore.mainExerciseID(); id != "" && in.Status == "planned" {
+				exer = id
+			}
+			if unitStore != nil {
+				b, _ := json.Marshal(unitStore)
+				unitJSON = b
+			}
+		case in.ExerciseID != nil && has && len(existing.UnitPlan) > 0:
+			unitSet = true
+			if u := withMainExercise(existing.UnitPlan, exerciseIn); u != nil {
+				b, _ := json.Marshal(u)
+				unitJSON = b
+			}
+		}
 		// Fields that are not sent keep their value: a rider taking a planned day with "Ich"
-		// keeps its activity, note, focus and exercise. Focus and exercise sent as "" are
-		// cleared. A rest day has no activity, focus or exercise.
+		// keeps its activity, note, focus, exercise, unit and equipment. Focus, focus key and
+		// exercise sent as "" and a unit sent as {} are cleared. A rest day has no activity,
+		// focus, exercise, unit or equipment.
 		_, err = h.deps.Pool.Exec(ctx, `
-			INSERT INTO week_slots (stable_id, horse_id, day, user_id, activity, status, note, focus, exercise_id)
-			VALUES ($1, $2, $3, $4::uuid, $5, $6, NULLIF($7, ''), $8, $9::uuid)
+			INSERT INTO week_slots (stable_id, horse_id, day, user_id, activity, status, note, focus, exercise_id,
+			                        focus_key, unit_plan, equipment_ok)
+			VALUES ($1, $2, $3, $4::uuid, $5, $6, NULLIF($7, ''), $8, $9::uuid, $10, $11::jsonb, $12)
 			ON CONFLICT (horse_id, day) DO UPDATE SET
 				user_id = EXCLUDED.user_id,
 				activity = CASE WHEN EXCLUDED.status = 'planned' THEN COALESCE(EXCLUDED.activity, week_slots.activity) END,
 				status = EXCLUDED.status,
 				note = COALESCE(EXCLUDED.note, week_slots.note),
 				focus = CASE WHEN EXCLUDED.status = 'planned' THEN
-					CASE WHEN $10::boolean THEN EXCLUDED.focus ELSE week_slots.focus END END,
+					CASE WHEN $13::boolean THEN EXCLUDED.focus ELSE week_slots.focus END END,
 				exercise_id = CASE WHEN EXCLUDED.status = 'planned' THEN
-					CASE WHEN $11::boolean THEN EXCLUDED.exercise_id ELSE week_slots.exercise_id END END`,
+					CASE WHEN $14::boolean THEN EXCLUDED.exercise_id ELSE week_slots.exercise_id END END,
+				focus_key = CASE WHEN EXCLUDED.status = 'planned' THEN
+					CASE WHEN $15::boolean THEN EXCLUDED.focus_key ELSE week_slots.focus_key END END,
+				unit_plan = CASE WHEN EXCLUDED.status = 'planned' THEN
+					CASE WHEN $16::boolean THEN EXCLUDED.unit_plan ELSE week_slots.unit_plan END END,
+				equipment_ok = CASE WHEN EXCLUDED.status = 'planned' THEN
+					CASE WHEN $17::boolean THEN EXCLUDED.equipment_ok ELSE week_slots.equipment_ok END END`,
 			stableID, a.horseID, day, uid, act, in.Status, strings.TrimSpace(in.Note), focus, exer,
-			in.Focus != nil, in.ExerciseID != nil)
+			focusKey, unitJSON, equip,
+			in.Focus != nil, exerciseSet, in.FocusKey != nil, unitSet, in.EquipmentOK.set)
 	}
 	if err != nil {
 		h.fail(w, r, err)

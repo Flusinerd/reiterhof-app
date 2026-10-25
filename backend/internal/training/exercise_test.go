@@ -335,6 +335,9 @@ func TestProgressTexts(t *testing.T) {
 	if got := (ProgressResult{Goal: LevelAdvanced, Mastered: 11, Total: 12}).Text("Luna", &until); got != "Ziel M bis 15.03.: noch 1 Lektion." {
 		t.Errorf("singular = %q", got)
 	}
+	if got := (ProgressResult{Goal: LevelAdvanced, Mastered: 0, Total: 1}).Text("Luna", nil); got != "Auf dem Weg zu M: 0 von 1 Lektion gefestigt." {
+		t.Errorf("one lesson = %q", got)
+	}
 	ready := ProgressResult{Goal: LevelIntermediate, Mastered: 10, Total: 12, Ready: true}
 	if got := ready.Text("Luna", nil); got != "Luna ist bereit für L: 10 von 12 Lektionen gefestigt." {
 		t.Errorf("ready text = %q", got)

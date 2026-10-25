@@ -404,13 +404,17 @@ func (p ProgressResult) Text(horse string, until *time.Time) string {
 		return fmt.Sprintf("%s ist bereit für %s: %d von %d Lektionen gefestigt.", horse, label, p.Mastered, p.Total)
 	case until != nil:
 		left := p.Total - p.Mastered
-		noun := "Lektionen"
-		if left == 1 {
-			noun = "Lektion"
-		}
-		return fmt.Sprintf("Ziel %s bis %s: noch %d %s.", label, until.Format("02.01."), left, noun)
+		return fmt.Sprintf("Ziel %s bis %s: noch %d %s.", label, until.Format("02.01."), left, lessons(left))
 	}
-	return fmt.Sprintf("Auf dem Weg zu %s: %d von %d Lektionen gefestigt.", label, p.Mastered, p.Total)
+	return fmt.Sprintf("Auf dem Weg zu %s: %d von %d %s gefestigt.", label, p.Mastered, p.Total, lessons(p.Total))
+}
+
+// lessons is the German noun for n lessons.
+func lessons(n int) string {
+	if n == 1 {
+		return "Lektion"
+	}
+	return "Lektionen"
 }
 
 // LevelUpText is the warning that a horse may be ready for the next level class.

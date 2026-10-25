@@ -377,7 +377,7 @@ func (h *handler) planInput(ctx context.Context, a access, start, today time.Tim
 		return weekplan.Input{}, weekOut{}, err
 	}
 	domain := prof.domain(a.horseName)
-	exercises, err := h.planExercises(ctx, a.horseID, domain)
+	exercises, err := h.planExercises(ctx, stableID, a.horseID, domain)
 	if err != nil {
 		return weekplan.Input{}, weekOut{}, err
 	}
@@ -417,7 +417,7 @@ func (h *handler) planInput(ctx context.Context, a access, start, today time.Tim
 // planExercises returns the candidates for the model: the exercises of the global library
 // (stable_id NULL; own-stable exercises are free text and stay on the server) in the libraries
 // that fit the allowed activities, in progression order, with whether the horse mastered them.
-func (h *handler) planExercises(ctx context.Context, horseID string, prof training.Profile) ([]weekplan.Exercise, error) {
+func (h *handler) planExercises(ctx context.Context, stableID, horseID string, prof training.Profile) ([]weekplan.Exercise, error) {
 	var libs []string
 	seen := map[string]bool{}
 	for _, al := range prof.Allowed {
@@ -434,39 +434,15 @@ func (h *handler) planExercises(ctx context.Context, horseID string, prof traini
 	if len(libs) == 0 {
 		return nil, nil
 	}
-	rows, err := h.deps.Pool.Query(ctx, `
-		SELECT `+exerciseCols+`,
-		       EXISTS (SELECT 1 FROM sessions s WHERE s.horse_id = $2 AND s.exercise_id = e.id AND s.focus_rating = 3)
-		FROM exercises e
-		WHERE e.stable_id IS NULL AND e.discipline = ANY ($1)
-		ORDER BY e.title`, libs, horseID)
+	lib, err := h.loadLibrary(ctx, stableID, horseID, libs)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	var list []exerciseOut
-	mastered := map[string]bool{}
-	for rows.Next() {
-		var e exerciseOut
-		var steps []byte
-		var done bool
-		if err := rows.Scan(&e.ID, &e.Title, &e.Discipline, &e.Level, &e.GoalTags, &e.Global, &steps, &e.NextExerciseID, &done); err != nil {
-			return nil, err
+	out := make([]weekplan.Exercise, 0, len(lib.rows))
+	for _, ex := range lib.pure() {
+		if !ex.Own {
+			out = append(out, ex)
 		}
-		mastered[e.ID] = done
-		list = append(list, e)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	sortByProgression(list)
-	out := make([]weekplan.Exercise, 0, len(list))
-	for _, e := range list {
-		ex := weekplan.Exercise{ID: e.ID, Library: e.Discipline, Level: e.Level, Title: e.Title, Tags: e.GoalTags, Mastered: mastered[e.ID]}
-		if e.NextExerciseID != nil {
-			ex.NextID = *e.NextExerciseID
-		}
-		out = append(out, ex)
 	}
 	return out, nil
 }
