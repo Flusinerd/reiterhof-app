@@ -70,7 +70,7 @@ func TestHelpNeedsNoDatabase(t *testing.T) {
 	h := newHarness(t, nil)
 	for _, args := range [][]string{nil, {"help"}} {
 		out := h.mustRun(args...)
-		for _, want := range []string{"stable create", "user delete", "invite create", "horse transfer", "sessions revoke", "mail test", "weather refresh", "migrate status", "migrate up"} {
+		for _, want := range []string{"stable create", "user delete", "invite create", "horse transfer", "horse delete", "sessions revoke", "mail test", "weather refresh", "migrate status", "migrate up"} {
 			if !strings.Contains(out, want) {
 				t.Errorf("help %v misses %q", args, want)
 			}

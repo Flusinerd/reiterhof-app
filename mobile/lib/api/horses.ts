@@ -187,6 +187,13 @@ export const horsesApi = {
   get: (id: string) => authed.get<Horse>(`/api/v1/horses/${id}`),
   create: (input: HorseInput) => authed.post<Horse>("/api/v1/horses", input),
   update: (id: string, input: HorseInput) => authed.patch<Horse>(`/api/v1/horses/${id}`, input),
+  /**
+   * Deletes the horse with everything that belongs to it, for good (owner or admin). `confirmName` is the typed
+   * name; the server compares it with the horse's name, too (400 with a German message otherwise). A horse that
+   * is gone already (a retry after a lost answer) counts as deleted.
+   */
+  remove: (id: string, confirmName: string) =>
+    deleted(authed.delete<void>(`/api/v1/horses/${id}`, { confirm_name: confirmName })),
   members: () => authed.get<Member[]>("/api/v1/members"),
   setRider: (horseId: string, userId: string, rules: string[]) =>
     authed.put<Rider>(`/api/v1/horses/${horseId}/riders/${userId}`, { rules }),

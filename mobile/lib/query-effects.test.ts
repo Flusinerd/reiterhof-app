@@ -3,6 +3,8 @@ import { test } from "node:test";
 
 import {
   effectKeys,
+  effectPrunedKeys,
+  effectRemovedKeys,
   eventKeys,
   isPrefixOf,
   keysOf,
@@ -10,10 +12,12 @@ import {
   REALTIME_EVENT_TYPES,
   RESYNC_EVENT,
   uniqueKeys,
+  withoutHorse,
   type Effect,
   type EffectType,
   type Key,
 } from "./query-effects.ts";
+import { deletedHorses } from "./horse-delete.ts";
 import { blanketKeys, dressageKeys, horseKeys, observationKeys, reminderKeys, trainingKeys, weatherKeys } from "./query-keys.ts";
 
 const h = "h1";
@@ -23,6 +27,7 @@ const samples: Record<EffectType, Effect> = {
   health: { type: "health" },
   horseCreated: { type: "horseCreated" },
   horseUpdated: { type: "horseUpdated", horseId: h },
+  horseDeleted: { type: "horseDeleted", horseId: h },
   riders: { type: "riders", horseId: h },
   emergency: { type: "emergency", horseId: h },
   documents: { type: "documents", horseId: h },
@@ -62,6 +67,7 @@ test("the keys of every effect (the table of docs/design-system.md, Feedback)", 
       '["reminders"]',
       '["me"]',
     ],
+    horseDeleted: ['["horses"]', '["training","horses"]', '["blankets"]', '["reminders"]', '["requests"]', '["me"]', '["presence"]'],
     riders: ['["horses"]', '["training"]', '["me"]', '["reminders"]'],
     emergency: ['["horses","emergency","h1"]'],
     documents: ['["horses","documents","h1"]'],
@@ -132,6 +138,7 @@ test("every input of Heute is reached by the effects that change it", () => {
         { type: "reminderDismissed" },
         { type: "notificationKind", kind: "training_plan" },
         { type: "horseUpdated", horseId: h },
+        { type: "horseDeleted", horseId: h },
         { type: "riders", horseId: h },
       ],
     },
@@ -144,6 +151,7 @@ test("every input of Heute is reached by the effects that change it", () => {
         { type: "trainingProfile", horseId: h },
         { type: "horseCreated" },
         { type: "horseUpdated", horseId: h },
+        { type: "horseDeleted", horseId: h },
         { type: "riders", horseId: h },
         { type: "reha", horseId: h },
       ],
@@ -168,6 +176,7 @@ test("every input of Heute is reached by the effects that change it", () => {
         { type: "reminderTime" },
         { type: "horseCreated" },
         { type: "horseUpdated", horseId: h },
+        { type: "horseDeleted", horseId: h },
       ],
     },
   ];
@@ -307,4 +316,61 @@ test("a saved test refreshes its horse's list, every stored test and the week pl
   assert.ok(reaches(dressageKeys.detail("t1")));
   assert.ok(reaches(trainingKeys.week("h1", "2026-10-26")));
   assert.ok(!reaches(dressageKeys.list("h2")));
+});
+
+test("a deleted horse: its own queries are removed, the lists drop it, the shared keys are refetched", () => {
+  const removed = effectRemovedKeys({ type: "horseDeleted", horseId: h });
+  for (const key of [
+    horseKeys.detail(h),
+    horseKeys.emergency(h),
+    horseKeys.health(h),
+    horseKeys.documents(h),
+    horseKeys.diary(h),
+    trainingKeys.profile(h),
+    trainingKeys.weekOf(h),
+    trainingKeys.todayOf(h),
+    trainingKeys.sessions(h),
+    trainingKeys.myFocus(h),
+    [...trainingKeys.exercises(), h, "some-focus"],
+    blanketKeys.plan(h),
+    blanketKeys.history(h),
+    observationKeys.list(h),
+    ["reha", h],
+    dressageKeys.list(h),
+  ]) {
+    assert.ok(reaches(removed, key), `not removed: ${JSON.stringify(key)}`);
+  }
+  // Nothing of another horse and no shared list is removed.
+  for (const key of [horseKeys.detail("h2"), horseKeys.list(), trainingKeys.horses(), trainingKeys.week("h2"), blanketKeys.today, ["me"]]) {
+    assert.ok(!reaches(removed, key), `removed by mistake: ${JSON.stringify(key)}`);
+  }
+  assert.deepEqual(json(effectPrunedKeys({ type: "horseDeleted", horseId: h })), ['["horses","list"]', '["training","horses"]']);
+  // Other effects remove and prune nothing.
+  for (const [type, effect] of Object.entries(samples)) {
+    if (type === "horseDeleted") continue;
+    assert.deepEqual(effectRemovedKeys(effect), [], type);
+    assert.deepEqual(effectPrunedKeys(effect), [], type);
+  }
+});
+
+test("withoutHorse drops the horse from a list and leaves everything else alone", () => {
+  const list = [{ id: "h1", name: "Luna" }, { id: "h2", name: "Fanta" }];
+  assert.deepEqual(withoutHorse(list, "h1"), [{ id: "h2", name: "Fanta" }]);
+  assert.deepEqual(withoutHorse(list, "h9"), list);
+  assert.deepEqual(withoutHorse([], "h1"), []);
+  assert.equal(withoutHorse(undefined, "h1"), undefined);
+  const record = { id: "h1" };
+  assert.equal(withoutHorse(record, "h1"), record);
+});
+
+test("the realtime event of our own delete refetches nothing, an event of somebody else's still does", () => {
+  const mine = "h-deleted-here";
+  assert.ok(eventKeys("horse.changed", { horse_id: mine }) !== "all");
+  assert.ok((eventKeys("horse.changed", { horse_id: mine }) as Key[]).length > 0);
+  deletedHorses.mark(mine);
+  assert.deepEqual(eventKeys("horse.changed", { horse_id: mine }), []);
+  assert.ok((eventKeys("horse.changed", { horse_id: "h-other" }) as Key[]).length > 0);
+  // The delete failed: the horse is still there and events refresh it again.
+  deletedHorses.unmark(mine);
+  assert.ok((eventKeys("horse.changed", { horse_id: mine }) as Key[]).length > 0);
 });

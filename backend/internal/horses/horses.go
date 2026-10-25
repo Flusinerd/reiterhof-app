@@ -30,6 +30,7 @@ func Register(mux *http.ServeMux, deps httpx.Deps) {
 	route("POST /api/v1/horses", h.create)
 	route("GET /api/v1/horses/{id}", h.get)
 	route("PATCH /api/v1/horses/{id}", h.patch)
+	route("DELETE /api/v1/horses/{id}", h.deleteHorse)
 	route("PUT /api/v1/horses/{id}/riders/{userId}", h.putRider)
 	route("DELETE /api/v1/horses/{id}/riders/{userId}", h.deleteRider)
 

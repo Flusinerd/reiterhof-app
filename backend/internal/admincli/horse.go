@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5"
+
+	"github.com/Flusinerd/reiterhof-app/backend/internal/horses"
 )
 
 type horseRow struct {
@@ -135,5 +137,39 @@ func runHorseTransfer(ctx context.Context, e *Env, args []string) error {
 		return errors.New("transfer horse: the horse disappeared")
 	}
 	fmt.Fprintf(e.Out, "%s now belongs to %s\n", h.Name, newOwner.label())
+	return nil
+}
+
+func runHorseDelete(ctx context.Context, e *Env, args []string) error {
+	fs := e.flags("horse delete")
+	stable := fs.String("stable", "", "narrow a horse name down to this stable (id or name)")
+	pos, err := parse(fs, args, 1, 1)
+	if err != nil {
+		return err
+	}
+	stableID, err := e.optionalStable(ctx, *stable)
+	if err != nil {
+		return err
+	}
+	pool, err := e.pool(ctx)
+	if err != nil {
+		return err
+	}
+	h, err := findHorse(ctx, pool, pos[0], stableID)
+	if err != nil {
+		return err
+	}
+	if err := e.confirm(fmt.Sprintf("Permanently delete horse %s (stable %s, owner %s) with its diary, training, health, blankets, rehab, documents and photos? This cannot be undone.",
+		h.Name, h.Stable, orDash(deref(h.OwnerName)))); err != nil {
+		return err
+	}
+	res, err := horses.Delete(ctx, pool, e.log(), h.StableID, h.ID)
+	if errors.Is(err, horses.ErrNotFound) {
+		return fmt.Errorf("horse %s does not exist any more", h.Name)
+	}
+	if err != nil {
+		return fmt.Errorf("delete horse: %w", err)
+	}
+	fmt.Fprintf(e.Out, "deleted horse %s (%s), %d stored files removed\n", res.Name, res.ID, res.FilesRemoved)
 	return nil
 }

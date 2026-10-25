@@ -542,6 +542,77 @@ func TestHorseListAndTransfer(t *testing.T) {
 	}
 }
 
+func TestHorseDelete(t *testing.T) {
+	pool := dbtest.NewSeeded(t)
+	h := newHarness(t, pool)
+	t.Cleanup(files.SetDir(t.TempDir()))
+	ctx := context.Background()
+	// Luna's and Fanta's passports are real files.
+	pdf := func() string {
+		s, err := files.Save(ctx, seed.StableB, strings.NewReader("%PDF-1.7\nhello\n"), "application/pdf")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return s.Path
+	}
+	doc, fantaDoc := pdf(), pdf()
+	exec(t, pool, `INSERT INTO horse_documents (stable_id, horse_id, kind, title, file_path) VALUES ($1, $2, 'passport', 'Pass', $3), ($1, $4, 'passport', 'Pass', $5)`,
+		seed.StableB, seed.HorseLuna, doc, seed.HorseFanta, fantaDoc)
+	horseCount := func(id string) int { return count(t, pool, `SELECT count(*) FROM horses WHERE id = $1`, id) }
+
+	// The prompt asks first; declining keeps everything.
+	h.answer("n\n")
+	if _, err := h.run("horse", "delete", "luna"); !errors.Is(err, admincli.ErrAborted) {
+		t.Fatalf("declined delete: %v", err)
+	}
+	if horseCount(seed.HorseLuna) != 1 {
+		t.Fatal("a declined delete removed the horse")
+	}
+	// Answering yes deletes it (by name, any case); cascades and files follow.
+	h.answer("yes\n")
+	out := h.mustRun("horse", "delete", "luna")
+	if !strings.Contains(out, "deleted horse Luna") || !strings.Contains(out, "1 stored files removed") {
+		t.Errorf("output = %q", out)
+	}
+	if horseCount(seed.HorseLuna) != 0 || count(t, pool, `SELECT count(*) FROM horse_documents WHERE horse_id = $1`, seed.HorseLuna) != 0 ||
+		count(t, pool, `SELECT count(*) FROM blankets WHERE horse_id = $1`, seed.HorseLuna) != 0 {
+		t.Error("Luna or her records are still there")
+	}
+	if _, _, err := files.Open(seed.StableB, doc); !errors.Is(err, files.ErrNotFound) {
+		t.Errorf("document file: %v, want ErrNotFound", err)
+	}
+	if f, _, err := files.Open(seed.StableB, fantaDoc); err != nil {
+		t.Errorf("another horse's file: %v", err)
+	} else {
+		f.Close()
+	}
+	if horseCount(seed.HorseFanta) != 1 {
+		t.Error("another horse was deleted")
+	}
+
+	// By id with --yes; unknown, ambiguous and the second delete fail without touching anything.
+	h.mustRun("horse", "delete", seed.HorseFanta, "--yes")
+	if horseCount(seed.HorseFanta) != 0 {
+		t.Error("Fanta was not deleted by id")
+	}
+	if _, err := h.run("horse", "delete", seed.HorseFanta, "--yes"); err == nil {
+		t.Error("second delete should fail")
+	}
+	exec(t, pool, `INSERT INTO stables (id, name) VALUES ('00000000-0000-4000-8000-0000000009a1', 'Anderer Stall')`)
+	exec(t, pool, `INSERT INTO horses (id, stable_id, name) VALUES ('00000000-0000-4000-8000-0000000009c1', '00000000-0000-4000-8000-0000000009a1', 'Balu')`)
+	_, err := h.run("horse", "delete", "Balu", "--yes")
+	if err == nil || !strings.Contains(err.Error(), "several horses") {
+		t.Errorf("ambiguous name: %v", err)
+	}
+	h.mustRun("horse", "delete", "Balu", "--stable", seed.StableB, "--yes")
+	if horseCount(seed.HorseBalu) != 0 || horseCount("00000000-0000-4000-8000-0000000009c1") != 1 {
+		t.Error("--stable did not narrow the name")
+	}
+	if _, err := h.run("horse", "delete"); !errors.Is(err, admincli.ErrUsage) {
+		t.Errorf("without argument: %v", err)
+	}
+}
+
 func TestSessionsRevoke(t *testing.T) {
 	pool := dbtest.NewSeeded(t)
 	h := newHarness(t, pool)

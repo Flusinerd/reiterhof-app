@@ -211,6 +211,7 @@ func commands() map[string]map[string]command {
 		"horse": {
 			"list":     {"horse list [--stable ID]", runHorseList},
 			"transfer": {"horse transfer ID|NAME --to EMAIL|ID [--stable ID] [--yes]", runHorseTransfer},
+			"delete":   {"horse delete ID|NAME [--stable ID] [--yes]", runHorseDelete},
 		},
 		"sessions": {
 			"revoke": {"sessions revoke EMAIL|ID", runSessionsRevoke},
@@ -259,7 +260,7 @@ Commands:
 	fmt.Fprint(w, `
 Global flags (also accepted after the command):
   --json   machine-readable output for list commands
-  --yes    skip the confirmation of destructive commands (user delete/demote/move, horse transfer)
+  --yes    skip the confirmation of destructive commands (user delete/demote/move, horse transfer/delete)
 
 With exactly one stable in the database, --stable defaults to it; with several it must be given
 (the list commands then show all stables). ID is the UUID, see the list commands.

@@ -219,7 +219,10 @@ How a screen answers a tap. No toast component is needed for this; if one is add
 4. A button's spinner lasts until the screen shows the new data (await the invalidation or write the response into
    the cache).
 5. A flow that leaves the screen lands where the result is visible (right params, `router.dismissTo`) or shows a
-   success state with one "Fertig" first (models: finish "Im Tagebuch", report "Gemeldet").
+   success state with one "Fertig" first (models: finish "Im Tagebuch", report "Gemeldet"). A flow that removes the
+   screen's own subject (delete a horse) leaves every screen of it and names the result on the landing screen
+   (`lib/flash.ts`, `FlashNotice`: "Luna wurde gelöscht."), and its effect removes the subject's queries instead of
+   refetching them (`horseDeleted`, models: `components/horse-delete-sheet.tsx`).
 6. Errors appear next to the action that failed; a failed query never renders as an empty or "alles erledigt" state.
 
 ### Checklist for every new mutation
