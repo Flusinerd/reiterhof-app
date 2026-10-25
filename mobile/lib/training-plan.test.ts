@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import type { WeekDay } from "./api/training.ts";
+import type { Unit } from "./training-focus.ts";
 import type { WeekDayLike } from "./training.ts";
 import {
   MAX_NOTE,
@@ -351,4 +352,107 @@ test("reproposeOptions: the other draft days are context, the current activity i
   assert.deepEqual(unknown.exclude, []);
   assert.equal(reproposeOptions([], "2026-10-01").draft.length, 0);
   assert.equal(reproposeOptions([day({ activity: "rest", minutes: 7 }), day({ date: "2026-10-02" })], "2026-10-02").draft[0]?.minutes, 0);
+});
+
+// --- focus key, unit plan and equipment of a day (newer backends) ------------------------
+
+const unit: Unit = {
+  warmup: { exercise: { id: "w1", title: "Cavaletti auf dem Zirkel" }, minutes: 15 },
+  main: { exercise: { id: "m1", title: "Schulterherein" }, minutes: 22 },
+  cooldown: { exercise: null, minutes: 8 },
+};
+
+test("applying a proposal sends the focus key and the unit when it has them", () => {
+  const body = planApplyBody(day({ focus_key: "takt", focus_label: "Takt", unit }))!;
+  assert.equal(body.focus_key, "takt");
+  assert.deepEqual(body.unit, {
+    warmup: { exercise_id: "w1", minutes: 15 },
+    main: { exercise_id: "m1", minutes: 22 },
+    cooldown: { exercise_id: null, minutes: 8 },
+  });
+  // An older backend sends neither: the body stays as it was (it would reject unknown fields).
+  const old = planApplyBody(day())!;
+  assert.equal("focus_key" in old, false);
+  assert.equal("unit" in old, false);
+  assert.equal("focus_key" in planApplyBody(day({ focus_key: null, unit: null }))!, false);
+  assert.equal("focus_key" in planApplyBody(day({ focus_key: "" }))!, false);
+});
+
+test("an edited proposal states a removed focus key, an untouched one states nothing", () => {
+  const before = day({ focus_key: "takt", focus_label: "Takt", unit });
+  const same = editedPlanDay(before, { ...planned, focusKey: "takt", unit });
+  assert.equal(same.focus_key, "takt");
+  assert.equal(same.focus_label, "Takt", "the label stays with its key");
+  assert.deepEqual(same.unit, unit);
+  const other = editedPlanDay(before, { ...planned, focusKey: "anlehnung" });
+  assert.equal(other.focus_key, "anlehnung");
+  assert.equal(other.focus_label, undefined, "a new key brings its own label from the catalog");
+  assert.equal(other.unit, undefined);
+  const removed = editedPlanDay(before, { ...planned, focusKey: null });
+  assert.equal(removed.focus_key, null);
+  assert.equal(planApplyBody(removed)?.focus_key, "", "removing is stored as the empty key");
+  // Not touched on a backend without keys: nothing is sent.
+  const untouched = editedPlanDay(day(), planned);
+  assert.equal(untouched.focus_key, undefined);
+  assert.equal("focus_key" in planApplyBody(untouched)!, false);
+  assert.equal("unit" in planApplyBody(untouched)!, false);
+  // A rest day has no focus and no unit.
+  const rest = editedPlanDay(before, { ...planned, status: "rest", activity: null });
+  assert.equal(rest.focus_key, null);
+  assert.equal(rest.unit, null);
+});
+
+test("dayEditBody sends focus key, unit and equipment_ok only when the editor has a value", () => {
+  const base = dayEditBody(planned);
+  assert.equal("focus_key" in base, false);
+  assert.equal("unit" in base, false);
+  assert.equal("equipment_ok" in base, false);
+  const full = dayEditBody({ ...planned, focusKey: "takt", unit, equipmentOk: false });
+  assert.equal(full.focus_key, "takt");
+  assert.equal(full.unit?.main?.exercise_id, "m1");
+  assert.equal(full.equipment_ok, false);
+  assert.equal(dayEditBody({ ...planned, focusKey: null }).focus_key, "", "null removes the key");
+  assert.equal(dayEditBody({ ...planned, equipmentOk: null }).equipment_ok, null, "null is the location's default");
+  assert.equal(dayEditBody({ ...planned, equipmentOk: true }).equipment_ok, true);
+  // A rest day sends none of it.
+  const rest = dayEditBody({ ...planned, status: "rest", activity: null, focusKey: "takt", unit, equipmentOk: true });
+  assert.deepEqual(rest, { status: "rest", note: "Plan: Ruhetag" });
+});
+
+test("dayEditFrom reads focus key, unit and equipment_ok of newer backends", () => {
+  const weekDayRow = (over: Partial<WeekDay>): WeekDay => ({
+    date: "2026-10-01",
+    weekday: 3,
+    status: "planned",
+    is_today: false,
+    user: null,
+    is_me: false,
+    activity: "hall",
+    minutes: 45,
+    note: null,
+    show: null,
+    can_take: false,
+    focus: null,
+    exercise: null,
+    reha: null,
+    ...over,
+  });
+  const from = dayEditFrom(weekDayRow({ focus_key: "takt", focus_label: "Takt", unit, equipment_ok: false }));
+  assert.equal(from.focusKey, "takt");
+  assert.deepEqual(from.unit, unit);
+  assert.equal(from.equipmentOk, false);
+  // null and absent both mean "none yet": the keys stay out, so that nothing is sent without a change.
+  for (const row of [weekDayRow({ focus_key: null, unit: null }), weekDayRow({})]) {
+    const edit = dayEditFrom(row);
+    assert.equal("focusKey" in edit, false);
+    assert.equal("unit" in edit, false);
+    assert.equal("equipmentOk" in edit, false);
+  }
+  // equipment_ok null is a value of its own (the default), only an absent field is not.
+  assert.equal(dayEditFrom(weekDayRow({ equipment_ok: null })).equipmentOk, null);
+  // A proposal knows no equipment_ok.
+  const fromPlan = dayEditFrom(day({ focus_key: "schwung", unit }));
+  assert.equal(fromPlan.focusKey, "schwung");
+  assert.deepEqual(fromPlan.unit, unit);
+  assert.equal("equipmentOk" in fromPlan, false);
 });

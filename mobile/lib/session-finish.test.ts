@@ -139,6 +139,21 @@ test("an exercise that was not practised is not recorded, and a bare body stays 
   assert.equal(practised.focus_rating, 3);
 });
 
+test("the focus of the unit is recorded with the session, whether or not the exercise was practised", () => {
+  const body = buildSessionBody({
+    activity: "hall",
+    minutes: 45,
+    exercise: { id: "e1", practised: false },
+    focusKey: "takt",
+    feeling: "good",
+    note: "",
+  });
+  assert.deepEqual(body, { activity: "hall", minutes: 45, focus_key: "takt", feeling: "good" });
+  // Without a focus (older backend, own choice of activity) the field stays out.
+  assert.equal("focus_key" in buildSessionBody({ activity: "hall", minutes: 45, feeling: null, note: "" }), false);
+  assert.equal("focus_key" in buildSessionBody({ activity: "hall", minutes: 45, focusKey: "", feeling: null, note: "" }), false);
+});
+
 test("saved title", () => {
   assert.equal(savedTitle("hall", 47), "Halle, 47 Min.");
 });
