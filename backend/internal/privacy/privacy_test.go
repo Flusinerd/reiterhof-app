@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -18,6 +19,7 @@ import (
 	"github.com/Flusinerd/reiterhof-app/backend/internal/dbtest"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/files"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/files/filestest"
+	"github.com/Flusinerd/reiterhof-app/backend/internal/horses"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/httpapi"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/privacy"
 	"github.com/Flusinerd/reiterhof-app/backend/internal/seed"
@@ -492,6 +494,46 @@ func TestDeleteBlockedForOwnersAndLastAdmin(t *testing.T) {
 	// The horse stays with its new owner.
 	if n := e.count(`SELECT count(*) FROM horses WHERE name = 'Luna' AND owner_id = $1`, seed.UserAnna); n != 1 {
 		t.Errorf("Luna should stay with Anna")
+	}
+}
+
+// Export and account deletion keep working for people whose records belonged to a horse that has
+// been deleted since (their sessions, observations, rider roles and reha plans went with it).
+func TestExportAndDeleteAfterHorseDeletion(t *testing.T) {
+	e := setup(t)
+	photo := e.addMiaData()
+	for _, horse := range []string{seed.HorseLuna, seed.HorseFanta} {
+		if _, err := horses.Delete(context.Background(), e.pool, slog.Default(), seed.StableB, horse); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, _, err := files.Open(seed.StableB, photo); err != files.ErrNotFound {
+		t.Errorf("observation photo of the deleted horse: %v, want ErrNotFound", err)
+	}
+	rec := e.do(seed.UserMia, "GET", "/api/v1/me/export", nil)
+	if rec.Code != 200 {
+		t.Fatalf("export = %d %s", rec.Code, rec.Body)
+	}
+	doc := decode[map[string]json.RawMessage](t, rec)
+	for _, key := range []string{"training_sessions", "observations_reported", "horse_rider_roles", "reha_plans_created", "gait_windows"} {
+		var v []json.RawMessage
+		if err := json.Unmarshal(doc[key], &v); err != nil || len(v) != 0 {
+			t.Errorf("export %q = %s, want an empty list", key, doc[key])
+		}
+	}
+	// Anna becomes admin, Jan hands over the horses he still owns; both accounts can go.
+	e.exec(`UPDATE users SET is_admin = true WHERE id = $1`, seed.UserAnna)
+	for _, u := range []string{seed.UserMia, seed.UserJan} {
+		if rec := e.do(u, "GET", "/api/v1/me/export", nil); rec.Code != 200 {
+			t.Errorf("export of %s = %d %s", u, rec.Code, rec.Body)
+		}
+	}
+	if rec := e.do(seed.UserMia, "POST", "/api/v1/me/delete", map[string]any{"confirm": true}); rec.Code != 204 {
+		t.Fatalf("delete account = %d %s", rec.Code, rec.Body)
+	}
+	e.exec(`UPDATE horses SET owner_id = $1 WHERE owner_id = $2`, seed.UserAnna, seed.UserJan)
+	if rec := e.do(seed.UserJan, "POST", "/api/v1/me/delete", map[string]any{"confirm": true}); rec.Code != 204 {
+		t.Fatalf("delete account of the former owner = %d %s", rec.Code, rec.Body)
 	}
 }
 
