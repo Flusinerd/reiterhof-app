@@ -6,6 +6,7 @@ import type { Recommendation as BlanketRecommendation, TodayHorse } from "./blan
 import { formatClock, localDate } from "./presence-format.ts";
 import type { ReminderItem } from "./reminders.ts";
 import { dayFocusLabel, mainExercise, type Unit } from "./training-focus.ts";
+import { plannedMinutes } from "./training-plan.ts";
 import { activityLabel, type DayStatus } from "./training.ts";
 
 /** The parts of a week plan day the timeline needs (see WeekDay in lib/api/training.ts). */
@@ -22,6 +23,8 @@ export type PlanDay = {
   focus_key?: string | null;
   focus_label?: string | null;
   unit?: Unit | null;
+  /** The note the day was saved with ("Plan: 45 Min."); the planned minutes come from it when nothing is logged yet. */
+  note?: string | null;
   show: { name: string; time?: string; tests: { name: string; time?: string }[] } | null;
 };
 
@@ -114,7 +117,7 @@ function trainingEntry(plan: HorsePlan, day: PlanDay, when: "today" | "tomorrow"
     time: null,
     title: done && !day.is_me && day.user ? `${plan.horseName} · ${day.user.name} war da` : `${plan.horseName} · ${activityText(day)}`,
     detail: joinDetail([
-      day.minutes ? `${day.minutes} Min.` : "",
+      plannedMinutes(day) ? `${plannedMinutes(day)} Min.` : "",
       dayFocusLabel(day),
       mainExercise(day)?.title,
       done ? "erledigt" : who,

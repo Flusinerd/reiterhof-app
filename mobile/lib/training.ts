@@ -501,11 +501,6 @@ export function exerciseLibraries(activity: string, discipline: string): string[
   }
 }
 
-/** The home library of an activity ("" for walker and rest): the one the main exercise comes from. */
-export function exerciseLibrary(activity: string, discipline: string): string {
-  return exerciseLibraries(activity, discipline)[0] ?? "";
-}
-
 /** The part of a week day that the week strip and the plan helpers need. */
 export type WeekDayLike = { date: string; status: string; is_today: boolean; activity?: Activity | "" | null };
 

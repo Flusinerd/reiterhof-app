@@ -197,6 +197,12 @@ test("a training entry carries the focus of the slot in its detail", () => {
     }),
     "45 Min. · Takt · Trabstangen · mit dir",
   );
+  // A planned day has no logged minutes (the API says 0): the unit or the note it was saved with tell.
+  assert.equal(detailOf({ minutes: 0, note: "Plan: 45 Min." }), "45 Min. · Schenkelweichen · mit dir");
+  assert.equal(
+    detailOf({ minutes: 0, unit: { warmup: { exercise: null, minutes: 10 }, main: { exercise: null, minutes: 25 }, cooldown: { exercise: null, minutes: 10 } } }),
+    "45 Min. · Schenkelweichen · mit dir",
+  );
   // A rider's slot and a done slot keep their endings.
   const rider = buildToday(
     input({

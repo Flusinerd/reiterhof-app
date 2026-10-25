@@ -14,7 +14,6 @@ import {
   dotViewModels,
   encodeStepsDone,
   exerciseLibraries,
-  exerciseLibrary,
   formatClock,
   formatDayLong,
   gaitShareRows,
@@ -245,19 +244,6 @@ test("exerciseLibraries mirrors the backend, the home library comes first", () =
   assert.deepEqual(exerciseLibraries("hack", "dressage"), ["hack"]);
   assert.deepEqual(exerciseLibraries("walker", "jumping"), []);
   assert.deepEqual(exerciseLibraries("rest", "jumping"), []);
-});
-
-test("exerciseLibrary is the home library", () => {
-  assert.equal(exerciseLibrary("jumping", "dressage"), "jumping");
-  assert.equal(exerciseLibrary("groundwork", "dressage"), "groundwork");
-  assert.equal(exerciseLibrary("lunge", "jumping"), "lunge");
-  assert.equal(exerciseLibrary("hall", "dressage"), "dressage");
-  assert.equal(exerciseLibrary("hall", "jumping"), "jumping");
-  assert.equal(exerciseLibrary("arena", "western"), "western");
-  assert.equal(exerciseLibrary("hall", ""), "dressage");
-  assert.equal(exerciseLibrary("hack", "dressage"), "hack");
-  assert.equal(exerciseLibrary("walker", "jumping"), "");
-  assert.equal(exerciseLibrary("rest", "jumping"), "");
 });
 
 test("weekStart is the Monday of the week", () => {
