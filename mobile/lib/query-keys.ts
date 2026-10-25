@@ -64,6 +64,17 @@ export const trainingKeys = {
   exercise: (id: string | undefined) => ["training", "exercise", id] as const,
 };
 
+export const dressageKeys = {
+  all: ["dressage"] as const,
+  catalog: () => ["dressage", "catalog"] as const,
+  /** The saved tests of a horse. */
+  list: (horse: string) => ["dressage", "tests", horse] as const,
+  /** One saved test (the id alone says nothing about the horse). */
+  detail: (id: string) => ["dressage", "test", id] as const,
+  /** Every saved test. */
+  detailOfAll: () => ["dressage", "test"] as const,
+};
+
 export const requestKeys = {
   all: ["requests"] as const,
   list: <P>(params: P) => ["requests", "list", params] as const,

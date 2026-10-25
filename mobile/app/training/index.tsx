@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter, type Href } from "expo-router";
-import { BookOpen, Check, Crosshair, Fence, HeartPulse, ListChecks, Pencil, Play, SlidersHorizontal, Target } from "lucide-react-native";
+import { BookOpen, Check, Crosshair, ExternalLink, Fence, HeartPulse, ListChecks, Map as MapIcon, Pencil, Play, SlidersHorizontal, Target } from "lucide-react-native";
 import { useMemo, useState } from "react";
-import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
+import { ActivityIndicator, Linking, RefreshControl, ScrollView, View } from "react-native";
 
 import { HorseWeekStrip } from "@/components/horse-week-strip";
 import { ActivityIcon } from "@/components/training-activity-icon";
@@ -25,7 +25,9 @@ import {
   useWeek,
   type Recommendation,
 } from "@/lib/api/training";
+import { isUnavailable, useDressageTests } from "@/lib/api/dressage";
 import { useAuth } from "@/lib/auth";
+import { OFFICIAL_LINKS } from "@/lib/dressage";
 import { horseRoutes } from "@/lib/horse-format";
 import { horseWeekStrip } from "@/lib/horse-page";
 import { savedTitle } from "@/lib/session-finish";
@@ -77,6 +79,9 @@ export default function Training() {
   const myFocus = useMyFocus(activeId);
   const catalog = useFocuses();
   const equipment = useTrainingEquipment(!!user?.is_admin);
+  // Practice tests and freestyles: the rows are hidden while the backend does not have them (404).
+  const dressage = useDressageTests(activeId);
+  const showDressage = !(dressage.isError && isUnavailable(dressage.error));
   const strip = useMemo(() => {
     const days = week.data?.days;
     if (!days) return [];
@@ -399,6 +404,14 @@ export default function Training() {
           accessibilityLabel="Übungen"
           onPress={() => goto(`/training/exercises?horse=${activeId}`)}
         />
+        {showDressage ? (
+          <ListRow
+            leading={<Icon as={MapIcon} size={20} className="text-muted" />}
+            title="Aufgaben und Küren"
+            accessibilityLabel="Aufgaben und Küren"
+            onPress={() => goto(`/training/tests?horse=${activeId}`)}
+          />
+        ) : null}
         <ListRow
           leading={<Icon as={SlidersHorizontal} size={20} className="text-muted" />}
           title="Trainingsprofil"
@@ -414,6 +427,19 @@ export default function Training() {
           />
         ) : null}
       </RowList>
+
+      {showDressage ? (
+        <RowList>
+          <ListRow
+            leading={<Icon as={ExternalLink} size={20} className="text-muted" />}
+            title="Offizielle Aufgaben"
+            detail="Aufgabenhefte der FN"
+            chevron={false}
+            accessibilityLabel="Offizielle Aufgaben, öffnet im Browser"
+            onPress={() => void Linking.openURL(OFFICIAL_LINKS[0]!.url)}
+          />
+        </RowList>
+      ) : null}
 
       {myFocus.isSuccess ? (
         <FocusSheet horseId={activeId} horseName={horse.name} open={focusOpen} onOpenChange={setFocusOpen} />

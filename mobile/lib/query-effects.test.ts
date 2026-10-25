@@ -14,7 +14,7 @@ import {
   type EffectType,
   type Key,
 } from "./query-effects.ts";
-import { blanketKeys, horseKeys, observationKeys, reminderKeys, trainingKeys, weatherKeys } from "./query-keys.ts";
+import { blanketKeys, dressageKeys, horseKeys, observationKeys, reminderKeys, trainingKeys, weatherKeys } from "./query-keys.ts";
 
 const h = "h1";
 
@@ -31,6 +31,7 @@ const samples: Record<EffectType, Effect> = {
   trainingProfile: { type: "trainingProfile", horseId: h },
   myFocus: { type: "myFocus", horseId: h },
   trainingEquipment: { type: "trainingEquipment" },
+  dressageTests: { type: "dressageTests", horseId: h },
   reha: { type: "reha", horseId: h },
   observation: { type: "observation", horseId: h },
   blanketState: { type: "blanketState", closedRequests: false },
@@ -77,6 +78,7 @@ test("the keys of every effect (the table of docs/design-system.md, Feedback)", 
     trainingProfile: ['["training","week","h1"]', '["training","today","h1"]', '["training","horses"]', '["training","my-focus","h1"]'],
     myFocus: ['["training","my-focus","h1"]', '["training","week","h1"]', '["training","today","h1"]'],
     trainingEquipment: ['["training","equipment"]', '["training","exercises"]', '["training","week"]', '["training","today"]'],
+    dressageTests: ['["dressage","tests","h1"]', '["dressage","test"]', '["dressage","catalog"]', '["training","week","h1"]'],
     reha: ['["reha","h1"]', '["training"]', '["requests"]', '["reminders"]', '["observations"]'],
     observation: ['["observations"]', '["horses","diary","h1"]'],
     blanketState: ['["blankets"]', '["reminders"]'],
@@ -296,4 +298,13 @@ test("a push that arrives while the app is open refreshes the reminder center an
   assert.deepEqual(json(pushKeys("weather_warning")), ['["reminders"]', '["blankets"]', '["weather","warnings"]']);
   assert.deepEqual(json(pushKeys(undefined)), ['["reminders"]']);
   assert.ok(reaches(pushKeys("weather_warning"), weatherKeys.warnings));
+});
+
+test("a saved test refreshes its horse's list, every stored test and the week planner, not another horse's list", () => {
+  const keys = effectKeys({ type: "dressageTests", horseId: "h1" });
+  const reaches = (key: Key) => keys.some((k) => isPrefixOf(k, key));
+  assert.ok(reaches(dressageKeys.list("h1")));
+  assert.ok(reaches(dressageKeys.detail("t1")));
+  assert.ok(reaches(trainingKeys.week("h1", "2026-10-26")));
+  assert.ok(!reaches(dressageKeys.list("h2")));
 });
