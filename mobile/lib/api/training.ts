@@ -4,6 +4,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { ApiError, authed, errorMessage } from "../api";
+import { retryServerErrors } from "../api-core.ts";
 import {
   trainingErrorText,
   type Activity,
@@ -334,12 +335,8 @@ export const trainingKeys = {
   exercises: () => ["training", "exercises"] as const,
 };
 
-/**
- * Optional endpoints (focuses, my focus, equipment) answer 403 or 404 on an older backend and for
- * people without access: no retries for those, they only delay the screen.
- */
-export const retryServerErrors = (count: number, err: unknown) =>
-  !(err instanceof ApiError && err.status >= 400 && err.status < 500) && count < 2;
+// The optional endpoints (focuses, my focus, equipment) answer 403 or 404 on an older backend and for
+// people without access: `retryServerErrors` spares them the retries that would only delay the screen.
 
 export const useTrainingHorses = () => useQuery({ queryKey: trainingKeys.horses(), queryFn: trainingApi.horses });
 
