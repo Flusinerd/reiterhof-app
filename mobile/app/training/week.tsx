@@ -13,10 +13,12 @@ import { RowList } from "@/components/ui/list-row";
 import {
   trainingError,
   useApplyPlan,
+  useFocuses,
   useProfile,
   usePlanWeek,
   useReproposeDay,
   useTakeDay,
+  useTrainingEquipment,
   useTrainingHorses,
   useWeek,
   type WeekDay,
@@ -26,6 +28,7 @@ import { useAuth } from "@/lib/auth";
 import { useColors } from "@/lib/theme";
 import { useExerciseList } from "@/lib/tracking-queries";
 import { ACTIVITIES, addDays, weekRangeLabel } from "@/lib/training";
+import { blockText } from "@/lib/training-focus";
 import {
   applicableDays,
   canAskForAI,
@@ -67,6 +70,7 @@ export default function TrainingWeek() {
   const plan = usePlanWeek(activeId ?? "");
   const apply = useApplyPlan(activeId ?? "");
   const consent = useConsentPrompt();
+  const catalog = useFocuses(); // labels of the focus chips; fails quietly on an older backend
   const data = week.data;
 
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -150,6 +154,7 @@ export default function TrainingWeek() {
   const draftAI = draft !== null && draft.days.some((d) => d.source === "ai");
   const draftHint = draft ? planStatusText(draft.meta.ai_status, draft.meta.owner_is_me) : null;
   const nothingToPlan = !drafting && lastPlan?.ai_status === "nothing_to_plan";
+  const block = blockText(data.block);
 
   return (
     <Screen
@@ -176,6 +181,11 @@ export default function TrainingWeek() {
         title="Woche"
         description={data.assessment}
       >
+        {block ? (
+          <Text variant="eyebrow" tone={data.block?.deload ? "info" : "brass"}>
+            {block}
+          </Text>
+        ) : null}
         {drafting ? <Badge variant="accent" label="Entwurf" /> : null}
         <LoadBar segments={data.segments} />
       </PageHeader>
@@ -230,6 +240,7 @@ export default function TrainingWeek() {
               key={d.date}
               day={d}
               draftDay={draftDay}
+              focuses={catalog.data}
               editable={editable && !apply.isPending}
               busy={take.isPending && take.variables?.day === d.date}
               onTake={() => take.mutate({ day: d.date, status: "planned" })}
@@ -327,7 +338,10 @@ function DayEditor({
   const { user } = useAuth();
   const profile = useProfile(horseId);
   const horse = useHorse(horseId);
-  const exercises = useExerciseList();
+  // With the horse every exercise says whether the stable's equipment is enough for it.
+  const exercises = useExerciseList({ horse: horseId });
+  const catalog = useFocuses();
+  const equipment = useTrainingEquipment();
   const take = useTakeDay(horseId);
   const repropose = useReproposeDay(horseId);
   /** Planned mode: the re-proposed day, shown in the sheet but not saved before "Speichern". */
@@ -365,7 +379,8 @@ function DayEditor({
       onClose();
       return;
     }
-    take.mutate({ day: date, ...dayEditBody(edit) }, { onSuccess: onClose });
+    // Only what the owner changed against the saved day goes along (focus key, unit, set-up of the day).
+    take.mutate({ day: date, ...dayEditBody(edit, dayEditFrom(day)) }, { onSuccess: onClose });
   };
   const remove = () => {
     if (draftDay) {
@@ -397,7 +412,12 @@ function DayEditor({
               };
             });
           } else {
-            setProposal({ ...dayEditFrom(fresh), userId: current.userId });
+            // The person and the day's set-up choice are not part of a proposal; they stay as the owner set them.
+            setProposal({
+              ...dayEditFrom(fresh),
+              userId: current.userId,
+              ...(current.equipmentOk !== undefined ? { equipmentOk: current.equipmentOk } : {}),
+            });
           }
         },
       },
@@ -418,6 +438,8 @@ function DayEditor({
       allowed={allowed}
       people={people}
       exercises={exercises.data ?? []}
+      focuses={catalog.data ?? []}
+      setupOffered={equipment.isSuccess}
       discipline={p?.discipline ?? ""}
       busy={take.isPending}
       reproposing={repropose.isPending}

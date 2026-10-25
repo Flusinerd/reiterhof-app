@@ -15,7 +15,7 @@ import { startFailureText, type StartResult } from "@/lib/tracking-location";
 import { useStoredSession, useTrackingSession } from "@/lib/tracking-session";
 import type { Snapshot } from "@/lib/tracking-persist";
 
-type Params = { horse?: string; activity?: string; minutes?: string; exercise?: string; resume?: string };
+type Params = { horse?: string; activity?: string; minutes?: string; exercise?: string; focus?: string; resume?: string };
 
 /** Ride tracking with GPS (JAN-63): track, distance, speed, elevation, map colored by gait. */
 export default function GpsTrack() {
@@ -38,22 +38,32 @@ export default function GpsTrack() {
       </Screen>
     );
   }
-  return <GpsRun horse={horse} activity={activity} exerciseId={snapshot?.exerciseId ?? params.exercise} snapshot={snapshot} />;
+  return (
+    <GpsRun
+      horse={horse}
+      activity={activity}
+      exerciseId={snapshot?.exerciseId ?? params.exercise}
+      focusKey={snapshot?.focusKey ?? params.focus}
+      snapshot={snapshot}
+    />
+  );
 }
 
 function GpsRun({
   horse,
   activity,
   exerciseId,
+  focusKey,
   snapshot,
 }: {
   horse: string;
   activity: string;
   exerciseId?: string;
+  focusKey?: string;
   snapshot: Snapshot | null;
 }) {
   const router = useRouter();
-  const t = useTrackingSession({ mode: "gps", horse, activity, exerciseId, initial: snapshot });
+  const t = useTrackingSession({ mode: "gps", horse, activity, exerciseId, focusKey, initial: snapshot });
   const [started, setStarted] = useState(snapshot !== null);
   const [failure, setFailure] = useState<Exclude<StartResult, { ok: true }>["reason"] | null>(null);
   const [noBackground, setNoBackground] = useState(false);

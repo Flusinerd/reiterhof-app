@@ -500,3 +500,75 @@ test("showTestsText", () => {
     "L-Dressur",
   ]);
 });
+
+// --- focuses and the level goal (newer backends) ---------------------------------------------
+
+test("an older backend's profile sends no focuses back", () => {
+  const draft = draftFromProfile(profile);
+  assert.equal("focuses" in draft, false);
+  assert.equal("cycleStart" in draft, false);
+  const r = draftToInput(draft);
+  assert.ok(r.ok);
+  if (!r.ok) return;
+  assert.equal("focuses" in r.input, false, "the older backend would reject the field");
+  assert.equal("cycle_start" in r.input, false);
+  assert.equal("goal_level" in r.input, false);
+  assert.equal("goal_until" in r.input, false);
+});
+
+test("focuses and the block start round-trip, so that no other editor wipes them", () => {
+  const withFocuses: ProfileLike = {
+    ...profile,
+    focuses: [{ key: "losgelassenheit" }, { key: "turnier", until: "2026-10-28" }],
+    cycle_start: "2026-10-19",
+  };
+  const draft = draftFromProfile(withFocuses);
+  assert.deepEqual(draft.focuses, [
+    { key: "losgelassenheit", until: "" },
+    { key: "turnier", until: "2026-10-28" },
+  ]);
+  assert.equal(draft.cycleStart, "2026-10-19");
+  const r = draftToInput(draft);
+  assert.ok(r.ok);
+  if (!r.ok) return;
+  assert.deepEqual(r.input.focuses, [{ key: "losgelassenheit" }, { key: "turnier", until: "2026-10-28" }]);
+  assert.equal(r.input.cycle_start, "2026-10-19");
+  // No focuses yet: an empty list is sent (the backend knows the field), and no block start.
+  const none = draftToInput(draftFromProfile({ ...profile, focuses: [], cycle_start: null }));
+  assert.ok(none.ok);
+  if (none.ok) {
+    assert.deepEqual(none.input.focuses, []);
+    assert.equal("cycle_start" in none.input, false);
+  }
+  // The focus editor changes the list and the block start.
+  const edited = draftToInput({ ...draft, focuses: [{ key: "takt", until: "" }], cycleStart: "2026-10-26" });
+  assert.ok(edited.ok);
+  if (edited.ok) {
+    assert.deepEqual(edited.input.focuses, [{ key: "takt" }]);
+    assert.equal(edited.input.cycle_start, "2026-10-26");
+  }
+});
+
+test("the level goal is only sent when the goal sheet or the level change set it", () => {
+  const draft = draftFromProfile({ ...profile, focuses: [] });
+  const chosen = draftToInput({ ...draft, goal: { level: "advanced", until: "2027-03-15" } });
+  assert.ok(chosen.ok);
+  if (chosen.ok) {
+    assert.equal(chosen.input.goal_level, "advanced");
+    assert.equal(chosen.input.goal_until, "2027-03-15");
+  }
+  // "Nächste Klasse" without an end date: both are null, which the backend reads as "the class above".
+  const automatic = draftToInput({ ...draft, goal: { level: null, until: "" } });
+  assert.ok(automatic.ok);
+  if (automatic.ok) {
+    assert.equal(automatic.input.goal_level, null);
+    assert.equal(automatic.input.goal_until, null);
+  }
+  // "Auf L einstufen": the new level, the goal back to automatic.
+  const levelUp = draftToInput({ ...draft, level: "L", goal: { level: null, until: "" } });
+  assert.ok(levelUp.ok);
+  if (levelUp.ok) {
+    assert.equal(levelUp.input.level, "L");
+    assert.equal(levelUp.input.goal_level, null);
+  }
+});

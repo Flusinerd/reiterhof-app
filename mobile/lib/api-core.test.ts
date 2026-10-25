@@ -1,7 +1,18 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { ApiError, createClient, errorMessage, parseErrorBody } from "./api-core.ts";
+import { ApiError, createClient, errorMessage, parseErrorBody, retryServerErrors } from "./api-core.ts";
+
+test("optional endpoints are not retried after a client error", () => {
+  assert.equal(retryServerErrors(0, new ApiError(404, "not_found", "x")), false, "older backend");
+  assert.equal(retryServerErrors(0, new ApiError(403, "forbidden", "x")), false, "no access");
+  assert.equal(retryServerErrors(0, new ApiError(400, "validation_failed", "x")), false);
+  // Network and server errors are retried, twice.
+  assert.equal(retryServerErrors(0, new ApiError(0, "network", "x")), true);
+  assert.equal(retryServerErrors(1, new ApiError(503, "internal", "x")), true);
+  assert.equal(retryServerErrors(2, new ApiError(503, "internal", "x")), false);
+  assert.equal(retryServerErrors(0, new Error("boom")), true);
+});
 
 test("parseErrorBody reads the backend envelope", () => {
   const err = parseErrorBody(404, '{"error":{"code":"invalid_code","message":"nope"}}');

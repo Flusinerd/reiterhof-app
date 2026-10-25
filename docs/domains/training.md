@@ -14,7 +14,8 @@ library, JAN-59 week view, JAN-60 "Nur eintragen", JAN-61 finish screen, JAN-89 
 - Mobile screens: `app/(tabs)/training.tsx` (Was heute?), `app/training/session.tsx` (chooser GPS/indoor, see [tracking.md](tracking.md)),
   `app/training/session/finish.tsx` ("Wie war's?", see "Finish step"), `app/training/week.tsx` (week with draft), `app/horses/[id]/training-setup.tsx`
   (profile wizard), `app/horses/[id]/training-profile.tsx` (overview) and the section editors
-  `app/horses/[id]/training-profile/{activities,rhythm,structure,shows,riders}.tsx`.
+  `app/horses/[id]/training-profile/{activities,rhythm,structure,shows,riders,focuses}.tsx`, `app/stable/training-equipment.tsx`
+  (the stable's equipment, admins, from the Stall tab) and the library `app/training/exercises/{index,[id]}.tsx`.
 - Mobile layout (Abendlicht, see [design-system.md](../design-system.md)): the training tab (`app/training/index.tsx`) is the
   horse in the header (with the horse switcher), the recommendation as the one raised block with the primary "Starten", the
   duration pills, alternatives as rows, one week strip (`HorseWeekStrip`, the same as on the horse page) and links as rows.
@@ -22,13 +23,41 @@ library, JAN-59 week view, JAN-60 "Nur eintragen", JAN-61 finish screen, JAN-89 
   planen" is a quiet row. The week (`app/training/week.tsx`) is a planning list of `WeekDayRow`s (big day number in Fraunces,
   who, activity, exercise; reha and show with time and classes underneath), "Woche planen" is its one primary action. The
   exercise library is `RowList` rows with filter pills; steps are `NumberedSteps` (numbers in Fraunces brass).
+- Mobile, planning rebuild (specification: [training-planning.md](training-planning.md), "App"). Every new field is optional on read,
+  so an older backend still works, and a new body field is only sent when the data had it (the API rejects unknown fields). Profile:
+  the rows "Schwerpunkte" (`training-profile/focuses.tsx`: the catalog grouped "Skala der Ausbildung" and "Praxis" with label,
+  description and signs, up to three focuses in priority order, optional "bis" date, the phase hint and the warnings, `turnier`
+  starts with the next show of the profile) and "Ziel" (sheet: a class above the current level, optional "bis"; the progress sentence
+  with the lections that come next; the `level_up` warning offers "Auf L einstufen" with a confirm sheet). Training tab: the raised
+  block shows the focus (label, why) and the unit as three rows "15 Lösen · …" (minutes in Fraunces brass, "statt Trabstangen", a
+  tap opens the exercise); the eyebrow names the block ("Aufbauwoche 2 von 4", "Entlastungswoche") or "Wiederantrainieren, Woche
+  1"; quiet rows: "Schwerpunkte setzen" (owners, none set), "Mein Schwerpunkt" (sheet, max 2, "Kein eigener Schwerpunkt" clears),
+  "Ausstattung im Stall eintragen" (admins while `set` is false) and the way to the level goal. Week: a day row shows the focus as
+  a chip, the main exercise and `equipment_note`; the edit sheet has the focus picker ("Eigener Text" keeps the free text), the
+  three unit parts (an exercise each, unavailable ones dimmed) and "Aufbau heute" (Standard, Möglich, Nicht möglich =
+  `equipment_ok`, saved days only); the header shows the block. Finish ("Wie war's?") sends `focus_key`: the recommendation's
+  (handed on through `session` and the trackers, also stored in the snapshot), else the focus of the day's slot when its activity
+  is the one ridden. Library: the filters "Schwerpunkt" (matched by the server) and "Phase" (Lösen, Arbeiten, Entspannen), rows with
+  library, minutes and "Ausstattung fehlt" (with `?horse=`), a detail with "Wozu", phase, minutes, intensity, the equipment as
+  chips, prerequisites, "Alternativen ohne Aufbau", the progression and the sources (they open in the browser). The Heute timeline
+  carries the focus label of a slot. PUT bodies: `focus_key` ("" removes), `unit` (`{warmup|main|cooldown: {exercise_id|null,
+  minutes}}`), `equipment_ok` (true, false, null = default); saving a day sends them only when the owner changed them. A `unit`
+  carries the main exercise in its main part, so no `exercise_id` goes beside it (the backend refuses one that differs). A saved
+  planned day has no logged minutes: the editor takes its length from the parts of the unit, else from the note ("Plan: 45 Min.").
+  A profile save sends `focuses` and `cycle_start` back as read (the focus editor sets `cycle_start`, the Monday of the current week, with the
+  first focuses) and `goal_level`/`goal_until` only from the goal sheet and the level change.
 - Mobile components: `components/training-next-step.tsx` (profile block, plan row), `training-week-day.tsx` (a day of the week),
   `training-dots.tsx` (`LoadBar`), `exercise-steps.tsx` (numbered steps),
   `training-day-edit-sheet.tsx` (edit one day), `training-activity-modes.tsx` (activity list, wizard and editor),
-  `training-week-structure.tsx` (seven weekday rules), `training-rider-rules.tsx` (rider rules); UI kit parts
+  `training-week-structure.tsx` (seven weekday rules), `training-rider-rules.tsx` (rider rules), `training-focus-rows.tsx` (catalog
+  rows), `training-focus-sheet.tsx` ("Mein Schwerpunkt"), `training-goal-sheet.tsx` and `training-level-up-sheet.tsx` (level goal),
+  `training-progress.tsx` (progress rows), `exercise-list-item.tsx` (library row); UI kit parts
   `ListRow`/`RowList`, `Stepper`, `NumberStepper`/`RangeStepper`, `DateField`.
 - Mobile logic: `lib/session-finish.ts` (feeling, finish body, note target), pure helpers `lib/training*.ts` (`training-profile.ts`: drafts, per-section validation, discipline
-  defaults, summaries; `training-plan.ts`: plan days, day edits, `nextStep`), API client and React Query hooks
+  defaults, summaries; `training-plan.ts`: plan days, day edits and what the sheet does to them, `nextStep`; `training-focus.ts`: catalog
+  labels and groups, phase hint, selection limits, warnings, unit split and rows, block text, the show a Turniervorbereitung ends
+  with; `training-equipment.ts`: equipment labels, defaults, "Aufbau heute", availability; `training-goal.ts`: level goal, progress
+  text, level up), `lib/tracking-exercises.ts` (library and tag labels, filters, sources), API client and React Query hooks
   `lib/api/training.ts`.
 
 ## Access
