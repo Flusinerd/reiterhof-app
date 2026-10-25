@@ -4,6 +4,7 @@ import { test } from "node:test";
 import {
   classesAbove,
   goalLetter,
+  goalOfProfile,
   goalOptions,
   goalSummary,
   isGoalLevel,
@@ -44,12 +45,12 @@ test("a goal names a class above the current one", () => {
   assert.equal(goalLetter(null), null);
 });
 
-test("the picker offers the next class and every higher one, with the existing level labels", () => {
+test("the picker offers the next class and every higher one, named by their letters like the progress text", () => {
   assert.deepEqual(goalOptions("beginner"), [
-    { value: null, label: "Nächste Klasse" },
-    { value: "advanced", label: "Erfahren" },
+    { value: null, label: "L (nächste Klasse)" },
+    { value: "advanced", label: "M" },
   ]);
-  assert.deepEqual(goalOptions("intermediate"), [{ value: null, label: "Nächste Klasse" }]);
+  assert.deepEqual(goalOptions("intermediate"), [{ value: null, label: "M (nächste Klasse)" }]);
   assert.deepEqual(goalOptions("advanced"), [], "nothing above advanced");
   assert.equal(goalOptions(undefined).length, 2);
 });
@@ -60,12 +61,23 @@ test("the chosen option: an explicit goal above the next class, else the next cl
   assert.equal(selectedGoal(progress({ goal_level: null })), null);
   assert.equal(selectedGoal(progress({ level: "intermediate", goal_level: "advanced" })), null);
   assert.equal(selectedGoal(undefined), null);
-  assert.equal(goalSummary(progress()), "Nächste Klasse");
-  assert.equal(goalSummary(progress({ goal_level: "advanced" })), "Erfahren");
-  assert.equal(goalSummary(progress({ goal_until: "2027-03-15" })), "Nächste Klasse bis 15.03.");
-  assert.equal(goalSummary(progress({ goal_level: "advanced", goal_until: "2027-03-15" })), "Erfahren bis 15.03.");
-  assert.equal(goalSummary(progress({ goal_until: "kaputt" })), "Nächste Klasse");
-  assert.equal(goalSummary(null), "Nächste Klasse");
+  assert.equal(goalSummary(progress()), "L (nächste Klasse)");
+  assert.equal(goalSummary(progress({ goal_level: "advanced" })), "M");
+  assert.equal(goalSummary(progress({ goal_until: "2027-03-15" })), "L (nächste Klasse) bis 15.03.");
+  assert.equal(goalSummary(progress({ goal_level: "advanced", goal_until: "2027-03-15" })), "M bis 15.03.");
+  assert.equal(goalSummary(progress({ goal_until: "kaputt" })), "L (nächste Klasse)");
+  assert.equal(goalSummary(null), "L (nächste Klasse)");
+});
+
+test("the goal row reads the profile's own goal fields, also when progress is null", () => {
+  // The backend sends progress: null when the goal's class has no lessons; the row must stay.
+  const goal = goalOfProfile({ goal_level: "advanced", goal_until: "2027-03-15", progress: null });
+  assert.deepEqual(goal, { level: undefined, goal_level: "advanced", goal_until: "2027-03-15" });
+  assert.equal(goalSummary(goal), "M bis 15.03.");
+  assert.equal(goalSummary(goalOfProfile({ progress: null })), "L (nächste Klasse)", "no goal stored: the next class");
+  assert.equal(goalOfProfile({ progress: progress({ level: "intermediate" }) }).level, "intermediate", "the class comes from progress");
+  assert.equal(goalSummary(goalOfProfile({ goal_level: null, goal_until: "2027-03-15", progress: progress({ level: "intermediate" }) })), "M (nächste Klasse) bis 15.03.");
+  assert.equal(goalOfProfile({ progress: progress({ goal_level: "advanced" }) }).goal_level, "advanced", "older backends: the goal of progress");
 });
 
 test("the progress text is the API's, with a fallback in the same forms", () => {

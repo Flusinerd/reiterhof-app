@@ -20,7 +20,8 @@ export function LevelUpSheet({
   letter: string;
   saving: boolean;
   error: string | null;
-  onConfirm: () => void;
+  /** Return the promise of the save: the button stays locked until it is done. */
+  onConfirm: () => unknown;
 }) {
   const { title, description } = levelUpConfirm(horseName, letter);
   return (

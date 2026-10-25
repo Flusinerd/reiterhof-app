@@ -10,17 +10,14 @@ import { nextLections, type NextLection } from "@/lib/training-goal";
  * The rows of the level goal: one row with the sentence of the API ("Auf dem Weg zu L: 7 von 12
  * Lektionen gefestigt.") and one row per lection that comes next, each opening the exercise. Put
  * them into a `RowList` (they are returned as a list so that the hairlines sit between them).
- * `onOpenGoal` makes the first row tappable (the profile's owner changes the goal there).
  */
 export function progressRows({
   text,
   next,
-  onOpenGoal,
   onOpenExercise,
 }: {
   text: string | null;
   next: readonly NextLection[] | undefined;
-  onOpenGoal?: () => void;
   onOpenExercise: (id: string) => void;
 }): ReactElement[] {
   const rows: ReactElement[] = [];
@@ -29,11 +26,10 @@ export function progressRows({
       <ListRow
         key="goal"
         leading={<Icon as={Goal} size={20} className="text-muted" />}
-        eyebrow="Ziel"
+        eyebrow="Fortschritt"
         eyebrowTone="brass"
         title={text}
-        accessibilityLabel={`Ziel: ${text}`}
-        onPress={onOpenGoal}
+        accessibilityLabel={`Fortschritt: ${text}`}
       />,
     );
   }

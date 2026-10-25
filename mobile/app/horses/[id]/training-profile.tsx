@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter, type Href } from "expo-router";
-import { Activity, CalendarRange, Medal, Target, Timer, Trophy, Users } from "lucide-react-native";
+import { Activity, CalendarRange, Goal, Medal, Target, Timer, Trophy, Users } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 
@@ -14,7 +14,7 @@ import { dateToIso } from "@/lib/date-field";
 import { horseRoutes } from "@/lib/horse-format";
 import { ACTIVITIES, DISCIPLINES, PROFILE_STATUSES, activityLabel, disciplineLabel, statusLabel } from "@/lib/training";
 import { focusWarnings, focusesSummary } from "@/lib/training-focus";
-import { levelUp, levelUpLabel, progressText, type GoalLevel } from "@/lib/training-goal";
+import { goalOfProfile, goalSummary, levelUp, levelUpLabel, progressText, type GoalLevel } from "@/lib/training-goal";
 import {
   activitySummary,
   draftFromProfile,
@@ -107,7 +107,11 @@ export default function TrainingProfile() {
       return;
     }
     setError(null);
-    save.mutate(result.input as ProfileInput, { onSuccess });
+    // The promise locks the button that started the save; the error shows inline from the mutation state.
+    return save
+      .mutateAsync(result.input as ProfileInput)
+      .then(() => onSuccess?.())
+      .catch(() => undefined);
   };
 
   const openSheet = () => {
@@ -120,18 +124,20 @@ export default function TrainingProfile() {
   };
 
   const progress = data.progress ?? null;
+  // The goal row does not depend on `progress`, which is null when the goal's class has no lessons.
+  const goal = goalOfProfile(data);
   const levelUpInfo = levelUp(data.warnings, progress);
-  const openExercise = (exerciseId: string) => router.push(`/training/exercises/${exerciseId}` as Href);
+  const openExercise = (exerciseId: string) => router.push(`/training/exercises/${exerciseId}?horse=${id}` as Href);
   const openSheetFor = (open: (v: boolean) => void) => () => {
     setError(null);
     save.reset();
     open(true);
   };
   /** Sets the level goal; only this save carries it, so that no other editor touches it. */
-  const saveGoal = (goal: { level: GoalLevel | null; until: string }) => saveChange({ goal }, () => setGoalOpen(false));
+  const saveGoal = (next: { level: GoalLevel | null; until: string }) => saveChange({ goal: next }, () => setGoalOpen(false));
   /** "Auf L einstufen": the new level, the goal back to the class above it. */
   const confirmLevelUp = () => {
-    if (levelUpInfo?.letter) saveChange({ level: levelUpInfo.letter, goal: { level: null, until: "" } }, () => setLevelUpOpen(false));
+    if (levelUpInfo?.letter) return saveChange({ level: levelUpInfo.letter, goal: { level: null, until: "" } }, () => setLevelUpOpen(false));
   };
 
   const shownError = error ?? (save.isError ? trainingError(save.error) : null);
@@ -191,14 +197,17 @@ export default function TrainingProfile() {
               accessibilityLabel="Disziplin und Niveau"
               onPress={openSheet}
             />
-            {progress
-              ? progressRows({
-                  text: progressText(progress, name),
-                  next: progress.next,
-                  onOpenGoal: openSheetFor(setGoalOpen),
-                  onOpenExercise: openExercise,
-                })
-              : null}
+            {progress?.level !== "advanced" ? (
+              <ListRow
+                key="goal-setting"
+                leading={<Icon as={Goal} size={20} className="text-muted" />}
+                title="Ziel"
+                detail={goalSummary(goal)}
+                accessibilityLabel={`Ziel: ${goalSummary(goal)}`}
+                onPress={openSheetFor(setGoalOpen)}
+              />
+            ) : null}
+            {progress ? progressRows({ text: progressText(progress, name), next: progress.next, onOpenExercise: openExercise }) : null}
             {levelUpInfo ? (
               <ListRow
                 key="level-up"
@@ -312,7 +321,7 @@ export default function TrainingProfile() {
             open={goalOpen}
             onOpenChange={setGoalOpen}
             horseName={name}
-            progress={progress}
+            goal={goal}
             saving={save.isPending}
             error={shownError}
             onSave={saveGoal}

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { View } from "react-native";
 
 import { Button, DateField, Pill, Sheet, Text } from "@/components/ui";
-import { goalOptions, selectedGoal, type GoalLevel, type LevelProgress } from "@/lib/training-goal";
+import { goalOptions, selectedGoal, type GoalLevel, type GoalState } from "@/lib/training-goal";
 
 /**
  * "Ziel": the class the horse is trained towards (the next one by default, or a higher one) and an
@@ -12,7 +12,7 @@ export function GoalSheet({
   open,
   onOpenChange,
   horseName,
-  progress,
+  goal,
   saving,
   error,
   onSave,
@@ -20,20 +20,20 @@ export function GoalSheet({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   horseName: string;
-  progress: LevelProgress | null | undefined;
+  goal: GoalState;
   saving: boolean;
   error: string | null;
-  onSave: (goal: { level: GoalLevel | null; until: string }) => void;
+  onSave: (goal: { level: GoalLevel | null; until: string }) => unknown;
 }) {
-  const options = goalOptions(progress?.level);
+  const options = goalOptions(goal.level);
   const [level, setLevel] = useState<GoalLevel | null>(null);
   const [until, setUntil] = useState("");
 
   // The sheet starts from what is stored every time it opens.
   useEffect(() => {
     if (!open) return;
-    setLevel(selectedGoal(progress));
-    setUntil(progress?.goal_until ?? "");
+    setLevel(selectedGoal(goal));
+    setUntil(goal.goal_until ?? "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 

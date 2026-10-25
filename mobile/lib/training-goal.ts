@@ -2,7 +2,6 @@
 // a goal can name, the progress text, and the one-tap change of the horse's level when it is ready.
 // No React Native imports (unit-tested with node --test). German UI text.
 
-import { levelLabel } from "./tracking-exercises.ts";
 import { LEVEL_UP_KEY, type FocusWarning } from "./training-focus.ts";
 
 /** The classes a goal can name (the library's levels above `beginner`). */
@@ -52,13 +51,16 @@ export function goalLetter(goal: string | null | undefined): string | null {
 export type GoalOption = { value: GoalLevel | null; label: string };
 
 /**
- * The picker: "Nächste Klasse", then every higher class with the existing level labels. Nothing
- * for a horse that is advanced already (no goal above it).
+ * The picker: the next class ("L (nächste Klasse)"), then every higher class, all named by their
+ * letter like the progress text and the level-up. Nothing for a horse that is advanced already.
  */
 export function goalOptions(level: string | null | undefined): GoalOption[] {
   const above = classesAbove(level);
   if (above.length === 0) return [];
-  return [{ value: null, label: "Nächste Klasse" }, ...above.slice(1).map((g) => ({ value: g, label: levelLabel(g) }))];
+  return [
+    { value: null, label: `${LETTERS[above[0]]} (nächste Klasse)` },
+    ...above.slice(1).map((g) => ({ value: g, label: LETTERS[g] })),
+  ];
 }
 
 /** The option shown as chosen: an explicit goal above the next class, else "Nächste Klasse" (null). */
@@ -132,10 +134,32 @@ export function levelUpConfirm(horseName: string, letter: string): { title: stri
   };
 }
 
-/** The profile row "Ziel": "Nächste Klasse" or the chosen class, with the end date. */
-export function goalSummary(progress: Pick<LevelProgress, "level" | "goal_level" | "goal_until"> | null | undefined): string {
-  const goal = selectedGoal(progress);
-  const until = dayMonth(progress?.goal_until);
-  const what = goal ? levelLabel(goal) : "Nächste Klasse";
+/** What the goal row and sheet need: the horse's class and the goal, whether or not the API sent `progress`. */
+export type GoalState = Pick<LevelProgress, "level" | "goal_level" | "goal_until">;
+
+/**
+ * The goal of a profile: the top-level `goal_level`/`goal_until` (always sent), the class from
+ * `progress` when there is one (it is null when the goal's class has no lessons).
+ */
+export function goalOfProfile(profile: {
+  goal_level?: string | null;
+  goal_until?: string | null;
+  progress?: Partial<GoalState> | null;
+}): GoalState {
+  const progress = profile.progress;
+  return {
+    level: progress?.level,
+    // A stored null means "the class above"; only an absent field (older backend) falls back to progress.
+    goal_level: profile.goal_level !== undefined ? profile.goal_level : (progress?.goal_level ?? null),
+    goal_until: profile.goal_until !== undefined ? profile.goal_until : (progress?.goal_until ?? null),
+  };
+}
+
+/** The profile row "Ziel": the chosen class ("L (nächste Klasse)", "M"), with the end date. */
+export function goalSummary(goal: GoalState | null | undefined): string {
+  const selected = selectedGoal(goal);
+  const options = goalOptions(goal?.level);
+  const what = options.find((o) => o.value === selected)?.label ?? "Nächste Klasse";
+  const until = dayMonth(goal?.goal_until);
   return until ? `${what} bis ${until}` : what;
 }

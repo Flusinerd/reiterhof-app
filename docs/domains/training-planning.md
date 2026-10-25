@@ -352,7 +352,8 @@ exists.
 - **Level goal**: profile section "Ziel" (picker of the classes above the current one, optional "bis"
   `DateField`), the progress row "Auf dem Weg zu L: 7 von 12 Lektionen" with the next lections in the
   training tab and the profile; the `level_up` warning gets the one-tap action "Auf L einstufen"
-  (PUT `level`, `goal_level` cleared).
+  (PUT `level`, `goal_level` and `goal_until` cleared: the goal is reached, the date belonged to it). The "Ziel" row is
+  always there for horses below advanced, also when `progress` is null (it reads the profile's own `goal_level`/`goal_until`).
 - **Heute timeline**: training entries carry the focus label in the detail when the slot has one.
 - Pure helpers with node:test tests: `lib/training-focus.ts` (labels, phase texts, selection limits,
   warnings, unit split display, block text), extended `lib/training-plan.ts` and `lib/tracking-exercises.ts`
