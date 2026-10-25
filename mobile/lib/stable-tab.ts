@@ -54,7 +54,10 @@ function joinNames(names: readonly string[]): string {
 export function presenceParts(
   people: readonly Pick<StablePerson, "name" | "me">[],
   loaded = true,
+  failed = false,
 ): { names: string; rest: string } {
+  // Nothing loaded and the request failed: say so (the row retries on a tap) instead of "loading" for ever.
+  if (!loaded && failed) return { names: "Anwesenheit nicht geladen.", rest: "Tippen, um es noch mal zu versuchen." };
   if (!loaded) return { names: "Wird geladen …", rest: "" };
   if (people.length === 0) return { names: "Niemand im Stall", rest: "" };
   const names = people.map((p) => (p.me ? "Du" : firstName(p.name)));
@@ -69,8 +72,8 @@ export function presenceParts(
  * "Anna, Mia und Lea sind da", "Du bist da", "Anna ist da", "Du, Anna, Mia, Lea und 2 weitere sind da",
  * "Niemand im Stall". Without data: "Wird geladen …".
  */
-export function presenceSentence(people: readonly Pick<StablePerson, "name" | "me">[], loaded = true): string {
-  const { names, rest } = presenceParts(people, loaded);
+export function presenceSentence(people: readonly Pick<StablePerson, "name" | "me">[], loaded = true, failed = false): string {
+  const { names, rest } = presenceParts(people, loaded, failed);
   return rest ? `${names} ${rest}` : names;
 }
 
