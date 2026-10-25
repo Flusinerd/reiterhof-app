@@ -3,6 +3,19 @@
 Alle nennenswerten Änderungen an Stallfunk. Versionen folgen [SemVer](https://semver.org/lang/de/),
 die Einträge dem Format von [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## [0.4.1] – 2026-10-25
+
+### Neu
+
+- **Pferd löschen**: Besitzer und Admins löschen ein Pferd endgültig (Pferd bearbeiten, ganz unten). Die App
+  nennt vorher, was verschwindet (Tagebuch, Training, Gesundheit, Decken, Reha, Dokumente, Fotos, Aufgaben), sagt „Das
+  lässt sich nicht rückgängig machen.“ und verlangt den Namen des Pferdes als Bestätigung. Danach landet man auf
+  „Heute“ mit „Luna wurde gelöscht.“; die Pferde-Liste, der Pferde-Tab, Decken und Erinnerungen der anderen Mitglieder
+  aktualisieren sich von selbst. Hilfegesuche zu dem Pferd bleiben ohne Pferd bestehen; Fotos und Dokumente werden auch
+  vom Server entfernt.
+- **Admin-Werkzeug**: `stallfunk-admin horse delete ID|NAME [--stable ID] [--yes]` löscht ein Pferd wie die App
+  (mit Rückfrage, `--yes` überspringt sie).
+
 ## [0.4.0] – 2026-10-25
 
 Eigene Übungsaufgaben und Küren: im Viereck gezeichnet, mit Bahnpunkten und Zeit, geprüft nach den
