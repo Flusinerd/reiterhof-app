@@ -3,6 +3,15 @@
 Alle nennenswerten Änderungen an Stallfunk. Versionen folgen [SemVer](https://semver.org/lang/de/),
 die Einträge dem Format von [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## [Unreleased]
+
+### Behoben
+
+- „Woche planen“ und das Speichern der Trainingsprofil-Seiten (Rhythmus, Aktivitäten, Reitbeteiligungen,
+  Feste Tage, Turniere) schickten bei einem schnellen Doppeltipp zwei Anfragen; jetzt eine.
+- Stall: Fiel „Wer ist da“ aus, stand dort dauerhaft „Wird geladen …“; jetzt eine Meldung, ein Tipp
+  lädt neu.
+
 ## [0.3.0] – 2026-10-25
 
 Die KI-Trainingsplanung ist neu aufgebaut: Sie folgt der Skala der Ausbildung, plant jede Einheit als

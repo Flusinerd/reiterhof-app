@@ -25,11 +25,12 @@ function Face({ name, colorKey, first }: { name: string; colorKey: string | null
  */
 export function PresenceRow() {
   const { user } = useAuth();
-  const { data } = useQuery({ queryKey: PRESENCE_KEY, queryFn: presenceApi.overview });
+  const { data, isError, refetch } = useQuery({ queryKey: PRESENCE_KEY, queryFn: presenceApi.overview });
 
   const people = herePeople(data, user);
   const { faces, extra } = presenceFaces(people, 4);
-  const sentence = presenceParts(people, !!data);
+  const failed = isError && !data;
+  const sentence = presenceParts(people, !!data, failed);
   const spoken = sentence.rest ? `${sentence.names} ${sentence.rest}` : sentence.names;
 
   return (
@@ -38,8 +39,8 @@ export function PresenceRow() {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`Anwesenheit: ${spoken}`}
-        accessibilityHint="Zeigt, wer im Stall ist"
-        onPress={() => pushOnce("/presence")}
+        accessibilityHint={failed ? "Lädt die Anwesenheit noch mal" : "Zeigt, wer im Stall ist"}
+        onPress={failed ? () => void refetch() : () => pushOnce("/presence")}
         className="min-h-[56px] flex-row items-center gap-3 active:opacity-70"
       >
         {faces.length > 0 ? (

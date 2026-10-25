@@ -24,6 +24,8 @@ const person = (name: string, me = false) => ({ name, me });
 test("presence sentence names who is at the stable", () => {
   assert.equal(presenceSentence([], true), "Niemand im Stall");
   assert.equal(presenceSentence([], false), "Wird geladen …");
+  assert.equal(presenceSentence([], false, true), "Anwesenheit nicht geladen. Tippen, um es noch mal zu versuchen.");
+  assert.equal(presenceSentence([], true, true), "Niemand im Stall"); // data from before the failed refresh wins
   assert.equal(presenceSentence([person("Anna Meier")]), "Anna ist da");
   assert.equal(presenceSentence([person("Jan", true)]), "Du bist da");
   assert.equal(presenceSentence([person("Anna"), person("Mia")]), "Anna und Mia sind da");
