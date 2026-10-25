@@ -426,6 +426,34 @@ test("dayEditBody sends focus key, unit and equipment_ok only when the editor ha
   assert.deepEqual(rest, { status: "rest", note: "Plan: Ruhetag" });
 });
 
+test("against the saved day only what the owner changed is sent", () => {
+  const stored: DayEdit = { ...planned, focusKey: "takt", unit, equipmentOk: false };
+  // Nothing changed (say, only the person): none of the three goes along, so this save does not depend on them.
+  const same = dayEditBody({ ...stored, userId: "u1" }, stored);
+  assert.deepEqual(same, { status: "planned", activity: "hall", user_id: "u1", note: "Plan: 45 Min.", focus: "Übergänge", exercise_id: "ex1" });
+  // Each one that changed goes along.
+  assert.equal(dayEditBody({ ...stored, focusKey: "anlehnung" }, stored).focus_key, "anlehnung");
+  assert.equal(dayEditBody({ ...stored, focusKey: null }, stored).focus_key, "", "a removed key is stated");
+  assert.equal(dayEditBody({ ...stored, equipmentOk: true }, stored).equipment_ok, true);
+  assert.equal(dayEditBody({ ...stored, equipmentOk: null }, stored).equipment_ok, null, "back to the default is stated");
+  const other = pickUnitExercise(stored, "cooldown", { id: "c1", title: "Schritt am langen Zügel" });
+  assert.equal(dayEditBody(other, stored).unit?.cooldown?.exercise_id, "c1");
+  assert.equal("focus_key" in dayEditBody(other, stored), false);
+  assert.equal("equipment_ok" in dayEditBody(other, stored), false);
+  // A day that had none of it: a value that is only the default is no change.
+  const bare: DayEdit = { ...planned };
+  assert.equal("equipment_ok" in dayEditBody({ ...bare, equipmentOk: null }, bare), false);
+  assert.equal(dayEditBody({ ...bare, equipmentOk: true }, bare).equipment_ok, true);
+  assert.equal("focus_key" in dayEditBody({ ...bare, focusKey: undefined }, bare), false);
+  assert.equal(dayEditBody({ ...bare, focusKey: "takt" }, bare).focus_key, "takt");
+  assert.deepEqual(dayEditBody({ ...bare, unit }, bare).unit?.main, { exercise_id: "m1", minutes: 22 });
+  // A proposal the owner took over into the sheet is compared with the saved day, so it is stored as it is.
+  const proposal: DayEdit = { ...stored, focusKey: "schwung", unit: { main: { exercise: { id: "p1", title: "Neu" }, minutes: 30 } } };
+  const body = dayEditBody(proposal, stored);
+  assert.equal(body.focus_key, "schwung");
+  assert.equal(body.unit?.main?.exercise_id, "p1");
+});
+
 test("dayEditFrom reads focus key, unit and equipment_ok of newer backends", () => {
   const weekDayRow = (over: Partial<WeekDay>): WeekDay => ({
     date: "2026-10-01",

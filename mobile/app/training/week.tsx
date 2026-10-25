@@ -379,7 +379,8 @@ function DayEditor({
       onClose();
       return;
     }
-    take.mutate({ day: date, ...dayEditBody(edit) }, { onSuccess: onClose });
+    // Only what the owner changed against the saved day goes along (focus key, unit, set-up of the day).
+    take.mutate({ day: date, ...dayEditBody(edit, dayEditFrom(day)) }, { onSuccess: onClose });
   };
   const remove = () => {
     if (draftDay) {

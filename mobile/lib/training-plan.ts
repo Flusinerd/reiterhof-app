@@ -321,11 +321,17 @@ export type TakeDayBody = {
 
 /**
  * PUT body for a day edited in the week view. A planned day always carries user_id ("" = nobody),
- * otherwise the server would claim it for the caller. Focus key, unit and equipment_ok are left out
- * when the editor has no value for them (an older backend rejects unknown fields).
+ * otherwise the server would claim it for the caller.
+ *
+ * Focus key, unit and equipment_ok are left out when the editor has no value for them (an older
+ * backend rejects unknown fields). With `stored`, the day as it was saved, they are also left out
+ * when the owner did not change them: a change of the person then never depends on them.
  */
-export function dayEditBody(edit: DayEdit): TakeDayBody {
+export function dayEditBody(edit: DayEdit, stored?: DayEdit): TakeDayBody {
   if (edit.status === "rest" || edit.activity === null) return { status: "rest", note: "Plan: Ruhetag" };
+  const keyChanged = edit.focusKey !== undefined && (!stored || (edit.focusKey ?? null) !== (stored.focusKey ?? null));
+  const unitChanged = !!edit.unit && (!stored || JSON.stringify(edit.unit) !== JSON.stringify(stored.unit ?? null));
+  const setupChanged = edit.equipmentOk !== undefined && (!stored || edit.equipmentOk !== (stored.equipmentOk ?? null));
   return {
     status: "planned",
     activity: edit.activity,
@@ -333,9 +339,9 @@ export function dayEditBody(edit: DayEdit): TakeDayBody {
     note: `Plan: ${formatMinutes(edit.minutes)}`,
     focus: edit.focus,
     exercise_id: edit.exercise?.id ?? "",
-    ...(edit.focusKey !== undefined ? { focus_key: edit.focusKey ?? "" } : {}),
-    ...(edit.unit ? { unit: unitBody(edit.unit) } : {}),
-    ...(edit.equipmentOk !== undefined ? { equipment_ok: edit.equipmentOk } : {}),
+    ...(keyChanged ? { focus_key: edit.focusKey ?? "" } : {}),
+    ...(unitChanged && edit.unit ? { unit: unitBody(edit.unit) } : {}),
+    ...(setupChanged ? { equipment_ok: edit.equipmentOk } : {}),
   };
 }
 
