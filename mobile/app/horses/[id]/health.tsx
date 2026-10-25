@@ -20,8 +20,12 @@ import {
   remindText,
 } from "@/lib/horse-format";
 import { bundleText, horseNamesText } from "@/lib/observations";
+import type { Effect } from "@/lib/query-effects";
 
 const dueTone = { none: "muted", overdue: "danger", soon: "accent", ok: "brass" } as const;
+
+/** Every write to a health item changes the same things (lists, reminder center, Heute). */
+const healthChanged = (): Effect[] => [{ type: "health" }];
 
 function itemSubtitle(item: HealthItem): string {
   if (item.daily_time) return `täglich um ${item.daily_time} Uhr`;
@@ -34,11 +38,13 @@ export default function Health() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const horse = useHorse(id);
   const health = useHealth(id);
-  const save = useHorseMutation((v: { itemId: string | null; input: HealthInput }) =>
-    v.itemId ? horsesApi.updateHealthItem(v.itemId, v.input) : horsesApi.addHealthItem(id, v.input),
+  const save = useHorseMutation(
+    (v: { itemId: string | null; input: HealthInput }) =>
+      v.itemId ? horsesApi.updateHealthItem(v.itemId, v.input) : horsesApi.addHealthItem(id, v.input),
+    healthChanged,
   );
-  const done = useHorseMutation((itemId: string) => horsesApi.markDone(itemId));
-  const remove = useHorseMutation((itemId: string) => horsesApi.removeHealthItem(itemId));
+  const done = useHorseMutation((itemId: string) => horsesApi.markDone(itemId), healthChanged);
+  const remove = useHorseMutation((itemId: string) => horsesApi.removeHealthItem(itemId), healthChanged);
   const [sheet, setSheet] = useState<{ item: HealthItem | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
 

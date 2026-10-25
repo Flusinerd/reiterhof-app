@@ -4,11 +4,10 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { authed } from "../api";
+import { weatherKeys } from "../query-keys.ts";
 import type { WarningsResponse } from "../weather-warnings.ts";
 
-export const weatherKeys = {
-  warnings: ["weather", "warnings"] as const,
-};
+export { weatherKeys };
 
 export const weatherApi = {
   warnings: () => authed.get<WarningsResponse>("/api/v1/weather/warnings"),

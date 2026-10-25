@@ -60,7 +60,7 @@ export function HorseRecord({ id, back }: { id: string; back: boolean }) {
     [BLANKET_STATE_EVENT]: [blanketKeys.today],
     [BLANKET_PLAN_EVENT]: [blanketKeys.today],
   });
-  const markDone = useHorseMutation((itemId: string) => horsesApi.markDone(itemId));
+  const markDone = useHorseMutation((itemId: string) => horsesApi.markDone(itemId), () => [{ type: "health" }]);
   const photo = useHorsePhotoSheet({ id, name: h?.name ?? "", photo_url: h?.photo_url ?? null });
   const [segment, setSegment] = useState<Segment>("diary");
   const [blanketOpen, setBlanketOpen] = useState(false);

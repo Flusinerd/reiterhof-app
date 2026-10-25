@@ -1,10 +1,11 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
 import { Calendar, Check, CheckCheck, HandHeart, Heart, Square, SquareCheck, UserMinus, X, type LucideIcon } from "lucide-react-native";
 import { useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, View } from "react-native";
 
 import { Avatar, Badge, Button, Icon, PageHeader, Pill, Screen, Section, Sheet, Text } from "@/components/ui";
+import { useEffectMutation } from "@/lib/api/mutation";
 import { requestKeys, requestsApi } from "@/lib/api/requests";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/cn";
@@ -87,32 +88,35 @@ export default function RequestDetail() {
   const query = useQuery({ queryKey: requestKeys.detail(id), queryFn: () => requestsApi.get(id) });
   const r = query.data;
 
-  function afterChange(updated: HelpRequest) {
+  /** The answer of the server is the new detail; the lists and the reminder center follow (effect "request"). */
+  function storeDetail(updated: HelpRequest) {
     queryClient.setQueryData(requestKeys.detail(id), updated);
-    void queryClient.invalidateQueries({ queryKey: requestKeys.all });
   }
 
-  const action = useMutation({
+  const action = useEffectMutation({
     mutationFn: (fn: () => Promise<HelpRequest>) => fn(),
     onMutate: () => {
       setError(null);
       setNotice(null);
     },
-    onSuccess: afterChange,
+    onSuccess: storeDetail,
     onError: (e) => setError(requestErrorMessage(e)),
+    effects: () => [{ type: "request" }],
+    errorEffects: () => [{ type: "request" }], // a conflict (full, cancelled) means the view was stale
   });
 
-  const remind = useMutation({
+  const remind = useEffectMutation({
     mutationFn: (value: ReminderOption) => requestsApi.setReminder(id, reminderAt(value, r?.date ?? "", r?.time_from ?? null)),
     onMutate: () => setError(null),
-    onSuccess: afterChange,
+    onSuccess: storeDetail,
     onError: (e) => setError(requestErrorMessage(e)),
+    effects: () => [{ type: "request" }],
   });
 
-  const thank = useMutation({
+  const thank = useEffectMutation({
     mutationFn: (userId: string) => requestsApi.thank(id, userId),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: requestKeys.all }),
     onError: (e) => setError(requestErrorMessage(e)),
+    effects: () => [{ type: "request" }],
   });
 
   if (query.isPending) {

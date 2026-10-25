@@ -2,6 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { ApiError, authed, errorMessage } from "../api";
+import { trainingKeys } from "../query-keys.ts";
 import {
   trainingErrorText,
   type Activity,
@@ -16,8 +17,10 @@ import {
 import type { Feeling } from "../session-finish";
 import { planApplyBody, type PlanDay, type PlanResponse, type ReproposeOptions, type TakeDayBody } from "../training-plan";
 import type { DayRuleApi, QuotasApi } from "../training-profile";
+import { useEffectMutation } from "./mutation";
 
 export type { ReproposeOptions, TakeDayBody };
+export { trainingKeys };
 
 // --- types (mirror backend/internal/trainingapi) -----------------------------------------
 
@@ -232,15 +235,7 @@ export const trainingApi = {
   exercise: (id: string) => authed.get<ExerciseSummary>(`/api/v1/exercises/${encodeURIComponent(id)}`),
 };
 
-// --- query keys ----------------------------------------------------------------------------
-
-export const trainingKeys = {
-  all: ["training"] as const,
-  horses: () => ["training", "horses"] as const,
-  today: (horse: string, minutes?: number) => ["training", "today", horse, minutes ?? 0] as const,
-  week: (horse: string, start?: string) => ["training", "week", horse, start ?? "current"] as const,
-  profile: (horse: string) => ["training", "profile", horse] as const,
-};
+// --- hooks (the query keys live in lib/query-keys.ts) ------------------------------------------
 
 export const useTrainingHorses = () => useQuery({ queryKey: trainingKeys.horses(), queryFn: trainingApi.horses });
 
@@ -265,29 +260,23 @@ export const useProfile = (horse: string | undefined) =>
     enabled: !!horse,
   });
 
-/** After a session or slot change: week, today and horse list are stale. */
-export function useInvalidateTraining() {
-  const client = useQueryClient();
-  return (horse: string) => {
-    void client.invalidateQueries({ queryKey: ["training", "week", horse] });
-    void client.invalidateQueries({ queryKey: ["training", "today", horse] });
-    void client.invalidateQueries({ queryKey: trainingKeys.horses() });
-  };
-}
-
+/**
+ * A logged session changes the week and today of the horse, the horse list, the diary and the reminder
+ * center (the day is done); the mutation ends when they are fresh, so "Ins Tagebuch" is there when the
+ * screen closes.
+ */
 export function useCreateSession(horse: string) {
-  const invalidate = useInvalidateTraining();
-  return useMutation({
+  return useEffectMutation({
     mutationFn: (body: SessionInput) => trainingApi.createSession(horse, body),
-    onSuccess: () => invalidate(horse),
+    effects: () => [{ type: "session", horseId: horse }],
   });
 }
 
+/** Claims, releases or plans one day of the week. */
 export function useTakeDay(horse: string) {
-  const invalidate = useInvalidateTraining();
-  return useMutation({
+  return useEffectMutation({
     mutationFn: ({ day, ...body }: { day: string } & TakeDayBody) => trainingApi.takeDay(horse, day, body),
-    onSuccess: () => invalidate(horse),
+    effects: () => [{ type: "weekSlots", horseId: horse }],
   });
 }
 
@@ -306,29 +295,31 @@ export function useReproposeDay(horse: string) {
   });
 }
 
-/** Stores the plan days one after another, then refreshes the week. */
+/**
+ * Stores the plan days one after another, then refreshes the week. Days stored before a failure stay
+ * stored, so the week is refreshed on failure too.
+ */
 export function useApplyPlan(horse: string) {
-  const invalidate = useInvalidateTraining();
-  return useMutation({
+  return useEffectMutation({
     mutationFn: async (days: PlanDay[]) => {
       for (const d of days) {
         const body = planApplyBody(d);
         if (body) await trainingApi.takeDay(horse, d.date, body);
       }
     },
-    onSettled: () => invalidate(horse),
+    effects: () => [{ type: "weekSlots", horseId: horse }],
+    errorEffects: () => [{ type: "weekSlots", horseId: horse }],
   });
 }
 
 export function useSaveProfile(horse: string) {
   const client = useQueryClient();
-  const invalidate = useInvalidateTraining();
-  return useMutation({
+  return useEffectMutation({
     mutationFn: (body: ProfileInput) => trainingApi.saveProfile(horse, body),
     onSuccess: (profile) => {
       client.setQueryData(trainingKeys.profile(horse), profile);
-      invalidate(horse);
     },
+    effects: () => [{ type: "trainingProfile", horseId: horse }],
   });
 }
 

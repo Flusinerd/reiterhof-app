@@ -21,7 +21,10 @@ export function useHorsePhotoSheet(horse: Pick<Horse, "id" | "name" | "photo_url
   const [visible, setVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const consent = useConsentPrompt();
-  const save = useHorseMutation((photoPath: string) => horsesApi.update(horse.id, { photo_path: photoPath }));
+  const save = useHorseMutation(
+    (photoPath: string) => horsesApi.update(horse.id, { photo_path: photoPath }),
+    () => [{ type: "horseUpdated", horseId: horse.id }],
+  );
   const busy = save.isPending;
 
   async function attach(file: UploadInput) {

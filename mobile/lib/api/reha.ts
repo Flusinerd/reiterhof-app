@@ -1,11 +1,15 @@
 // Reha plan endpoints (docs/domains/reha.md) with React Query keys and hooks.
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { API_URL, ApiError, authed, errorMessage } from "../api";
 import { parseErrorBody } from "../api-core.ts";
+import { rehaKeys } from "../query-keys.ts";
 import type { PlanInput, PlanState } from "../reha.ts";
 import { rehaErrorText } from "../reha.ts";
 import { getToken } from "../token";
+import { useEffectMutation } from "./mutation";
+
+export { rehaKeys };
 
 // --- types (mirror backend/internal/reha) --------------------------------------------------------
 
@@ -114,11 +118,6 @@ export const rehaApi = {
   unmarkDone: (plan: string, day: string) => del<RehaView>(`${planPath(plan)}/days/${day}/done`),
 };
 
-export const rehaKeys = {
-  all: ["reha"] as const,
-  horse: (horse: string) => ["reha", horse] as const,
-};
-
 export const useReha = (horse: string | undefined) =>
   useQuery({
     queryKey: rehaKeys.horse(horse ?? ""),
@@ -126,26 +125,19 @@ export const useReha = (horse: string | undefined) =>
     enabled: !!horse,
   });
 
-/** After a change of the plan: the reha view, "Was heute?", the week and the horse list are stale. */
-export function useInvalidateReha() {
-  const client = useQueryClient();
-  return (horse: string) => {
-    void client.invalidateQueries({ queryKey: rehaKeys.horse(horse) });
-    void client.invalidateQueries({ queryKey: ["training"] });
-    void client.invalidateQueries({ queryKey: ["requests"] });
-  };
-}
-
-/** Runs a mutation that returns the new view and stores it as the horse's reha view. */
+/**
+ * Runs a mutation that returns the new view and stores it as the horse's reha view. A change of the plan
+ * also changes "Was heute?", the week, the horse list, the vet checkup in the reminder center and the
+ * observation that links to the plan (lib/query-effects.ts).
+ */
 function useViewMutation<V>(horse: string, fn: (v: V) => Promise<RehaView>) {
   const client = useQueryClient();
-  const invalidate = useInvalidateReha();
-  return useMutation({
+  return useEffectMutation({
     mutationFn: fn,
     onSuccess: (view) => {
       client.setQueryData(rehaKeys.horse(horse), view);
-      invalidate(horse);
     },
+    effects: () => [{ type: "reha", horseId: horse }],
   });
 }
 

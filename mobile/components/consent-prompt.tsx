@@ -4,6 +4,7 @@ import { useCallback, useRef, useState, type ReactElement } from "react";
 import { Platform, View } from "react-native";
 
 import { Button, Sheet, Text } from "@/components/ui";
+import { invalidateEffects } from "@/lib/api/mutation";
 import { CONSENTS_KEY, privacyApi } from "@/lib/api/privacy";
 import { ApiError, errorMessage } from "@/lib/api";
 import { CONSENT_COPY, consentErrorMessage, needsPrompt, type ConsentKind } from "@/lib/consent-core";
@@ -52,7 +53,7 @@ export function ConsentSheet({ kind, onDone }: ConsentSheetProps) {
         }
       }
       await privacyApi.setConsent(kind, true);
-      await queryClient.invalidateQueries({ queryKey: CONSENTS_KEY });
+      await invalidateEffects(queryClient, [{ type: "consent", kind }]);
       finish(true);
     } catch (err) {
       setError((err instanceof ApiError ? consentErrorMessage(err.code) : null) ?? errorMessage(err));

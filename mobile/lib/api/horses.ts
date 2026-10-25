@@ -1,11 +1,16 @@
 // API calls and react-query hooks for horses, the emergency card, health items and documents
 // (backend: internal/horses, internal/health; docs/domains/horses.md).
 
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, type MutationKey } from "@tanstack/react-query";
 
 import { API_URL, authed } from "../api";
 import { parseErrorBody, ApiError } from "../api-core.ts";
+import type { Effect } from "../query-effects.ts";
+import { horseKeys } from "../query-keys.ts";
 import { getToken } from "../token";
+import { useEffectMutation } from "./mutation";
+
+export { horseKeys };
 
 // --- types (mirror the backend JSON) -------------------------------------------------------
 
@@ -232,17 +237,6 @@ export const horsesApi = {
 
 // --- query keys and hooks ------------------------------------------------------------------
 
-export const horseKeys = {
-  all: ["horses"] as const,
-  list: () => ["horses", "list"] as const,
-  detail: (id: string) => ["horses", "detail", id] as const,
-  emergency: (id: string) => ["horses", "emergency", id] as const,
-  health: (id: string) => ["horses", "health", id] as const,
-  documents: (id: string) => ["horses", "documents", id] as const,
-  diary: (id: string) => ["horses", "diary", id] as const,
-  members: () => ["members"] as const,
-};
-
 export const useHorses = () => useQuery({ queryKey: horseKeys.list(), queryFn: horsesApi.list });
 export const useHorse = (id: string) =>
   useQuery({ queryKey: horseKeys.detail(id), queryFn: () => horsesApi.get(id) });
@@ -265,13 +259,14 @@ export const useMembers = () =>
   useQuery({ queryKey: horseKeys.members(), queryFn: horsesApi.members, staleTime: 60_000 });
 
 /**
- * Runs a mutation and refreshes everything about horses afterwards (lists, record, card,
- * health, documents). Horse data is small; one broad invalidation keeps the screens consistent.
+ * Runs a write about a horse and refreshes what it changes (lib/query-effects.ts) before the mutation
+ * ends. `effects` says what the call changed, e.g. `() => [{ type: "health" }]`; `mutationKey` lets other
+ * components ask whether this write is running (usePendingIds).
  */
-export function useHorseMutation<TVars, TResult>(fn: (vars: TVars) => Promise<TResult>) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: fn,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: horseKeys.all }),
-  });
+export function useHorseMutation<TVars, TResult>(
+  fn: (vars: TVars) => Promise<TResult>,
+  effects: (vars: TVars, result: TResult) => Effect[],
+  mutationKey?: MutationKey,
+) {
+  return useEffectMutation({ mutationFn: fn, mutationKey, effects });
 }

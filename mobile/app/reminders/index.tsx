@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { router, type Href } from "expo-router";
 import { useState } from "react";
 import { ActivityIndicator, RefreshControl, View } from "react-native";
@@ -7,6 +7,7 @@ import { ReminderHead } from "@/components/reminder-head";
 import { ReminderRow } from "@/components/reminder-row";
 import { Button, Card, Screen, SectionTitle, Text } from "@/components/ui";
 import { BLANKET_STATE_EVENT } from "@/lib/api/blankets";
+import { useEffectMutation } from "@/lib/api/mutation";
 import { reminderKeys, remindersApi, useReminders } from "@/lib/api/reminders";
 import { useInvalidateOnEvents } from "@/lib/realtime";
 import { groupByDay, reminderErrorMessage, type ReminderItem, type RemindersResponse } from "@/lib/reminders";
@@ -24,14 +25,14 @@ export default function Reminders() {
   const [error, setError] = useState<string | null>(null);
   const [dismissingId, setDismissingId] = useState<string | null>(null);
 
-  const dismiss = useMutation({
+  const dismiss = useEffectMutation({
     mutationFn: (item: ReminderItem) => remindersApi.dismiss(item.id),
     onMutate: (item) => {
       setError(null);
       setDismissingId(item.id);
     },
     onSuccess: (_data, item) => {
-      // Remove it at once; the refetch below confirms.
+      // Remove it at once; the refetch of the effect confirms.
       queryClient.setQueryData<RemindersResponse>(reminderKeys.list("week"), (old) =>
         old
           ? { ...old, groups: old.groups.map((g) => ({ ...g, items: g.items.filter((i) => i.id !== item.id) })) }
@@ -39,10 +40,9 @@ export default function Reminders() {
       );
     },
     onError: (e) => setError(reminderErrorMessage(e)),
-    onSettled: () => {
-      setDismissingId(null);
-      void queryClient.invalidateQueries({ queryKey: reminderKeys.all });
-    },
+    onSettled: () => setDismissingId(null),
+    effects: () => [{ type: "reminderDismissed" }],
+    errorEffects: () => [{ type: "reminderDismissed" }],
   });
 
   const data = reminders.data;

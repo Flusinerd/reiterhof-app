@@ -55,7 +55,10 @@ export default function BlanketPlan() {
   const [noteOpen, setNoteOpen] = useState(false);
   const [note, setNote] = useState("");
   const [noteError, setNoteError] = useState<string | null>(null);
-  const saveNote = useHorseMutation((text: string) => horsesApi.update(id, { helper_note: text }));
+  const saveNote = useHorseMutation(
+    (text: string) => horsesApi.update(id, { helper_note: text }),
+    () => [{ type: "horseUpdated", horseId: id }], // also refreshes the plan (the note shows there)
+  );
   const timeZone = me?.stable?.timezone ?? "Europe/Berlin";
 
   if (!plan.data) {
@@ -77,7 +80,6 @@ export default function BlanketPlan() {
     setNoteError(null);
     try {
       await saveNote.mutateAsync(note.trim());
-      await queryClient.invalidateQueries({ queryKey: blanketKeys.plan(id) });
       setNoteOpen(false);
     } catch (e) {
       setNoteError(errorMessage(e));

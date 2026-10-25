@@ -1,6 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import * as storage from "./storage";
 
+import { useEffectMutation } from "./api/mutation";
 import { CONSENTS_KEY, privacyApi } from "./api/privacy";
 import { useAuth } from "./auth";
 import { isGranted, type ConsentKind } from "./consent-core.ts";
@@ -29,15 +30,16 @@ export function useHasConsent(kind: ConsentKind): boolean | undefined {
  * visibility are cleaned up by the server.)
  */
 export function useSetConsent() {
-  const queryClient = useQueryClient();
-  return useMutation({
+  return useEffectMutation({
     mutationFn: async ({ kind, granted }: { kind: ConsentKind; granted: boolean }) => {
       const item = await privacyApi.setConsent(kind, granted);
       if (!granted && kind === "location_geofence") await disableGeofence();
       if (!granted && kind === "push") await disableWebPush(); // no-op outside the web build
       return item;
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: CONSENTS_KEY }),
+    // Revoking presence sharing also hides the person (me, presence); push changes the switches.
+    effects: ({ kind }) => [{ type: "consent", kind }],
+    errorEffects: ({ kind }) => [{ type: "consent", kind }],
   });
 }
 

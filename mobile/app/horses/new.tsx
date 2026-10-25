@@ -11,7 +11,8 @@ import { horseRoutes } from "@/lib/horse-format";
 export default function NewHorse() {
   const { user } = useAuth();
   const members = useMembers();
-  const create = useHorseMutation(horsesApi.create);
+  // The new horse shows on Heute, the tab, the blanket board and the roles before the page opens.
+  const create = useHorseMutation(horsesApi.create, () => [{ type: "horseCreated" }]);
   const [error, setError] = useState<string | null>(null);
 
   return (

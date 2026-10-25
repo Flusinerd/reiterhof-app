@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { router, type Href } from "expo-router";
 import { Activity, Bell, BellOff, BookOpen, LogOut, MapPin, Pencil, ShieldCheck, type LucideIcon } from "lucide-react-native";
 import { useState } from "react";
@@ -12,6 +12,7 @@ import { WebPushCard } from "@/components/web-push-card";
 import { Button, Icon, PageHeader, Screen, Section, Switch, Text } from "@/components/ui";
 import { ListRow, RowList } from "@/components/ui/list-row";
 import { errorMessage } from "@/lib/api";
+import { useEffectMutation } from "@/lib/api/mutation";
 import { reminderKeys, remindersApi, useNotificationSettings } from "@/lib/api/reminders";
 import { useAuth } from "@/lib/auth";
 import { useHasConsent } from "@/lib/consent";
@@ -37,7 +38,7 @@ export function Settings({ back }: { back: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
 
-  const toggleKind = useMutation({
+  const toggleKind = useEffectMutation({
     mutationFn: ({ kind, enabled }: { kind: string; enabled: boolean }) => remindersApi.setNotification(kind, enabled),
     onMutate: async ({ kind, enabled }) => {
       setError(null);
@@ -53,12 +54,13 @@ export function Settings({ back }: { back: boolean }) {
       if (ctx?.previous) queryClient.setQueryData(reminderKeys.notifications, ctx.previous);
       setError(errorMessage(e));
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: reminderKeys.notifications }),
+    // A failure also refreshes: the switch shows what the server has.
+    effects: ({ kind }) => [{ type: "notificationKind", kind }],
+    errorEffects: ({ kind }) => [{ type: "notificationKind", kind }],
   });
 
   async function allowPush() {
-    await prompt.ensure("push");
-    void queryClient.invalidateQueries({ queryKey: reminderKeys.notifications });
+    await prompt.ensure("push"); // the consent refreshes the switches (effect "consent")
   }
 
   async function leave() {

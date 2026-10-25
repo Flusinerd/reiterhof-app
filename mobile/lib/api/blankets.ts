@@ -1,7 +1,7 @@
 // API calls and react-query hooks for blankets, rules, the plan and day states
 // (backend: internal/blankets; docs/domains/blankets.md).
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
 import { API_URL, authed } from "../api";
 import { ApiError, parseErrorBody } from "../api-core.ts";
@@ -15,7 +15,11 @@ import type {
   StateAction,
   Today,
 } from "../blankets.ts";
+import { blanketKeys, mutationKeys } from "../query-keys.ts";
 import { getToken } from "../token";
+import { useEffectMutation } from "./mutation";
+
+export { blanketKeys };
 
 export const BLANKET_STATE_EVENT = "blanket_state.changed";
 export const BLANKET_PLAN_EVENT = "blanket_plan.changed";
@@ -112,37 +116,27 @@ export const blanketsApi = {
     }),
 };
 
-export const blanketKeys = {
-  all: ["blankets"] as const,
-  today: ["blankets", "today"] as const,
-  plan: (horseId: string) => ["blankets", "plan", horseId] as const,
-  history: (horseId: string) => ["blankets", "history", horseId] as const,
-};
-
 export const useToday = () => useQuery({ queryKey: blanketKeys.today, queryFn: blanketsApi.today });
 export const usePlan = (horseId: string) =>
   useQuery({ queryKey: blanketKeys.plan(horseId), queryFn: () => blanketsApi.plan(horseId) });
 export const useHistory = (horseId: string, days = 14) =>
   useQuery({ queryKey: [...blanketKeys.history(horseId), days], queryFn: () => blanketsApi.history(horseId, days) });
 
-/** Sets the day state of a horse and refreshes everything about blankets (and requests, which may close). */
+/**
+ * Sets the day state of a horse. Refreshes the blankets, the reminder center (the blanket check) and, when
+ * blanket requests were closed, the requests, and stays pending until that is done: the buttons of a row do
+ * not come back before the row shows its new state.
+ */
 export function useSetState() {
-  const queryClient = useQueryClient();
-  return useMutation({
+  return useEffectMutation({
     mutationFn: (v: { horseId: string; action: StateAction; coveredWith?: string }) =>
       blanketsApi.setState(v.horseId, v.action, v.coveredWith),
-    onSuccess: (result) => {
-      void queryClient.invalidateQueries({ queryKey: blanketKeys.all });
-      if (result.closed_requests.length > 0) void queryClient.invalidateQueries({ queryKey: ["requests"] });
-    },
+    mutationKey: mutationKeys.blanketState,
+    effects: (_vars, result) => [{ type: "blanketState", closedRequests: result.closed_requests.length > 0 }],
   });
 }
 
 /** Runs a plan mutation (blankets, rules) and refreshes the blanket queries afterwards. */
 export function usePlanMutation<TVars, TResult>(fn: (vars: TVars) => Promise<TResult>) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: fn,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: blanketKeys.all }),
-  });
+  return useEffectMutation({ mutationFn: fn, effects: () => [{ type: "blanketPlan" }] });
 }

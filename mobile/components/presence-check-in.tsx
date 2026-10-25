@@ -1,8 +1,9 @@
-import { useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
+import { useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
 import { useState, type ReactElement } from "react";
 
 import { useConsentPrompt } from "@/components/consent-prompt";
 import { api, errorMessage, type PresenceVisibility } from "@/lib/api";
+import { useEffectMutation } from "@/lib/api/mutation";
 import { PRESENCE_EVENT, PRESENCE_KEY, presenceApi, type PresenceOverview } from "@/lib/api/presence";
 import { ME_KEY, useAuth } from "@/lib/auth";
 import { useInvalidateOnEvents } from "@/lib/realtime";
@@ -38,19 +39,23 @@ export function usePresenceCheckIn(): PresenceCheckIn {
   const overview = useQuery({ queryKey: PRESENCE_KEY, queryFn: presenceApi.overview });
   useInvalidateOnEvents({ [PRESENCE_EVENT]: [PRESENCE_KEY] });
 
-  const toggleVisit = useMutation({
+  const toggleVisit = useEffectMutation({
     mutationFn: (arrive: boolean) => (arrive ? presenceApi.checkIn("manual") : presenceApi.checkOut()),
     onMutate: () => setError(null),
     onError: (err) => setError(errorMessage(err)),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: PRESENCE_KEY }),
+    effects: () => [{ type: "presence" }],
+    errorEffects: () => [{ type: "presence" }],
   });
 
-  const visibilityMutation = useMutation({
+  const visibilityMutation = useEffectMutation({
     mutationFn: (visibility: PresenceVisibility) => api.updateMe({ presence_visibility: visibility }),
     onMutate: () => setError(null),
-    onSuccess: (updated) => queryClient.setQueryData(ME_KEY, updated),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(ME_KEY, updated);
+    },
     onError: (err) => setError(errorMessage(err)),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: PRESENCE_KEY }),
+    effects: () => [{ type: "presence" }],
+    errorEffects: () => [{ type: "presence" }],
   });
 
   const visibility = (user?.presence_visibility ?? overview.data?.me.visibility ?? "all") as PresenceVisibility;

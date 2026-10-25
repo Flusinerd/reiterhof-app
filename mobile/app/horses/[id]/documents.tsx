@@ -27,12 +27,17 @@ export default function Documents() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const horse = useHorse(id);
   const docs = useDocuments(id);
-  const add = useHorseMutation((v: { kind: string; title: string; file: UploadInput }) =>
-    uploadFile(v.file).then((saved) =>
-      horsesApi.addDocument(id, { kind: v.kind, title: v.title, file_path: saved.path }),
-    ),
+  const add = useHorseMutation(
+    (v: { kind: string; title: string; file: UploadInput }) =>
+      uploadFile(v.file).then((saved) =>
+        horsesApi.addDocument(id, { kind: v.kind, title: v.title, file_path: saved.path }),
+      ),
+    () => [{ type: "documents", horseId: id }],
   );
-  const remove = useHorseMutation((docId: string) => horsesApi.removeDocument(id, docId));
+  const remove = useHorseMutation(
+    (docId: string) => horsesApi.removeDocument(id, docId),
+    () => [{ type: "documents", horseId: id }],
+  );
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<string>("passport");
   const [title, setTitle] = useState("");

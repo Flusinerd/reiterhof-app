@@ -65,12 +65,17 @@ type ContactDraft = { id?: string; label: string; name: string; phone: string };
 export default function Emergency() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const card = useEmergency(id);
-  const save = useHorseMutation((c: ContactDraft) =>
-    c.id
-      ? horsesApi.updateContact(id, c.id, { label: c.label, name: c.name, phone: c.phone })
-      : horsesApi.addContact(id, { label: c.label, name: c.name, phone: c.phone }),
+  const save = useHorseMutation(
+    (c: ContactDraft) =>
+      c.id
+        ? horsesApi.updateContact(id, c.id, { label: c.label, name: c.name, phone: c.phone })
+        : horsesApi.addContact(id, { label: c.label, name: c.name, phone: c.phone }),
+    () => [{ type: "emergency", horseId: id }],
   );
-  const remove = useHorseMutation((contactId: string) => horsesApi.removeContact(id, contactId));
+  const remove = useHorseMutation(
+    (contactId: string) => horsesApi.removeContact(id, contactId),
+    () => [{ type: "emergency", horseId: id }],
+  );
   const [draft, setDraft] = useState<ContactDraft | null>(null);
   const [error, setError] = useState<string | null>(null);
 
