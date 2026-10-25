@@ -491,6 +491,23 @@ tx.Commit(ctx) // the event is sent on commit; a rollback sends nothing
 keep `data` to ids. Naming: `<domain>.changed` (`presence.changed`, `blanket_state.changed`,
 `request.changed`, ...). The type `resync` is reserved (see below).
 
+**Events** (all carry ids only; the apps map each to the queries it changes, see `mobile/lib/query-effects.ts`):
+
+| Event | Data | Published by |
+| --- | --- | --- |
+| `blanket_state.changed` | `horse_id`, `day` | blanket state set, auto-uncover |
+| `blanket_plan.changed` | `horse_id` | blanket rules, overrides, cover window, plan CRUD |
+| `request.changed` | `id`, `kind` | requests create/update/accept/withdraw/done/cancel, closing by a blanket state |
+| `presence.changed` | | check-in/out, stale job, privacy delete, admin CLI |
+| `observation.changed` | `id`, `horse_id` | observation reported or status changed |
+| `reha.changed` | `horse_id` | reha plan created, edited, ended, day marked |
+| `health.changed` | `horse_id` | health item created, edited, deleted, done or undone (`internal/health`) |
+| `training.changed` | `horse_id` | session logged, week day planned/taken/released, training profile saved (`internal/trainingapi`) |
+| `horse.changed` | `horse_id` | horse created or edited (name, photo, owner), rider set/removed, emergency contact changed (`internal/horses`) |
+| `resync` | | synthetic, sent by the hub to all clients after it re-established its database connection |
+
+A change that is only a repeat (a second "erledigt" the same day, an empty PATCH) publishes nothing.
+
 **Subscribe:** every process runs one `realtime.Hub` (started in `cmd/api`, exposed as
 `deps.Events`, a no-op in tests unless you pass a hub: `hub := realtime.NewHub(pool, nil);
 go hub.Run(ctx); <-hub.Ready()`). It holds one dedicated `LISTEN` connection and reconnects

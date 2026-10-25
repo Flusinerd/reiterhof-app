@@ -316,6 +316,10 @@ func (h *handler) createSession(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, r, err)
 		return
 	}
+	if err := publishChanged(ctx, tx, a); err != nil {
+		h.fail(w, r, err)
+		return
+	}
 	if err := tx.Commit(ctx); err != nil {
 		h.fail(w, r, err)
 		return

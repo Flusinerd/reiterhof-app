@@ -333,6 +333,7 @@ func (h *handler) putProfile(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, r, err)
 		return
 	}
+	h.hintChanged(ctx, a)
 	out, err := h.profileOut(ctx, a)
 	if err != nil {
 		h.fail(w, r, err)

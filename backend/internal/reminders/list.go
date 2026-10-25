@@ -254,15 +254,19 @@ func (b *builder) groups(rng string) []Group {
 
 // ------------------------------------------------------------ stored rows
 
+// storedItems lists the user's stored rows of the window. Dismissed rows are not listed, but they
+// still count as "the push of this item is in the window": a computed item of the same thing stays
+// hidden, so hiding a push ("Ausblenden") does not make an identical row come back after the
+// refetch. The next day the row lies outside the window and the item is listed again.
 func (b *builder) storedItems(ctx context.Context) error {
 	rows, err := b.pool.Query(ctx, `
 		SELECT r.id::text, r.kind, r.title, COALESCE(r.body, ''), r.due_at, r.sent_at,
 		       COALESCE(r.source_table, ''), COALESCE(r.source_id::text, ''),
-		       COALESCE(hi.horse_id, rp.horse_id)::text
+		       COALESCE(hi.horse_id, rp.horse_id)::text, r.dismissed_at IS NOT NULL
 		FROM reminders r
 		LEFT JOIN health_items hi ON r.source_table = 'health_items' AND hi.id = r.source_id
 		LEFT JOIN reha_plans rp ON r.source_table = 'reha_plans' AND rp.id = r.source_id
-		WHERE r.stable_id = $1 AND r.user_id = $2 AND r.dismissed_at IS NULL
+		WHERE r.stable_id = $1 AND r.user_id = $2
 		  AND COALESCE(r.sent_at, r.due_at) >= $3 AND COALESCE(r.sent_at, r.due_at) < $4
 		ORDER BY COALESCE(r.sent_at, r.due_at), r.id`,
 		b.u.StableID, b.u.ID, b.w.today, b.w.end)
@@ -274,8 +278,13 @@ func (b *builder) storedItems(ctx context.Context) error {
 		var it Item
 		var table, source string
 		var horseID *string
-		if err := rows.Scan(&it.ID, &it.Kind, &it.Title, &it.Body, &it.DueAt, &it.SentAt, &table, &source, &horseID); err != nil {
+		var dismissed bool
+		if err := rows.Scan(&it.ID, &it.Kind, &it.Title, &it.Body, &it.DueAt, &it.SentAt, &table, &source, &horseID, &dismissed); err != nil {
 			return err
+		}
+		b.stored[storedKey(it.Kind, table, source, it.DueAt, b.w)] = true
+		if dismissed {
+			continue
 		}
 		it.Dismissible = true
 		hid := ""
@@ -300,7 +309,6 @@ func (b *builder) storedItems(ctx context.Context) error {
 		case "weather_warnings":
 			it.Screen = screenBlankets
 		}
-		b.stored[storedKey(it.Kind, table, source, it.DueAt, b.w)] = true
 		b.items = append(b.items, it)
 	}
 	return rows.Err()

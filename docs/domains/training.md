@@ -73,6 +73,8 @@ Errors use the standard envelope (`validation_failed`, `forbidden`, `not_found`,
 | `GET /exercises?discipline=&level=&tag=` | Global (`stable_id NULL`) and own-stable exercises, easiest first along the progression |
 | `GET /exercises/{id}` | With `steps` and the follow-up exercise (`next_exercise_id`, `next`) |
 
+Every write (`POST .../sessions`, `PUT .../week/{day}`, `PUT .../training-profile`) publishes the realtime event `training.changed {horse_id}` (`trainingapi.EventChanged`; sessions inside the transaction, the others after the write). `POST .../week/plan` stores nothing and publishes nothing.
+
 ### Profile
 
 `discipline` is one of `dressage, jumping, eventing, leisure, western, young_horse` (required).

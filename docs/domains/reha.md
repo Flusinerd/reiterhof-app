@@ -73,7 +73,9 @@ Every write answers with the new view. `plan` has `phases[]` with computed `star
 `status` (`past|current|upcoming`), `current_phase` (1-based, 0 = none), `day_index`, `total_days`,
 `checkup_in_days`, `done_days[]`. `today` has `phase, phase_index, phases, day_in_phase, days_in_phase,
 activity, activity_label, rest, minutes, min_minutes, max_minutes, conditions, text, done, done_by`.
-Writes publish the realtime event `reha.changed {horse_id}`.
+Writes publish the realtime event `reha.changed {horse_id}`. Ending a plan, starting a new one (which ends the active one) and moving
+`checkup_date` dismiss the stored `reha_checkup` reminder rows of the plan (all users): the push names a date that was moved or
+belongs to a plan that is over (the rows stay, dismissed, so the job's claim keeps working).
 
 ## Training status
 

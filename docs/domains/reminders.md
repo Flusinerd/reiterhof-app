@@ -74,6 +74,11 @@ horses (owner or rider) or requests:
 thing is in the window (same kind and source, e.g. the medication push of 08:00 already made its row), so nothing shows up twice.
 Computed items cannot be dismissed; they are completed where they live (health "erledigt", request done, ...). At most 100 items.
 
+**Dismissed pushes keep their twin hidden**: a stored row the user dismissed is not listed, but it still counts as "the push of this item is
+in the window", so the computed item of the same thing stays hidden too (otherwise an identical, undismissable row would appear after the
+refetch). It is the user's own choice (other recipients keep theirs) and only for the window: the next day the push lies outside it and the
+open item is listed again. In the app the check on such rows reads "Ausblenden", not "Erledigt".
+
 `screen` follows the convention of the features (`data.screen` of their pushes): `/blankets`, `/horses/{id}/blanket-plan`,
 `/horses/{id}/health`, `/horses/{id}/reha`, `/requests/{id}`, `/training/week`, or `""` (none; for example when the source row is gone).
 

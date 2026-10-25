@@ -277,6 +277,15 @@ type lockRow struct {
 
 var errNotFound = errors.New("request not found")
 
+// dismissHelperReminders hides the stored helper reminders (the pushes of the reminder center) of a
+// request for everybody: the request is done or cancelled, the reminder is moot. The rows stay,
+// dismissed, so the reminder job's claim keeps working.
+func dismissHelperReminders(ctx context.Context, tx pgx.Tx, id string, now time.Time) error {
+	_, err := tx.Exec(ctx, `UPDATE reminders SET dismissed_at = $2
+		WHERE source_table = 'requests' AND source_id = $1::uuid AND kind = 'helper' AND dismissed_at IS NULL`, id, now)
+	return err
+}
+
 // lock reads and locks a request of the stable (serialises concurrent accepts).
 func lock(ctx context.Context, tx pgx.Tx, stableID, id string) (lockRow, error) {
 	var l lockRow

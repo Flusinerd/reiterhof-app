@@ -19,6 +19,19 @@ type DB interface {
 	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
 }
 
+// dismissCheckupReminders hides the stored vet checkup reminders (the pushes listed in the reminder
+// center) of the given plan, or, with planID "", of every ended plan of the horse: the push names a
+// date that was moved, or belongs to a plan that is over. The rows stay, dismissed, so the
+// reminder job's claim keeps working.
+func dismissCheckupReminders(ctx context.Context, db DB, stableID, horseID, planID string, now time.Time) error {
+	_, err := db.Exec(ctx, `UPDATE reminders SET dismissed_at = $4
+		WHERE stable_id = $1 AND source_table = 'reha_plans' AND dismissed_at IS NULL
+		  AND source_id IN (SELECT id FROM reha_plans WHERE stable_id = $1 AND horse_id = $2::uuid
+		                    AND ($3 = '' AND NOT active OR id::text = $3))`,
+		stableID, horseID, planID, now)
+	return err
+}
+
 // Plan is a row of reha_plans. Dates are UTC-midnight calendar dates.
 type Plan struct {
 	ID            string

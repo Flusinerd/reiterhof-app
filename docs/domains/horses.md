@@ -80,6 +80,9 @@ Who sees what: observations every member of the stable (like `GET /horses/{id}/o
 (owner and admin all, riders the sessions marked visible plus their own, other members none). A horse of another stable is a `404`.
 Health items keep no history (marking one done moves its due date), so they are not part of the diary.
 
+Horse writes (create, PATCH including photo and owner, rider set or removed, emergency contact added, edited or removed) publish the
+realtime event `horse.changed {horse_id}` after the write (`horses.EventChanged`); an empty PATCH publishes nothing.
+
 ## Emergency card (JAN-49)
 
 `GET /api/v1/horses/{id}/emergency` (every member): `horse_id, horse_name, box, weight_kg, owner{id,name,phone}`

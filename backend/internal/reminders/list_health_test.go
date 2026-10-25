@@ -56,6 +56,43 @@ func TestDoneRemovesTheHealthReminderFromTheList(t *testing.T) {
 	}
 }
 
+func TestDismissedPushKeepsItsComputedTwinHiddenForTheDay(t *testing.T) {
+	e := newEnv(t)
+	due := e.insertHealth(seed.HorseLuna, "farrier", "Hufschmied", "2026-10-02", "") // due tomorrow
+	medication := e.insertHealth(seed.HorseLuna, "medication", "Equimax", "", "08:00")
+	e.sentToday(seed.UserJan, due, "health_due", "Fällig: Luna")
+	e.sentToday(seed.UserJan, medication, "medication", "Medikament: Luna")
+	e.sentToday(seed.UserMia, due, "health_due", "Fällig: Luna")
+
+	_, groups := e.list(seed.UserJan, "")
+	if len(groups["today"]) != 2 {
+		t.Fatalf("before = %+v", groups["today"])
+	}
+	for _, it := range groups["today"] {
+		e.do(seed.UserJan, "POST", "/api/v1/reminders/"+it.ID+"/dismiss", nil).status(204)
+	}
+
+	// Hiding the push must not make an identical, undismissable row come back after the refetch.
+	_, groups = e.list(seed.UserJan, "")
+	if n := len(groups["today"]) + len(groups["week"]); n != 0 {
+		t.Fatalf("after dismissing = %+v", groups)
+	}
+	// It is the user's own choice: a rider's list still shows the rider's push (and, as Mia has not
+	// dismissed anything, the computed medication item).
+	_, groups = e.list(seed.UserMia, "")
+	if it, ok := find(groups["today"], "Fällig: Luna"); !ok || it.Computed || !it.Dismissible {
+		t.Fatalf("Mia's list = %+v", groups["today"])
+	}
+
+	// The next day the push lies outside the window: the open items are listed again, as computed rows.
+	e.at(berlinAt(2026, time.October, 1, 7, 0))
+	_, groups = e.list(seed.UserJan, "")
+	all := append(slices.Clone(groups["today"]), groups["week"]...)
+	if len(all) != 2 || !all[0].Computed || !all[1].Computed {
+		t.Fatalf("next day = %+v", all)
+	}
+}
+
 func TestDeletedAndEditedItemsLeaveNoStaleReminder(t *testing.T) {
 	e := newEnv(t)
 	deleted := e.insertHealth(seed.HorseLuna, "farrier", "Hufschmied", "2026-10-01", "")
