@@ -198,6 +198,14 @@ func TestPlanWeekFocusExerciseAndPromptData(t *testing.T) {
 	e := planWeekFixture(t)
 	e.grantAI(seed.UserJan)
 	e.exec(`UPDATE horses SET birth_year = 2014 WHERE id = $1`, luna)
+	// The library of the test: Übergänge (a rehearsal the horse has practised, so it may be planned
+	// in the week before the show), poles, and exercises of libraries no activity of the profile uses.
+	e.clearLibrary()
+	e.addExercise(exSpec{id: exID(1), library: "dressage", level: "beginner", title: "Übergänge", tags: []string{"durchlaessigkeit", "turnier"}})
+	e.addExercise(exSpec{id: exID(2), library: "cavaletti", level: "beginner", title: "Trabstangen", tags: []string{"takt"}, equipment: []string{"poles"}})
+	e.addExercise(exSpec{id: exID(3), library: "jumping", level: "beginner", title: "Stangenrechteck", tags: []string{"springgymnastik"}})
+	e.addExercise(exSpec{id: exID(4), library: "groundwork", level: "beginner", title: "Führen und Halten", tags: []string{"vertrauen"}})
+	e.rate(luna, exID(1), 2, "2026-03-20", "hall")
 	e.exec(`INSERT INTO exercises (id, stable_id, discipline, level, title) VALUES (gen_random_uuid(), $1, 'dressage', 'beginner', 'Anna ihre Spezialübung')`, seed.StableB)
 	chat := &fakeChat{answer: `{"days":[]}`}
 	e.withChat(chat)
@@ -226,14 +234,20 @@ func TestPlanWeekFocusExerciseAndPromptData(t *testing.T) {
 		t.Errorf("own-stable exercise or free text in the prompt: %s", chat.user)
 	}
 
+	// The exercises of the model are the main exercise of the unit: the key "main" (the key
+	// "exercise" of the earlier prompt works as well).
 	key := exerciseKeyOf(t, chat.user, "Übergänge")
-	chat.answer = `{"days":[{"day":"mi","activity":"hall","minutes":45,"focus":"Übergänge Schritt-Trab","exercise":"` + key + `","reason":"Nach dem Ausritt gestern ruhige Arbeit in der Halle."}]}`
+	chat.answer = `{"days":[{"day":"mi","activity":"hall","minutes":45,"focus_key":"turnier","focus":"Übergänge Schritt-Trab","main":"` + key + `","reason":"Nach dem Ausritt gestern ruhige Arbeit in der Halle."}]}`
 	got := e.call(seed.UserJan, http.MethodPost, planPath, "", http.StatusOK)
 	wed := planDays(got)["2026-03-25"]
-	if wed["source"] != "ai" || wed["focus"] != "Übergänge Schritt-Trab" || obj(wed["exercise"])["title"] != "Übergänge" {
+	if wed["source"] != "ai" || wed["focus"] != "Übergänge Schritt-Trab" || obj(wed["exercise"])["title"] != "Übergänge" || wed["replaced"] != nil {
 		t.Fatalf("wednesday = %v", wed)
 	}
-	// Days from the rules carry the next exercise of their library, but no focus.
+	chat.answer = strings.Replace(chat.answer, `"main"`, `"exercise"`, 1)
+	if got := e.call(seed.UserJan, http.MethodPost, planPath, "", http.StatusOK); obj(planDays(got)["2026-03-25"]["exercise"])["title"] != "Übergänge" {
+		t.Errorf("the key exercise: %v", planDays(got)["2026-03-25"])
+	}
+	// Friday is the day before the show: rest, nothing planned.
 	if fri := planDays(got)["2026-03-27"]; fri["source"] != "rules" || fri["focus"] != nil {
 		t.Errorf("friday = %v", fri)
 	}
