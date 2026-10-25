@@ -23,6 +23,7 @@ import {
   planApplyBody,
   planDayNote,
   planStatusText,
+  plannedMinutes,
   replaceDraftDay,
   reproposeOptions,
   type DayEdit,
@@ -319,6 +320,36 @@ test("dayEditFrom a saved week day", () => {
   assert.equal(dayEditFrom(weekDayRow({ status: "open", activity: null, user: null })).status, "planned");
 });
 
+test("a planned day has no logged minutes: its unit or its note tell how long it is", () => {
+  const parts: Unit = { warmup: { exercise: null, minutes: 15 }, main: { exercise: null, minutes: 22 }, cooldown: { exercise: null, minutes: 8 } };
+  assert.equal(plannedMinutes({ minutes: 50, unit: parts, note: "Plan: 45 Min." }), 50, "logged minutes win");
+  assert.equal(plannedMinutes({ minutes: 0, unit: parts, note: "Plan: 30 Min." }), 45, "the parts of the unit add up");
+  assert.equal(plannedMinutes({ minutes: 0, note: "Plan: 45 Min." }), 45);
+  assert.equal(plannedMinutes({ minutes: 0, unit: null, note: "KI-Vorschlag: 60 Min. · Nach dem Ausritt 20 Min. Schritt." }), 60, "the first number of the note is the unit");
+  assert.equal(plannedMinutes({ minutes: 0, note: "Plan: Ruhetag" }), 0);
+  assert.equal(plannedMinutes({ minutes: 0, note: null }), 0);
+  assert.equal(plannedMinutes({ minutes: 0 }), 0);
+  // The editor starts with them, so the minutes chips and the three parts show for a saved planned day.
+  const saved: WeekDay = {
+    date: "2026-10-27",
+    weekday: 1,
+    status: "planned",
+    is_today: false,
+    user: null,
+    is_me: false,
+    activity: "hall",
+    minutes: 0,
+    note: "Plan: 45 Min.",
+    show: null,
+    can_take: false,
+    focus: null,
+    exercise: null,
+    reha: null,
+  };
+  assert.equal(dayEditFrom(saved).minutes, 45);
+  assert.equal(dayEditFrom({ ...saved, unit: parts, note: null }).minutes, 45);
+});
+
 test("dayEditFrom a draft day", () => {
   assert.deepEqual(dayEditFrom(day({ focus: "Übergänge", exercise: { id: "ex1", title: "T" }, user: { id: "u1", name: "Mia" } })), {
     status: "planned",
@@ -377,6 +408,10 @@ test("applying a proposal sends the focus key and the unit when it has them", ()
     main: { exercise_id: "m1", minutes: 22 },
     cooldown: { exercise_id: null, minutes: 8 },
   });
+  // The unit carries the main exercise; the backend refuses an exercise_id that differs from it, so none goes along.
+  const both = planApplyBody(day({ exercise: { id: "m1", title: "Schulterherein" }, unit }))!;
+  assert.equal("exercise_id" in both, false);
+  assert.equal(both.unit?.main?.exercise_id, "m1");
   // An older backend sends neither: the body stays as it was (it would reject unknown fields).
   const old = planApplyBody(day())!;
   assert.equal("focus_key" in old, false);
@@ -417,6 +452,7 @@ test("dayEditBody sends focus key, unit and equipment_ok only when the editor ha
   const full = dayEditBody({ ...planned, focusKey: "takt", unit, equipmentOk: false });
   assert.equal(full.focus_key, "takt");
   assert.equal(full.unit?.main?.exercise_id, "m1");
+  assert.equal("exercise_id" in full, false, "the unit's main part carries the exercise");
   assert.equal(full.equipment_ok, false);
   assert.equal(dayEditBody({ ...planned, focusKey: null }).focus_key, "", "null removes the key");
   assert.equal(dayEditBody({ ...planned, equipmentOk: null }).equipment_ok, null, "null is the location's default");
@@ -452,6 +488,7 @@ test("against the saved day only what the owner changed is sent", () => {
   const body = dayEditBody(proposal, stored);
   assert.equal(body.focus_key, "schwung");
   assert.equal(body.unit?.main?.exercise_id, "p1");
+  assert.equal("exercise_id" in body, false);
 });
 
 test("dayEditFrom reads focus key, unit and equipment_ok of newer backends", () => {
@@ -582,9 +619,11 @@ test("an exercise for a part: the main part is the day's single exercise too", (
   assert.deepEqual(warm.exercise, { id: "m1", title: "Schulterherein" }, "the main exercise is untouched");
   const cleared = pickUnitExercise(hall, "main", null);
   assert.equal(cleared.exercise, null);
-  assert.equal(dayEditBody(cleared).exercise_id, "");
+  // The unit's main part is the day's exercise: the body carries it there only (the backend refuses a different exercise_id).
+  assert.equal(dayEditBody(cleared).unit?.main?.exercise_id, null);
+  assert.equal("exercise_id" in dayEditBody(cleared), false);
   assert.equal(dayEditBody(main).unit?.main?.exercise_id, "m2");
-  assert.equal(dayEditBody(main).exercise_id, "m2");
+  assert.equal("exercise_id" in dayEditBody(main), false);
   // A day without a unit gets one from the split.
   const fresh = pickUnitExercise({ ...hall, unit: undefined, exercise: null }, "main", other);
   assert.deepEqual(fresh.unit?.warmup, { exercise: null, minutes: 15 });

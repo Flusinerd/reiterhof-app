@@ -16,6 +16,7 @@ import {
   resplitUnit,
   setUnitExercise,
   unitBody,
+  unitMinutes,
   type Unit,
   type UnitBody,
   type UnitExercise,
@@ -111,7 +112,9 @@ export function planApplyBody(day: PlanDay): PlanApplyBody | null {
   const body: PlanApplyBody = { status: "planned", activity: day.activity, user_id: day.user?.id ?? "", note: planDayNote(day) };
   // An edited day states focus and exercise even when empty, so that the owner's clearing is stored.
   if (day.focus || day.edited) body.focus = day.focus ?? "";
-  if (day.exercise || day.edited) body.exercise_id = day.exercise?.id ?? "";
+  // With a unit plan the backend takes the day's exercise from its main part and refuses another one,
+  // so the exercise only goes along on its own (an older backend, or a day without a unit).
+  if (!day.unit && (day.exercise || day.edited)) body.exercise_id = day.exercise?.id ?? "";
   // An older backend rejects unknown fields: the focus key and the unit only go along when the plan has them.
   if (day.focus_key) body.focus_key = day.focus_key;
   else if (day.edited && day.focus_key === null) body.focus_key = "";
@@ -332,17 +335,31 @@ export function dayEditBody(edit: DayEdit, stored?: DayEdit): TakeDayBody {
   const keyChanged = edit.focusKey !== undefined && (!stored || (edit.focusKey ?? null) !== (stored.focusKey ?? null));
   const unitChanged = !!edit.unit && (!stored || JSON.stringify(edit.unit) !== JSON.stringify(stored.unit ?? null));
   const setupChanged = edit.equipmentOk !== undefined && (!stored || edit.equipmentOk !== (stored.equipmentOk ?? null));
+  const unitPlan = unitChanged && edit.unit ? unitBody(edit.unit) : undefined;
   return {
     status: "planned",
     activity: edit.activity,
     user_id: edit.userId ?? "",
     note: `Plan: ${formatMinutes(edit.minutes)}`,
     focus: edit.focus,
-    exercise_id: edit.exercise?.id ?? "",
+    // A unit plan carries the main exercise itself; the backend refuses an exercise_id that differs from it.
+    ...(unitPlan ? {} : { exercise_id: edit.exercise?.id ?? "" }),
     ...(keyChanged ? { focus_key: edit.focusKey ?? "" } : {}),
-    ...(unitChanged && edit.unit ? { unit: unitBody(edit.unit) } : {}),
+    ...(unitPlan ? { unit: unitPlan } : {}),
     ...(setupChanged ? { equipment_ok: edit.equipmentOk } : {}),
   };
+}
+
+/**
+ * Minutes of a saved week day. A day somebody only planned has no minutes logged (the API says 0), so
+ * the parts of its unit tell, else the note it was saved with ("Plan: 45 Min.", "KI-Vorschlag: 45 Min. · …").
+ */
+export function plannedMinutes(day: { minutes: number; unit?: Unit | null; note?: string | null }): number {
+  if (day.minutes > 0) return day.minutes;
+  const fromUnit = unitMinutes(day.unit);
+  if (fromUnit > 0) return fromUnit;
+  const fromNote = /(\d{1,3}) Min\./.exec(day.note ?? "");
+  return fromNote ? Number(fromNote[1]) : 0;
 }
 
 /** The editor's starting value for a saved week day or a draft day. */
@@ -356,7 +373,7 @@ export function dayEditFrom(day: WeekDay | PlanDay): DayEdit {
     return {
       status: day.status === "rest" ? "rest" : "planned",
       activity: day.activity,
-      minutes: day.minutes,
+      minutes: plannedMinutes(day),
       focus: day.focus ?? "",
       exercise: day.exercise,
       userId: day.user?.id ?? null,

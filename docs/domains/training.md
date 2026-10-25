@@ -41,8 +41,10 @@ library, JAN-59 week view, JAN-60 "Nur eintragen", JAN-61 finish screen, JAN-89 
   library, minutes and "Ausstattung fehlt" (with `?horse=`), a detail with "Wozu", phase, minutes, intensity, the equipment as
   chips, prerequisites, "Alternativen ohne Aufbau", the progression and the sources (they open in the browser). The Heute timeline
   carries the focus label of a slot. PUT bodies: `focus_key` ("" removes), `unit` (`{warmup|main|cooldown: {exercise_id|null,
-  minutes}}`), `equipment_ok` (true, false, null = default); saving a day sends them only when the owner changed them. A profile
-  save sends `focuses` and `cycle_start` back as read (the focus editor sets `cycle_start`, the Monday of the current week, with the
+  minutes}}`), `equipment_ok` (true, false, null = default); saving a day sends them only when the owner changed them. A `unit`
+  carries the main exercise in its main part, so no `exercise_id` goes beside it (the backend refuses one that differs). A saved
+  planned day has no logged minutes: the editor takes its length from the parts of the unit, else from the note ("Plan: 45 Min.").
+  A profile save sends `focuses` and `cycle_start` back as read (the focus editor sets `cycle_start`, the Monday of the current week, with the
   first focuses) and `goal_level`/`goal_until` only from the goal sheet and the level change.
 - Mobile components: `components/training-next-step.tsx` (profile block, plan row), `training-week-day.tsx` (a day of the week),
   `training-dots.tsx` (`LoadBar`), `exercise-steps.tsx` (numbered steps),
